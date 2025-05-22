@@ -71,7 +71,7 @@
                                                 @if($task->end_date < $now && $task->status !== 'completed' && $task->status !== 'cancelled')
                                                     <span class="ms-2 badge bg-danger">期限切れ</span>
                                                 @elseif($daysUntilDue >= 0 && $daysUntilDue <= 2 && $task->status !== 'completed' && $task->status !== 'cancelled')
-                                                    <span class="ms-2 badge bg-warning text-dark">あと{{ $daysUntilDue }}日</span>
+                                                    <span class="ms-2 badge bg-warning text-dark">あと{{ ceil($daysUntilDue) }}日</span>
                                                 @endif
                                             </div>
                                         </td>
