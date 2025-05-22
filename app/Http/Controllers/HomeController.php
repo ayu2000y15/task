@@ -18,6 +18,7 @@ class HomeController extends Controller
         // プロジェクト数
         $projectCount = Project::count();
 
+
         // 進行中のプロジェクト数（終了日が今日以降のプロジェクト）
         $activeProjectCount = Project::where('end_date', '>=', Carbon::today())->count();
 

@@ -10,23 +10,25 @@ class Task extends Model
     use HasFactory;
 
     protected $fillable = [
+        'project_id',
+        'parent_id',
         'name',
         'description',
         'start_date',
         'end_date',
+        'status',
         'duration',
+        'progress',
         'assignee',
-        'parent_id',
         'is_milestone',
         'is_folder',
-        'progress',
-        'status',
         'color',
     ];
 
     protected $casts = [
-        'start_date' => 'date',
-        'end_date' => 'date',
+        'start_date' => 'datetime',
+        'end_date' => 'datetime',
+        'progress' => 'integer',
         'is_milestone' => 'boolean',
         'is_folder' => 'boolean',
     ];
@@ -56,23 +58,67 @@ class Task extends Model
     }
 
     /**
-     * このタスクが指定されたタスクの祖先かどうかを判定
+     * このタスクに関連するファイル
+     */
+    public function files()
+    {
+        return $this->hasMany(TaskFile::class);
+    }
+
+    /**
+     * タスクの期間（日数）を取得
+     */
+    public function getDurationAttribute()
+    {
+        return $this->start_date->diffInDays($this->end_date) + 1;
+    }
+
+    /**
+     * タスクの階層レベルを取得
+     */
+    public function getLevelAttribute()
+    {
+        $level = 0;
+        $parent = $this->parent;
+
+        while ($parent) {
+            $level++;
+            $parent = $parent->parent;
+        }
+
+        return $level;
+    }
+
+    /**
+     * タスクの全子孫を取得
+     */
+    public function getAllDescendants()
+    {
+        $descendants = collect();
+
+        foreach ($this->children as $child) {
+            $descendants->push($child);
+            $descendants = $descendants->merge($child->getAllDescendants());
+        }
+
+        return $descendants;
+    }
+
+    /**
+     * このタスクが指定されたタスクの祖先かどうかを確認
+     *
+     * @param Task $task 確認対象のタスク
+     * @return bool
      */
     public function isAncestorOf(Task $task)
     {
-        if ($this->id === $task->id) {
+        if ($task->parent_id === $this->id) {
             return true;
         }
 
-        $currentTask = $task;
-        while ($currentTask->parent_id) {
-            if ($currentTask->parent_id === $this->id) {
+        foreach ($this->children as $child) {
+            if ($child->isAncestorOf($task)) {
                 return true;
-            }
-
-            $currentTask = $currentTask->parent;
-            if (!$currentTask) {
-                break;
             }
         }
 

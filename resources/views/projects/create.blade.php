@@ -3,117 +3,107 @@
 @section('title', '新規プロジェクト')
 
 @section('content')
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1>新規プロジェクト</h1>
-    </div>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>新規プロジェクト</h1>
+    <a href="{{ route('projects.index') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left"></i> 戻る
+    </a>
+</div>
 
-    <div class="centered-form">
-        <div class="card">
-            <div class="card-body">
-                <form action="{{ route('projects.store') }}" method="POST">
-                    @csrf
-
-                    <div class="mb-3">
-                        <label for="title" class="form-label">プロジェクト名</label>
-                        <input type="text" class="form-control @error('title') is-invalid @enderror" id="title" name="title"
-                            value="{{ old('title') }}" required>
-                        @error('title')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="description" class="form-label">説明</label>
-                        <textarea class="form-control @error('description') is-invalid @enderror" id="description"
-                            name="description" rows="3">{{ old('description') }}</textarea>
-                        @error('description')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                    </div>
-
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label for="start_date" class="form-label">開始日</label>
-                            <input type="date" class="form-control @error('start_date') is-invalid @enderror"
-                                id="start_date" name="start_date" value="{{ old('start_date', now()->format('Y-m-d')) }}"
-                                required>
-                            @error('start_date')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-
-                        <div class="col-md-6">
-                            <label for="end_date" class="form-label">終了日</label>
-                            <input type="date" class="form-control @error('end_date') is-invalid @enderror" id="end_date"
-                                name="end_date" value="{{ old('end_date', now()->addMonths(1)->format('Y-m-d')) }}"
-                                required>
-                            @error('end_date')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="color" class="form-label">プロジェクトカラー</label>
-                        <div class="color-picker-wrapper">
-                            <div class="color-preview" id="color-preview" style="background-color: #007bff;"></div>
-                            <input type="hidden" id="color" name="color" value="#007bff">
-                        </div>
-                    </div>
-
-                    <div class="d-flex justify-content-between">
-                        <a href="{{ route('projects.index') }}" class="btn btn-secondary">キャンセル</a>
-                        <button type="submit" class="btn btn-primary">作成</button>
-                    </div>
-                </form>
+<div class="card">
+    <div class="card-body">
+        <form action="{{ route('projects.store') }}" method="POST" class="row g-3">
+            @csrf
+            <div class="col-md-6">
+                <label for="title" class="form-label">プロジェクト名 <span class="text-danger">*</span></label>
+                <input type="text" class="form-control @error('title') is-invalid @enderror" id="title" name="title" value="{{ old('title') }}" required>
+                @error('title')
+                    <div class="invalid-feedback">{{ $message }}</div>
+                @enderror
             </div>
-        </div>
+
+            <div class="col-md-6">
+                <label for="color" class="form-label">カラー</label>
+                <div class="input-group">
+                    <input type="color" class="form-control form-control-color" id="color" name="color" value="{{ old('color', '#0d6efd') }}">
+                    <input type="text" class="form-control" id="colorHex" value="{{ old('color', '#0d6efd') }}" readonly>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <label for="start_date" class="form-label">開始日 <span class="text-danger">*</span></label>
+                <input type="date" class="form-control @error('start_date') is-invalid @enderror" id="start_date" name="start_date" value="{{ old('start_date', date('Y-m-d')) }}" required>
+                @error('start_date')
+                    <div class="invalid-feedback">{{ $message }}</div>
+                @enderror
+            </div>
+
+            <div class="col-md-6">
+                <label for="end_date" class="form-label">終了日 <span class="text-danger">*</span></label>
+                <input type="date" class="form-control @error('end_date') is-invalid @enderror" id="end_date" name="end_date" value="{{ old('end_date', date('Y-m-d', strtotime('+1 month'))) }}" required>
+                @error('end_date')
+                    <div class="invalid-feedback">{{ $message }}</div>
+                @enderror
+            </div>
+
+            <div class="col-md-12">
+                <label for="description" class="form-label">説明</label>
+                <textarea class="form-control @error('description') is-invalid @enderror" id="description" name="description" rows="4">{{ old('description') }}</textarea>
+                @error('description')
+                    <div class="invalid-feedback">{{ $message }}</div>
+                @enderror
+            </div>
+
+            <div class="col-md-12">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="is_favorite" name="is_favorite" value="1" {{ old('is_favorite') ? 'checked' : '' }}>
+                    <label class="form-check-label" for="is_favorite">
+                        お気に入りに追加
+                    </label>
+                </div>
+            </div>
+
+            <div class="col-12">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> 保存
+                </button>
+                <a href="{{ route('projects.index') }}" class="btn btn-secondary">
+                    キャンセル
+                </a>
+            </div>
+        </form>
     </div>
+</div>
 @endsection
 
 @section('scripts')
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            // カラーピッカーの初期化
-            const pickr = Pickr.create({
-                el: '#color-preview',
-                theme: 'classic',
-                default: '#007bff',
-                swatches: [
-                    '#007bff',
-                    '#28a745',
-                    '#dc3545',
-                    '#ffc107',
-                    '#17a2b8',
-                    '#6610f2',
-                    '#fd7e14',
-                    '#20c997',
-                    '#e83e8c',
-                    '#6c757d'
-                ],
-                components: {
-                    preview: true,
-                    opacity: true,
-                    hue: true,
-                    interaction: {
-                        hex: true,
-                        rgba: true,
-                        hsla: false,
-                        hsva: false,
-                        cmyk: false,
-                        input: true,
-                        clear: false,
-                        save: true
-                    }
-                }
-            });
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // カラーピッカーの値が変更されたら、テキストフィールドにも反映
+        const colorPicker = document.getElementById('color');
+        const colorHex = document.getElementById('colorHex');
 
-            pickr.on('save', (color, instance) => {
-                const hexColor = color.toHEXA().toString();
-                document.getElementById('color').value = hexColor;
-                document.getElementById('color-preview').style.backgroundColor = hexColor;
-                instance.hide();
-            });
+        colorPicker.addEventListener('input', function() {
+            colorHex.value = this.value;
         });
-    </script>
+
+        // 開始日と終了日のバリデーション
+        const startDateInput = document.getElementById('start_date');
+        const endDateInput = document.getElementById('end_date');
+
+        function validateDates() {
+            const startDate = new Date(startDateInput.value);
+            const endDate = new Date(endDateInput.value);
+
+            if (endDate < startDate) {
+                endDateInput.setCustomValidity('終了日は開始日以降の日付を選択してください');
+            } else {
+                endDateInput.setCustomValidity('');
+            }
+        }
+
+        startDateInput.addEventListener('change', validateDates);
+        endDateInput.addEventListener('change', validateDates);
+    });
+</script>
 @endsection

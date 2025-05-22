@@ -24,6 +24,14 @@
             --header-height: 60px;
         }
 
+        tr.task-overdue:hover {
+            background-color: rgba(220, 53, 69, 0.15) !important;
+        }
+
+        tr.task-due-soon:hover {
+            background-color: rgba(255, 193, 7, 0.15) !important;
+        }
+
         body {
             min-height: 100vh;
             margin: 0;
@@ -249,10 +257,6 @@
             align-items: center;
         }
 
-        .task-icon {
-            margin-right: 5px;
-        }
-
         .task-actions {
             visibility: hidden;
         }
@@ -381,7 +385,7 @@
 
         .todo-item {
             padding: 10px 15px;
-            border-bottom: 1px solid #eee;
+            border-bottom: 1px solid #d0cfcf;
             display: flex;
             align-items: center;
         }
@@ -564,6 +568,216 @@
         .date-header .day {
             font-size: 0.7rem;
             color: #6c757d;
+        }
+
+        .task-bar {
+            position: absolute;
+            height: 24px;
+            margin-top: 8px;
+            border-radius: 3px;
+            z-index: 10;
+        }
+
+        .task-progress {
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.3);
+            border-radius: 3px;
+        }
+
+        .milestone-diamond {
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            transform: rotate(45deg);
+            margin: 12px;
+            z-index: 10;
+        }
+
+        /* 詳細を隠す機能のスタイル修正 */
+        #ganttTable.details-hidden .detail-column {
+            display: none;
+        }
+
+        /* 階層構造のインデント */
+        .task-indent {
+            padding-left: 20px;
+            border-left: 1px solid #ddd;
+        }
+
+        /* 期限切れ・期限間近のスタイル */
+        .task-overdue .task-bar {
+            border: 2px solid #dc3545;
+        }
+
+        .task-due-soon .task-bar {
+            border: 2px solid #ffc107;
+        }
+
+        /* 週表示モード */
+        .week-view .gantt-cell {
+            min-width: 60px !important;
+        }
+
+        .day-view .gantt-cell {
+            min-width: 30px !important;
+        }
+
+        /* 日付ヘッダーのスタイル */
+        .date-header {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: 0.8rem;
+        }
+
+        .date-header .day {
+            font-size: 0.7rem;
+            color: #6c757d;
+        }
+
+        /* ガントチャートの階層表示スタイル */
+        .task-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            margin-right: 8px;
+        }
+
+        .task-icon .fa-folder {
+            color: #4a86e8;
+        }
+
+        .toggle-children {
+            cursor: pointer;
+            width: 20px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 4px;
+        }
+
+        .toggle-children i {
+            transition: transform 0.2s;
+        }
+
+        /* フォルダ階層のスタイル */
+        .folder-structure .folder-item {
+            position: relative;
+            padding-left: 20px;
+        }
+
+        .folder-structure .folder-item::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 1px;
+            background-color: #ddd;
+        }
+
+        .folder-structure .folder-item::after {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 12px;
+            width: 10px;
+            height: 1px;
+            background-color: #ddd;
+        }
+
+        .folder-structure .folder-item:last-child::before {
+            height: 12px;
+        }
+
+        /* ファイルアップロードエリアのスタイル */
+        .dropzone {
+            border: 2px dashed #4a86e8;
+            border-radius: 5px;
+            background: #f8f9fa;
+            min-height: 150px;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .dropzone .dz-message {
+            text-align: center;
+            margin: 2em 0;
+        }
+
+        .dropzone .dz-preview .dz-image {
+            border-radius: 5px;
+        }
+
+        /* ファイルアイコンのスタイル */
+        .file-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            margin-right: 8px;
+        }
+
+        /* 階層表示のスタイル */
+        .hierarchy-line {
+            position: relative;
+        }
+
+        .hierarchy-line::before {
+            content: "";
+            position: absolute;
+            left: -10px;
+            top: 0;
+            bottom: 0;
+            width: 1px;
+            background-color: #ddd;
+        }
+
+        .hierarchy-line::after {
+            content: "";
+            position: absolute;
+            left: -10px;
+            top: 12px;
+            width: 10px;
+            height: 1px;
+            background-color: #ddd;
+        }
+
+        .hierarchy-line:last-child::before {
+            height: 12px;
+        }
+
+        /* ステータスカラーバーのスタイル */
+        .status-color-bar {
+            display: inline-block;
+            width: 4px;
+            height: 20px;
+            margin-right: 8px;
+            border-radius: 2px;
+        }
+
+        /* マイルストーンのスタイル改善 */
+        .milestone-diamond {
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            background-color: #dc3545;
+            transform: rotate(45deg);
+            top: 7px;
+            z-index: 10;
+        }
+
+        /* マイルストーンのホバー効果 */
+        .milestone-diamond:hover {
+            width: 20px;
+            height: 20px;
+            top: 5px;
+            transition: all 0.2s ease;
         }
     </style>
     @yield('styles')

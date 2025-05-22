@@ -14,44 +14,70 @@ class TaskController extends Controller
      */
     public function index(Request $request)
     {
+        // フィルターの初期化（due_dateを追加）
         $filters = [
-            'project_id' => $request->input('project_id'),
-            'assignee' => $request->input('assignee'),
-            'status' => $request->input('status'),
-            'search' => $request->input('search'),
+            'project_id' => $request->input('project_id', ''),
+            'assignee' => $request->input('assignee', ''),
+            'status' => $request->input('status', ''),
+            'search' => $request->input('search', ''),
+            'due_date' => $request->input('due_date', ''), // この行を追加
         ];
 
-        $tasksQuery = Task::query();
+        // 以下は既存のコード
+        $query = Task::query()->with('project');
 
-        if (!empty($filters['project_id'])) {
-            $tasksQuery->where('project_id', $filters['project_id']);
+        // フィルター適用
+        if ($filters['project_id']) {
+            $query->where('project_id', $filters['project_id']);
         }
 
-        if (!empty($filters['assignee'])) {
-            $tasksQuery->where('assignee', $filters['assignee']);
+        if ($filters['assignee']) {
+            $query->where('assignee', $filters['assignee']);
         }
 
-        if (!empty($filters['status'])) {
-            $tasksQuery->where('status', $filters['status']);
+        if ($filters['status']) {
+            $query->where('status', $filters['status']);
         }
 
-        if (!empty($filters['search'])) {
-            $tasksQuery->where('name', 'like', '%' . $filters['search'] . '%');
+        if ($filters['search']) {
+            $query->where('name', 'like', '%' . $filters['search'] . '%');
         }
 
-        $tasks = $tasksQuery->orderBy('start_date')->get();
+        // 期限フィルターの追加
+        if ($filters['due_date']) {
+            $now = Carbon::now()->startOfDay();
 
-        // プロジェクト一覧を取得
-        $projects = Project::orderBy('title')->get();
+            switch ($filters['due_date']) {
+                case 'overdue':
+                    $query->where('end_date', '<', $now)
+                        ->whereNotIn('status', ['completed', 'cancelled']);
+                    break;
+                case 'today':
+                    $query->whereDate('end_date', $now);
+                    break;
+                case 'tomorrow':
+                    $query->whereDate('end_date', $now->copy()->addDay());
+                    break;
+                case 'this_week':
+                    $query->whereBetween('end_date', [
+                        $now->copy()->addDay(),
+                        $now->copy()->endOfWeek()
+                    ]);
+                    break;
+                case 'next_week':
+                    $query->whereBetween('end_date', [
+                        $now->copy()->startOfWeek()->addWeek(),
+                        $now->copy()->endOfWeek()->addWeek()
+                    ]);
+                    break;
+            }
+        }
 
-        // 担当者一覧を取得
-        $assignees = Task::whereNotNull('assignee')
-            ->distinct()
-            ->pluck('assignee')
-            ->sort()
-            ->values();
+        $tasks = $query->orderBy('end_date', 'asc')->get();
 
-        // ステータスオプション
+        // 残りのコードは変更なし
+        $projects = Project::all();
+        $assignees = Task::distinct('assignee')->whereNotNull('assignee')->pluck('assignee');
         $statusOptions = [
             'not_started' => '未着手',
             'in_progress' => '進行中',
@@ -90,8 +116,7 @@ class TaskController extends Controller
             'assignee' => 'nullable|string|max:255',
             'parent_id' => 'nullable|exists:tasks,id',
             'duration' => 'nullable|integer|min:1',
-            'is_milestone' => 'boolean',
-            'is_folder' => 'boolean',
+            'is_milestone_or_folder' => 'required|in:milestone,folder,task',
             'color' => 'nullable|string|max:7',
         ]);
 
@@ -115,8 +140,8 @@ class TaskController extends Controller
             'duration' => $validated['duration'],
             'assignee' => $validated['assignee'] ?? null,
             'parent_id' => $request->input('parent_id'), // 修正: $validated['parent_id'] → $request->input('parent_id')
-            'is_milestone' => $request->has('is_milestone'),
-            'is_folder' => $request->has('is_folder'),
+            'is_milestone' => $request->input('is_milestone_or_folder') === 'milestone',
+            'is_folder' => $request->input('is_milestone_or_folder') === 'folder',
             'color' => $validated['color'] ?? '#007bff',
             'progress' => 0,
             'status' => 'not_started',
@@ -141,52 +166,40 @@ class TaskController extends Controller
      */
     public function update(Request $request, Project $project, Task $task)
     {
+        // バリデーション
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'start_date' => 'required|date',
-            'end_date' => 'required|date|after_or_equal:start_date',
+            'end_date' => 'required|date',
+            'duration' => 'required|integer|min:1',
             'assignee' => 'nullable|string|max:255',
             'parent_id' => 'nullable|exists:tasks,id',
-            'duration' => 'nullable|integer|min:1',
-            'is_milestone' => 'boolean',
-            'is_folder' => 'boolean',
-            'progress' => 'required|integer|min:0|max:100',
-            'status' => 'required|string|in:not_started,in_progress,completed,on_hold,cancelled',
-            'color' => 'nullable|string|max:7',
+            'status' => 'required|in:not_started,in_progress,completed,on_hold,cancelled',
+            'color' => 'nullable|string|max:20',
+            'is_milestone_or_folder' => 'required|in:milestone,folder,task',
         ]);
 
-        // 工数が変更された場合は、開始日から工数分の日数を加算して終了日を再計算
-        if (!empty($validated['duration']) && $validated['duration'] != $task->duration) {
-            $startDate = Carbon::parse($validated['start_date']);
-            $endDate = $startDate->copy()->addDays($validated['duration'] - 1); // 開始日を含むため-1
-            $validated['end_date'] = $endDate->format('Y-m-d');
-        } else {
-            // 開始日と終了日からタスクの期間（日数）を計算
-            $startDate = Carbon::parse($validated['start_date']);
-            $endDate = Carbon::parse($validated['end_date']);
-            $validated['duration'] = $endDate->diffInDays($startDate) + 1; // 開始日を含むため+1
-        }
+        // チェックボックスの値を正しく処理
+        $task->is_milestone = $request->input('is_milestone_or_folder') === 'milestone';
+        $task->is_folder = $request->input('is_milestone_or_folder') === 'folder';
 
-        $task->update([
-            'name' => $validated['name'],
-            'description' => $validated['description'] ?? null,
-            'start_date' => $startDate,
-            'end_date' => $endDate,
-            'duration' => $validated['duration'],
-            'assignee' => $validated['assignee'] ?? null,
-            'parent_id' => $request->input('parent_id'), // 修正: $validated['parent_id'] → $request->input('parent_id')
-            'is_milestone' => $request->has('is_milestone'),
-            'is_folder' => $request->has('is_folder'),
-            'progress' => $validated['progress'],
-            'status' => $validated['status'],
-            'color' => $validated['color'] ?? $task->color,
-        ]);
+        // その他のフィールドを更新
+        $task->name = $validated['name'];
+        $task->description = $validated['description'];
+        $task->start_date = $validated['start_date'];
+        $task->end_date = $validated['end_date'];
+        $task->duration = $validated['duration'];
+        $task->assignee = $validated['assignee'];
+        $task->parent_id = $validated['parent_id'];
+        $task->status = $validated['status'];
+        $task->color = $validated['color'];
 
-        return redirect()->route('gantt.index', ['project_id' => $project->id])
+        $task->save();
+
+        return redirect()->route('projects.tasks.edit', [$project, $task])
             ->with('success', 'タスクが更新されました。');
     }
-
     /**
      * タスクを削除
      */
@@ -321,5 +334,25 @@ class TaskController extends Controller
         }
 
         return false;
+    }
+
+    /**
+     * 担当者を更新する
+     */
+    public function updateAssignee(Request $request, Project $project, Task $task)
+    {
+        $validated = $request->validate([
+            'assignee' => 'nullable|string|max:255',
+        ], [
+            'assignee.max' => '担当者名は255文字以内で入力してください。',
+        ]);
+
+        $task->assignee = $validated['assignee'];
+        $task->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => '担当者が更新されました。'
+        ]);
     }
 }

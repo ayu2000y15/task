@@ -1,10 +1,11 @@
-@foreach($tasks->where('parent_id', null)->sortBy('start_date') as $task)
+@foreach($tasks as $task)
     @php
         $taskStartDate = $task->start_date->format('Y-m-d');
         $taskEndDate = $task->end_date->format('Y-m-d');
+        $now = \Carbon\Carbon::now()->startOfDay();
 
         // タスク開始位置と長さを計算
-        $startPosition = 0;
+        $startPosition = -1;
         $taskLength = 0;
 
         foreach ($dates as $index => $date) {
@@ -19,23 +20,23 @@
             }
         }
 
-        // ステータスに応じたクラス
-        $statusClass = '';
+        // ステータスに応じた色
+        $statusColor = '';
         switch ($task->status) {
             case 'not_started':
-                $statusClass = 'text-secondary';
+                $statusColor = '#6c757d'; // 灰色
                 break;
             case 'in_progress':
-                $statusClass = 'text-primary';
+                $statusColor = '#0d6efd'; // 青色
                 break;
             case 'completed':
-                $statusClass = 'text-success';
+                $statusColor = '#198754'; // 緑色
                 break;
             case 'on_hold':
-                $statusClass = 'text-warning';
+                $statusColor = '#ffc107'; // 黄色
                 break;
             case 'cancelled':
-                $statusClass = 'text-danger';
+                $statusColor = '#dc3545'; // 赤色
                 break;
         }
 
@@ -47,37 +48,72 @@
             'on_hold' => '保留中',
             'cancelled' => 'キャンセル',
         ];
+
+        // 期限切れ・期限間近の判定（フォルダとマイルストーンは除外）
+        $rowClass = '';
+        if (!$task->is_folder && !$task->is_milestone) {
+            $daysUntilDue = $now->diffInDays($task->end_date, false);
+
+            if ($task->end_date < $now && $task->status !== 'completed' && $task->status !== 'cancelled') {
+                $rowClass = 'task-overdue';
+            } elseif ($daysUntilDue >= 0 && $daysUntilDue <= 2 && $task->status !== 'completed' && $task->status !== 'cancelled') {
+                $rowClass = 'task-due-soon';
+            }
+        }
     @endphp
 
-    <tr class="project-{{ $project->id }}-tasks {{ $task->parent_id ? 'task-parent-' . $task->parent_id : '' }}">
-        <td>
-            <div class="d-flex justify-content-between">
-                <div class="task-name" style="padding-left: {{ $level * 20 }}px;">
-                    @if($task->children->count() > 0 || $task->is_folder)
-                        <span class="toggle-children" data-project-id="{{ $project->id }}" data-task-id="{{ $task->id }}">
-                            <i class="fas fa-chevron-down"></i>
-                        </span>
-                    @else
-                        <span style="width: 20px; display: inline-block;"></span>
-                    @endif
-
-                    <span class="task-icon">
-                        @if($task->is_milestone)
-                            <i class="fas fa-flag"></i>
+    <tr
+        class="project-{{ $project->id }}-tasks {{ $task->parent_id ? 'task-parent-' . $task->parent_id : '' }} {{ $rowClass }}">
+        <td class="gantt-sticky-col position-relative">
+            <!-- ステータスインジケーター -->
+            <div class="status-indicator status-indicator-{{ $task->id }}" style="background-color: {{ $statusColor }};">
+            </div>
+            <div class="d-flex justify-content-between" style="padding-left: 15px;">
+                <div class="task-name">
+                    <div style="padding-left: {{ $level * 20 }}px; display: flex; align-items: center;">
+                        @if($task->children->count() > 0)
+                            <span class="toggle-children" data-project-id="{{ $project->id }}" data-task-id="{{ $task->id }}">
+                                <i class="fas fa-chevron-down"></i>
+                            </span>
                         @elseif($task->is_folder)
-                            <i class="fas fa-folder"></i>
+                            <span class="toggle-children" data-project-id="{{ $project->id }}" data-task-id="{{ $task->id }}">
+                                <i class="fas fa-chevron-down"></i>
+                            </span>
                         @else
-                            <i class="fas fa-tasks"></i>
+                            <span style="width: 20px; display: inline-block;"></span>
                         @endif
-                    </span>
 
-                    <span class="{{ $statusClass }}">{{ $task->name }}</span>
+                        <span class="task-icon">
+                            @if($task->is_milestone)
+                                <i class="fas fa-flag text-danger"></i>
+                            @elseif($task->is_folder)
+                                <i class="fas fa-folder text-primary"></i>
+                            @else
+                                <i class="fas fa-tasks"></i>
+                            @endif
+                        </span>
+
+                        <span>{{ $task->name }}</span>
+
+                        @if(!$task->is_folder && !$task->is_milestone && $task->end_date < $now && $task->status !== 'completed' && $task->status !== 'cancelled')
+                            <span class="ms-2 badge bg-danger">期限切れ</span>
+                        @elseif(!$task->is_folder && !$task->is_milestone && $daysUntilDue >= 0 && $daysUntilDue <= 2 && $task->status !== 'completed' && $task->status !== 'cancelled')
+                            <span class="ms-2 badge bg-warning text-dark">あと{{ $daysUntilDue }}日</span>
+                        @endif
+                    </div>
                 </div>
                 <div class="task-actions">
-                    <a href="{{ route('projects.tasks.create', [$project, 'parent' => $task->id]) }}"
-                        class="btn btn-sm btn-outline-primary">
-                        <i class="fas fa-plus"></i>
-                    </a>
+                    @if($task->is_folder)
+                        <a href="{{ route('projects.tasks.edit', [$project, $task]) }}#fileUploadDropzone"
+                            class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-file-upload"></i>
+                        </a>
+                    @else
+                        <a href="{{ route('projects.tasks.create', [$project, 'parent' => $task->id]) }}"
+                            class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-plus"></i>
+                        </a>
+                    @endif
                     <a href="{{ route('projects.tasks.edit', [$project, $task]) }}" class="btn btn-sm btn-outline-warning">
                         <i class="fas fa-edit"></i>
                     </a>
@@ -92,7 +128,14 @@
                 </div>
             </div>
         </td>
-        <td class="detail-column">{{ $task->assignee ?? '-' }}</td>
+        <td class="detail-column editable-cell" data-field="assignee" data-task-id="{{ $task->id }}"
+            data-value="{{ $task->assignee }}">
+            {{ $task->assignee ?? '-' }}
+        </td>
+        <td class="detail-column assignee-edit-form d-none">
+            <input type="text" class="form-control form-control-sm assignee-input" value="{{ $task->assignee }}"
+                data-task-id="{{ $task->id }}" data-project-id="{{ $project->id }}">
+        </td>
         <td class="detail-column">{{ $task->duration }}日</td>
         <td class="detail-column">{{ $task->start_date->format('Y/m/d') }}</td>
         <td class="detail-column">{{ $task->end_date->format('Y/m/d') }}</td>
@@ -121,20 +164,38 @@
                 if ($dates[$i]['date']->isSameDay($today)) {
                     $classes[] = 'today';
                 }
+
+                $hasMilestone = $task->is_milestone && $i === $startPosition;
+                $hasBar = !$task->is_folder && $startPosition >= 0 && $i >= $startPosition && $i < ($startPosition + $taskLength);
+
+                if ($hasMilestone || $hasBar) {
+                    $classes[] = 'has-bar';
+                }
             @endphp
-            <td class="gantt-cell {{ implode(' ', $classes) }} p-0">
-                @if($i >= $startPosition && $i < ($startPosition + $taskLength))
-                    @if($task->is_milestone && $i === $startPosition)
-                        <div class="milestone-diamond" style="background-color: {{ $task->color }};" data-task-id="{{ $task->id }}"
-                            data-project-id="{{ $project->id }}" data-start-date="{{ $taskStartDate }}"></div>
-                    @elseif(!$task->is_milestone && $i === $startPosition)
-                        <div class="task-bar" style="background-color: {{ $task->color }}; width: {{ $taskLength * 30 }}px;"
-                            data-task-id="{{ $task->id }}" data-project-id="{{ $project->id }}" data-start-date="{{ $taskStartDate }}"
-                            data-end-date="{{ $taskEndDate }}" data-duration="{{ $task->duration }}">
-                            <div class="task-progress" id="task-progress-bar-{{ $task->id }}" style="width: {{ $task->progress }}%;">
-                            </div>
+            <td class="gantt-cell {{ implode(' ', $classes) }} p-0" data-date="{{ $dateStr }}">
+                @if($hasMilestone)
+                    <div class="milestone-diamond" style="background-color: {{ $project->color }};"></div>
+                    <div class="gantt-tooltip">
+                        <div class="tooltip-content">
+                            {{ $task->name }} (マイルストーン)<br>
+                            {{ $task->start_date->format('Y/m/d') }}
                         </div>
-                    @endif
+                        <div class="tooltip-arrow"></div>
+                    </div>
+                @elseif($hasBar)
+                    <div class="h-100 w-100 gantt-bar" style="background-color: {{ $project->color }}; opacity: 0.3;">
+                        <div class="task-progress" id="task-progress-bar-{{ $task->id }}"
+                            style="width: {{ $task->progress }}%; height: 100%; background-color: rgba(255, 255, 255, 0.3);"></div>
+                    </div>
+                    <div class="gantt-tooltip task">
+                        <div class="tooltip-content">
+                            {{ $task->name }}<br>
+                            期間: {{ $task->start_date->format('Y/m/d') }} 〜 {{ $task->end_date->format('Y/m/d') }}<br>
+                            進捗: {{ $task->progress }}%<br>
+                            担当: {{ $task->assignee ?? '未割当' }}
+                        </div>
+                        <div class="tooltip-arrow"></div>
+                    </div>
                 @endif
             </td>
         @endfor
@@ -142,6 +203,6 @@
 
     <!-- 子タスク -->
     @if($task->children->count() > 0)
-        @include('gantt.partials.task_rows', ['tasks' => $task->children, 'project' => $project, 'dates' => $dates, 'holidays' => $holidays, 'today' => $today, 'level' => $level + 1])
+        @include('gantt.partials.task_rows', ['tasks' => $task->children->sortBy('start_date'), 'project' => $project, 'dates' => $dates, 'holidays' => $holidays, 'today' => $today, 'level' => $level + 1])
     @endif
 @endforeach

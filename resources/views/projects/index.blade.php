@@ -5,7 +5,9 @@
 @section('content')
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1>プロジェクト一覧</h1>
-        <a href="{{ route('projects.create') }}" class="btn btn-primary">新規プロジェクト</a>
+        <a href="{{ route('projects.create') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> 新規プロジェクト
+        </a>
     </div>
 
     @if($projects->isEmpty())
@@ -13,40 +15,61 @@
             プロジェクトがありません。新規プロジェクトを作成してください。
         </div>
     @else
-        <div class="table-responsive">
-            <table class="table table-bordered table-hover">
-                <thead class="table-light">
-                    <tr>
-                        <th>プロジェクト名</th>
-                        <th>開始日</th>
-                        <th>終了日</th>
-                        <th>タスク数</th>
-                        <th>操作</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach($projects as $project)
-                        <tr>
-                            <td>{{ $project->title }}</td>
-                            <td>{{ $project->start_date->format('Y/m/d') }}</td>
-                            <td>{{ $project->end_date->format('Y/m/d') }}</td>
-                            <td>{{ $project->tasks->count() }}</td>
-                            <td>
-                                <div class="btn-group" role="group">
-                                    <a href="{{ route('projects.show', $project) }}" class="btn btn-sm btn-info">表示</a>
-                                    <a href="{{ route('projects.edit', $project) }}" class="btn btn-sm btn-warning">編集</a>
-                                    <form action="{{ route('projects.destroy', $project) }}" method="POST" class="d-inline"
-                                        onsubmit="return confirm('本当に削除しますか？');">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="btn btn-sm btn-danger">削除</button>
-                                    </form>
+        <div class="row">
+            @foreach($projects as $project)
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card h-100">
+                        <div class="card-header d-flex justify-content-between align-items-center"
+                            style="background-color: {{ $project->color }}; color: white;">
+                            <h5 class="mb-0">{{ $project->title }}</h5>
+                            @if($project->is_favorite)
+                                <i class="fas fa-star text-warning"></i>
+                            @endif
+                        </div>
+                        <div class="card-body">
+                            <p class="card-text">{{ Str::limit($project->description, 100) ?: '説明はありません' }}</p>
+
+                            <div class="mb-3">
+                                <small class="text-muted">期間:</small>
+                                <p class="mb-0">{{ $project->start_date->format('Y/m/d') }} 〜
+                                    {{ $project->end_date->format('Y/m/d') }}</p>
+                            </div>
+
+                            <div class="mb-3">
+                                <small class="text-muted">タスク:</small>
+                                <div class="d-flex justify-content-between">
+                                    <span>全 {{ $project->tasks->count() }} タスク</span>
+                                    <span>完了: {{ $project->tasks->where('status', 'completed')->count() }}</span>
                                 </div>
-                            </td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
+                                @php
+                                    $totalTasks = $project->tasks->count();
+                                    $completedTasks = $project->tasks->where('status', 'completed')->count();
+                                    $progress = $totalTasks > 0 ? round(($completedTasks / $totalTasks) * 100) : 0;
+                                @endphp
+                                <div class="progress mt-2">
+                                    <div class="progress-bar" role="progressbar"
+                                        style="width: {{ $progress }}%; background-color: {{ $project->color }};"
+                                        aria-valuenow="{{ $progress }}" aria-valuemin="0" aria-valuemax="100">{{ $progress }}%</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-footer bg-transparent">
+                            <div class="btn-group w-100">
+                                <a href="{{ route('projects.show', $project) }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-eye"></i> 詳細
+                                </a>
+                                <a href="{{ route('gantt.index', ['project_id' => $project->id]) }}"
+                                    class="btn btn-sm btn-outline-info">
+                                    <i class="fas fa-chart-gantt"></i> ガント
+                                </a>
+                                <a href="{{ route('projects.edit', $project) }}" class="btn btn-sm btn-outline-warning">
+                                    <i class="fas fa-edit"></i> 編集
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            @endforeach
         </div>
     @endif
 @endsection

@@ -38,7 +38,18 @@
                                 </tr>
                             @else
                                 @foreach($recentTasks as $task)
-                                    <tr>
+                                    @php
+                                        $rowClass = '';
+                                        $now = \Carbon\Carbon::now();
+                                        $daysUntilDue = $now->diffInDays($task->end_date, false);
+
+                                        if($task->end_date < $now && $task->status !== 'completed' && $task->status !== 'cancelled') {
+                                            $rowClass = 'task-overdue';
+                                        } elseif($daysUntilDue >= 0 && $daysUntilDue <= 2 && $task->status !== 'completed' && $task->status !== 'cancelled') {
+                                            $rowClass = 'task-due-soon';
+                                        }
+                                    @endphp
+                                    <tr class="{{ $rowClass }}">
                                         <td>
                                             <a href="{{ route('projects.show', $task->project) }}" style="color: {{ $task->project->color }};">
                                                 {{ $task->project->title }}
@@ -56,10 +67,30 @@
                                                     @endif
                                                 </span>
                                                 <a href="{{ route('projects.tasks.edit', [$task->project, $task]) }}">{{ $task->name }}</a>
+
+                                                @if($task->end_date < $now && $task->status !== 'completed' && $task->status !== 'cancelled')
+                                                    <span class="ms-2 badge bg-danger">期限切れ</span>
+                                                @elseif($daysUntilDue >= 0 && $daysUntilDue <= 2 && $task->status !== 'completed' && $task->status !== 'cancelled')
+                                                    <span class="ms-2 badge bg-warning text-dark">あと{{ $daysUntilDue }}日</span>
+                                                @endif
                                             </div>
                                         </td>
                                         <td>{{ $task->assignee ?? '-' }}</td>
-                                        <td>{{ $task->end_date->format('Y/m/d') }}</td>
+                                        <td>
+                                            @if($task->end_date < $now && $task->status !== 'completed' && $task->status !== 'cancelled')
+                                                <span class="text-danger">
+                                                    <i class="fas fa-exclamation-circle"></i>
+                                                    {{ $task->end_date->format('Y/m/d') }}
+                                                </span>
+                                            @elseif($daysUntilDue >= 0 && $daysUntilDue <= 2 && $task->status !== 'completed' && $task->status !== 'cancelled')
+                                                <span class="text-warning">
+                                                    <i class="fas fa-exclamation-triangle"></i>
+                                                    {{ $task->end_date->format('Y/m/d') }}
+                                                </span>
+                                            @else
+                                                {{ $task->end_date->format('Y/m/d') }}
+                                            @endif
+                                        </td>
                                         <td>
                                             <select class="form-select form-select-sm task-status-select"
                                                     data-task-id="{{ $task->id }}"
@@ -119,12 +150,37 @@
                         <li class="list-group-item text-center py-4">表示するタスクがありません</li>
                     @else
                         @foreach($upcomingTasks as $task)
-                            <li class="list-group-item">
+                            @php
+                                $itemClass = '';
+                                $now = \Carbon\Carbon::now();
+                                $daysUntilDue = $now->diffInDays($task->end_date, false);
+
+                                if($task->end_date < $now && $task->status !== 'completed' && $task->status !== 'cancelled') {
+                                    $itemClass = 'task-overdue';
+                                } elseif($daysUntilDue >= 0 && $daysUntilDue <= 2 && $task->status !== 'completed' && $task->status !== 'cancelled') {
+                                    $itemClass = 'task-due-soon';
+                                }
+                            @endphp
+                            <li class="list-group-item {{ $itemClass }}">
                                 <div class="d-flex justify-content-between align-items-center">
                                     <div>
                                         <a href="{{ route('projects.tasks.edit', [$task->project, $task]) }}">{{ $task->name }}</a>
-                                        <div class="small text-muted">
-                                            {{ $task->end_date->format('Y/m/d') }} ({{ $task->end_date->diffForHumans() }})
+                                        <div class="small">
+                                            @if($task->end_date < $now && $task->status !== 'completed' && $task->status !== 'cancelled')
+                                                <span class="text-danger">
+                                                    <i class="fas fa-exclamation-circle"></i>
+                                                    {{ $task->end_date->format('Y/m/d') }} ({{ $task->end_date->diffForHumans() }})
+                                                </span>
+                                            @elseif($daysUntilDue >= 0 && $daysUntilDue <= 2 && $task->status !== 'completed' && $task->status !== 'cancelled')
+                                                <span class="text-warning">
+                                                    <i class="fas fa-exclamation-triangle"></i>
+                                                    {{ $task->end_date->format('Y/m/d') }} ({{ $task->end_date->diffForHumans() }})
+                                                </span>
+                                            @else
+                                                <span class="text-muted">
+                                                    {{ $task->end_date->format('Y/m/d') }} ({{ $task->end_date->diffForHumans() }})
+                                                </span>
+                                            @endif
                                         </div>
                                     </div>
                                     <select class="form-select form-select-sm task-status-select"
@@ -164,10 +220,34 @@
                             </div>
                         @else
                             @foreach($todoTasks as $task)
-                                <div class="todo-item">
+                                @php
+                                    $itemClass = '';
+                                    $now = \Carbon\Carbon::now();
+                                    $daysUntilDue = $now->diffInDays($task->end_date, false);
+
+                                    if($task->end_date < $now) {
+                                        $itemClass = 'task-overdue';
+                                    } elseif($daysUntilDue >= 0 && $daysUntilDue <= 2) {
+                                        $itemClass = 'task-due-soon';
+                                    }
+                                @endphp
+                                <div class="todo-item {{ $itemClass }}">
                                     <div class="todo-text">
                                         <a href="{{ route('projects.tasks.edit', [$task->project, $task]) }}">{{ $task->name }}</a>
-                                        <div class="todo-project">{{ $task->assignee }}</div>
+                                        <div class="todo-project">
+                                            @if($task->end_date < $now)
+                                                <span class="text-danger">
+                                                    <i class="fas fa-exclamation-circle"></i>
+                                                    {{ $task->end_date->format('Y/m/d') }}
+                                                </span>
+                                            @elseif($daysUntilDue >= 0 && $daysUntilDue <= 2)
+                                                <span class="text-warning">
+                                                    <i class="fas fa-exclamation-triangle"></i>
+                                                    {{ $task->end_date->format('Y/m/d') }}
+                                                </span>
+                                            @endif
+                                            {{ $task->assignee }}
+                                        </div>
                                     </div>
                                     <div class="todo-actions">
                                         <select class="form-select form-select-sm task-status-select"
@@ -200,10 +280,34 @@
                             </div>
                         @else
                             @foreach($inProgressTasks as $task)
-                                <div class="todo-item">
+                                @php
+                                    $itemClass = '';
+                                    $now = \Carbon\Carbon::now();
+                                    $daysUntilDue = $now->diffInDays($task->end_date, false);
+
+                                    if($task->end_date < $now) {
+                                        $itemClass = 'task-overdue';
+                                    } elseif($daysUntilDue >= 0 && $daysUntilDue <= 2) {
+                                        $itemClass = 'task-due-soon';
+                                    }
+                                @endphp
+                                <div class="todo-item {{ $itemClass }}">
                                     <div class="todo-text">
                                         <a href="{{ route('projects.tasks.edit', [$task->project, $task]) }}">{{ $task->name }}</a>
-                                        <div class="todo-project">{{ $task->assignee }}</div>
+                                        <div class="todo-project">
+                                            @if($task->end_date < $now)
+                                                <span class="text-danger">
+                                                    <i class="fas fa-exclamation-circle"></i>
+                                                    {{ $task->end_date->format('Y/m/d') }}
+                                                </span>
+                                            @elseif($daysUntilDue >= 0 && $daysUntilDue <= 2)
+                                                <span class="text-warning">
+                                                    <i class="fas fa-exclamation-triangle"></i>
+                                                    {{ $task->end_date->format('Y/m/d') }}
+                                                </span>
+                                            @endif
+                                            {{ $task->assignee }}
+                                        </div>
                                     </div>
                                     <div class="todo-actions">
                                         <select class="form-select form-select-sm task-status-select"
@@ -236,10 +340,34 @@
                             </div>
                         @else
                             @foreach($onHoldTasks as $task)
-                                <div class="todo-item">
+                                @php
+                                    $itemClass = '';
+                                    $now = \Carbon\Carbon::now();
+                                    $daysUntilDue = $now->diffInDays($task->end_date, false);
+
+                                    if($task->end_date < $now) {
+                                        $itemClass = 'task-overdue';
+                                    } elseif($daysUntilDue >= 0 && $daysUntilDue <= 2) {
+                                        $itemClass = 'task-due-soon';
+                                    }
+                                @endphp
+                                <div class="todo-item {{ $itemClass }}">
                                     <div class="todo-text">
                                         <a href="{{ route('projects.tasks.edit', [$task->project, $task]) }}">{{ $task->name }}</a>
-                                        <div class="todo-project">{{ $task->assignee }}</div>
+                                        <div class="todo-project">
+                                            @if($task->end_date < $now)
+                                                <span class="text-danger">
+                                                    <i class="fas fa-exclamation-circle"></i>
+                                                    {{ $task->end_date->format('Y/m/d') }}
+                                                </span>
+                                            @elseif($daysUntilDue >= 0 && $daysUntilDue <= 2)
+                                                <span class="text-warning">
+                                                    <i class="fas fa-exclamation-triangle"></i>
+                                                    {{ $task->end_date->format('Y/m/d') }}
+                                                </span>
+                                            @endif
+                                            {{ $task->assignee }}
+                                        </div>
                                     </div>
                                     <div class="todo-actions">
                                         <select class="form-select form-select-sm task-status-select"

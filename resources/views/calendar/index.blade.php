@@ -9,7 +9,9 @@
             <button class="btn btn-outline-primary me-2" type="button" id="showFilterBtn">
                 <i class="fas fa-filter"></i> フィルター
             </button>
-            <a href="{{ route('projects.create') }}" class="btn btn-primary">新規プロジェクト</a>
+            <a href="{{ route('projects.create') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> 新規プロジェクト
+            </a>
         </div>
     </div>
 
@@ -20,7 +22,7 @@
                 <i class="fas fa-times"></i>
             </div>
             <form action="{{ route('calendar.index') }}" method="GET" class="row g-3">
-                <div class="col-md-3">
+                <div class="col-md-3 col-sm-6">
                     <label for="project_id" class="form-label">プロジェクト</label>
                     <select class="form-select" id="project_id" name="project_id">
                         <option value="">すべて</option>
@@ -31,7 +33,7 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-3 col-sm-6">
                     <label for="assignee" class="form-label">担当者</label>
                     <select class="form-select" id="assignee" name="assignee">
                         <option value="">すべて</option>
@@ -42,7 +44,7 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-3 col-sm-6">
                     <label for="status" class="form-label">ステータス</label>
                     <select class="form-select" id="status" name="status">
                         <option value="">すべて</option>
@@ -53,7 +55,7 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-3 col-sm-6">
                     <label for="search" class="form-label">タスク名検索</label>
                     <input type="text" class="form-control" id="search" name="search" value="{{ $filters['search'] }}">
                 </div>
@@ -118,6 +120,85 @@
     </div>
 @endsection
 
+@section('styles')
+    <style>
+        /* カレンダー用の追加スタイル */
+        .calendar-container {
+            height: calc(100vh - 300px);
+            min-height: 500px;
+        }
+
+        .fc-daygrid-day-number {
+            padding: 5px;
+        }
+
+        .fc-daygrid-day-top {
+            justify-content: center;
+        }
+
+        .fc-day-sat {
+            background-color: #e6f2ff;
+        }
+
+        .fc-day-sun {
+            background-color: #ffe6e6;
+        }
+
+        .fc-day-today {
+            background-color: #fffbcc !important;
+        }
+
+        .fc-event {
+            cursor: pointer;
+            border-radius: 3px;
+            margin: 1px 0;
+        }
+
+        .fc-event-title {
+            font-size: 0.85em;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* レスポンシブ対応 */
+        @media (max-width: 768px) {
+            .calendar-container {
+                height: calc(100vh - 250px);
+                min-height: 400px;
+            }
+
+            .fc .fc-toolbar {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .fc .fc-toolbar-title {
+                font-size: 1.2em;
+                text-align: center;
+            }
+
+            .fc .fc-button {
+                padding: 0.3em 0.5em;
+                font-size: 0.9em;
+            }
+
+            .fc-header-toolbar {
+                margin-bottom: 0.5em !important;
+            }
+
+            .fc-daygrid-day-number {
+                padding: 2px;
+                font-size: 0.8em;
+            }
+
+            .fc-event-title {
+                font-size: 0.75em;
+            }
+        }
+    </style>
+@endsection
+
 @section('scripts')
     <script>
         document.addEventListener('DOMContentLoaded', function () {
@@ -154,20 +235,18 @@
                 headerToolbar: {
                     left: 'prev,next today',
                     center: 'title',
-                    right: 'dayGridMonth,timeGridWeek,timeGridDay,listMonth'
+                    right: 'dayGridMonth,listMonth'
                 },
                 buttonText: {
                     today: '今日',
                     month: '月',
-                    week: '週',
-                    day: '日',
                     list: 'リスト'
                 },
                 events: [...taskEvents, ...holidayEvents], // 初期状態ではプロジェクトは非表示
                 eventTimeFormat: {
-                    hour: '2-digit',
+                    hour: 'numeric',
                     minute: '2-digit',
-                    hour12: false
+                    meridiem: false
                 },
                 dayMaxEvents: true, // イベントが多い場合は「+more」を表示
                 firstDay: 1, // 月曜始まり
@@ -241,54 +320,36 @@
                     // モーダルを表示
                     const eventModal = new bootstrap.Modal(document.getElementById('eventModal'));
                     eventModal.show();
-                },
-                eventDidMount: function (info) {
-                    // マイルストーンのスタイル調整
-                    if (info.event.extendedProps.type === 'milestone') {
-                        info.el.style.borderRadius = '0';
-                        info.el.style.height = '0';
-                        info.el.style.borderLeft = '10px solid transparent';
-                        info.el.style.borderRight = '10px solid transparent';
-                        info.el.style.borderBottom = '10px solid ' + info.event.backgroundColor;
-                        info.el.style.backgroundColor = 'transparent';
-                        info.el.style.color = info.event.backgroundColor;
-                    }
-
-                    // プロジェクトイベントのスタイル調整
-                    if (info.event.extendedProps.type === 'project') {
-                        info.el.style.opacity = '0.7';
-                        info.el.style.border = '1px dashed ' + info.event.borderColor;
-                    }
-                },
-                // 祝日の背景色を設定
-                dayCellDidMount: function (info) {
-                    // 土曜日
-                    if (info.date.getDay() === 6) {
-                        info.el.classList.add('fc-day-sat');
-                    }
-                    // 日曜日
-                    else if (info.date.getDay() === 0) {
-                        info.el.classList.add('fc-day-sun');
-                    }
                 }
             });
 
             calendar.render();
 
-            // プロジェクト表示切替
+            // プロジェクト表示/非表示の切り替え
             const showProjectsToggle = document.getElementById('showProjectsToggle');
-
             showProjectsToggle.addEventListener('change', function () {
                 if (this.checked) {
                     // プロジェクトを表示
-                    calendar.getEventSources().forEach(source => source.remove());
-                    calendar.addEventSource([...projectEvents, ...taskEvents, ...holidayEvents]);
+                    projectEvents.forEach(event => {
+                        calendar.addEvent(event);
+                    });
                 } else {
                     // プロジェクトを非表示
-                    calendar.getEventSources().forEach(source => source.remove());
-                    calendar.addEventSource([...taskEvents, ...holidayEvents]);
+                    const events = calendar.getEvents();
+                    events.forEach(event => {
+                        if (event.extendedProps.type === 'project') {
+                            event.remove();
+                        }
+                    });
                 }
             });
+
+            // 初期表示時にプロジェクトを表示
+            if (showProjectsToggle.checked) {
+                projectEvents.forEach(event => {
+                    calendar.addEvent(event);
+                });
+            }
         });
     </script>
 @endsection

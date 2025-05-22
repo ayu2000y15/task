@@ -56,6 +56,21 @@
                                 </div>
                             </div>
                         </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input"
+                                           type="checkbox"
+                                           name="is_milestone_or_folder"
+                                           id="is_milestone_or_folder"
+                                           value="1"
+                                           checked>
+                                    <label class="form-check-label fw-bold" for="is_milestone_or_folder">
+                                        マイルストーン/フォルダー
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 

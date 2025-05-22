@@ -1,19 +1,27 @@
 @extends('layouts.app')
 
-@section('title', '新規タスク')
+@section('title', 'タスク作成')
 
 @section('content')
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1>タスク追加 - {{ $project->title }}</h1>
+        <h1>タスク作成 - {{ $project->title }}</h1>
     </div>
+
+    <!-- エラーメッセージの表示 -->
+    @if ($errors->any())
+        <div class="alert alert-danger">
+            <ul class="mb-0">
+                @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
 
     <div class="centered-form">
         <div class="card">
             <div class="card-header">
-                <h2>タスク追加 - {{ $project->title }}</h2>
-                @if(isset($parentTask))
-                    <p class="text-muted">親タスク: {{ $parentTask->name }}</p>
-                @endif
+                <h2>新規タスク</h2>
             </div>
             <div class="card-body">
                 <form action="{{ route('projects.tasks.store', $project) }}" method="POST">
@@ -41,8 +49,8 @@
                         <div class="col-md-4">
                             <label for="start_date" class="form-label">開始日</label>
                             <input type="date" class="form-control @error('start_date') is-invalid @enderror"
-                                id="start_date" name="start_date"
-                                value="{{ old('start_date', $project->start_date->format('Y-m-d')) }}" required>
+                                id="start_date" name="start_date" value="{{ old('start_date', now()->format('Y-m-d')) }}"
+                                required>
                             @error('start_date')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
@@ -60,8 +68,7 @@
                         <div class="col-md-4">
                             <label for="end_date" class="form-label">終了日</label>
                             <input type="date" class="form-control @error('end_date') is-invalid @enderror" id="end_date"
-                                name="end_date"
-                                value="{{ old('end_date', $project->start_date->addDays(1)->format('Y-m-d')) }}" required>
+                                name="end_date" value="{{ old('end_date', now()->format('Y-m-d')) }}" required>
                             @error('end_date')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
@@ -78,35 +85,82 @@
                     </div>
 
                     <div class="mb-3">
+                        <label for="parent_id" class="form-label">親タスク</label>
+                        <select class="form-select @error('parent_id') is-invalid @enderror" id="parent_id"
+                            name="parent_id">
+                            <option value="">なし</option>
+                            @foreach($project->tasks as $potentialParent)
+                                <option value="{{ $potentialParent->id }}" {{ old('parent_id') == $potentialParent->id ? 'selected' : '' }}>
+                                    {{ $potentialParent->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                        @error('parent_id')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="status" class="form-label">ステータス</label>
+                            <select class="form-select @error('status') is-invalid @enderror" id="status" name="status"
+                                required>
+                                <option value="not_started" {{ old('status') == 'not_started' ? 'selected' : '' }}>未着手
+                                </option>
+                                <option value="in_progress" {{ old('status') == 'in_progress' ? 'selected' : '' }}>進行中
+                                </option>
+                                <option value="completed" {{ old('status') == 'completed' ? 'selected' : '' }}>完了</option>
+                                <option value="on_hold" {{ old('status') == 'on_hold' ? 'selected' : '' }}>保留中</option>
+                                <option value="cancelled" {{ old('status') == 'cancelled' ? 'selected' : '' }}>キャンセル</option>
+                            </select>
+                            @error('status')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
                         <label for="color" class="form-label">タスクカラー</label>
                         <div class="color-picker-wrapper">
                             <div class="color-preview" id="color-preview"
-                                style="background-color: {{ old('color', $project->color) }};"></div>
-                            <input type="hidden" id="color" name="color" value="{{ old('color', $project->color) }}">
+                                style="background-color: {{ old('color', '#007bff') }};"></div>
+                            <input type="hidden" id="color" name="color" value="{{ old('color', '#007bff') }}">
                         </div>
+                        @error('color')
+                            <div class="text-danger mt-1">{{ $message }}</div>
+                        @enderror
                     </div>
 
                     <div class="mb-3">
+                        <label class="form-label">タスク種別</label>
                         <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="is_milestone" name="is_milestone" {{ old('is_milestone') ? 'checked' : '' }}>
+                            <input class="form-check-input" type="radio" id="is_task" name="is_milestone_or_folder"
+                                value="task" {{ old('is_milestone_or_folder') == 'task' || old('is_milestone_or_folder') == null ? 'checked' : '' }}>
+                            <label class="form-check-label" for="is_task">
+                                <i class="fas fa-tasks"></i> タスク
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input @error('is_milestone') is-invalid @enderror" type="radio"
+                                id="is_milestone" name="is_milestone_or_folder" value="milestone" {{ old('is_milestone_or_folder') == 'milestone' ? 'checked' : '' }}>
                             <label class="form-check-label" for="is_milestone">
                                 <i class="fas fa-flag"></i> マイルストーン
                             </label>
+                            @error('is_milestone')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
                         </div>
-                    </div>
-
-                    <div class="mb-3">
                         <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="is_folder" name="is_folder" {{ old('is_folder') ? 'checked' : '' }}>
+                            <input class="form-check-input @error('is_folder') is-invalid @enderror" type="radio"
+                                id="is_folder" name="is_milestone_or_folder" value="folder" {{ old('is_milestone_or_folder') == 'folder' ? 'checked' : '' }}>
                             <label class="form-check-label" for="is_folder">
                                 <i class="fas fa-folder"></i> フォルダ
                             </label>
+                            @error('is_folder')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
                         </div>
                     </div>
-
-                    @if(isset($parentTask))
-                        <input type="hidden" name="parent_id" value="{{ $parentTask->id }}">
-                    @endif
 
                     <div class="d-flex justify-content-between">
                         <a href="{{ route('gantt.index', ['project_id' => $project->id]) }}"
@@ -126,7 +180,7 @@
             const pickr = Pickr.create({
                 el: '#color-preview',
                 theme: 'classic',
-                default: '{{ old('color', $project->color) }}',
+                default: '{{ old('color', '#007bff') }}',
                 swatches: [
                     '#007bff',
                     '#28a745',

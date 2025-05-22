@@ -13,7 +13,7 @@
             <i class="fas fa-edit"></i> 編集
         </a>
         <a href="{{ route('gantt.index', ['project_id' => $project->id]) }}" class="btn btn-info">
-            <i class="fas fa-chart-bar"></i> ガントチャート
+            <i class="fas fa-chart-gantt"></i> ガントチャート
         </a>
     </div>
 </div>
@@ -41,7 +41,7 @@
                         $progress = $totalTasks > 0 ? round(($completedTasks / $totalTasks) * 100) : 0;
                     @endphp
                     <div class="progress mt-2">
-                        <div class="progress-bar" role="progressbar" style="width: {{ $progress }}%;" aria-valuenow="{{ $progress }}" aria-valuemin="0" aria-valuemax="100">{{ $progress }}%</div>
+                        <div class="progress-bar" role="progressbar" style="width: {{ $progress }}%; background-color: {{ $project->color }};" aria-valuenow="{{ $progress }}" aria-valuemin="0" aria-valuemax="100">{{ $progress }}%</div>
                     </div>
                 </div>
                 <div class="mb-3">
@@ -106,9 +106,14 @@
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">タスク一覧</h5>
-                <a href="{{ route('projects.tasks.create', $project) }}" class="btn btn-sm btn-primary">
-                    <i class="fas fa-plus"></i> タスク追加
-                </a>
+                <div class="btn-group">
+                    <a href="{{ route('projects.tasks.create', $project) }}" class="btn btn-sm btn-primary">
+                        <i class="fas fa-plus"></i> タスク追加
+                    </a>
+                    <button class="btn btn-sm btn-outline-secondary" id="toggleCompletedBtn">
+                        <i class="fas fa-eye-slash"></i> 完了タスクを隠す
+                    </button>
+                </div>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
@@ -131,19 +136,37 @@
                                 </tr>
                             @else
                                 @foreach($project->tasks->sortBy('start_date') as $task)
-                                    <tr>
+                                    @php
+                                        $rowClass = '';
+                                        $now = \Carbon\Carbon::now()->startOfDay();
+                                        $daysUntilDue = $now->diffInDays($task->end_date, false);
+
+                                        if($task->status === 'completed' || $task->status === 'cancelled') {
+                                            $rowClass = 'completed-task';
+                                        } elseif($task->end_date < $now) {
+                                            $rowClass = 'task-overdue';
+                                        } elseif($daysUntilDue >= 0 && $daysUntilDue <= 2) {
+                                            $rowClass = 'task-due-soon';
+                                        }
+                                    @endphp
+                                    <tr class="{{ $rowClass }}">
                                         <td>
                                             <div class="d-flex align-items-center">
                                                 <span class="task-icon me-2">
                                                     @if($task->is_milestone)
-                                                        <i class="fas fa-flag"></i>
+                                                        <i class="fas fa-flag text-danger"></i>
                                                     @elseif($task->is_folder)
-                                                        <i class="fas fa-folder"></i>
+                                                        <i class="fas fa-folder text-primary"></i>
                                                     @else
                                                         <i class="fas fa-tasks"></i>
                                                     @endif
                                                 </span>
-                                                <a href="{{ route('projects.tasks.edit', [$project, $task]) }}">{{ $task->name }}</a>
+                                                <a href="{{ route('projects.tasks.edit', [$project, $task]) }}" class="text-decoration-none">{{ $task->name }}</a>
+                                                @if(!$task->is_milestone && !$task->is_folder && $task->end_date < $now && $task->status !== 'completed' && $task->status !== 'cancelled')
+                                                    <span class="ms-2 badge bg-danger">期限切れ</span>
+                                                @elseif(!$task->is_milestone && !$task->is_folder && $daysUntilDue >= 0 && $daysUntilDue <= 2 && $task->status !== 'completed' && $task->status !== 'cancelled')
+                                                    <span class="ms-2 badge bg-warning text-dark">あと{{ $daysUntilDue }}日</span>
+                                                @endif
                                             </div>
                                         </td>
                                         <td>{{ $task->assignee ?? '-' }}</td>
@@ -151,7 +174,7 @@
                                         <td>{{ $task->duration }}日</td>
                                         <td>
                                             <div class="progress" style="height: 10px;">
-                                                <div class="progress-bar" role="progressbar" style="width: {{ $task->progress }}%;" aria-valuenow="{{ $task->progress }}" aria-valuemin="0" aria-valuemax="100"></div>
+                                                <div class="progress-bar" role="progressbar" style="width: {{ $task->progress }}%; background-color: {{ $project->color }};" aria-valuenow="{{ $task->progress }}" aria-valuemin="0" aria-valuemax="100"></div>
                                             </div>
                                             <small>{{ $task->progress }}%</small>
                                         </td>
@@ -209,4 +232,36 @@
         </div>
     </div>
 </div>
+@endsection
+
+@section('scripts')
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 完了タスクの表示/非表示切り替え
+        const toggleCompletedBtn = document.getElementById('toggleCompletedBtn');
+        let completedTasksHidden = false;
+
+        if (toggleCompletedBtn) {
+            toggleCompletedBtn.addEventListener('click', function() {
+                const completedTasks = document.querySelectorAll('.completed-task');
+
+                if (completedTasksHidden) {
+                    // 完了タスクを表示
+                    completedTasks.forEach(task => {
+                        task.style.display = '';
+                    });
+                    toggleCompletedBtn.innerHTML = '<i class="fas fa-eye-slash"></i> 完了タスクを隠す';
+                    completedTasksHidden = false;
+                } else {
+                    // 完了タスクを非表示
+                    completedTasks.forEach(task => {
+                        task.style.display = 'none';
+                    });
+                    toggleCompletedBtn.innerHTML = '<i class="fas fa-eye"></i> 完了タスクを表示';
+                    completedTasksHidden = true;
+                }
+            });
+        }
+    });
+</script>
 @endsection

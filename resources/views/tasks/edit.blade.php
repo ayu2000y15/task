@@ -7,6 +7,17 @@
         <h1>タスク編集 - {{ $project->title }}</h1>
     </div>
 
+    <!-- エラーメッセージの表示 -->
+    @if ($errors->any())
+        <div class="alert alert-danger">
+            <ul class="mb-0">
+                @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
     <div class="centered-form">
         <div class="card">
             <div class="card-header">
@@ -57,11 +68,50 @@
 
                         <div class="col-md-4">
                             <label for="end_date" class="form-label">終了日</label>
-                            <input type="date" class="form-control @error('end_date') is-invalid @enderror" id="end_date"
-                                name="end_date" value="{{ old('end_date', $task->end_date->format('Y-m-d')) }}" required>
-                            @error('end_date')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
+                            @php
+                                $now = \Carbon\Carbon::now()->startOfDay();
+                                $daysUntilDue = $now->diffInDays($task->end_date, false);
+                                $inputClass = 'form-control';
+
+                                if ($task->end_date < $now && $task->status !== 'completed' && $task->status !== 'cancelled') {
+                                    $inputClass .= ' border-danger';
+                                } elseif ($daysUntilDue >= 0 && $daysUntilDue <= 2 && $task->status !== 'completed' && $task->status !== 'cancelled') {
+                                    $inputClass .= ' border-warning';
+                                }
+
+                                if ($errors->has('end_date')) {
+                                    $inputClass .= ' is-invalid';
+                                }
+                            @endphp
+
+                            <div class="input-group">
+                                <input type="date" class="{{ $inputClass }}" id="end_date" name="end_date"
+                                    value="{{ old('end_date', $task->end_date->format('Y-m-d')) }}" required>
+
+                                @if($task->end_date < $now && $task->status !== 'completed' && $task->status !== 'cancelled')
+                                    <span class="input-group-text bg-danger text-white">
+                                        <i class="fas fa-exclamation-circle" title="期限切れ"></i>
+                                    </span>
+                                @elseif($daysUntilDue >= 0 && $daysUntilDue <= 2 && $task->status !== 'completed' && $task->status !== 'cancelled')
+                                    <span class="input-group-text bg-warning text-dark">
+                                        <i class="fas fa-exclamation-triangle" title="期限間近"></i>
+                                    </span>
+                                @endif
+
+                                @error('end_date')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+
+                            @if($task->end_date < $now && $task->status !== 'completed' && $task->status !== 'cancelled')
+                                <div class="text-danger small mt-1">
+                                    <i class="fas fa-exclamation-circle"></i> 期限が過ぎています
+                                </div>
+                            @elseif($daysUntilDue >= 0 && $daysUntilDue <= 2 && $task->status !== 'completed' && $task->status !== 'cancelled')
+                                <div class="text-warning small mt-1">
+                                    <i class="fas fa-exclamation-triangle"></i> 期限が間近です（残り{{ $daysUntilDue }}日）
+                                </div>
+                            @endif
                         </div>
                     </div>
 
@@ -93,7 +143,6 @@
                     </div>
 
                     <div class="row mb-3">
-
                         <div class="col-md-6">
                             <label for="status" class="form-label">ステータス</label>
                             <select class="form-select @error('status') is-invalid @enderror" id="status" name="status"
@@ -120,20 +169,38 @@
                                 style="background-color: {{ old('color', $task->color) }};"></div>
                             <input type="hidden" id="color" name="color" value="{{ old('color', $task->color) }}">
                         </div>
+                        @error('color')
+                            <div class="text-danger mt-1">{{ $message }}</div>
+                        @enderror
                     </div>
 
                     <div class="mb-3">
+                        <label class="form-label">タスク種別</label>
+                        @php
+                            $taskType = 'task';
+                            if ($task->is_milestone) {
+                                $taskType = 'milestone';
+                            } elseif ($task->is_folder) {
+                                $taskType = 'folder';
+                            }
+                        @endphp
                         <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="is_milestone" name="is_milestone" {{ old('is_milestone', $task->is_milestone) ? 'checked' : '' }}>
+                            <input class="form-check-input" type="radio" id="is_task" name="is_milestone_or_folder" value="task"
+                                {{ old('is_milestone_or_folder', $taskType) == 'task' ? 'checked' : '' }}>
+                            <label class="form-check-label" for="is_task">
+                                <i class="fas fa-tasks"></i> タスク
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" id="is_milestone" name="is_milestone_or_folder" value="milestone"
+                                {{ old('is_milestone_or_folder', $taskType) == 'milestone' ? 'checked' : '' }}>
                             <label class="form-check-label" for="is_milestone">
                                 <i class="fas fa-flag"></i> マイルストーン
                             </label>
                         </div>
-                    </div>
-
-                    <div class="mb-3">
                         <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="is_folder" name="is_folder" {{ old('is_folder', $task->is_folder) ? 'checked' : '' }}>
+                            <input class="form-check-input" type="radio" id="is_folder" name="is_milestone_or_folder" value="folder"
+                                {{ old('is_milestone_or_folder', $taskType) == 'folder' ? 'checked' : '' }}>
                             <label class="form-check-label" for="is_folder">
                                 <i class="fas fa-folder"></i> フォルダ
                             </label>
@@ -229,9 +296,11 @@
             const progressInput = document.getElementById('progress');
             const progressLabel = document.querySelector('label[for="progress"]');
 
-            progressInput.addEventListener('input', function () {
-                progressLabel.textContent = `進捗 (${this.value}%)`;
-            });
+            if (progressInput && progressLabel) {
+                progressInput.addEventListener('input', function () {
+                    progressLabel.textContent = `進捗 (${this.value}%)`;
+                });
+            }
 
             // 工数または開始日が変更されたら終了日を自動計算
             const startDateInput = document.getElementById('start_date');
@@ -272,7 +341,6 @@
             startDateInput.addEventListener('change', updateEndDate);
             durationInput.addEventListener('change', updateEndDate);
             endDateInput.addEventListener('change', updateDuration);
-
         });
     </script>
 @endsection
