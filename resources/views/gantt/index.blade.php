@@ -297,17 +297,6 @@
             background-color: #f0f0f0;
         }
 
-        .status-indicator {
-            width: 6px;
-            height: calc(100% - 2px);
-            position: absolute;
-            left: 1px;
-            top: 1px;
-            bottom: 1px;
-            z-index: 5;
-            border-radius: 3px;
-        }
-
         .gantt-bar {
             position: relative;
             transition: all 0.2s ease;
@@ -457,17 +446,17 @@
                 });
             });
 
-            function scrollToToday() {
-                const $todayCell = $('.gantt-cell.today').first();
-                if ($todayCell.length) {
-                    const stickyColWidth = $('.gantt-sticky-col').first().outerWidth() || 0;
-                    const cellPositionInContainer = $todayCell.position().left;
-                    const currentScrollLeft = $('.gantt-container').scrollLeft();
-                    const targetScroll = currentScrollLeft + cellPositionInContainer - stickyColWidth - 50;
+            // function scrollToToday() {
+            //     const $todayCell = $('.gantt-cell.today').first();
+            //     if ($todayCell.length) {
+            //         const stickyColWidth = $('.gantt-sticky-col').first().outerWidth() || 0;
+            //         const cellPositionInContainer = $todayCell.position().left;
+            //         const currentScrollLeft = $('.gantt-container').scrollLeft();
+            //         const targetScroll = currentScrollLeft + cellPositionInContainer - stickyColWidth - 50;
 
-                    $('.gantt-container').animate({ scrollLeft: targetScroll > 0 ? targetScroll : 0 }, 300);
-                }
-            }
+            //         $('.gantt-container').animate({ scrollLeft: targetScroll > 0 ? targetScroll : 0 }, 300);
+            //     }
+            // }
 
             $('#todayBtn').on('click', scrollToToday);
             scrollToToday();
