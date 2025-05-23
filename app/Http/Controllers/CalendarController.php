@@ -7,15 +7,15 @@ use App\Models\Project;
 use App\Models\Task;
 use App\Models\Holiday;
 use Carbon\Carbon;
+use App\Services\TaskService;
 
 class CalendarController extends Controller
 {
     /**
      * カレンダービューを表示
      */
-    public function index(Request $request)
+    public function index(Request $request, TaskService $taskService)
     {
-        // フィルター条件を取得
         $filters = [
             'project_id' => $request->input('project_id'),
             'assignee' => $request->input('assignee'),
@@ -23,40 +23,26 @@ class CalendarController extends Controller
             'search' => $request->input('search'),
         ];
 
-        // プロジェクトのクエリを作成
         $projectsQuery = Project::with(['tasks' => function ($query) use ($filters) {
-            // タスクのフィルタリング
-            if (!empty($filters['assignee'])) {
-                $query->where('assignee', $filters['assignee']);
-            }
-
-            if (!empty($filters['status'])) {
-                $query->where('status', $filters['status']);
-            }
-
-            if (!empty($filters['search'])) {
-                $query->where('name', 'like', '%' . $filters['search'] . '%');
-            }
+            app(TaskService::class)->applyAssigneeFilter($query, $filters['assignee']);
+            app(TaskService::class)->applyStatusFilter($query, $filters['status']);
+            app(TaskService::class)->applySearchFilter($query, $filters['search']);
         }]);
 
-        // 特定のプロジェクトのみ表示する場合
         if (!empty($filters['project_id'])) {
             $projectsQuery->where('id', $filters['project_id']);
         }
 
-        // プロジェクトを取得
         $projects = $projectsQuery->get();
 
-        // カレンダーイベントデータを作成
         $events = [];
 
         foreach ($projects as $project) {
-            // プロジェクト自体をイベントとして追加
             $events[] = [
                 'id' => 'project_' . $project->id,
                 'title' => $project->title,
                 'start' => $project->start_date->format('Y-m-d'),
-                'end' => $project->end_date->addDay()->format('Y-m-d'), // FullCalendarは終了日を含まないため1日追加
+                'end' => $project->end_date->addDay()->format('Y-m-d'),
                 'color' => $project->color,
                 'textColor' => '#ffffff',
                 'allDay' => true,
@@ -68,30 +54,32 @@ class CalendarController extends Controller
                 ]
             ];
 
-            // プロジェクトのタスクをイベントとして追加
             foreach ($project->tasks as $task) {
-                // タスクのステータスに応じた色を設定
+                if ($task->is_folder) { // フォルダはカレンダーイベントとして追加しない
+                    continue;
+                }
+
                 $taskColor = $task->color;
                 switch ($task->status) {
                     case 'completed':
-                        $taskColor = '#28a745'; // 完了は緑色
+                        $taskColor = '#28a745';
                         break;
                     case 'in_progress':
-                        $taskColor = '#007bff'; // 進行中は青色
+                        $taskColor = '#007bff';
                         break;
                     case 'on_hold':
-                        $taskColor = '#ffc107'; // 保留中は黄色
+                        $taskColor = '#ffc107';
                         break;
                     case 'cancelled':
-                        $taskColor = '#dc3545'; // キャンセルは赤色
+                        $taskColor = '#dc3545';
                         break;
                 }
 
                 $events[] = [
                     'id' => 'task_' . $task->id,
                     'title' => $task->name,
-                    'start' => $task->start_date->format('Y-m-d'),
-                    'end' => $task->end_date->addDay()->format('Y-m-d'), // FullCalendarは終了日を含まないため1日追加
+                    'start' => $task->start_date ? $task->start_date->format('Y-m-d') : null, // null チェック
+                    'end' => $task->end_date ? $task->end_date->addDay()->format('Y-m-d') : null, // null チェック
                     'color' => $taskColor,
                     'textColor' => '#ffffff',
                     'allDay' => true,
@@ -99,10 +87,10 @@ class CalendarController extends Controller
                     'classNames' => [
                         'task-event',
                         $task->is_milestone ? 'milestone-event' : '',
-                        $task->is_folder ? 'folder-event' : ''
+                        // 'is_folder' は上で continue しているので、ここでは不要
                     ],
                     'extendedProps' => [
-                        'type' => $task->is_milestone ? 'milestone' : ($task->is_folder ? 'folder' : 'task'),
+                        'type' => $task->is_milestone ? 'milestone' : 'task', // is_folder は除外
                         'description' => $task->description,
                         'assignee' => $task->assignee,
                         'progress' => $task->progress,
@@ -114,7 +102,6 @@ class CalendarController extends Controller
             }
         }
 
-        // 祝日データを取得
         $startDate = Carbon::now()->subMonths(1)->startOfMonth();
         $endDate = Carbon::now()->addMonths(6)->endOfMonth();
 
@@ -136,14 +123,12 @@ class CalendarController extends Controller
             ];
         }
 
-        // 担当者一覧を取得
         $allAssignees = Task::whereNotNull('assignee')
             ->distinct()
             ->pluck('assignee')
             ->sort()
             ->values();
 
-        // ステータスオプション
         $statusOptions = [
             'not_started' => '未着手',
             'in_progress' => '進行中',
@@ -152,7 +137,6 @@ class CalendarController extends Controller
             'cancelled' => 'キャンセル',
         ];
 
-        // 全プロジェクト一覧（フィルター用）
         $allProjects = Project::orderBy('title')->get();
 
         return view('calendar.index', [

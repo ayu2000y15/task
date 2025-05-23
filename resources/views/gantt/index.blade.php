@@ -17,257 +17,174 @@
     <div class="d-flex justify-content-between mb-3">
         <div>
             <button class="btn btn-outline-primary me-2 view-mode active" data-mode="day" id="dayViewBtn">日ごとの表示</button>
-            <button class="btn btn-outline-primary me-2 view-mode" data-mode="week" id="weekViewBtn">週ごとの表示</button>
-            <button class="toggle-details btn btn-outline-secondary me-2" id="toggleDetails">
-                <i class="fas fa-columns"></i> 詳細を隠す
-            </button>
-        </div>
-        <div>
-            <button class="btn btn-primary" id="todayBtn">今日</button>
-        </div>
-    </div>
-
-    <!-- フィルターパネル -->
-    <div class="collapse {{ array_filter($filters) ? 'show' : '' }}" id="filterPanel">
-        <div class="filter-panel mb-4">
-            <form action="{{ route('gantt.index') }}" method="GET" class="row g-3">
-                <div class="col-md-3">
-                    <label for="project_id" class="form-label">プロジェクト</label>
-                    <select class="form-select" id="project_id" name="project_id">
-                        <option value="">すべて</option>
-                        @foreach($allProjects as $project)
-                            <option value="{{ $project->id }}" {{ $filters['project_id'] == $project->id ? 'selected' : '' }}>
-                                {{ $project->title }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <label for="assignee" class="form-label">担当者</label>
-                    <select class="form-select" id="assignee" name="assignee">
-                        <option value="">すべて</option>
-                        @foreach($allAssignees as $assignee)
-                            <option value="{{ $assignee }}" {{ $filters['assignee'] == $assignee ? 'selected' : '' }}>
-                                {{ $assignee }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <label for="status" class="form-label">ステータス</label>
-                    <select class="form-select" id="status" name="status">
-                        <option value="">すべて</option>
-                        @foreach($statusOptions as $value => $label)
-                            <option value="{{ $value }}" {{ $filters['status'] == $value ? 'selected' : '' }}>
-                                {{ $label }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <label for="search" class="form-label">タスク名検索</label>
-                    <input type="text" class="form-control" id="search" name="search" value="{{ $filters['search'] }}">
-                </div>
-                <div class="col-md-3">
-                    <label for="start_date" class="form-label">開始日</label>
-                    <input type="date" class="form-control" id="start_date" name="start_date"
-                        value="{{ $filters['start_date'] }}">
-                </div>
-                <div class="col-md-3">
-                    <label for="end_date" class="form-label">終了日</label>
-                    <input type="date" class="form-control" id="end_date" name="end_date"
-                        value="{{ $filters['end_date'] }}">
-                </div>
-                <div class="col-md-6 d-flex align-items-end">
-                    <button type="submit" class="btn btn-primary me-2">フィルター適用</button>
-                    <a href="{{ route('gantt.index') }}" class="btn btn-secondary">リセット</a>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    @if(
-            $projects->isEmpty() || $projects->every(function ($project) {
-                return $project->tasks->isEmpty();
-            })
-        )
-        <div class="alert alert-info">
-            表示するタスクがありません。フィルター条件を変更するか、新規プロジェクト/タスクを作成してください。
-        </div>
-    @else
-        <div class="gantt-container">
-            <div class="gantt-scroll-container">
-                <table class="table table-bordered" id="ganttTable">
-                    <thead class="gantt-header">
-                        <tr>
-                            <th rowspan="2" class="gantt-sticky-col" style="min-width: 400px; vertical-align: top;">タスク</th>
-                            <th rowspan="2" class="detail-column" style="min-width: 100px; vertical-align: top;">担当者</th>
-                            <th rowspan="2" class="detail-column" style="min-width: 80px; vertical-align: top;">工数</th>
-                            <th rowspan="2" class="detail-column" style="min-width: 120px; vertical-align: top;">開始日</th>
-                            <th rowspan="2" class="detail-column" style="min-width: 120px; vertical-align: top;">完了日</th>
-                            <th rowspan="2" class="detail-column" style="min-width: 120px; vertical-align: top;">ステータス</th>
-                            <!-- 月表示の追加 -->
-                            @php
-                                $currentMonth = null;
-                                $monthColspan = 0;
-                                $months = [];
-
-                                // 月ごとの日数をカウント
-                                foreach ($dates as $date) {
-                                    $month = $date['date']->format('Y-m');
-                                    if (!isset($months[$month])) {
-                                        $months[$month] = [
-                                            'name' => $date['date']->format('Y年n月'),
-                                            'count' => 0
-                                        ];
-                                    }
-                                    $months[$month]['count']++;
-                                }
-                            @endphp
-
-                            @foreach($months as $month)
-                                <th colspan="{{ $month['count'] }}" class="text-center bg-light">{{ $month['name'] }}</th>
-                            @endforeach
-                        </tr>
-                        <tr>
-                            @foreach($dates as $date)
-                                @php
-                                    $dateStr = $date['date']->format('Y-m-d');
-                                    $isHoliday = isset($holidays[$dateStr]);
-                                    $classes = [];
-
-                                    // 曜日を漢字で表示
-                                    $dayOfWeekMap = [
-                                        '0' => '日',
-                                        '1' => '月',
-                                        '2' => '火',
-                                        '3' => '水',
-                                        '4' => '木',
-                                        '5' => '金',
-                                        '6' => '土',
-                                    ];
-                                    $dayOfWeek = $dayOfWeekMap[$date['date']->format('w')];
-
-                                    if ($date['is_saturday']) {
-                                        $classes[] = 'saturday';
-                                    } elseif ($date['is_sunday'] || $isHoliday) {
-                                        $classes[] = 'sunday';
-                                    }
-
-                                    if ($date['date']->isSameDay($today)) {
-                                        $classes[] = 'today';
-                                    }
-                                @endphp
-                                <th class="gantt-cell {{ implode(' ', $classes) }}"
-                                    title="{{ $isHoliday ? $holidays[$dateStr]->name : '' }}" data-date="{{ $dateStr }}">
-                                    <div class="date-header">
-                                        <span class="date">{{ $date['day'] }}</span>
-                                        <span class="day">{{ $dayOfWeek }}</span>
-                                    </div>
-                                </th>
-                            @endforeach
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($projects as $project)
-                            @if(!$project->tasks->isEmpty())
-                                <!-- プロジェクト行 -->
-                                <tr class="project-header">
-                                    <td class="gantt-sticky-col">
-                                        <div class="d-flex justify-content-between">
-                                            <div class="task-name">
-                                                <span class="toggle-children" data-project-id="{{ $project->id }}">
-                                                    <i class="fas fa-chevron-down"></i>
-                                                </span>
-                                                <div class="project-icon" style="background-color: {{ $project->color }};">
-                                                    {{ mb_substr($project->title, 0, 1) }}
-                                                </div>
-                                                <a href="{{ route('projects.show', $project) }}">{{ $project->title }}</a>
-                                                @if($project->is_favorite)
-                                                    <i class="fas fa-star text-warning ms-2"></i>
-                                                @endif
-                                            </div>
-                                            <div class="task-actions">
-                                                <a href="{{ route('projects.tasks.create', $project) }}"
-                                                    class="btn btn-sm btn-outline-primary">
-                                                    <i class="fas fa-plus"></i> タスク追加
-                                                </a>
-                                                <a href="{{ route('projects.edit', $project) }}" class="btn btn-sm btn-outline-warning">
-                                                    <i class="fas fa-edit"></i>
-                                                </a>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td class="detail-column" colspan="5"></td>
-
-                                    <!-- プロジェクトのガントバー -->
-                                    @php
-                                        $projectStartDate = $project->start_date->format('Y-m-d');
-                                        $projectEndDate = $project->end_date->format('Y-m-d');
-
-                                        $startPosition = -1;
-                                        $projectLength = 0;
-
-                                        foreach ($dates as $index => $date) {
-                                            $currentDate = $date['date']->format('Y-m-d');
-
-                                            if ($currentDate === $projectStartDate) {
-                                                $startPosition = $index;
-                                            }
-
-                                            if ($currentDate >= $projectStartDate && $currentDate <= $projectEndDate) {
-                                                $projectLength++;
-                                            }
-                                        }
-                                    @endphp
-
-                                    @for($i = 0; $i < count($dates); $i++)
-                                        @php
-                                            $dateStr = $dates[$i]['date']->format('Y-m-d');
-                                            $isHoliday = isset($holidays[$dateStr]);
-                                            $classes = [];
-
-                                            if ($dates[$i]['is_saturday']) {
-                                                $classes[] = 'saturday';
-                                            } elseif ($dates[$i]['is_sunday'] || $isHoliday) {
-                                                $classes[] = 'sunday';
-                                            }
-
-                                            if ($dates[$i]['date']->isSameDay($today)) {
-                                                $classes[] = 'today';
-                                            }
-
-                                            $hasBar = $startPosition >= 0 && $i >= $startPosition && $i < ($startPosition + $projectLength);
-                                            if ($hasBar) {
-                                                $classes[] = 'has-bar';
-                                            }
-                                        @endphp
-                                        <td class="gantt-cell {{ implode(' ', $classes) }} p-0" data-date="{{ $dateStr }}">
-                                            @if($hasBar)
-                                                <div class="h-100 w-100 gantt-bar"
-                                                    style="background-color: {{ $project->color }}; opacity: 0.7;"></div>
-                                                <div class="gantt-tooltip">
-                                                    <div class="tooltip-content">
-                                                        {{ $project->title }}<br>
-                                                        期間: {{ $project->start_date->format('Y/m/d') }} 〜
-                                                        {{ $project->end_date->format('Y/m/d') }}
-                                                    </div>
-                                                    <div class="tooltip-arrow"></div>
-                                                </div>
-                                            @endif
-                                        </td>
-                                    @endfor
-                                </tr>
-
-                                <!-- プロジェクトのタスク -->
-                                @include('gantt.partials.task_rows', ['tasks' => $project->tasks->where('parent_id', null)->sortBy('start_date'), 'project' => $project, 'dates' => $dates, 'holidays' => $holidays, 'today' => $today, 'level' => 0])
-                            @endif
-                        @endforeach
-                    </tbody>
-                </table>
+            {{-- <button class="btn btn-outline-primary me-2 view-mode" data-mode="week" id="weekViewBtn">週ごとの表示</button> --}} {{-- この行を削除またはコメントアウト --}}
+                <button class="toggle-details btn btn-outline-secondary me-2" id="toggleDetails">
+                    <i class="fas fa-columns"></i> 詳細を隠す
+                </button>
+            </div>
+            <div>
+                <button class="btn btn-primary" id="todayBtn">今日</button>
             </div>
         </div>
-    @endif
+
+        <x-filter-panel
+            :action="route('gantt.index')"
+            :filters="$filters"
+            :all-projects="$allProjects"
+            :all-assignees="$allAssignees"
+            :status-options="$statusOptions"
+            :show-date-range-filter="true"
+        />
+
+        @if(
+                $projects->isEmpty() || $projects->every(function ($project) {
+                    return $project->tasks->isEmpty();
+                })
+            )
+                <div class="alert alert-info">
+                    表示するタスクがありません。フィルター条件を変更するか、新規プロジェクト/タスクを作成してください。
+                </div>
+        @else
+            <div class="gantt-container">
+                <div class="gantt-scroll-container">
+                    <table class="table table-bordered" id="ganttTable">
+                        <thead class="gantt-header">
+                            <tr>
+                                <th rowspan="2" class="gantt-sticky-col" style="min-width: 400px; vertical-align: top;">タスク</th>
+                                <th rowspan="2" class="detail-column" style="min-width: 100px; vertical-align: top;">担当者</th>
+                                <th rowspan="2" class="detail-column" style="min-width: 80px; vertical-align: top;">工数</th>
+                                <th rowspan="2" class="detail-column" style="min-width: 120px; vertical-align: top;">開始日</th>
+                                <th rowspan="2" class="detail-column" style="min-width: 120px; vertical-align: top;">完了日</th>
+                                <th rowspan="2" class="detail-column" style="min-width: 120px; vertical-align: top;">ステータス</th>
+                                @php
+                                    $months = [];
+                                    foreach ($dates as $dateInfo) { // $date から $dateInfo に変更
+                                        $month = $dateInfo['date']->format('Y-m');
+                                        if (!isset($months[$month])) {
+                                            $months[$month] = [
+                                                'name' => $dateInfo['date']->format('Y年n月'),
+                                                'count' => 0
+                                            ];
+                                        }
+                                        $months[$month]['count']++;
+                                    }
+                                @endphp
+
+                                @foreach($months as $month)
+                                    <th colspan="{{ $month['count'] }}" class="text-center bg-light">{{ $month['name'] }}</th>
+                                @endforeach
+                            </tr>
+                            <tr>
+                                @foreach($dates as $dateInfo) {{-- $date から $dateInfo に変更 --}}
+                                    @php
+                                        $dateStr = $dateInfo['date']->format('Y-m-d');
+                                        $isHoliday = isset($holidays[$dateStr]);
+                                        $classes = [];
+                                        $dayOfWeekMap = ['0' => '日', '1' => '月', '2' => '火', '3' => '水', '4' => '木', '5' => '金', '6' => '土'];
+                                        $dayOfWeek = $dayOfWeekMap[$dateInfo['date']->format('w')];
+
+                                        if ($dateInfo['is_saturday'])
+                                            $classes[] = 'saturday';
+                                        elseif ($dateInfo['is_sunday'] || $isHoliday)
+                                            $classes[] = 'sunday';
+                                        if ($dateInfo['date']->isSameDay($today))
+                                            $classes[] = 'today';
+                                    @endphp
+                                    <th class="gantt-cell {{ implode(' ', $classes) }}"
+                                        title="{{ $isHoliday ? $holidays[$dateStr]->name : '' }}" data-date="{{ $dateStr }}">
+                                        <div class="date-header">
+                                            <span class="date">{{ $dateInfo['day'] }}</span>
+                                            <span class="day">{{ $dayOfWeek }}</span>
+                                        </div>
+                                    </th>
+                                @endforeach
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($projects as $project)
+                                @if(!$project->tasks->isEmpty())
+                                    <tr class="project-header">
+                                        <td class="gantt-sticky-col">
+                                            <div class="d-flex justify-content-between">
+                                                <div class="task-name">
+                                                    <span class="toggle-children" data-project-id="{{ $project->id }}">
+                                                        <i class="fas fa-chevron-down"></i>
+                                                    </span>
+                                                    <div class="project-icon" style="background-color: {{ $project->color }};">
+                                                        {{ mb_substr($project->title, 0, 1) }}
+                                                    </div>
+                                                    <a href="{{ route('projects.show', $project) }}">{{ $project->title }}</a>
+                                                    @if($project->is_favorite)
+                                                        <i class="fas fa-star text-warning ms-2"></i>
+                                                    @endif
+                                                </div>
+                                                <div class="task-actions">
+                                                    <a href="{{ route('projects.tasks.create', $project) }}"
+                                                        class="btn btn-sm btn-outline-primary">
+                                                        <i class="fas fa-plus"></i> タスク追加
+                                                    </a>
+                                                    <a href="{{ route('projects.edit', $project) }}" class="btn btn-sm btn-outline-warning">
+                                                        <i class="fas fa-edit"></i>
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="detail-column" colspan="5"></td>
+
+                                        @php
+                                            $projectStartDate = $project->start_date->format('Y-m-d');
+                                            $projectEndDate = $project->end_date->format('Y-m-d');
+                                            $startPosition = -1;
+                                            $projectLength = 0;
+                                            foreach ($dates as $index => $dateInfoLoop) { // $date から $dateInfoLoop に変更
+                                                $currentDate = $dateInfoLoop['date']->format('Y-m-d');
+                                                if ($currentDate === $projectStartDate)
+                                                    $startPosition = $index;
+                                                if ($currentDate >= $projectStartDate && $currentDate <= $projectEndDate)
+                                                    $projectLength++;
+                                            }
+                                        @endphp
+
+                                        @for($i = 0; $i < count($dates); $i++)
+                                            @php
+                                                $dateStr = $dates[$i]['date']->format('Y-m-d');
+                                                $isHoliday = isset($holidays[$dateStr]);
+                                                $classes = [];
+                                                if ($dates[$i]['is_saturday'])
+                                                    $classes[] = 'saturday';
+                                                elseif ($dates[$i]['is_sunday'] || $isHoliday)
+                                                    $classes[] = 'sunday';
+                                                if ($dates[$i]['date']->isSameDay($today))
+                                                    $classes[] = 'today';
+                                                $hasBar = $startPosition >= 0 && $i >= $startPosition && $i < ($startPosition + $projectLength);
+                                                if ($hasBar)
+                                                    $classes[] = 'has-bar';
+                                            @endphp
+                                            <td class="gantt-cell {{ implode(' ', $classes) }} p-0" data-date="{{ $dateStr }}">
+                                                @if($hasBar)
+                                                    <div class="h-100 w-100 gantt-bar"
+                                                        style="background-color: {{ $project->color }}; opacity: 0.7;"></div>
+                                                    <div class="gantt-tooltip">
+                                                        <div class="tooltip-content">
+                                                            {{ $project->title }}<br>
+                                                            期間: {{ $project->start_date->format('Y/m/d') }} 〜
+                                                            {{ $project->end_date->format('Y/m/d') }}
+                                                        </div>
+                                                        <div class="tooltip-arrow"></div>
+                                                    </div>
+                                                @endif
+                                            </td>
+                                        @endfor
+                                    </tr>
+                                    @include('gantt.partials.task_rows', ['tasks' => $project->tasks->where('parent_id', null)->sortBy(function ($task) {
+                                    return $task->start_date ?? '9999-12-31'; }), 'project' => $project, 'dates' => $dates, 'holidays' => $holidays, 'today' => $today, 'level' => 0])
+                                @endif
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        @endif
 @endsection
 
 @section('styles')
@@ -286,47 +203,46 @@
             position: sticky;
             left: 0;
             z-index: 10;
-            background-color: #fff;
+            background-color: #fff; /* ヘッダーセルとの重なりを考慮 */
             border-right: 2px solid #dee2e6;
         }
 
-        /* プロジェクトヘッダーの固定を解除 */
-        .project-header .gantt-sticky-col {
-            position: relative;
-            left: auto;
-            z-index: 1;
-        }
-
-        /* ヘッダー部の固定を解除 */
-        .gantt-header .gantt-sticky-col {
-            position: relative;
-            left: auto;
-            z-index: 1;
-        }
-
-        /* ヘッダーを固定 */
-        .gantt-cell {
+        .gantt-header th { /* ヘッダー全体に背景色とz-indexを適用 */
             position: sticky;
             top: 0;
-            z-index: 20;
-            background-color: #fff;
+            background-color: #f8f9fa; /* ヘッダーの背景色 */
+            z-index: 20; /* 日付セルより手前に */
         }
 
-        .gantt-cell th {
-            background-color: #fff;
-        }
-
-        .gantt-cell .gantt-sticky-col {
-            position: sticky;
+        .gantt-header .gantt-sticky-col { /* 左端固定のヘッダーセル */
             left: 0;
-            z-index: 21;
-            background-color: #fff;
+            z-index: 30; /* 通常の固定セルよりもさらに手前 */
         }
+
+        .gantt-cell { /* 日付セル（ヘッダー行） */
+            min-width: 30px !important; /* 日表示のデフォルトセル幅 */
+            text-align: center;
+            vertical-align: middle;
+            /* position: sticky; top: 0; z-index: 20; background-color: #f8f9fa; */ /* gantt-header th に移動 */
+        }
+        .gantt-cell.today {
+            background-color: #fff3cd !important; /* 今日の日付の背景色 */
+            border-left: 1px solid #ffc107;
+            border-right: 1px solid #ffc107;
+        }
+        .gantt-cell.saturday { background-color: #e9f5ff; } /* 土曜日の背景色 */
+        .gantt-cell.sunday { background-color: #ffe9e9; } /* 日曜日・祝日の背景色 */
+
+
+        #ganttTable.week-view .gantt-cell { /* 週表示が有効な場合、スタイルは残しておく */
+             min-width: 80px !important; /* 週表示のセル幅 */
+        }
+
 
         .task-progress {
             height: 100%;
-            background-color: rgba(255, 255, 255, 0.3);
-            border-radius: 3px;
+            background-color: rgba(0, 0, 0, 0.15); /* バーの上の進捗の透明度を少し上げる */
+            border-radius: inherit; /* 親要素の角丸を継承 */
         }
 
         .milestone-diamond {
@@ -336,32 +252,28 @@
             display: block;
             z-index: 5;
             position: relative;
-            margin: 12px auto;
+            margin: 12px auto; /* セル内で中央に配置 */
+            box-shadow: 0 0 3px rgba(0,0,0,0.3);
         }
 
-        /* 詳細を隠す機能のスタイル修正 */
         #ganttTable.details-hidden .detail-column {
             display: none;
         }
 
-        /* 階層構造のインデント */
-        .task-indent {
-            padding-left: 20px;
-            border-left: 1px solid #ddd;
+        .project-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            color: white;
+            font-weight: bold;
+            font-size: 0.8em;
+            margin-right: 5px;
         }
 
 
-
-        /* 週表示モード */
-        .week-view .gantt-cell {
-            min-width: 60px !important;
-        }
-
-        .day-view .gantt-cell {
-            min-width: 30px !important;
-        }
-
-        /* 日付ヘッダーのスタイル */
         .date-header {
             display: flex;
             flex-direction: column;
@@ -374,7 +286,6 @@
             color: #6c757d;
         }
 
-        /* 担当者編集フォーム */
         .assignee-edit-form {
             position: absolute;
             background: white;
@@ -389,61 +300,49 @@
         }
 
         .editable-cell:hover {
-            background-color: #f8f9fa;
+            background-color: #f0f0f0;
         }
 
-        /* ステータスインジケーターのスタイル改善 */
         .status-indicator {
-            width: 8px;
-            height: 100%;
+            width: 6px;
+            height: calc(100% - 2px); /* ボーダー分を考慮 */
             position: absolute;
-            left: 0;
-            top: 0;
-            bottom: 0;
+            left: 1px; /* ボーダーの内側に */
+            top: 1px;
+            bottom: 1px;
             z-index: 5;
+            border-radius: 3px;
         }
 
-        /* タスクバーのホバー効果 */
         .gantt-bar {
             position: relative;
             transition: all 0.2s ease;
+            border-radius: 3px; /* バーに角丸 */
+            height: 80%; /* セルの高さを少し詰める */
+            margin-top: 10%; /* 上下のマージンで中央に */
         }
 
         .gantt-bar:hover {
-            opacity: 1 !important;
+            opacity: 0.6 !important; /* ホバー時の透明度を少し濃く */
             box-shadow: 0 0 8px rgba(0, 0, 0, 0.3);
             z-index: 100;
         }
-
-        /* セルのホバー効果 */
-        .gantt-cell {
-            position: relative;
+        .gantt-cell.has-bar { /* バーがあるセル自体のホバーは不要かも */
+            /* cursor: move; */ /* ドラッグ操作を想起させるカーソル（もし実装する場合） */
         }
 
-        .gantt-cell.has-bar:hover .gantt-bar {
-            opacity: 1 !important;
-            box-shadow: 0 0 8px rgba(0, 0, 0, 0.3);
-        }
-
-        /* 新しいツールチップスタイル */
         .gantt-tooltip {
             display: none;
             position: absolute;
-            top: -45px;
+            top: -45px; /* ツールチップの位置調整 */
             left: 50%;
             transform: translateX(-50%);
             z-index: 1000;
             min-width: 150px;
         }
 
-        .gantt-tooltip.task {
-            display: none;
-            position: absolute;
+        .gantt-tooltip.task { /* タスク用ツールチップのtop位置を調整 */
             top: -80px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 1000;
-            min-width: 150px;
         }
 
         .tooltip-content {
@@ -468,14 +367,13 @@
             border-top: 5px solid rgba(0, 0, 0, 0.8);
         }
 
-        .gantt-cell.has-bar:hover .gantt-tooltip {
+        td.gantt-cell:hover .gantt-tooltip { /* セルホバーでツールチップ表示 */
             display: block;
         }
-
-        /* タスク行のホバー効果 */
         tr:hover .gantt-sticky-col {
             background-color: #f8f9fa;
         }
+
     </style>
 @endsection
 
@@ -483,8 +381,8 @@
     <script>
         $(document).ready(function () {
             // 現在のビューモード（デフォルトは日表示）
-            let currentViewMode = 'day';
-            $('#ganttTable').addClass('day-view');
+            // let currentViewMode = 'day'; // 週表示ボタン削除に伴い、この変数は不要になる可能性
+            $('#ganttTable').addClass('day-view'); // 常に日表示
 
             // 詳細カラムの表示/非表示切り替え
             $('#toggleDetails').on('click', function () {
@@ -501,44 +399,47 @@
             });
 
             // タスク階層の展開/縮小
-            $('.toggle-children').on('click', function () {
+            $(document).on('click', '.toggle-children', function () { // イベント委譲に変更
                 const $icon = $(this).find('i');
                 const isExpanded = $icon.hasClass('fa-chevron-down');
-                const projectId = $(this).data('project-id');
+                const projectId = $(this).data('project-id'); // プロジェクトIDも取得（将来的に使うかも）
                 const taskId = $(this).data('task-id');
+
+                // ターゲットとなる子タスクのTR要素のクラス名を特定
+                const childrenClass = taskId ? `task-parent-${taskId}` : `project-${projectId}-tasks.task-level-0`;
+
 
                 if (isExpanded) {
                     $icon.removeClass('fa-chevron-down').addClass('fa-chevron-right');
-                    if (taskId) {
-                        // 直接の子タスクだけを非表示にする
-                        $(`.task-parent-${taskId}`).hide();
-                        // 子タスクのアイコンも閉じた状態にする
-                        $(`.task-parent-${taskId} .toggle-children i.fa-chevron-down`).removeClass('fa-chevron-down').addClass('fa-chevron-right');
-                    } else {
-                        // プロジェクトの直接の子タスクを非表示
-                        $(`.project-${projectId}-tasks:not([class*="task-parent-"])`).hide();
-                        // プロジェクト内のすべてのタスクのアイコンを閉じた状態にする
-                        $(`.project-${projectId}-tasks .toggle-children i.fa-chevron-down`).removeClass('fa-chevron-down').addClass('fa-chevron-right');
-                    }
+                    // 直下の子要素のみを非表示にし、孫要素以降は非表示のまま（再帰的に処理しない）
+                    $(`tr.${childrenClass}`).hide();
+                    // 非表示にした子要素がさらに子を持っていた場合、そのトグルアイコンも閉じた状態にする
+                    $(`tr.${childrenClass} .toggle-children i.fa-chevron-down`).removeClass('fa-chevron-down').addClass('fa-chevron-right');
+
                 } else {
                     $icon.removeClass('fa-chevron-right').addClass('fa-chevron-down');
-                    if (taskId) {
-                        // 直接の子タスクだけを表示
-                        $(`.task-parent-${taskId}`).show();
-                    } else {
-                        // プロジェクトの直接の子タスクを表示
-                        $(`.project-${projectId}-tasks:not([class*="task-parent-"])`).show();
-                    }
+                    // 直下の子要素のみを表示
+                    $(`tr.${childrenClass}`).show();
+                    // 注意: この方法では、孫要素が以前に閉じられていた場合、開いたままになってしまう。
+                    //       より厳密な制御が必要な場合は、各行の表示状態を別途管理する必要がある。
                 }
             });
 
+
             // ステータス変更
-            $('.status-select').on('change', function () {
+            $(document).on('change', '.status-select', function () { // イベント委譲に変更
                 const taskId = $(this).data('task-id');
                 const projectId = $(this).data('project-id');
                 const status = $(this).val();
+                let progress = $(`#task-progress-bar-${taskId}`).parent().data('progress') || 0; // 現在の進捗を取得、なければ0
 
-                // Ajaxリクエストでステータスを更新
+                if (status === 'completed') {
+                    progress = 100;
+                } else if (status === 'not_started' || status === 'cancelled') {
+                    progress = 0;
+                }
+                // 進行中や保留中の場合は、既存の進捗を維持するか、特定のロジックで設定
+
                 $.ajax({
                     url: `/projects/${projectId}/tasks/${taskId}/progress`,
                     method: 'POST',
@@ -547,36 +448,19 @@
                     },
                     data: {
                         status: status,
-                        progress: status === 'completed' ? 100 : (status === 'in_progress' ? 50 : 0)
+                        progress: progress
                     },
                     success: function (response) {
                         if (response.success) {
-                            if (status === 'completed') {
-                                $(`#task-progress-bar-${taskId}`).css('width', '100%');
-                            } else if (status === 'in_progress') {
-                                $(`#task-progress-bar-${taskId}`).css('width', '50%');
-                            } else {
-                                $(`#task-progress-bar-${taskId}`).css('width', '0%');
-                            }
+                            $(`#task-progress-bar-${taskId}`).css('width', progress + '%').parent().data('progress', progress);
 
-                            // ステータスインジケーターの色を更新
                             let statusColor = '';
                             switch (status) {
-                                case 'not_started':
-                                    statusColor = '#6c757d'; // 灰色
-                                    break;
-                                case 'in_progress':
-                                    statusColor = '#0d6efd'; // 青色
-                                    break;
-                                case 'completed':
-                                    statusColor = '#198754'; // 緑色
-                                    break;
-                                case 'on_hold':
-                                    statusColor = '#ffc107'; // 黄色
-                                    break;
-                                case 'cancelled':
-                                    statusColor = '#dc3545'; // 赤色
-                                    break;
+                                case 'not_started': statusColor = '#6c757d'; break;
+                                case 'in_progress': statusColor = '#0d6efd'; break;
+                                case 'completed': statusColor = '#198754'; break;
+                                case 'on_hold': statusColor = '#ffc107'; break;
+                                case 'cancelled': statusColor = '#dc3545'; break;
                             }
                             $(`.status-indicator-${taskId}`).css('background-color', statusColor);
                         }
@@ -584,30 +468,52 @@
                 });
             });
 
-            // 週表示/日表示の切り替え
+            // 週表示/日表示の切り替えボタンのイベントリスナーは削除またはコメントアウト
+            /*
             $('.view-mode').on('click', function () {
                 const mode = $(this).data('mode');
-
-                // ボタンのアクティブ状態を切り替え
                 $('.view-mode').removeClass('active');
                 $(this).addClass('active');
-
-                // テーブルのクラスを切り替え
                 $('#ganttTable').removeClass('day-view week-view');
                 $('#ganttTable').addClass(`${mode}-view`);
-
-                currentViewMode = mode;
+                // currentViewMode = mode; // 不要に
             });
+            */
 
             // 今日ボタン
             $('#todayBtn').on('click', function () {
-                // 今日の日付を含む列までスクロール
                 const $todayCell = $('.gantt-cell.today').first();
                 if ($todayCell.length) {
-                    const scrollPosition = $todayCell.offset().left - 400; // 左側に余裕を持たせる
-                    $('.gantt-container').scrollLeft(scrollPosition);
+                    const containerScrollLeft = $('.gantt-container').scrollLeft();
+                    const stickyColWidth = $('.gantt-sticky-col').first().outerWidth();
+                    // const targetScrollLeft = $todayCell.offset().left + containerScrollLeft - $('.gantt-container').offset().left - stickyColWidth;
+
+                    // $todayCell.offset().left はビューポート左端からのオフセット
+                    // $('.gantt-container').offset().left はコンテナのビューポート左端からのオフセット
+                    // 目的のスクロール位置 = (今日のセルのコンテナ内での相対位置) - (固定列の幅) - (少し余裕)
+                    let cellLeftInContainer = 0;
+                    let currentCell = $todayCell[0];
+                    let headerRow = $('.gantt-header tr:last-child')[0];
+                    if (headerRow && headerRow.contains(currentCell)) {
+                         for(let i=0; i < headerRow.cells.length; i++){
+                             if(headerRow.cells[i] === currentCell){
+                                 break;
+                             }
+                             if($(headerRow.cells[i]).hasClass('gantt-cell')){ // detail-columnなどを除外
+                                cellLeftInContainer += $(headerRow.cells[i]).outerWidth();
+                             }
+                         }
+                    }
+                     // 固定列より右側にあるセルのみスクロール対象
+                    const targetScroll = cellLeftInContainer > stickyColWidth ? cellLeftInContainer - stickyColWidth - 50 : 0;
+
+
+                    $('.gantt-container').animate({ scrollLeft: targetScroll }, 300);
                 }
             });
+            // 初期表示時に今日ボタンのクリックイベントを発火（ページ読み込み時に今日へスクロール）
+            //$('#todayBtn').trigger('click'); // D10の要件
+
 
             // 担当者の編集機能
             $(document).on('click', '.editable-cell[data-field="assignee"]', function () {
@@ -615,63 +521,36 @@
                 const taskId = $this.data('task-id');
                 const currentValue = $this.data('value') || '';
 
-                // 現在のセルを非表示にして入力フォームを表示
                 $this.addClass('d-none');
                 const $editForm = $this.next('.assignee-edit-form');
                 $editForm.removeClass('d-none');
 
-                // 入力フィールドにフォーカスを当てる
                 const $input = $editForm.find('input');
                 $input.focus();
                 $input.select();
 
-                // 入力完了時の処理（Enterキーまたはフォーカスが外れた時）
                 function completeEdit() {
                     const newValue = $input.val().trim();
-
-                    // 値が変更された場合のみ更新
                     if (newValue !== currentValue) {
                         const projectId = $input.data('project-id');
-
-                        // 担当者を更新
                         $.ajax({
                             url: `/projects/${projectId}/tasks/${taskId}/assignee`,
                             method: 'POST',
-                            headers: {
-                                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                            },
-                            data: {
-                                assignee: newValue
-                            },
+                            headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+                            data: { assignee: newValue },
                             success: function (data) {
                                 if (data.success) {
-                                    // 成功時の処理
                                     $this.text(newValue || '-');
                                     $this.data('value', newValue);
-                                } else {
-                                    alert('担当者の更新に失敗しました。');
-                                }
+                                } else { alert('担当者の更新に失敗しました。'); }
                             },
-                            error: function () {
-                                alert('エラーが発生しました。');
-                            }
+                            error: function () { alert('エラーが発生しました。'); }
                         });
                     }
-
-                    // 入力フォームを非表示にしてセルを表示
                     $editForm.addClass('d-none');
                     $this.removeClass('d-none');
                 }
-
-                // Enterキーで編集完了
-                $input.on('keydown', function (e) {
-                    if (e.key === 'Enter') {
-                        e.preventDefault();
-                        completeEdit();
-                    }
-                });
-
-                // フォーカスが外れたら編集完了
+                $input.on('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); completeEdit(); }});
                 $input.on('blur', completeEdit);
             });
         });

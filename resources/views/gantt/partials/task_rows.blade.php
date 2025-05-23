@@ -1,22 +1,22 @@
 @foreach($tasks as $task)
     @php
-        $taskStartDate = $task->start_date->format('Y-m-d');
-        $taskEndDate = $task->end_date->format('Y-m-d');
+        $taskStartDate = $task->start_date ? $task->start_date->format('Y-m-d') : null;
+        $taskEndDate = $task->end_date ? $task->end_date->format('Y-m-d') : null;
         $now = \Carbon\Carbon::now()->startOfDay();
 
         // タスク開始位置と長さを計算
         $startPosition = -1;
         $taskLength = 0;
 
-        foreach ($dates as $index => $date) {
-            $currentDate = $date['date']->format('Y-m-d');
-
-            if ($currentDate === $taskStartDate) {
-                $startPosition = $index;
-            }
-
-            if ($currentDate >= $taskStartDate && $currentDate <= $taskEndDate) {
-                $taskLength++;
+        if ($taskStartDate && $taskEndDate) { // フォルダでない場合のみ計算
+            foreach ($dates as $index => $date) {
+                $currentDate = $date['date']->format('Y-m-d');
+                if ($currentDate === $taskStartDate) {
+                    $startPosition = $index;
+                }
+                if ($currentDate >= $taskStartDate && $currentDate <= $taskEndDate) {
+                    $taskLength++;
+                }
             }
         }
 
@@ -24,19 +24,19 @@
         $statusColor = '';
         switch ($task->status) {
             case 'not_started':
-                $statusColor = '#6c757d'; // 灰色
+                $statusColor = '#6c757d';
                 break;
             case 'in_progress':
-                $statusColor = '#0d6efd'; // 青色
+                $statusColor = '#0d6efd';
                 break;
             case 'completed':
-                $statusColor = '#198754'; // 緑色
+                $statusColor = '#198754';
                 break;
             case 'on_hold':
-                $statusColor = '#ffc107'; // 黄色
+                $statusColor = '#ffc107';
                 break;
             case 'cancelled':
-                $statusColor = '#dc3545'; // 赤色
+                $statusColor = '#dc3545';
                 break;
         }
 
@@ -51,12 +51,12 @@
 
         // 期限切れ・期限間近の判定（フォルダとマイルストーンは除外）
         $rowClass = '';
-        if (!$task->is_folder && !$task->is_milestone) {
+        if (!$task->is_folder && !$task->is_milestone && $task->end_date) {
             $daysUntilDue = $now->diffInDays($task->end_date, false);
 
             if ($task->end_date < $now && $task->status !== 'completed' && $task->status !== 'cancelled') {
                 $rowClass = 'task-overdue';
-            } elseif ($daysUntilDue >= 0 && $daysUntilDue <= 2 && $task->status !== 'completed' && $task->status !== 'cancelled') {
+            } elseif ($daysUntilDue !== null && $daysUntilDue >= 0 && $daysUntilDue <= 2 && $task->status !== 'completed' && $task->status !== 'cancelled') {
                 $rowClass = 'task-due-soon';
             }
         }
@@ -65,9 +65,10 @@
     <tr
         class="project-{{ $project->id }}-tasks {{ $task->parent_id ? 'task-parent-' . $task->parent_id : '' }} {{ $rowClass }}">
         <td class="gantt-sticky-col position-relative">
-            <!-- ステータスインジケーター -->
-            <div class="status-indicator status-indicator-{{ $task->id }}" style="background-color: {{ $statusColor }};">
-            </div>
+            @if(!$task->is_folder)
+                <div class="status-indicator status-indicator-{{ $task->id }}" style="background-color: {{ $statusColor }};">
+                </div>
+            @endif
             <div class="d-flex justify-content-between" style="padding-left: 15px;">
                 <div class="task-name">
                     <div style="padding-left: {{ $level * 20 }}px; display: flex; align-items: center;">
@@ -77,7 +78,7 @@
                             </span>
                         @elseif($task->is_folder)
                             <span class="toggle-children" data-project-id="{{ $project->id }}" data-task-id="{{ $task->id }}">
-                                <i class="fas fa-chevron-down"></i>
+                                <i class="fas fa-chevron-down"></i> {{-- フォルダのトグルはD3でリンクに変更予定 --}}
                             </span>
                         @else
                             <span style="width: 20px; display: inline-block;"></span>
@@ -95,9 +96,9 @@
 
                         <span>{{ $task->name }}</span>
 
-                        @if(!$task->is_folder && !$task->is_milestone && $task->end_date < $now && $task->status !== 'completed' && $task->status !== 'cancelled')
+                        @if(!$task->is_folder && !$task->is_milestone && $task->end_date && $task->end_date < $now && !in_array($task->status, ['completed', 'cancelled']))
                             <span class="ms-2 badge bg-danger">期限切れ</span>
-                        @elseif(!$task->is_folder && !$task->is_milestone && $daysUntilDue >= 0 && $daysUntilDue <= 2 && $task->status !== 'completed' && $task->status !== 'cancelled')
+                        @elseif(!$task->is_folder && !$task->is_milestone && $daysUntilDue !== null && $daysUntilDue >= 0 && $daysUntilDue <= 2 && !in_array($task->status, ['completed', 'cancelled']))
                             <span class="ms-2 badge bg-warning text-dark">あと{{ $daysUntilDue }}日</span>
                         @endif
                     </div>
@@ -105,10 +106,10 @@
                 <div class="task-actions">
                     @if($task->is_folder)
                         <a href="{{ route('projects.tasks.edit', [$project, $task]) }}#fileUploadDropzone"
-                            class="btn btn-sm btn-outline-primary">
+                            class="btn btn-sm btn-outline-secondary me-1" title="ファイル管理">
                             <i class="fas fa-file-upload"></i>
                         </a>
-                    @else
+                    @elseif(!$task->is_milestone) {{-- マイルストーンでなく、かつフォルダでもない場合（つまり通常タスク）--}}
                         <a href="{{ route('projects.tasks.create', [$project, 'parent' => $task->id]) }}"
                             class="btn btn-sm btn-outline-primary">
                             <i class="fas fa-plus"></i>
@@ -136,19 +137,22 @@
             <input type="text" class="form-control form-control-sm assignee-input" value="{{ $task->assignee }}"
                 data-task-id="{{ $task->id }}" data-project-id="{{ $project->id }}">
         </td>
-        <td class="detail-column">{{ $task->duration }}日</td>
-        <td class="detail-column">{{ $task->start_date->format('Y/m/d') }}</td>
-        <td class="detail-column">{{ $task->end_date->format('Y/m/d') }}</td>
+        <td class="detail-column">{{ $task->is_folder ? '-' : ($task->duration ? $task->duration . '日' : '-') }}</td>
+        <td class="detail-column">{{ $taskStartDate ? \Carbon\Carbon::parse($taskStartDate)->format('Y/m/d') : '-' }}</td>
+        <td class="detail-column">{{ $taskEndDate ? \Carbon\Carbon::parse($taskEndDate)->format('Y/m/d') : '-' }}</td>
         <td class="detail-column">
-            <select class="form-select form-select-sm status-select" id="status-select-{{ $task->id }}"
-                data-task-id="{{ $task->id }}" data-project-id="{{ $project->id }}">
-                @foreach($statusLabels as $value => $label)
-                    <option value="{{ $value }}" {{ $task->status === $value ? 'selected' : '' }}>{{ $label }}</option>
-                @endforeach
-            </select>
+            @if($task->is_folder)
+                -
+            @else
+                <select class="form-select form-select-sm status-select" id="status-select-{{ $task->id }}"
+                    data-task-id="{{ $task->id }}" data-project-id="{{ $project->id }}">
+                    @foreach($statusLabels as $value => $label)
+                        <option value="{{ $value }}" {{ $task->status === $value ? 'selected' : '' }}>{{ $label }}</option>
+                    @endforeach
+                </select>
+            @endif
         </td>
 
-        <!-- タスクのガントバー -->
         @for($i = 0; $i < count($dates); $i++)
             @php
                 $dateStr = $dates[$i]['date']->format('Y-m-d');
@@ -165,8 +169,9 @@
                     $classes[] = 'today';
                 }
 
-                $hasMilestone = $task->is_milestone && $i === $startPosition;
-                $hasBar = !$task->is_folder && $startPosition >= 0 && $i >= $startPosition && $i < ($startPosition + $taskLength);
+                $hasMilestone = $task->is_milestone && $taskStartDate && $dateStr === $taskStartDate; // マイルストーンは開始日にのみ表示
+                $hasBar = !$task->is_folder && !$task->is_milestone && $taskStartDate && $taskEndDate && $startPosition >= 0 && $i >= $startPosition && $i < ($startPosition + $taskLength);
+
 
                 if ($hasMilestone || $hasBar) {
                     $classes[] = 'has-bar';
@@ -178,7 +183,7 @@
                     <div class="gantt-tooltip">
                         <div class="tooltip-content">
                             {{ $task->name }} (マイルストーン)<br>
-                            {{ $task->start_date->format('Y/m/d') }}
+                            {{ $taskStartDate ? \Carbon\Carbon::parse($taskStartDate)->format('Y/m/d') : '' }}
                         </div>
                         <div class="tooltip-arrow"></div>
                     </div>
@@ -190,7 +195,8 @@
                     <div class="gantt-tooltip task">
                         <div class="tooltip-content">
                             {{ $task->name }}<br>
-                            期間: {{ $task->start_date->format('Y/m/d') }} 〜 {{ $task->end_date->format('Y/m/d') }}<br>
+                            期間: {{ $taskStartDate ? \Carbon\Carbon::parse($taskStartDate)->format('Y/m/d') : '' }} 〜
+                            {{ $taskEndDate ? \Carbon\Carbon::parse($taskEndDate)->format('Y/m/d') : '' }}<br>
                             進捗: {{ $task->progress }}%<br>
                             担当: {{ $task->assignee ?? '未割当' }}
                         </div>
@@ -201,8 +207,8 @@
         @endfor
     </tr>
 
-    <!-- 子タスク -->
     @if($task->children->count() > 0)
-        @include('gantt.partials.task_rows', ['tasks' => $task->children->sortBy('start_date'), 'project' => $project, 'dates' => $dates, 'holidays' => $holidays, 'today' => $today, 'level' => $level + 1])
+        @include('gantt.partials.task_rows', ['tasks' => $task->children->sortBy(function ($childTask) {
+        return $childTask->start_date ?? '9999-12-31'; }), 'project' => $project, 'dates' => $dates, 'holidays' => $holidays, 'today' => $today, 'level' => $level + 1])
     @endif
 @endforeach

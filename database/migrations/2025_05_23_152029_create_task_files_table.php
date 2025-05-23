@@ -14,12 +14,11 @@ return new class extends Migration
         Schema::create('task_files', function (Blueprint $table) {
             $table->id();
             $table->foreignId('task_id')->constrained()->onDelete('cascade');
-            $table->foreignId('project_id')->constrained()->onDelete('cascade');
             $table->string('original_name');
-            $table->string('filename');
+            $table->string('stored_name');
             $table->string('path');
             $table->string('mime_type');
-            $table->bigInteger('size');
+            $table->unsignedInteger('size');
             $table->timestamps();
         });
     }

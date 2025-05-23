@@ -16,13 +16,12 @@ class Task extends Model
         'description',
         'start_date',
         'end_date',
-        'status',
         'duration',
+        'status',
         'progress',
         'assignee',
         'is_milestone',
         'is_folder',
-        'color',
     ];
 
     protected $casts = [
@@ -42,6 +41,14 @@ class Task extends Model
     }
 
     /**
+     * このタスクに紐づくファイルを取得します。
+     */
+    public function files()
+    {
+        return $this->hasMany(\App\Models\TaskFile::class);
+    }
+
+    /**
      * このタスクの親タスク
      */
     public function parent()
@@ -58,18 +65,13 @@ class Task extends Model
     }
 
     /**
-     * このタスクに関連するファイル
-     */
-    public function files()
-    {
-        return $this->hasMany(TaskFile::class);
-    }
-
-    /**
      * タスクの期間（日数）を取得
      */
     public function getDurationAttribute()
     {
+        if (is_null($this->start_date) || is_null($this->end_date)) {
+            return null;
+        }
         return $this->start_date->diffInDays($this->end_date) + 1;
     }
 
@@ -105,23 +107,20 @@ class Task extends Model
     }
 
     /**
-     * このタスクが指定されたタスクの祖先かどうかを確認
+     * 指定されたタスクが自身の子孫であるか（自身が祖先であるか）をチェック
      *
-     * @param Task $task 確認対象のタスク
-     * @return bool
+     * @param Task $otherTask
+     * @return boolean
      */
-    public function isAncestorOf(Task $task)
+    public function isAncestorOf(Task $otherTask): bool
     {
-        if ($task->parent_id === $this->id) {
-            return true;
-        }
-
-        foreach ($this->children as $child) {
-            if ($child->isAncestorOf($task)) {
+        $parent = $otherTask->parent;
+        while ($parent) {
+            if ($parent->id === $this->id) {
                 return true;
             }
+            $parent = $parent->parent;
         }
-
         return false;
     }
 }

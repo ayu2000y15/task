@@ -5,77 +5,30 @@ namespace App\Http\Controllers;
 use App\Models\Project;
 use App\Models\Task;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use App\Models\TaskFile;
 use Carbon\Carbon;
+use App\Services\TaskService;
+use Illuminate\Support\Facades\Log;
 
 class TaskController extends Controller
 {
     /**
      * タスク一覧を表示
      */
-    public function index(Request $request)
+    public function index(Request $request, TaskService $taskService)
     {
-        // フィルターの初期化（due_dateを追加）
         $filters = [
             'project_id' => $request->input('project_id', ''),
             'assignee' => $request->input('assignee', ''),
             'status' => $request->input('status', ''),
             'search' => $request->input('search', ''),
-            'due_date' => $request->input('due_date', ''), // この行を追加
+            'due_date' => $request->input('due_date', ''),
         ];
 
-        // 以下は既存のコード
-        $query = Task::query()->with('project');
-
-        // フィルター適用
-        if ($filters['project_id']) {
-            $query->where('project_id', $filters['project_id']);
-        }
-
-        if ($filters['assignee']) {
-            $query->where('assignee', $filters['assignee']);
-        }
-
-        if ($filters['status']) {
-            $query->where('status', $filters['status']);
-        }
-
-        if ($filters['search']) {
-            $query->where('name', 'like', '%' . $filters['search'] . '%');
-        }
-
-        // 期限フィルターの追加
-        if ($filters['due_date']) {
-            $now = Carbon::now()->startOfDay();
-
-            switch ($filters['due_date']) {
-                case 'overdue':
-                    $query->where('end_date', '<', $now)
-                        ->whereNotIn('status', ['completed', 'cancelled']);
-                    break;
-                case 'today':
-                    $query->whereDate('end_date', $now);
-                    break;
-                case 'tomorrow':
-                    $query->whereDate('end_date', $now->copy()->addDay());
-                    break;
-                case 'this_week':
-                    $query->whereBetween('end_date', [
-                        $now->copy()->addDay(),
-                        $now->copy()->endOfWeek()
-                    ]);
-                    break;
-                case 'next_week':
-                    $query->whereBetween('end_date', [
-                        $now->copy()->startOfWeek()->addWeek(),
-                        $now->copy()->endOfWeek()->addWeek()
-                    ]);
-                    break;
-            }
-        }
-
+        $query = $taskService->buildFilteredQuery($filters)->with(['project', 'files', 'children']);
         $tasks = $query->orderBy('end_date', 'asc')->get();
 
-        // 残りのコードは変更なし
         $projects = Project::all();
         $assignees = Task::distinct('assignee')->whereNotNull('assignee')->pluck('assignee');
         $statusOptions = [
@@ -111,46 +64,69 @@ class TaskController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'start_date' => 'required|date',
-            'end_date' => 'required|date|after_or_equal:start_date',
+            'start_date' => 'nullable|date',
+            'end_date' => 'nullable|date|after_or_equal:start_date',
             'assignee' => 'nullable|string|max:255',
             'parent_id' => 'nullable|exists:tasks,id',
             'duration' => 'nullable|integer|min:1',
             'is_milestone_or_folder' => 'required|in:milestone,folder,task',
-            'color' => 'nullable|string|max:7',
         ]);
 
-        // 工数が指定されている場合は、開始日から工数分の日数を加算して終了日を計算
-        if (!empty($validated['duration'])) {
-            $startDate = Carbon::parse($validated['start_date']);
-            $endDate = $startDate->copy()->addDays($validated['duration'] - 1); // 開始日を含むため-1
-            $validated['end_date'] = $endDate->format('Y-m-d');
-        } else {
-            // 開始日と終了日からタスクの期間（日数）を計算
-            $startDate = Carbon::parse($validated['start_date']);
-            $endDate = Carbon::parse($validated['end_date']);
-            $validated['duration'] = $endDate->diffInDays($startDate) + 1; // 開始日を含むため+1
-        }
+        $isFolder = $request->input('is_milestone_or_folder') === 'folder';
+        $isMilestone = $request->input('is_milestone_or_folder') === 'milestone';
 
-        $task = new Task([
+        $taskData = [
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
-            'start_date' => $startDate,
-            'end_date' => $endDate,
-            'duration' => $validated['duration'],
             'assignee' => $validated['assignee'] ?? null,
-            'parent_id' => $request->input('parent_id'), // 修正: $validated['parent_id'] → $request->input('parent_id')
-            'is_milestone' => $request->input('is_milestone_or_folder') === 'milestone',
-            'is_folder' => $request->input('is_milestone_or_folder') === 'folder',
-            'color' => $validated['color'] ?? '#007bff',
+            'parent_id' => $request->input('parent_id'),
+            'is_milestone' => $isMilestone,
+            'is_folder' => $isFolder,
             'progress' => 0,
-            'status' => 'not_started',
-        ]);
+        ];
 
+        if ($isFolder) {
+            $taskData['start_date'] = null;
+            $taskData['end_date'] = null;
+            $taskData['duration'] = null;
+            $taskData['status'] = null;
+            $taskData['progress'] = null;
+        } elseif ($isMilestone) {
+            $startDate = isset($validated['start_date']) ? Carbon::parse($validated['start_date']) : null;
+            if ($startDate) {
+                $taskData['start_date'] = $startDate;
+                $taskData['end_date'] = $startDate->copy();
+            } else {
+                $taskData['start_date'] = null;
+                $taskData['end_date'] = null;
+            }
+            $taskData['duration'] = 1;
+            $taskData['status'] = $request->input('status', 'not_started');
+        } else {
+            if (isset($validated['start_date'])) {
+                $startDate = Carbon::parse($validated['start_date']);
+                if (!empty($validated['duration'])) {
+                    $endDate = $startDate->copy()->addDays($validated['duration'] - 1);
+                } elseif (isset($validated['end_date'])) {
+                    $endDate = Carbon::parse($validated['end_date']);
+                } else {
+                    $endDate = $startDate->copy();
+                }
+                $taskData['start_date'] = $startDate;
+                $taskData['end_date'] = $endDate;
+                $taskData['duration'] = $endDate->diffInDays($startDate) + 1;
+            } else {
+                $taskData['start_date'] = null;
+                $taskData['end_date'] = null;
+                $taskData['duration'] = null;
+            }
+            $taskData['status'] = $request->input('status', 'not_started');
+        }
+
+        $task = new Task($taskData);
         $project->tasks()->save($task);
 
-        return redirect()->route('gantt.index', ['project_id' => $project->id])
-            ->with('success', 'タスクが作成されました。');
+        return redirect()->route('tasks.index', ['project_id' => $project->id])->with('success', 'タスクが作成されました。');
     }
 
     /**
@@ -158,7 +134,8 @@ class TaskController extends Controller
      */
     public function edit(Project $project, Task $task)
     {
-        return view('tasks.edit', compact('project', 'task'));
+        $files = $task->is_folder ? $task->files()->orderBy('original_name')->get() : collect();
+        return view('tasks.edit', compact('project', 'task', 'files'));
     }
 
     /**
@@ -166,50 +143,73 @@ class TaskController extends Controller
      */
     public function update(Request $request, Project $project, Task $task)
     {
-        // バリデーション
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'start_date' => 'required|date',
-            'end_date' => 'required|date',
-            'duration' => 'required|integer|min:1',
+            'start_date' => 'nullable|date',
+            'end_date' => 'nullable|date',
+            'duration' => 'nullable|integer|min:1',
             'assignee' => 'nullable|string|max:255',
             'parent_id' => 'nullable|exists:tasks,id',
-            'status' => 'required|in:not_started,in_progress,completed,on_hold,cancelled',
-            'color' => 'nullable|string|max:20',
-            'is_milestone_or_folder' => 'required|in:milestone,folder,task',
+            'status' => 'nullable|in:not_started,in_progress,completed,on_hold,cancelled',
         ]);
 
-        // チェックボックスの値を正しく処理
-        $task->is_milestone = $request->input('is_milestone_or_folder') === 'milestone';
-        $task->is_folder = $request->input('is_milestone_or_folder') === 'folder';
+        $isFolder = $task->is_folder;
+        $isMilestone = $task->is_milestone;
 
-        // その他のフィールドを更新
-        $task->name = $validated['name'];
-        $task->description = $validated['description'];
-        $task->start_date = $validated['start_date'];
-        $task->end_date = $validated['end_date'];
-        $task->duration = $validated['duration'];
-        $task->assignee = $validated['assignee'];
-        $task->parent_id = $validated['parent_id'];
-        $task->status = $validated['status'];
-        $task->color = $validated['color'];
+        $taskData = [
+            'name' => $validated['name'],
+            'description' => $validated['description'],
+            'assignee' => $validated['assignee'],
+            'parent_id' => $validated['parent_id'],
+            'is_milestone' => $isMilestone,
+            'is_folder' => $isFolder,
+        ];
 
+        if ($isFolder) {
+            $taskData['start_date'] = null;
+            $taskData['end_date'] = null;
+            $taskData['duration'] = null;
+            $taskData['status'] = null;
+            $taskData['progress'] = null;
+        } elseif ($isMilestone) {
+            if (isset($validated['start_date'])) {
+                $startDate = Carbon::parse($validated['start_date']);
+                $taskData['start_date'] = $startDate;
+                $taskData['end_date'] = $startDate->copy();
+            }
+            $taskData['duration'] = 1;
+            $taskData['status'] = $validated['status'] ?? $task->status;
+        } else {
+            if (isset($validated['start_date'])) {
+                $startDate = Carbon::parse($validated['start_date']);
+                if (!empty($validated['duration'])) {
+                    $endDate = $startDate->copy()->addDays($validated['duration'] - 1);
+                } elseif (isset($validated['end_date'])) {
+                    $endDate = Carbon::parse($validated['end_date']);
+                } else {
+                    $endDate = $startDate->copy();
+                }
+                $taskData['start_date'] = $startDate;
+                $taskData['end_date'] = $endDate;
+                $taskData['duration'] = $endDate->diffInDays($startDate) + 1;
+            }
+            $taskData['status'] = $validated['status'] ?? $task->status;
+        }
+
+        $task->fill($taskData);
         $task->save();
 
-        return redirect()->route('projects.tasks.edit', [$project, $task])
-            ->with('success', 'タスクが更新されました。');
+        return redirect()->route('tasks.index', ['project_id' => $task->project_id])->with('success', 'タスクが更新されました。');
     }
+
     /**
      * タスクを削除
      */
     public function destroy(Project $project, Task $task)
     {
-        // 子タスクも削除
         $this->deleteTaskAndChildren($task);
-
-        return redirect()->route('gantt.index', ['project_id' => $project->id])
-            ->with('success', 'タスクが削除されました。');
+        return redirect()->route('tasks.index', ['project_id' => $project->id])->with('success', 'タスクが削除されました。');
     }
 
     /**
@@ -217,6 +217,9 @@ class TaskController extends Controller
      */
     private function deleteTaskAndChildren(Task $task)
     {
+        if ($task->is_folder) {
+            Storage::disk('local')->deleteDirectory('task_files/' . $task->id);
+        }
         foreach ($task->children as $child) {
             $this->deleteTaskAndChildren($child);
         }
@@ -258,7 +261,6 @@ class TaskController extends Controller
 
         $task = Task::findOrFail($validated['task_id']);
 
-        // 開始日と終了日からタスクの期間（日数）を計算
         $startDate = Carbon::parse($validated['start_date']);
         $endDate = Carbon::parse($validated['end_date']);
         $duration = $endDate->diffInDays($startDate) + 1;
@@ -287,7 +289,6 @@ class TaskController extends Controller
 
         $task = Task::findOrFail($validated['task_id']);
 
-        // 自分自身を親にはできない
         if ($validated['parent_id'] == $task->id) {
             return response()->json([
                 'success' => false,
@@ -295,7 +296,6 @@ class TaskController extends Controller
             ], 422);
         }
 
-        // 循環参照のチェック
         if ($validated['parent_id'] && $this->wouldCreateCycle($task->id, $validated['parent_id'])) {
             return response()->json([
                 'success' => false,
@@ -354,5 +354,71 @@ class TaskController extends Controller
             'success' => true,
             'message' => '担当者が更新されました。'
         ]);
+    }
+
+    /**
+     * ファイルをアップロードする
+     */
+    public function uploadFiles(Request $request, Project $project, Task $task)
+    {
+        if (!$task->is_folder) {
+            return response()->json(['error' => 'ファイルはフォルダにのみアップロードできます。'], 422);
+        }
+
+        $request->validate([
+            'file' => 'required|file|max:10240', // 10MB max
+        ]);
+
+        $file = $request->file('file');
+        $path = 'task_files/' . $task->id;
+        $storedName = $file->hashName();
+
+        Storage::disk('local')->putFileAs($path, $file, $storedName);
+
+        $taskFile = $task->files()->create([
+            'original_name' => $file->getClientOriginalName(),
+            'stored_name' => $storedName,
+            'path' => $path . '/' . $storedName,
+            'mime_type' => $file->getMimeType(),
+            'size' => $file->getSize(),
+        ]);
+
+        return response()->json($taskFile, 201);
+    }
+
+    /**
+     * ファイル一覧を取得する
+     */
+    public function getFiles(Project $project, Task $task)
+    {
+        $files = $task->files()->orderBy('original_name')->get();
+        return view('tasks.partials.file-list', compact('files'))->render();
+    }
+
+    /**
+     * ファイルをダウンロードする
+     */
+    public function downloadFile(Project $project, Task $task, TaskFile $file)
+    {
+        if ($file->task_id !== $task->id) {
+            abort(404);
+        }
+
+        return Storage::disk('local')->download($file->path, $file->original_name);
+    }
+
+    /**
+     * ファイルを削除する
+     */
+    public function deleteFile(Project $project, Task $task, TaskFile $file)
+    {
+        if ($file->task_id !== $task->id) {
+            abort(404);
+        }
+
+        Storage::disk('local')->delete($file->path);
+        $file->delete();
+
+        return response()->json(['success' => true, 'message' => 'ファイルを削除しました。']);
     }
 }

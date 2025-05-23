@@ -16,70 +16,15 @@
         </div>
     </div>
 
-    <!-- フィルターパネル -->
-    <div class="collapse {{ array_filter($filters) ? 'show' : '' }}" id="filterPanel">
-        <div class="filter-panel mb-4">
-            <div class="filter-close" id="closeFilterBtn">
-                <i class="fas fa-times"></i>
-            </div>
-            <form action="{{ route('tasks.index') }}" method="GET" class="row g-3">
-                <div class="col-md-3">
-                    <label for="project_id" class="form-label">プロジェクト</label>
-                    <select class="form-select" id="project_id" name="project_id">
-                        <option value="">すべて</option>
-                        @foreach($projects as $project)
-                            <option value="{{ $project->id }}" {{ $filters['project_id'] == $project->id ? 'selected' : '' }}>
-                                {{ $project->title }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <label for="assignee" class="form-label">担当者</label>
-                    <select class="form-select" id="assignee" name="assignee">
-                        <option value="">すべて</option>
-                        @foreach($assignees as $assignee)
-                            <option value="{{ $assignee }}" {{ $filters['assignee'] == $assignee ? 'selected' : '' }}>
-                                {{ $assignee }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <label for="status" class="form-label">ステータス</label>
-                    <select class="form-select" id="status" name="status">
-                        <option value="">すべて</option>
-                        @foreach($statusOptions as $value => $label)
-                            <option value="{{ $value }}" {{ $filters['status'] == $value ? 'selected' : '' }}>
-                                {{ $label }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <label for="search" class="form-label">タスク名検索</label>
-                    <input type="text" class="form-control" id="search" name="search" value="{{ $filters['search'] }}">
-                </div>
-                <div class="col-md-3">
-                    <label for="due_date" class="form-label">期限</label>
-                    <select class="form-select" id="due_date" name="due_date">
-                        <option value="">すべて</option>
-                        <option value="overdue" {{ $filters['due_date'] == 'overdue' ? 'selected' : '' }}>期限切れ</option>
-                        <option value="today" {{ $filters['due_date'] == 'today' ? 'selected' : '' }}>今日</option>
-                        <option value="tomorrow" {{ $filters['due_date'] == 'tomorrow' ? 'selected' : '' }}>明日</option>
-                        <option value="this_week" {{ $filters['due_date'] == 'this_week' ? 'selected' : '' }}>今週</option>
-                        <option value="next_week" {{ $filters['due_date'] == 'next_week' ? 'selected' : '' }}>来週</option>
-                    </select>
-                </div>
-                <div class="col-md-12 d-flex">
-                    <button type="submit" class="btn btn-primary me-2">フィルター適用</button>
-                    <a href="{{ route('tasks.index') }}" class="btn btn-secondary">リセット</a>
-                </div>
-            </form>
-        </div>
-    </div>
+    <x-filter-panel
+        :action="route('tasks.index')"
+        :filters="$filters"
+        :all-projects="$projects"
+        :all-assignees="$assignees"
+        :status-options="$statusOptions"
+        :show-due-date-filter="true"
+    />
 
-    <!-- タブメニュー -->
     <ul class="nav nav-tabs mb-3" id="taskTabs" role="tablist">
         <li class="nav-item" role="presentation">
             <button class="nav-link active" id="tasks-tab" data-bs-toggle="tab" data-bs-target="#tasks" type="button"
@@ -101,9 +46,7 @@
         </li>
     </ul>
 
-    <!-- タブコンテンツ -->
     <div class="tab-content" id="taskTabsContent">
-        <!-- タスク一覧タブ -->
         <div class="tab-pane fade show active" id="tasks" role="tabpanel" aria-labelledby="tasks-tab">
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
@@ -142,16 +85,14 @@
                                         @php
                                             $rowClass = '';
                                             $now = \Carbon\Carbon::now()->startOfDay();
-                                            ;
-                                            $daysUntilDue = $now->diffInDays($task->end_date, false);
+                                            $daysUntilDue = $task->end_date ? $now->diffInDays($task->end_date, false) : null;
 
-                                            if ($task->end_date < $now && $task->status !== 'completed' && $task->status !== 'cancelled') {
+                                            if ($task->end_date && $task->end_date < $now && !in_array($task->status, ['completed', 'cancelled'])) {
                                                 $rowClass = 'task-overdue';
-                                            } elseif ($daysUntilDue >= 0 && $daysUntilDue <= 2 && $task->status !== 'completed' && $task->status !== 'cancelled') {
+                                            } elseif ($daysUntilDue !== null && $daysUntilDue >= 0 && $daysUntilDue <= 2 && !in_array($task->status, ['completed', 'cancelled'])) {
                                                 $rowClass = 'task-due-soon';
                                             }
 
-                                            // 親フォルダのパスを取得
                                             $folderPath = '';
                                             $parentTask = $task->parent;
                                             $folderHierarchy = [];
@@ -165,23 +106,22 @@
                                                 $folderPath = implode(' > ', $folderHierarchy);
                                             }
 
-                                            // ステータスに応じた色
                                             $statusColor = '';
                                             switch ($task->status) {
                                                 case 'not_started':
-                                                    $statusColor = '#6c757d'; // 灰色
+                                                    $statusColor = '#6c757d';
                                                     break;
                                                 case 'in_progress':
-                                                    $statusColor = '#0d6efd'; // 青色
+                                                    $statusColor = '#0d6efd';
                                                     break;
                                                 case 'completed':
-                                                    $statusColor = '#198754'; // 緑色
+                                                    $statusColor = '#198754';
                                                     break;
                                                 case 'on_hold':
-                                                    $statusColor = '#ffc107'; // 黄色
+                                                    $statusColor = '#ffc107';
                                                     break;
                                                 case 'cancelled':
-                                                    $statusColor = '#dc3545'; // 赤色
+                                                    $statusColor = '#dc3545';
                                                     break;
                                             }
                                         @endphp
@@ -194,18 +134,16 @@
                                             </td>
                                             <td>
                                                 <div class="d-flex align-items-center">
-                                                    <span class="task-icon">
-                                                        <i class="fas fa-tasks"></i>
-                                                    </span>
+                                                    <span class="task-icon"><i class="fas fa-tasks"></i></span>
                                                     <div>
                                                         @if(!empty($folderPath))
                                                             <small class="text-muted d-block">{{ $folderPath }}</small>
                                                         @endif
                                                         <a href="{{ route('projects.tasks.edit', [$task->project, $task]) }}"
                                                             class="text-decoration-none">{{ $task->name }}</a>
-                                                        @if($task->end_date < $now && $task->status !== 'completed' && $task->status !== 'cancelled')
+                                                        @if($task->end_date && $task->end_date < $now && !in_array($task->status, ['completed', 'cancelled']))
                                                             <span class="ms-2 badge bg-danger">期限切れ</span>
-                                                        @elseif($daysUntilDue >= 0 && $daysUntilDue <= 2 && $task->status !== 'completed' && $task->status !== 'cancelled')
+                                                        @elseif($daysUntilDue !== null && $daysUntilDue >= 0 && $daysUntilDue <= 2 && !in_array($task->status, ['completed', 'cancelled']))
                                                             <span class="ms-2 badge bg-warning text-dark">あと{{ $daysUntilDue }}日</span>
                                                         @endif
                                                     </div>
@@ -222,20 +160,20 @@
                                                         data-project-id="{{ $task->project->id }}">
                                                 </div>
                                             </td>
-                                            <td>{{ $task->start_date->format('Y/m/d') }}</td>
+                                            <td>{{ optional($task->start_date)->format('Y/m/d') }}</td>
                                             <td>
-                                                @if($task->end_date < $now && $task->status !== 'completed' && $task->status !== 'cancelled')
+                                                @if($task->end_date && $task->end_date < $now && !in_array($task->status, ['completed', 'cancelled']))
                                                     <span class="text-danger">
                                                         <i class="fas fa-exclamation-circle"></i>
                                                         {{ $task->end_date->format('Y/m/d') }}
                                                     </span>
-                                                @elseif($daysUntilDue >= 0 && $daysUntilDue <= 2 && $task->status !== 'completed' && $task->status !== 'cancelled')
+                                                @elseif($daysUntilDue !== null && $daysUntilDue >= 0 && $daysUntilDue <= 2 && !in_array($task->status, ['completed', 'cancelled']))
                                                     <span class="text-warning">
                                                         <i class="fas fa-exclamation-triangle"></i>
                                                         {{ $task->end_date->format('Y/m/d') }}
                                                     </span>
                                                 @else
-                                                    {{ $task->end_date->format('Y/m/d') }}
+                                                    {{ optional($task->end_date)->format('Y/m/d') }}
                                                 @endif
                                             </td>
                                             <td>{{ $task->duration }}日</td>
@@ -244,12 +182,9 @@
                                                     data-task-id="{{ $task->id }}" data-project-id="{{ $task->project->id }}">
                                                     <option value="not_started" {{ $task->status === 'not_started' ? 'selected' : '' }}>未着手</option>
                                                     <option value="in_progress" {{ $task->status === 'in_progress' ? 'selected' : '' }}>進行中</option>
-                                                    <option value="completed" {{ $task->status === 'completed' ? 'selected' : '' }}>完了
-                                                    </option>
-                                                    <option value="on_hold" {{ $task->status === 'on_hold' ? 'selected' : '' }}>保留中
-                                                    </option>
-                                                    <option value="cancelled" {{ $task->status === 'cancelled' ? 'selected' : '' }}>
-                                                        キャンセル</option>
+                                                    <option value="completed" {{ $task->status === 'completed' ? 'selected' : '' }}>完了</option>
+                                                    <option value="on_hold" {{ $task->status === 'on_hold' ? 'selected' : '' }}>保留中</option>
+                                                    <option value="cancelled" {{ $task->status === 'cancelled' ? 'selected' : '' }}>キャンセル</option>
                                                 </select>
                                             </td>
                                             <td>
@@ -278,7 +213,6 @@
             </div>
         </div>
 
-        <!-- マイルストーンタブ -->
         <div class="tab-pane fade" id="milestones" role="tabpanel" aria-labelledby="milestones-tab">
             <div class="card">
                 <div class="card-header">
@@ -306,33 +240,29 @@
                                         @php
                                             $rowClass = '';
                                             $now = \Carbon\Carbon::now()->startOfDay();
-                                            $daysUntilDue = $now->diffInDays($milestone->end_date, false);
+                                            $daysUntilDue = $milestone->end_date ? $now->diffInDays($milestone->end_date, false) : null;
 
-                                            if ($milestone->end_date < $now && $milestone->status !== 'completed' && $milestone->status !== 'cancelled') {
+                                            if ($milestone->end_date && $milestone->end_date < $now && $milestone->status !== 'completed' && $milestone->status !== 'cancelled') {
                                                 $rowClass = 'task-overdue';
-                                            } elseif ($daysUntilDue >= 0 && $daysUntilDue <= 2 && $milestone->status !== 'completed' && $milestone->status !== 'cancelled') {
-                                                $rowClass = 'task-overdue';
-                                            } elseif ($daysUntilDue >= 0 && $daysUntilDue <= 2 && $milestone->status !== 'completed' && $milestone->status !== 'cancelled') {
+                                            } elseif ($daysUntilDue !== null && $daysUntilDue >= 0 && $daysUntilDue <= 2 && $milestone->status !== 'completed' && $milestone->status !== 'cancelled') {
                                                 $rowClass = 'task-due-soon';
                                             }
-
-                                            // ステータスに応じた色
                                             $statusColor = '';
                                             switch ($milestone->status) {
                                                 case 'not_started':
-                                                    $statusColor = '#6c757d'; // 灰色
+                                                    $statusColor = '#6c757d';
                                                     break;
                                                 case 'in_progress':
-                                                    $statusColor = '#0d6efd'; // 青色
+                                                    $statusColor = '#0d6efd';
                                                     break;
                                                 case 'completed':
-                                                    $statusColor = '#198754'; // 緑色
+                                                    $statusColor = '#198754';
                                                     break;
                                                 case 'on_hold':
-                                                    $statusColor = '#ffc107'; // 黄色
+                                                    $statusColor = '#ffc107';
                                                     break;
                                                 case 'cancelled':
-                                                    $statusColor = '#dc3545'; // 赤色
+                                                    $statusColor = '#dc3545';
                                                     break;
                                             }
                                         @endphp
@@ -345,26 +275,24 @@
                                             </td>
                                             <td>
                                                 <div class="d-flex align-items-center">
-                                                    <span class="task-icon">
-                                                        <i class="fas fa-flag text-danger"></i>
-                                                    </span>
+                                                    <span class="task-icon"><i class="fas fa-flag text-danger"></i></span>
                                                     <a href="{{ route('projects.tasks.edit', [$milestone->project, $milestone]) }}"
                                                         class="text-decoration-none">{{ $milestone->name }}</a>
                                                 </div>
                                             </td>
                                             <td>
-                                                @if($milestone->end_date < $now && $milestone->status !== 'completed' && $milestone->status !== 'cancelled')
+                                                @if($milestone->end_date && $milestone->end_date < $now && $milestone->status !== 'completed' && $milestone->status !== 'cancelled')
                                                     <span class="text-danger">
                                                         <i class="fas fa-exclamation-circle"></i>
                                                         {{ $milestone->end_date->format('Y/m/d') }}
                                                     </span>
-                                                @elseif($daysUntilDue >= 0 && $daysUntilDue <= 2 && $milestone->status !== 'completed' && $milestone->status !== 'cancelled')
+                                                @elseif($daysUntilDue !== null && $daysUntilDue >= 0 && $daysUntilDue <= 2 && $milestone->status !== 'completed' && $milestone->status !== 'cancelled')
                                                     <span class="text-warning">
                                                         <i class="fas fa-exclamation-triangle"></i>
                                                         {{ $milestone->end_date->format('Y/m/d') }}
                                                     </span>
                                                 @else
-                                                    {{ $milestone->end_date->format('Y/m/d') }}
+                                                    {{ optional($milestone->end_date)->format('Y/m/d') }}
                                                 @endif
                                             </td>
                                             <td>
@@ -374,8 +302,7 @@
                                                     <option value="not_started" {{ $milestone->status === 'not_started' ? 'selected' : '' }}>未着手</option>
                                                     <option value="in_progress" {{ $milestone->status === 'in_progress' ? 'selected' : '' }}>進行中</option>
                                                     <option value="completed" {{ $milestone->status === 'completed' ? 'selected' : '' }}>完了</option>
-                                                    <option value="on_hold" {{ $milestone->status === 'on_hold' ? 'selected' : '' }}>
-                                                        保留中</option>
+                                                    <option value="on_hold" {{ $milestone->status === 'on_hold' ? 'selected' : '' }}>保留中</option>
                                                     <option value="cancelled" {{ $milestone->status === 'cancelled' ? 'selected' : '' }}>キャンセル</option>
                                                 </select>
                                             </td>
@@ -406,7 +333,6 @@
             </div>
         </div>
 
-        <!-- フォルダタブ -->
         <div class="tab-pane fade" id="folders" role="tabpanel" aria-labelledby="folders-tab">
             <div class="card">
                 <div class="card-header">
@@ -419,8 +345,8 @@
                                 <tr>
                                     <th>プロジェクト</th>
                                     <th>フォルダ名</th>
-                                    <th>親フォルダ</th>
-                                    <th>タスク数</th>
+                                    <th>親タスク</th>
+                                    <th>タスク数 / ファイル数</th>
                                     <th>操作</th>
                                 </tr>
                             </thead>
@@ -430,16 +356,14 @@
                                         <td colspan="5" class="text-center py-4">表示するフォルダがありません</td>
                                     </tr>
                                 @else
-                                    @foreach($tasks->where('is_folder', true) as $folder)
+                                    @foreach($tasks->where('is_folder', true)->sortBy('name') as $folder)
                                         @php
-                                            // 親フォルダのパスを取得
                                             $parentFolder = $folder->parent;
                                             $parentName = $parentFolder ? $parentFolder->name : '-';
-
-                                            // フォルダ内のタスク数を取得
-                                            $taskCount = $folder->children->count();
+                                            $taskCount = ($folder->children && is_countable($folder->children)) ? $folder->children->count() : 0;
+                                            $fileCount = ($folder->files && is_countable($folder->files)) ? $folder->files->count() : 0;
                                         @endphp
-                                        <tr class="{{ $rowClass }}">
+                                        <tr>
                                             <td>
                                                 <a href="{{ route('projects.show', $folder->project) }}"
                                                     class="text-decoration-none" style="color: {{ $folder->project->color }};">
@@ -448,16 +372,15 @@
                                             </td>
                                             <td>
                                                 <div class="d-flex align-items-center">
-                                                    <span class="task-icon">
-                                                        <i class="fas fa-folder text-primary"></i>
-                                                    </span>
+                                                    <span class="task-icon"><i class="fas fa-folder text-primary"></i></span>
                                                     <a href="{{ route('projects.tasks.edit', [$folder->project, $folder]) }}"
                                                         class="text-decoration-none">{{ $folder->name }}</a>
                                                 </div>
                                             </td>
                                             <td>{{ $parentName }}</td>
                                             <td>
-                                                <span class="badge bg-primary rounded-pill">{{ $taskCount }}</span>
+                                                <i class="fas fa-tasks"></i> {{ $taskCount }} /
+                                                <i class="fas fa-file"></i> {{ $fileCount }}
                                             </td>
                                             <td>
                                                 <div class="btn-group">
@@ -492,16 +415,6 @@
 @section('scripts')
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            // フィルターパネルの閉じるボタン
-            const closeFilterBtn = document.getElementById('closeFilterBtn');
-            if (closeFilterBtn) {
-                closeFilterBtn.addEventListener('click', function () {
-                    const filterPanel = document.getElementById('filterPanel');
-                    const bsCollapse = new bootstrap.Collapse(filterPanel);
-                    bsCollapse.hide();
-                });
-            }
-
             // タスクステータス変更処理
             const statusSelects = document.querySelectorAll('.task-status-select');
 
@@ -511,7 +424,6 @@
                     const projectId = this.dataset.projectId;
                     const status = this.value;
 
-                    // ステータスを更新
                     fetch(`/projects/${projectId}/tasks/${taskId}/progress`, {
                         method: 'POST',
                         headers: {
@@ -526,7 +438,6 @@
                         .then(response => response.json())
                         .then(data => {
                             if (data.success) {
-                                // 成功時の処理（必要に応じてページをリロードするなど）
                                 location.reload();
                             } else {
                                 alert('ステータスの更新に失敗しました。');
@@ -547,25 +458,20 @@
                     const taskId = this.dataset.taskId;
                     const currentValue = this.dataset.value || '';
 
-                    // 現在のセルを非表示にして入力フォームを表示
                     this.classList.add('d-none');
                     const editForm = this.nextElementSibling;
                     editForm.classList.remove('d-none');
 
-                    // 入力フィールドにフォーカスを当てる
                     const input = editForm.querySelector('input');
                     input.focus();
                     input.select();
 
-                    // 入力完了時の処理（Enterキーまたはフォーカスが外れた時）
                     function completeEdit() {
                         const newValue = input.value.trim();
 
-                        // 値が変更された場合のみ更新
                         if (newValue !== currentValue) {
                             const projectId = input.dataset.projectId;
 
-                            // 担当者を更新
                             fetch(`/projects/${projectId}/tasks/${taskId}/assignee`, {
                                 method: 'POST',
                                 headers: {
@@ -579,7 +485,6 @@
                                 .then(response => response.json())
                                 .then(data => {
                                     if (data.success) {
-                                        // 成功時の処理
                                         cell.textContent = newValue || '-';
                                         cell.dataset.value = newValue;
                                     } else {
@@ -592,12 +497,10 @@
                                 });
                         }
 
-                        // 入力フォームを非表示にしてセルを表示
                         editForm.classList.add('d-none');
                         cell.classList.remove('d-none');
                     }
 
-                    // Enterキーで編集完了
                     input.addEventListener('keydown', function (e) {
                         if (e.key === 'Enter') {
                             e.preventDefault();
@@ -605,7 +508,6 @@
                         }
                     });
 
-                    // フォーカスが外れたら編集完了
                     input.addEventListener('blur', completeEdit);
                 });
             });
@@ -618,13 +520,11 @@
                 listViewBtn.addEventListener('click', function () {
                     listViewBtn.classList.add('active');
                     boardViewBtn.classList.remove('active');
-                    // ここにリストビューの表示ロジックを追加
                 });
 
                 boardViewBtn.addEventListener('click', function () {
                     boardViewBtn.classList.add('active');
                     listViewBtn.classList.remove('active');
-                    // ここにボードビューの表示ロジックを追加
                 });
             }
         });

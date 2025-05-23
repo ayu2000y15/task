@@ -6,7 +6,8 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1>カレンダー</h1>
         <div>
-            <button class="btn btn-outline-primary me-2" type="button" id="showFilterBtn">
+            <button class="btn btn-outline-primary me-2" type="button" id="showFilterBtn" data-bs-toggle="collapse"
+                data-bs-target="#filterPanel">
                 <i class="fas fa-filter"></i> フィルター
             </button>
             <a href="{{ route('projects.create') }}" class="btn btn-primary">
@@ -15,57 +16,8 @@
         </div>
     </div>
 
-    <!-- フィルターパネル -->
-    <div class="collapse {{ array_filter($filters) ? 'show' : '' }}" id="filterPanel">
-        <div class="filter-panel mb-4">
-            <div class="filter-close" id="closeFilterBtn">
-                <i class="fas fa-times"></i>
-            </div>
-            <form action="{{ route('calendar.index') }}" method="GET" class="row g-3">
-                <div class="col-md-3 col-sm-6">
-                    <label for="project_id" class="form-label">プロジェクト</label>
-                    <select class="form-select" id="project_id" name="project_id">
-                        <option value="">すべて</option>
-                        @foreach($allProjects as $project)
-                            <option value="{{ $project->id }}" {{ $filters['project_id'] == $project->id ? 'selected' : '' }}>
-                                {{ $project->title }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="col-md-3 col-sm-6">
-                    <label for="assignee" class="form-label">担当者</label>
-                    <select class="form-select" id="assignee" name="assignee">
-                        <option value="">すべて</option>
-                        @foreach($allAssignees as $assignee)
-                            <option value="{{ $assignee }}" {{ $filters['assignee'] == $assignee ? 'selected' : '' }}>
-                                {{ $assignee }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="col-md-3 col-sm-6">
-                    <label for="status" class="form-label">ステータス</label>
-                    <select class="form-select" id="status" name="status">
-                        <option value="">すべて</option>
-                        @foreach($statusOptions as $value => $label)
-                            <option value="{{ $value }}" {{ $filters['status'] == $value ? 'selected' : '' }}>
-                                {{ $label }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="col-md-3 col-sm-6">
-                    <label for="search" class="form-label">タスク名検索</label>
-                    <input type="text" class="form-control" id="search" name="search" value="{{ $filters['search'] }}">
-                </div>
-                <div class="col-md-12 d-flex">
-                    <button type="submit" class="btn btn-primary me-2">フィルター適用</button>
-                    <a href="{{ route('calendar.index') }}" class="btn btn-secondary">リセット</a>
-                </div>
-            </form>
-        </div>
-    </div>
+    <x-filter-panel :action="route('calendar.index')" :filters="$filters" :all-projects="$allProjects"
+        :all-assignees="$allAssignees" :status-options="$statusOptions" />
 
     <div class="card">
         <div class="card-header">
@@ -84,7 +36,6 @@
         </div>
     </div>
 
-    <!-- イベント詳細モーダル -->
     <div class="modal fade" id="eventModal" tabindex="-1" aria-labelledby="eventModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -202,23 +153,6 @@
 @section('scripts')
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            // フィルターパネルの表示/非表示
-            const showFilterBtn = document.getElementById('showFilterBtn');
-            const closeFilterBtn = document.getElementById('closeFilterBtn');
-            const filterPanel = document.getElementById('filterPanel');
-
-            if (showFilterBtn && closeFilterBtn && filterPanel) {
-                showFilterBtn.addEventListener('click', function () {
-                    const bsCollapse = new bootstrap.Collapse(filterPanel);
-                    bsCollapse.show();
-                });
-
-                closeFilterBtn.addEventListener('click', function () {
-                    const bsCollapse = new bootstrap.Collapse(filterPanel);
-                    bsCollapse.hide();
-                });
-            }
-
             // イベントデータを取得
             const events = {!! $events !!};
 

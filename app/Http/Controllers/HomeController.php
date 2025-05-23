@@ -15,49 +15,44 @@ class HomeController extends Controller
     public function index()
     {
         Carbon::setLocale('ja');
-        // プロジェクト数
         $projectCount = Project::count();
-
-
-        // 進行中のプロジェクト数（終了日が今日以降のプロジェクト）
         $activeProjectCount = Project::where('end_date', '>=', Carbon::today())->count();
-
-        // タスク数
         $taskCount = Task::count();
 
-        // 最近のタスク（直近の終了日のタスク10件）
-        $recentTasks = Task::whereDate('end_date', '>=', Carbon::today())
+        $recentTasks = Task::whereNotNull('end_date') // end_dateがnullでないタスクのみ対象
+            ->whereDate('end_date', '>=', Carbon::today())
             ->orderBy('end_date')
             ->limit(10)
             ->get();
 
-        // 期限間近のタスク（1週間以内に終了するタスク）
-        $upcomingTasks = Task::whereDate('end_date', '>=', Carbon::today())
+        $upcomingTasks = Task::whereNotNull('end_date') // end_dateがnullでないタスクのみ対象
+            ->whereDate('end_date', '>=', Carbon::today())
             ->whereDate('end_date', '<=', Carbon::today()->addDays(7))
-            ->where('status', '!=', 'completed')
-            ->where('status', '!=', 'cancelled')
+            ->whereNotIn('status', ['completed', 'cancelled'])
             ->orderBy('end_date')
             ->limit(5)
             ->get();
 
         // ToDoリスト用のタスク
+        $sevenDaysAgo = Carbon::now()->subDays(7)->startOfDay();
+        $todayEnd = Carbon::now()->endOfDay();
+
         $todoTasks = Task::where('status', 'not_started')
+            ->whereNotNull('start_date') // start_dateがnullでないもののみ
+            ->whereBetween('start_date', [$sevenDaysAgo, $todayEnd])
             ->orderBy('start_date')
             ->limit(10)
             ->get();
 
         $inProgressTasks = Task::where('status', 'in_progress')
-            ->orderBy('end_date')
+            // ->whereBetween('updated_at', [$sevenDaysAgo, $todayEnd]) // 例：もし更新日で絞るなら
+            ->orderBy('updated_at', 'desc') // 例：更新が新しい順
             ->limit(10)
             ->get();
 
         $onHoldTasks = Task::where('status', 'on_hold')
-            ->orderBy('end_date')
-            ->limit(10)
-            ->get();
-
-        $completedTasks = Task::where('status', 'completed')
-            ->orderBy('end_date', 'desc')
+            // ->whereBetween('updated_at', [$sevenDaysAgo, $todayEnd]) // 例：もし更新日で絞るなら
+            ->orderBy('updated_at', 'desc') // 例：更新が新しい順
             ->limit(10)
             ->get();
 
@@ -69,8 +64,7 @@ class HomeController extends Controller
             'upcomingTasks',
             'todoTasks',
             'inProgressTasks',
-            'onHoldTasks',
-            'completedTasks'
+            'onHoldTasks'
         ));
     }
 }

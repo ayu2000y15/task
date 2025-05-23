@@ -8,15 +8,15 @@ use App\Models\Task;
 use App\Models\Holiday;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
+use App\Services\TaskService;
 
 class GanttChartController extends Controller
 {
     /**
      * ガントチャートを表示
      */
-    public function index(Request $request)
+    public function index(Request $request, TaskService $taskService)
     {
-        // フィルター条件を取得
         $filters = [
             'project_id' => $request->input('project_id'),
             'assignee' => $request->input('assignee'),
@@ -26,43 +26,22 @@ class GanttChartController extends Controller
             'end_date' => $request->input('end_date'),
         ];
 
-        // プロジェクトのクエリを作成
         $projectsQuery = Project::with(['tasks' => function ($query) use ($filters) {
-            // タスクのフィルタリング
-            if (!empty($filters['assignee'])) {
-                $query->where('assignee', $filters['assignee']);
-            }
-
-            if (!empty($filters['status'])) {
-                $query->where('status', $filters['status']);
-            }
-
-            if (!empty($filters['search'])) {
-                $query->where('name', 'like', '%' . $filters['search'] . '%');
-            }
-
-            if (!empty($filters['start_date'])) {
-                $query->where('end_date', '>=', $filters['start_date']);
-            }
-
-            if (!empty($filters['end_date'])) {
-                $query->where('start_date', '<=', $filters['end_date']);
-            }
+            app(TaskService::class)->applyAssigneeFilter($query, $filters['assignee']);
+            app(TaskService::class)->applyStatusFilter($query, $filters['status']);
+            app(TaskService::class)->applySearchFilter($query, $filters['search']);
+            app(TaskService::class)->applyDateRangeFilter($query, $filters['start_date'], $filters['end_date']);
         }]);
 
-        // 特定のプロジェクトのみ表示する場合
         if (!empty($filters['project_id'])) {
             $projectsQuery->where('id', $filters['project_id']);
         }
 
-        // プロジェクトを取得
         $projects = $projectsQuery->get();
 
-        // 表示期間の決定
         $startDate = null;
         $endDate = null;
 
-        // フィルターで期間が指定されている場合はそれを使用
         if (!empty($filters['start_date'])) {
             $startDate = Carbon::parse($filters['start_date']);
         }
@@ -71,7 +50,6 @@ class GanttChartController extends Controller
             $endDate = Carbon::parse($filters['end_date']);
         }
 
-        // フィルターで期間が指定されていない場合は、プロジェクトの期間から自動計算
         if (!$startDate || !$endDate) {
             foreach ($projects as $project) {
                 if (!$startDate || $project->start_date->lt($startDate)) {
@@ -84,7 +62,6 @@ class GanttChartController extends Controller
             }
         }
 
-        // デフォルトの期間（プロジェクトがない場合や期間が特定できない場合）
         if (!$startDate) {
             $startDate = Carbon::today()->subDays(7);
         }
@@ -93,7 +70,6 @@ class GanttChartController extends Controller
             $endDate = Carbon::today()->addMonths(1);
         }
 
-        // 表示する日付の配列を作成
         $dates = [];
         $period = CarbonPeriod::create($startDate, $endDate);
 
@@ -107,19 +83,16 @@ class GanttChartController extends Controller
             ];
         }
 
-        // 祝日データを取得
         $holidays = Holiday::whereBetween('date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
             ->get()
             ->keyBy('date');
 
-        // 担当者一覧を取得
         $allAssignees = Task::whereNotNull('assignee')
             ->distinct()
             ->pluck('assignee')
             ->sort()
             ->values();
 
-        // ステータスオプション
         $statusOptions = [
             'not_started' => '未着手',
             'in_progress' => '進行中',
@@ -128,10 +101,7 @@ class GanttChartController extends Controller
             'cancelled' => 'キャンセル',
         ];
 
-        // 全プロジェクト一覧（フィルター用）
         $allProjects = Project::orderBy('title')->get();
-
-        // 今日の日付
         $today = Carbon::today();
 
         return view('gantt.index', [
