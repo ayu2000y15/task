@@ -149,7 +149,7 @@
                                             <td class="col-task-name"> {{-- class追加 --}}
                                                 <div class="d-flex align-items-center">
                                                     <span class="task-icon me-1">
-                                                         @switch($task->status)
+                                                        @switch($task->status)
                                                             @case('completed')
                                                                 <i class="fas fa-check-circle text-success" title="完了"></i>
                                                                 @break
@@ -166,7 +166,7 @@
                                                                 <i class="far fa-circle text-secondary" title="未着手"></i>
                                                         @endswitch
                                                     </span>
-                                                    <div>
+                                                <div>
                                                         @if(!empty($folderPath))
                                                             <small class="text-muted d-block">{{ $folderPath }}</small>
                                                         @endif
@@ -258,7 +258,7 @@
                         <table class="table table-hover mb-0">
                             <thead class="table-light">
                                 <tr>
-                                    <th class="col-project">プロジェクト</th> {{-- class追加 --}}
+                                    <th class="col-project"></th> {{-- class追加 --}}
                                     <th class="col-task-name">マイルストーン名</th> {{-- class追加 --}}
                                     <th>日付</th>
                                     <th>ステータス</th>
@@ -291,19 +291,35 @@
                                                 case 'cancelled': $statusColor = '#dc3545'; break;
                                             }
                                         @endphp
-                                        <tr style="border-left: 5px solid {{ $statusColor }};" class="{{ $rowClass }}">
+                                        <tr>
                                             <td class="col-project"> {{-- class追加 --}}
-                                                <span class="project-icon-list" style="background-color: {{ $milestone->project->color }};">
-                                                    {{ mb_substr($milestone->project->title, 0, 1) }}
-                                                </span>
                                                 <a href="{{ route('projects.show', $milestone->project) }}"
                                                     class="text-decoration-none" style="color: {{ $milestone->project->color }};">
-                                                    {{ $milestone->project->title }}
+                                                    <span class="project-icon-list" style="background-color: {{ $milestone->project->color }};">
+                                                        {{ mb_substr($milestone->project->title, 0, 1) }}
+                                                    </span>
                                                 </a>
                                             </td>
                                             <td class="col-task-name"> {{-- class追加 --}}
                                                 <div class="d-flex align-items-center">
-                                                    <span class="task-icon me-1"><i class="fas fa-flag text-danger"></i></span>
+                                                    <span class="task-icon me-1">
+                                                        @switch($milestone->status)
+                                                            @case('completed')
+                                                                <i class="fas fa-check-circle text-success" title="完了"></i>
+                                                                @break
+                                                            @case('in_progress')
+                                                                <i class="fas fa-play-circle text-primary" title="進行中"></i>
+                                                                @break
+                                                            @case('on_hold')
+                                                                <i class="fas fa-pause-circle text-warning" title="保留中"></i>
+                                                                @break
+                                                            @case('cancelled')
+                                                                <i class="fas fa-times-circle text-danger" title="キャンセル"></i>
+                                                                @break
+                                                            @default
+                                                                <i class="far fa-circle text-secondary" title="未着手"></i>
+                                                        @endswitch
+                                                    </span>
                                                     <a href="{{ route('projects.tasks.edit', [$milestone->project, $milestone]) }}"
                                                         class="text-decoration-none">{{ $milestone->name }}</a>
                                                 </div>
@@ -373,7 +389,7 @@
                         <table class="table table-hover mb-0">
                             <thead class="table-light">
                                 <tr>
-                                    <th class="col-project">プロジェクト</th> {{-- class追加 --}}
+                                    <th class="col-project"></th> {{-- class追加 --}}
                                     <th class="col-task-name">フォルダ名</th> {{-- class追加 --}}
                                     <th>親タスク</th>
                                     <th>ファイル数</th> {{-- 列名変更 --}}
@@ -394,12 +410,11 @@
                                         @endphp
                                         <tr> {{-- $rowClass はフォルダには適用しないので削除 --}}
                                             <td class="col-project"> {{-- class追加 --}}
-                                                 <span class="project-icon-list" style="background-color: {{ $folder->project->color }};">
-                                                    {{ mb_substr($folder->project->title, 0, 1) }}
-                                                </span>
                                                 <a href="{{ route('projects.show', $folder->project) }}"
                                                     class="text-decoration-none" style="color: {{ $folder->project->color }};">
-                                                    {{ $folder->project->title }}
+                                                    <span class="project-icon-list" style="background-color: {{ $folder->project->color }};">
+                                                        {{ mb_substr($folder->project->title, 0, 1) }}
+                                                    </span>
                                                 </a>
                                             </td>
                                             <td class="col-task-name"> {{-- class追加 --}}
