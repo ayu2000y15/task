@@ -4,6 +4,18 @@
 
 @section('styles')
 <style>
+    .project-icon-list { /* タスク一覧用プロジェクトアイコン */
+        width: 30px;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 5px;
+        margin-right: 10px;
+        font-weight: bold;
+        color: white;
+        vertical-align: middle; /* アイコンとテキストの縦位置を合わせる */
+    }
     .todo-project-icon {
         display: inline-flex;
         align-items: center;
@@ -58,7 +70,7 @@
                     <table class="table table-hover mb-0">
                         <thead class="table-light">
                             <tr>
-                                <th>プロジェクト</th>
+                                <th></th>
                                 <th>タスク名</th>
                                 <th>担当者</th>
                                 <th>期限</th>
@@ -87,7 +99,9 @@
                                     <tr class="{{ $rowClass }}">
                                         <td>
                                             <a href="{{ route('projects.show', $task->project) }}" style="color: {{ $task->project->color }};">
-                                                {{ $task->project->title }}
+                                                <span class="project-icon-list" style="background-color: {{ $task->project->color }};">
+                                                    {{ mb_substr($task->project->title, 0, 1) }}
+                                                </span>
                                             </a>
                                         </td>
                                         <td>
@@ -98,7 +112,24 @@
                                                     @elseif($task->is_folder)
                                                         <i class="fas fa-folder"></i>
                                                     @else
-                                                        <i class="fas fa-tasks"></i>
+                                                    <span class="task-icon me-1">
+                                                        @switch($task->status)
+                                                            @case('completed')
+                                                                <i class="fas fa-check-circle text-success" title="完了"></i>
+                                                                @break
+                                                            @case('in_progress')
+                                                                <i class="fas fa-play-circle text-primary" title="進行中"></i>
+                                                                @break
+                                                            @case('on_hold')
+                                                                <i class="fas fa-pause-circle text-warning" title="保留中"></i>
+                                                                @break
+                                                            @case('cancelled')
+                                                                <i class="fas fa-times-circle text-danger" title="キャンセル"></i>
+                                                                @break
+                                                            @default
+                                                                <i class="far fa-circle text-secondary" title="未着手"></i>
+                                                        @endswitch
+                                                    </span>
                                                     @endif
                                                 </span>
                                                 <a href="{{ route('projects.tasks.edit', [$task->project, $task]) }}">{{ $task->name }}</a>

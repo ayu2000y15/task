@@ -59,7 +59,7 @@
                             <i class="fas fa-folder-open"></i>
                         </a>
                     @elseif($task->is_milestone)
-                        <i class="fas fa-flag text-danger" title="マイルストーン"></i>
+                        <i class="fas fa-flag" title="マイルストーン"></i>
                     @endif
                     </span>
 

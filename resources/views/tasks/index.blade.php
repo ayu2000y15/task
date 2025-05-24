@@ -302,24 +302,7 @@
                                             </td>
                                             <td class="col-task-name"> {{-- class追加 --}}
                                                 <div class="d-flex align-items-center">
-                                                    <span class="task-icon me-1">
-                                                        @switch($milestone->status)
-                                                            @case('completed')
-                                                                <i class="fas fa-check-circle text-success" title="完了"></i>
-                                                                @break
-                                                            @case('in_progress')
-                                                                <i class="fas fa-play-circle text-primary" title="進行中"></i>
-                                                                @break
-                                                            @case('on_hold')
-                                                                <i class="fas fa-pause-circle text-warning" title="保留中"></i>
-                                                                @break
-                                                            @case('cancelled')
-                                                                <i class="fas fa-times-circle text-danger" title="キャンセル"></i>
-                                                                @break
-                                                            @default
-                                                                <i class="far fa-circle text-secondary" title="未着手"></i>
-                                                        @endswitch
-                                                    </span>
+                                                    <span class="task-icon me-1"><i class="fas fa-flag" title="マイルストーン"></i></span>
                                                     <a href="{{ route('projects.tasks.edit', [$milestone->project, $milestone]) }}"
                                                         class="text-decoration-none">{{ $milestone->name }}</a>
                                                 </div>
