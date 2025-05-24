@@ -13,6 +13,7 @@ class ProjectController extends Controller
      */
     public function index()
     {
+        $this->authorize('viewAny', Project::class);
         $projects = Project::orderBy('title')->get();
 
         return view('projects.index', compact('projects'));
@@ -23,6 +24,7 @@ class ProjectController extends Controller
      */
     public function create()
     {
+        $this->authorize('create', Project::class);
         return view('projects.create');
     }
 
@@ -31,6 +33,7 @@ class ProjectController extends Controller
      */
     public function store(Request $request)
     {
+        $this->authorize('create', Project::class);
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
@@ -57,6 +60,7 @@ class ProjectController extends Controller
      */
     public function show(Project $project)
     {
+        $this->authorize('view', $project);
         return view('projects.show', compact('project'));
     }
 
@@ -65,6 +69,7 @@ class ProjectController extends Controller
      */
     public function edit(Project $project)
     {
+        $this->authorize('update', $project);
         return view('projects.edit', compact('project'));
     }
 
@@ -73,6 +78,7 @@ class ProjectController extends Controller
      */
     public function update(Request $request, Project $project)
     {
+        $this->authorize('update', $project);
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
@@ -99,6 +105,7 @@ class ProjectController extends Controller
      */
     public function destroy(Project $project)
     {
+        $this->authorize('delete', $project);
         // プロジェクトに関連するタスクも削除
         $project->tasks()->delete();
         $project->delete();

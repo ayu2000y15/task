@@ -18,6 +18,8 @@ class TaskController extends Controller
      */
     public function index(Request $request, TaskService $taskService)
     {
+        $this->authorize('viewAny', Task::class);
+
         $filters = [
             'project_id' => $request->input('project_id', ''),
             'assignee' => $request->input('assignee', ''),
@@ -47,6 +49,8 @@ class TaskController extends Controller
      */
     public function create(Request $request, Project $project)
     {
+        $this->authorize('create', Task::class);
+
         $parentTask = null;
 
         if ($request->has('parent')) {
@@ -61,6 +65,8 @@ class TaskController extends Controller
      */
     public function store(Request $request, Project $project)
     {
+        $this->authorize('create', Task::class);
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
@@ -134,6 +140,8 @@ class TaskController extends Controller
      */
     public function edit(Project $project, Task $task)
     {
+        $this->authorize('update', Task::class);
+
         $files = $task->is_folder ? $task->files()->orderBy('original_name')->get() : collect();
         return view('tasks.edit', compact('project', 'task', 'files'));
     }
@@ -143,6 +151,8 @@ class TaskController extends Controller
      */
     public function update(Request $request, Project $project, Task $task)
     {
+        $this->authorize('update', Task::class);
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
@@ -208,6 +218,8 @@ class TaskController extends Controller
      */
     public function destroy(Project $project, Task $task)
     {
+        $this->authorize('delete', Task::class);
+
         $this->deleteTaskAndChildren($task);
         return redirect()->route('tasks.index', ['project_id' => $project->id])->with('success', 'タスクが削除されました。');
     }
@@ -217,6 +229,8 @@ class TaskController extends Controller
      */
     private function deleteTaskAndChildren(Task $task)
     {
+        $this->authorize('delete', arguments: Task::class);
+
         if ($task->is_folder) {
             Storage::disk('local')->deleteDirectory('task_files/' . $task->id);
         }

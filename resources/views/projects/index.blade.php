@@ -5,9 +5,11 @@
 @section('content')
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1>プロジェクト一覧</h1>
+        @can('create', App\Models\Project::class)
         <a href="{{ route('projects.create') }}" class="btn btn-primary">
             <i class="fas fa-plus"></i> 新規プロジェクト
         </a>
+        @endcan
     </div>
 
     @if($projects->isEmpty())
@@ -62,9 +64,12 @@
                                     class="btn btn-sm btn-outline-info">
                                     <i class="fas fa-chart-gantt"></i> ガント
                                 </a>
-                                <a href="{{ route('projects.edit', $project) }}" class="btn btn-sm btn-outline-warning">
-                                    <i class="fas fa-edit"></i> 編集
-                                </a>
+                                @can('update', $project)
+                                    <a href="{{ route('projects.edit', $project) }}" class="btn btn-sm btn-outline-warning">
+                                        <i class="fas fa-edit"></i> 編集
+                                    </a>
+                                @endcan
+
                             </div>
                         </div>
                     </div>
