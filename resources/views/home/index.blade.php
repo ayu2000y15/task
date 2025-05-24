@@ -87,7 +87,7 @@
                                 @foreach($recentTasks as $task)
                                     @php
                                         $rowClass = '';
-                                        $now = \Carbon\Carbon::now();
+                                        $now = \Carbon\Carbon::now()->startOfDay();
                                         $daysUntilDue = $task->end_date ? $now->diffInDays($task->end_date, false) : null;
 
                                         if($task->end_date && $task->end_date < $now && $task->status !== 'completed' && $task->status !== 'cancelled') {
@@ -224,7 +224,7 @@
                         @foreach($upcomingTasks as $task)
                             @php
                                 $itemClass = '';
-                                $now = \Carbon\Carbon::now();
+                                $now = \Carbon\Carbon::now()->startOfDay();
                                 $daysUntilDue = $task->end_date ? $now->diffInDays($task->end_date, false) : null;
 
                                 if($task->end_date && $task->end_date < $now && $task->status !== 'completed' && $task->status !== 'cancelled') {
@@ -306,7 +306,7 @@
                                 @foreach($tasksInStatus as $task)
                                     @php
                                         $itemClass = '';
-                                        $now = \Carbon\Carbon::now();
+                                        $now = \Carbon\Carbon::now()->startOfDay();
                                         $daysUntilDue = $task->end_date ? $now->diffInDays($task->end_date, false) : null;
 
                                         if($task->end_date && $task->end_date < $now && !in_array($task->status, ['completed', 'cancelled'])) {
