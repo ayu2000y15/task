@@ -1,16 +1,16 @@
 @extends('layouts.app')
 
-@section('title', 'プロジェクト編集')
+@section('title', '衣装案件編集')
 
 @section('content')
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1>プロジェクト編集</h1>
+        <h1>衣装案件編集</h1>
         <div>
             <a href="{{ route('projects.show', $project) }}" class="btn btn-outline-secondaryme-2">
                 <i class="fas fa-arrow-left"></i> 戻る
             </a>
             <form action="{{ route('projects.destroy', $project) }}" method="POST" class="d-inline"
-                onsubmit="return confirm('本当に削除しますか？プロジェクト内のすべてのタスクも削除されます。');">
+                onsubmit="return confirm('本当に削除しますか？衣装案件内のすべての工程も削除されます。');">
                 @csrf
                 @method('DELETE')
                 <button type="submit" class="btn btn-danger">
@@ -27,7 +27,7 @@
                     @csrf
                     @method('PUT')
                     <div class="col-md-6">
-                        <label for="title" class="form-label">プロジェクト名 <span class="text-danger">*</span></label>
+                        <label for="title" class="form-label">衣装案件名 <span class="text-danger">*</span></label>
                         <input type="text" class="form-control @error('title') is-invalid @enderror" id="title" name="title"
                             value="{{ old('title', $project->title) }}" required>
                         @error('title')

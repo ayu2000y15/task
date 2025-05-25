@@ -11,7 +11,7 @@
                 <i class="fas fa-filter"></i> フィルター
             </button>
             <a href="{{ route('projects.create') }}" class="btn btn-primary">
-                <i class="fas fa-plus"></i> 新規プロジェクト
+                <i class="fas fa-plus"></i> 新規衣装案件
             </a>
         </div>
     </div>
@@ -25,7 +25,7 @@
                 <h5 class="mb-0">カレンダー</h5>
                 <div class="form-check form-switch">
                     <input class="form-check-input" type="checkbox" id="showProjectsToggle" checked>
-                    <label class="form-check-label" for="showProjectsToggle">プロジェクトを表示</label>
+                    <label class="form-check-label" for="showProjectsToggle">衣装案件を表示</label>
                 </div>
             </div>
         </div>
@@ -49,7 +49,7 @@
                         <p id="eventDate" class="text-muted"></p>
                     </div>
                     <div id="eventProject" class="mb-3">
-                        <strong>プロジェクト:</strong> <span id="eventProjectName"></span>
+                        <strong>衣装案件:</strong> <span id="eventProjectName"></span>
                     </div>
                     <div id="eventAssignee" class="mb-3">
                         <strong>担当者:</strong> <span id="eventAssigneeName"></span>
@@ -156,7 +156,7 @@
             // イベントデータを取得
             const events = {!! $events !!};
 
-            // プロジェクトイベントとタスクイベントを分離
+            // 衣装案件イベントと工程イベントを分離
             const projectEvents = events.filter(event => event.extendedProps.type === 'project');
             const taskEvents = events.filter(event => event.extendedProps.type === 'task' || event.extendedProps.type === 'milestone');
             const holidayEvents = events.filter(event => event.extendedProps.type === 'holiday');
@@ -176,7 +176,7 @@
                     month: '月',
                     list: 'リスト'
                 },
-                events: [...taskEvents, ...holidayEvents], // 初期状態ではプロジェクトは非表示
+                events: [...taskEvents, ...holidayEvents], // 初期状態では衣装案件は非表示
                 eventTimeFormat: {
                     hour: 'numeric',
                     minute: '2-digit',
@@ -205,7 +205,7 @@
                         document.getElementById('eventDescription').style.display = 'none';
                         document.getElementById('eventEditLink').style.display = 'none';
                     } else if (extendedProps.type === 'project') {
-                        // プロジェクトの場合
+                        // 衣装案件の場合
                         document.getElementById('eventProject').style.display = 'none';
                         document.getElementById('eventAssignee').style.display = 'none';
                         document.getElementById('eventStatus').style.display = 'none';
@@ -214,7 +214,7 @@
                         document.getElementById('eventEditLink').style.display = 'inline-block';
                         document.getElementById('eventEditLink').href = event.url;
                     } else {
-                        // タスクの場合
+                        // 工程の場合
                         document.getElementById('eventProject').style.display = 'block';
                         document.getElementById('eventProjectName').textContent = extendedProps.project_title;
 
@@ -259,16 +259,16 @@
 
             calendar.render();
 
-            // プロジェクト表示/非表示の切り替え
+            // 衣装案件表示/非表示の切り替え
             const showProjectsToggle = document.getElementById('showProjectsToggle');
             showProjectsToggle.addEventListener('change', function () {
                 if (this.checked) {
-                    // プロジェクトを表示
+                    // 衣装案件を表示
                     projectEvents.forEach(event => {
                         calendar.addEvent(event);
                     });
                 } else {
-                    // プロジェクトを非表示
+                    // 衣装案件を非表示
                     const events = calendar.getEvents();
                     events.forEach(event => {
                         if (event.extendedProps.type === 'project') {
@@ -278,7 +278,7 @@
                 }
             });
 
-            // 初期表示時にプロジェクトを表示
+            // 初期表示時に衣装案件を表示
             if (showProjectsToggle.checked) {
                 projectEvents.forEach(event => {
                     calendar.addEvent(event);

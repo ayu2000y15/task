@@ -1,10 +1,10 @@
 @extends('layouts.app')
 
-@section('title', 'タスク作成')
+@section('title', '工程作成')
 
 @section('content')
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1>タスク作成 - {{ $project->title }}</h1>
+        <h1>工程作成 - {{ $project->title }}</h1>
     </div>
 
     @if ($errors->any())
@@ -20,26 +20,26 @@
     <div class="centered-form">
         <div class="card">
             <div class="card-header">
-                <h2>新規タスク</h2>
+                <h2>新規工程</h2>
             </div>
             <div class="card-body">
                 <form action="{{ route('projects.tasks.store', $project) }}" method="POST">
                     @csrf
 
                     <div class="mb-3">
-                        <label class="form-label">タスク種別</label>
+                        <label class="form-label">工程種別</label>
                         <div class="form-check">
                             <input class="form-check-input" type="radio" id="is_task" name="is_milestone_or_folder"
                                 value="task" {{ old('is_milestone_or_folder', 'task') == 'task' ? 'checked' : '' }}>
                             <label class="form-check-label" for="is_task">
-                                <i class="fas fa-tasks"></i> タスク
+                                <i class="fas fa-tasks"></i> 工程
                             </label>
                         </div>
                         <div class="form-check">
                             <input class="form-check-input @error('is_milestone') is-invalid @enderror" type="radio"
                                 id="is_milestone" name="is_milestone_or_folder" value="milestone" {{ old('is_milestone_or_folder') == 'milestone' ? 'checked' : '' }}>
                             <label class="form-check-label" for="is_milestone">
-                                <i class="fas fa-flag"></i> マイルストーン
+                                <i class="fas fa-flag"></i> 重要納期
                             </label>
                         </div>
                         <div class="form-check">
@@ -52,7 +52,7 @@
                     </div>
 
                     <div class="mb-3">
-                        <label for="name" class="form-label">タスク名</label>
+                        <label for="name" class="form-label">工程名</label>
                         <input type="text" class="form-control @error('name') is-invalid @enderror" id="name" name="name"
                             value="{{ old('name') }}" required>
                         @error('name')
@@ -112,7 +112,7 @@
                     </div>
 
                     <div class="mb-3">
-                        <label for="parent_id" class="form-label">親タスク</label>
+                        <label for="parent_id" class="form-label">親工程</label>
                         <select class="form-select @error('parent_id') is-invalid @enderror" id="parent_id"
                             name="parent_id">
                             <option value="">なし</option>
@@ -220,7 +220,7 @@
                     document.getElementById('status').removeAttribute('required');
                 } else if (selectedType === 'milestone') {
                     taskFields.style.display = 'block';
-                    statusField.style.display = 'block'; // マイルストーンにはステータスも表示
+                    statusField.style.display = 'block'; // 重要納期にはステータスも表示
 
                     startDateInput.removeAttribute('disabled');
                     startDateInput.setAttribute('required', 'required');
@@ -252,9 +252,9 @@
             startDateInput.addEventListener('change', function () {
                 const selectedType = document.querySelector('input[name="is_milestone_or_folder"]:checked').value;
                 if (selectedType === 'milestone') {
-                    endDateInput.value = this.value; // マイルストーンなら終了日を開始日に追従
+                    endDateInput.value = this.value; // 重要納期なら終了日を開始日に追従
                 } else {
-                    updateEndDate(); // 通常タスクなら工数に基づいて終了日を計算
+                    updateEndDate(); // 通常工程なら工数に基づいて終了日を計算
                 }
             });
             durationInput.addEventListener('input', updateEndDate); // 工数が変更されたら終了日を更新

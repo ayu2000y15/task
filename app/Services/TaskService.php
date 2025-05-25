@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\Relation;
 class TaskService
 {
     /**
-     * フィルター条件に基づいてタスクのクエリを構築する
+     * フィルター条件に基づいて工程のクエリを構築する
      *
      * @param array $filters
      * @return Builder
@@ -30,7 +30,7 @@ class TaskService
     }
 
     /**
-     * プロジェクトIDでフィルタリング
+     * 衣装案件IDでフィルタリング
      */
     public function applyProjectFilter(Builder|Relation $query, ?string $projectId): void
     {
@@ -60,7 +60,7 @@ class TaskService
     }
 
     /**
-     * タスク名で検索
+     * 工程名で検索
      */
     public function applySearchFilter(Builder|Relation $query, ?string $search): void
     {

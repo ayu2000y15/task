@@ -1,20 +1,20 @@
 @extends('layouts.app')
 
-@section('title', 'プロジェクト一覧')
+@section('title', '衣装案件一覧')
 
 @section('content')
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1>プロジェクト一覧</h1>
+        <h1>衣装案件一覧</h1>
         @can('create', App\Models\Project::class)
         <a href="{{ route('projects.create') }}" class="btn btn-primary">
-            <i class="fas fa-plus"></i> 新規プロジェクト
+            <i class="fas fa-plus"></i> 新規衣装案件
         </a>
         @endcan
     </div>
 
     @if($projects->isEmpty())
         <div class="alert alert-info">
-            プロジェクトがありません。新規プロジェクトを作成してください。
+            衣装案件がありません。新規衣装案件を作成してください。
         </div>
     @else
         <div class="row">
@@ -38,9 +38,9 @@
                             </div>
 
                             <div class="mb-3">
-                                <small class="text-muted">タスク:</small>
+                                <small class="text-muted">工程:</small>
                                 <div class="d-flex justify-content-between">
-                                    <span>全 {{ $project->tasks->count() }} タスク</span>
+                                    <span>全 {{ $project->tasks->count() }} 工程</span>
                                     <span>完了: {{ $project->tasks->where('status', 'completed')->count() }}</span>
                                 </div>
                                 @php

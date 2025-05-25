@@ -19,13 +19,13 @@
                 <li class="nav-item">
                     <a class="nav-link {{ request()->routeIs('projects.*') ? 'active' : '' }}"
                         href="{{ route('projects.index') }}">
-                        <i class="fas fa-project-diagram"></i> プロジェクト
+                        <i class="fas fa-project-diagram"></i> 衣装案件
                     </a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link {{ request()->routeIs('tasks.index') ? 'active' : '' }}"
                         href="{{ route('tasks.index') }}">
-                        <i class="fas fa-tasks"></i> タスク一覧
+                        <i class="fas fa-tasks"></i> 工程一覧
                     </a>
                 </li>
                 <li class="nav-item">
@@ -77,7 +77,7 @@
                                 プロフィール
                             </a>
                             <a class="dropdown-item" href="{{ route('logout') }}" onclick="event.preventDefault();
-                                                     document.getElementById('logout-form').submit();">
+                                                             document.getElementById('logout-form').submit();">
                                 ログアウト
                             </a>
 

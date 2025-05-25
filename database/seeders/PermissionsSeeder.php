@@ -14,18 +14,18 @@ class PermissionsSeeder extends Seeder
     {
         // パーミッションの基本セット
         $permissions = [
-            // プロジェクト関連
-            ['name' => 'projects.viewAny', 'display_name' => 'プロジェクト一覧表示'],
-            ['name' => 'projects.view', 'display_name' => 'プロジェクト詳細表示'],
-            ['name' => 'projects.create', 'display_name' => 'プロジェクト作成'],
-            ['name' => 'projects.update', 'display_name' => 'プロジェクト編集'],
-            ['name' => 'projects.delete', 'display_name' => 'プロジェクト削除'],
+            // 衣装案件関連
+            ['name' => 'projects.viewAny', 'display_name' => '衣装案件一覧表示'],
+            ['name' => 'projects.view', 'display_name' => '衣装案件詳細表示'],
+            ['name' => 'projects.create', 'display_name' => '衣装案件作成'],
+            ['name' => 'projects.update', 'display_name' => '衣装案件編集'],
+            ['name' => 'projects.delete', 'display_name' => '衣装案件削除'],
 
-            // タスク関連
-            ['name' => 'tasks.viewAny', 'display_name' => 'タスク一覧表示'],
-            ['name' => 'tasks.create', 'display_name' => 'タスク作成'],
-            ['name' => 'tasks.update', 'display_name' => 'タスク編集'],
-            ['name' => 'tasks.delete', 'display_name' => 'タスク削除'],
+            // 工程関連
+            ['name' => 'tasks.viewAny', 'display_name' => '工程一覧表示'],
+            ['name' => 'tasks.create', 'display_name' => '工程作成'],
+            ['name' => 'tasks.update', 'display_name' => '工程編集'],
+            ['name' => 'tasks.delete', 'display_name' => '工程削除'],
 
             // ユーザー管理
             ['name' => 'users.viewAny', 'display_name' => 'ユーザー一覧表示'],

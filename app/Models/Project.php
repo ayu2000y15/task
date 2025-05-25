@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Project extends Model
 {
@@ -12,6 +13,9 @@ class Project extends Model
 
     protected $fillable = [
         'title',
+        'character_name',
+        'series_title',
+        'client_name',
         'description',
         'start_date',
         'end_date',
@@ -35,5 +39,20 @@ class Project extends Model
         $this->is_favorite = !$this->is_favorite;
         $this->save();
         return $this->is_favorite;
+    }
+
+    public function measurements(): HasMany
+    {
+        return $this->hasMany(Measurement::class);
+    }
+
+    public function materials(): HasMany
+    {
+        return $this->hasMany(Material::class);
+    }
+
+    public function costs(): HasMany
+    {
+        return $this->hasMany(Cost::class);
     }
 }

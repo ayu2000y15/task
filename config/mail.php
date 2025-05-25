@@ -118,7 +118,7 @@ return [
 
     'from' => [
         'address' => env('MAIL_FROM_ADDRESS', 'noreply@cosplatform.co.jp'),
-        'name' => env('MAIL_FROM_NAME', 'タスク管理ツール'),
+        'name' => env('MAIL_FROM_NAME', '工程管理ツール'),
     ],
 
     /*

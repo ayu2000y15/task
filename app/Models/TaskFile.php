@@ -20,7 +20,7 @@ class TaskFile extends Model
     ];
 
     /**
-     * このファイルが属するタスクを取得します。
+     * このファイルが属する工程を取得します。
      */
     public function task(): BelongsTo
     {

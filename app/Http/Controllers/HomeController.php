@@ -19,13 +19,13 @@ class HomeController extends Controller
         $activeProjectCount = Project::where('end_date', '>=', Carbon::today())->count();
         $taskCount = Task::count();
 
-        $recentTasks = Task::whereNotNull('end_date') // end_dateがnullでないタスクのみ対象
+        $recentTasks = Task::whereNotNull('end_date') // end_dateがnullでない工程のみ対象
             ->whereDate('end_date', '>=', Carbon::today())
             ->orderBy('end_date')
             ->limit(10)
             ->get();
 
-        $upcomingTasks = Task::whereNotNull('end_date') // end_dateがnullでないタスクのみ対象
+        $upcomingTasks = Task::whereNotNull('end_date') // end_dateがnullでない工程のみ対象
             ->whereDate('end_date', '>=', Carbon::today())
             ->whereDate('end_date', '<=', Carbon::today()->addDays(7))
             ->whereNotIn('status', ['completed', 'cancelled'])
@@ -33,7 +33,7 @@ class HomeController extends Controller
             ->limit(5)
             ->get();
 
-        // ToDoリスト用のタスク
+        // ToDoリスト用の工程
         $sevenDaysAgo = Carbon::now()->subDays(7)->startOfDay();
         $todayEnd = Carbon::now()->endOfDay();
 

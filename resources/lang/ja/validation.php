@@ -153,16 +153,16 @@ return [
     */
 
     'attributes' => [
-        'name' => 'タスク名',
+        'name' => '工程名',
         'description' => '説明',
         'start_date' => '開始日',
         'end_date' => '終了日',
         'duration' => '工数',
         'assignee' => '担当者',
-        'parent_id' => '親タスク',
+        'parent_id' => '親工程',
         'status' => 'ステータス',
-        'color' => 'タスクカラー',
-        'is_milestone' => 'マイルストーン',
+        'color' => '工程カラー',
+        'is_milestone' => '重要納期',
         'is_folder' => 'フォルダ',
     ],
 ];

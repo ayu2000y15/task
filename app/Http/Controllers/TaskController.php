@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Log;
 class TaskController extends Controller
 {
     /**
-     * タスク一覧を表示
+     * 工程一覧を表示
      */
     public function index(Request $request, TaskService $taskService)
     {
@@ -45,7 +45,7 @@ class TaskController extends Controller
     }
 
     /**
-     * 新規タスク作成フォームを表示
+     * 新規工程作成フォームを表示
      */
     public function create(Request $request, Project $project)
     {
@@ -61,7 +61,7 @@ class TaskController extends Controller
     }
 
     /**
-     * 新規タスクを保存
+     * 新規工程を保存
      */
     public function store(Request $request, Project $project)
     {
@@ -132,11 +132,11 @@ class TaskController extends Controller
         $task = new Task($taskData);
         $project->tasks()->save($task);
 
-        return redirect()->route('tasks.index', ['project_id' => $project->id])->with('success', 'タスクが作成されました。');
+        return redirect()->route('tasks.index', ['project_id' => $project->id])->with('success', '工程が作成されました。');
     }
 
     /**
-     * タスク編集フォームを表示
+     * 工程編集フォームを表示
      */
     public function edit(Project $project, Task $task)
     {
@@ -147,7 +147,7 @@ class TaskController extends Controller
     }
 
     /**
-     * タスクを更新
+     * 工程を更新
      */
     public function update(Request $request, Project $project, Task $task)
     {
@@ -210,22 +210,22 @@ class TaskController extends Controller
         $task->fill($taskData);
         $task->save();
 
-        return redirect()->route('tasks.index', ['project_id' => $task->project_id])->with('success', 'タスクが更新されました。');
+        return redirect()->route('tasks.index', ['project_id' => $task->project_id])->with('success', '工程が更新されました。');
     }
 
     /**
-     * タスクを削除
+     * 工程を削除
      */
     public function destroy(Project $project, Task $task)
     {
         $this->authorize('delete', Task::class);
 
         $this->deleteTaskAndChildren($task);
-        return redirect()->route('tasks.index', ['project_id' => $project->id])->with('success', 'タスクが削除されました。');
+        return redirect()->route('tasks.index', ['project_id' => $project->id])->with('success', '工程が削除されました。');
     }
 
     /**
-     * タスクとその子タスクを再帰的に削除
+     * 工程とその子工程を再帰的に削除
      */
     private function deleteTaskAndChildren(Task $task)
     {
@@ -242,7 +242,7 @@ class TaskController extends Controller
     }
 
     /**
-     * タスクの進捗とステータスを更新
+     * 工程の進捗とステータスを更新
      */
     public function updateProgress(Request $request, Project $project, Task $task)
     {
@@ -258,12 +258,12 @@ class TaskController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'タスクの進捗が更新されました。'
+            'message' => '工程の進捗が更新されました。'
         ]);
     }
 
     /**
-     * タスクの位置（日付）を更新
+     * 工程の位置（日付）を更新
      */
     public function updatePosition(Request $request)
     {
@@ -287,12 +287,12 @@ class TaskController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'タスクの位置が更新されました。'
+            'message' => '工程の位置が更新されました。'
         ]);
     }
 
     /**
-     * タスクの親タスクを更新
+     * 工程の親工程を更新
      */
     public function updateParent(Request $request)
     {
@@ -306,7 +306,7 @@ class TaskController extends Controller
         if ($validated['parent_id'] == $task->id) {
             return response()->json([
                 'success' => false,
-                'message' => '自分自身を親タスクにはできません。'
+                'message' => '自分自身を親工程にはできません。'
             ], 422);
         }
 
@@ -323,7 +323,7 @@ class TaskController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'タスクの親子関係が更新されました。'
+            'message' => '工程の親子関係が更新されました。'
         ]);
     }
 

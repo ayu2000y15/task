@@ -25,7 +25,7 @@ return new class extends Migration
             $table->integer('progress')->default(0); // 0-100%
             $table->string('color')->default('#6c757d'); // デフォルト色
             $table->boolean('is_milestone')->default(false);
-            $table->boolean('is_folder')->default(false); // フォルダタイプのタスク
+            $table->boolean('is_folder')->default(false); // フォルダタイプの工程
             $table->timestamps();
         });
     }

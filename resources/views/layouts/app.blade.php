@@ -6,7 +6,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>タスク管理ツール - @yield('title')</title>
+    <title>衣装案件管理 - @yield('title')</title>
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
@@ -762,7 +762,7 @@
             border-radius: 2px;
         }
 
-        /* マイルストーンのスタイル改善 */
+        /* 重要納期のスタイル改善 */
         .milestone-diamond {
             position: absolute;
             width: 16px;
@@ -773,7 +773,7 @@
             z-index: 10;
         }
 
-        /* マイルストーンのホバー効果 */
+        /* 重要納期のホバー効果 */
         .milestone-diamond:hover {
             width: 20px;
             height: 20px;
@@ -793,17 +793,17 @@
     <!-- サイドバー -->
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
-            <h5 class="mb-0">プロジェクト管理</h5>
+            <h5 class="mb-0">衣装案件管理</h5>
         </div>
 
         <a href="{{ route('projects.create') }}" class="add-project-btn">
-            <i class="fas fa-plus me-2"></i> 新規プロジェクト
+            <i class="fas fa-plus me-2"></i> 新規衣装案件
         </a>
 
         <div class="sidebar-section">
             <div class="sidebar-section-title">
                 お気に入り <span class="badge bg-secondary">{{ App\Models\Project::where('is_favorite', true)->count() }}
-                    プロジェクト</span>
+                    案件</span>
             </div>
             @foreach(App\Models\Project::where('is_favorite', true)->get() as $project)
                 <a href="{{ route('projects.show', $project) }}"
@@ -819,8 +819,8 @@
 
         <div class="sidebar-section">
             <div class="sidebar-section-title">
-                プロジェクト <span class="badge bg-secondary">{{ App\Models\Project::where('is_favorite', false)->count() }}
-                    プロジェクト</span>
+                衣装案件 <span class="badge bg-secondary">{{ App\Models\Project::where('is_favorite', false)->count() }}
+                    案件</span>
             </div>
             @foreach(App\Models\Project::where('is_favorite', false)->get() as $project)
                 <a href="{{ route('projects.show', $project) }}"
@@ -848,7 +848,7 @@
                 <li class="nav-item">
                     <a class="nav-link {{ request()->routeIs('tasks.*') ? 'active' : '' }}"
                         href="{{ route('tasks.index') }}">
-                        <i class="fas fa-tasks"></i> タスク
+                        <i class="fas fa-tasks"></i> 工程
                     </a>
                 </li>
                 <li class="nav-item">
@@ -866,7 +866,7 @@
                 <li class="nav-item">
                     <a class="nav-link {{ request()->routeIs('projects.*') && !request()->routeIs('projects.*.tasks.*') ? 'active' : '' }}"
                         href="{{ route('projects.index') }}">
-                        <i class="fas fa-project-diagram"></i> プロジェクト
+                        <i class="fas fa-tshirt"></i> 衣装案件
                     </a>
                 </li>
             </ul>
@@ -908,7 +908,7 @@
                             </a>
                             <a class="dropdown-item" href="{{ route('logout') }}"
                                 onclick="event.preventDefault();
-                                                                                         document.getElementById('logout-form').submit();">
+                                                                                                                                     document.getElementById('logout-form').submit();">
                                 ログアウト
                             </a>
 

@@ -4,7 +4,7 @@
 
 @section('styles')
 <style>
-    .project-icon-list { /* タスク一覧用プロジェクトアイコン */
+    .project-icon-list { /* 工程一覧用衣装案件アイコン */
         width: 30px;
         height: 30px;
         display: flex;
@@ -31,7 +31,7 @@
     }
     .todo-item .todo-text {
         display: flex;
-        flex-direction: column; /* タスク名とサブテキストを縦に並べる */
+        flex-direction: column; /* 工程名とサブテキストを縦に並べる */
     }
     .todo-item .todo-project {
         font-size: 0.8em;
@@ -53,17 +53,17 @@
     <h1>ホーム</h1>
     <div>
         <a href="{{ route('projects.create') }}" class="btn btn-primary">
-            <i class="fas fa-plus"></i> 新規プロジェクト
+            <i class="fas fa-plus"></i> 新規衣装案件
         </a>
     </div>
 </div>
 
 <div class="row">
     <div class="col-md-8">
-        {{-- 最近のタスク --}}
+        {{-- 最近の工程 --}}
         <div class="card mb-4">
             <div class="card-header">
-                <h5 class="mb-0">最近のタスク</h5>
+                <h5 class="mb-0">最近の工程</h5>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
@@ -71,7 +71,7 @@
                         <thead class="table-light">
                             <tr>
                                 <th></th>
-                                <th>タスク名</th>
+                                <th>工程名</th>
                                 <th>担当者</th>
                                 <th>期限</th>
                                 <th>ステータス</th>
@@ -81,7 +81,7 @@
                         <tbody>
                             @if($recentTasks->isEmpty())
                                 <tr>
-                                    <td colspan="6" class="text-center py-4">表示するタスクがありません</td>
+                                    <td colspan="6" class="text-center py-4">表示する工程がありません</td>
                                 </tr>
                             @else
                                 @foreach($recentTasks as $task)
@@ -190,36 +190,36 @@
     </div>
 
     <div class="col-md-4">
-        {{-- プロジェクト概要 --}}
+        {{-- 衣装案件概要 --}}
         <div class="card mb-4">
             <div class="card-header">
-                <h5 class="mb-0">プロジェクト概要</h5>
+                <h5 class="mb-0">衣装案件概要</h5>
             </div>
             <div class="card-body">
                 <div class="d-flex justify-content-between mb-3">
-                    <span>全プロジェクト数:</span>
+                    <span>全衣装案件数:</span>
                     <span class="badge bg-primary">{{ $projectCount }}</span>
                 </div>
                 <div class="d-flex justify-content-between mb-3">
-                    <span>進行中のプロジェクト:</span>
+                    <span>進行中の衣装案件:</span>
                     <span class="badge bg-success">{{ $activeProjectCount }}</span>
                 </div>
                 <div class="d-flex justify-content-between">
-                    <span>全タスク数:</span>
+                    <span>全工程数:</span>
                     <span class="badge bg-info">{{ $taskCount }}</span>
                 </div>
             </div>
         </div>
 
-        {{-- 期限間近のタスク --}}
+        {{-- 期限間近の工程 --}}
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0">期限間近のタスク</h5>
+                <h5 class="mb-0">期限間近の工程</h5>
             </div>
             <div class="card-body p-0">
                 <ul class="list-group list-group-flush">
                     @if($upcomingTasks->isEmpty())
-                        <li class="list-group-item text-center py-4">表示するタスクがありません</li>
+                        <li class="list-group-item text-center py-4">表示する工程がありません</li>
                     @else
                         @foreach($upcomingTasks as $task)
                             @php
@@ -300,7 +300,7 @@
                         <div class="todo-body">
                             @if($tasksInStatus->isEmpty())
                                 <div class="todo-item text-center text-muted p-3">
-                                    タスクがありません
+                                    工程がありません
                                 </div>
                             @else
                                 @foreach($tasksInStatus as $task)

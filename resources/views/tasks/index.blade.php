@@ -1,10 +1,10 @@
 @extends('layouts.app')
 
-@section('title', 'タスク一覧')
+@section('title', '工程一覧')
 
 @section('styles')
 <style>
-    .project-icon-list { /* タスク一覧用プロジェクトアイコン */
+    .project-icon-list { /* 工程一覧用衣装案件アイコン */
         width: 30px;
         height: 30px;
         display: flex;
@@ -17,10 +17,10 @@
         vertical-align: middle; /* アイコンとテキストの縦位置を合わせる */
     }
     .table th.col-project, .table td.col-project {
-        width: 5%; /* プロジェクト列の幅を狭くする */
+        width: 5%; /* 衣装案件列の幅を狭くする */
     }
     .table th.col-task-name, .table td.col-task-name {
-        width: 30%; /* タスク名列の幅を広げる */
+        width: 30%; /* 工程名列の幅を広げる */
     }
     /* 他の列の幅も必要に応じて調整 */
 </style>
@@ -28,14 +28,14 @@
 
 @section('content')
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1>タスク一覧</h1>
+        <h1>工程一覧</h1>
         <div>
             <button class="btn btn-outline-primary me-2" type="button" data-bs-toggle="collapse"
                 data-bs-target="#filterPanel">
                 <i class="fas fa-filter"></i> フィルター
             </button>
             <a href="{{ route('projects.create') }}" class="btn btn-primary">
-                <i class="fas fa-plus"></i> 新規プロジェクト
+                <i class="fas fa-plus"></i> 新規衣装案件
             </a>
         </div>
     </div>
@@ -54,13 +54,13 @@
         <li class="nav-item" role="presentation">
             <button class="nav-link active" id="tasks-tab" data-bs-toggle="tab" data-bs-target="#tasks" type="button"
                 role="tab" aria-controls="tasks" aria-selected="true">
-                <i class="fas fa-tasks"></i> タスク
+                <i class="fas fa-tasks"></i> 工程
             </button>
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="milestones-tab" data-bs-toggle="tab" data-bs-target="#milestones" type="button"
                 role="tab" aria-controls="milestones" aria-selected="false">
-                <i class="fas fa-flag"></i> マイルストーン
+                <i class="fas fa-flag"></i> 重要納期
             </button>
         </li>
         <li class="nav-item" role="presentation">
@@ -75,7 +75,7 @@
         <div class="tab-pane fade show active" id="tasks" role="tabpanel" aria-labelledby="tasks-tab">
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">タスク一覧</h5>
+                    <h5 class="mb-0">工程一覧</h5>
                     <div class="btn-group">
                         <button class="btn btn-sm btn-outline-secondary active" id="listViewBtn">
                             <i class="fas fa-list"></i> リスト
@@ -91,7 +91,7 @@
                             <thead class="table-light">
                                 <tr>
                                     <th class="col-project"></th> {{-- class追加 --}}
-                                    <th class="col-task-name">タスク名</th> {{-- class追加 --}}
+                                    <th class="col-task-name">工程名</th> {{-- class追加 --}}
                                     <th>担当者</th>
                                     <th>開始日</th>
                                     <th>終了日</th>
@@ -103,7 +103,7 @@
                             <tbody>
                                 @if($tasks->where('is_milestone', false)->where('is_folder', false)->isEmpty())
                                     <tr>
-                                        <td colspan="8" class="text-center py-4">表示するタスクがありません</td>
+                                        <td colspan="8" class="text-center py-4">表示する工程がありません</td>
                                     </tr>
                                 @else
                                     @foreach($tasks->where('is_milestone', false)->where('is_folder', false) as $task)
@@ -251,7 +251,7 @@
         <div class="tab-pane fade" id="milestones" role="tabpanel" aria-labelledby="milestones-tab">
             <div class="card">
                 <div class="card-header">
-                    <h5 class="mb-0">マイルストーン一覧</h5>
+                    <h5 class="mb-0">重要納期一覧</h5>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
@@ -259,7 +259,7 @@
                             <thead class="table-light">
                                 <tr>
                                     <th class="col-project"></th> {{-- class追加 --}}
-                                    <th class="col-task-name">マイルストーン名</th> {{-- class追加 --}}
+                                    <th class="col-task-name">重要納期名</th> {{-- class追加 --}}
                                     <th>日付</th>
                                     <th>ステータス</th>
                                     <th>操作</th>
@@ -268,7 +268,7 @@
                             <tbody>
                                 @if($tasks->where('is_milestone', true)->isEmpty())
                                     <tr>
-                                        <td colspan="5" class="text-center py-4">表示するマイルストーンがありません</td>
+                                        <td colspan="5" class="text-center py-4">表示する重要納期がありません</td>
                                     </tr>
                                 @else
                                     @foreach($tasks->where('is_milestone', true) as $milestone)
@@ -302,7 +302,7 @@
                                             </td>
                                             <td class="col-task-name"> {{-- class追加 --}}
                                                 <div class="d-flex align-items-center">
-                                                    <span class="task-icon me-1"><i class="fas fa-flag" title="マイルストーン"></i></span>
+                                                    <span class="task-icon me-1"><i class="fas fa-flag" title="重要納期"></i></span>
                                                     <a href="{{ route('projects.tasks.edit', [$milestone->project, $milestone]) }}"
                                                         class="text-decoration-none">{{ $milestone->name }}</a>
                                                 </div>
@@ -374,7 +374,7 @@
                                 <tr>
                                     <th class="col-project"></th> {{-- class追加 --}}
                                     <th class="col-task-name">フォルダ名</th> {{-- class追加 --}}
-                                    <th>親タスク</th>
+                                    <th>親工程</th>
                                     <th>ファイル数</th> {{-- 列名変更 --}}
                                     <th>操作</th>
                                 </tr>
@@ -420,7 +420,7 @@
                                                     <form
                                                         action="{{ route('projects.tasks.destroy', [$folder->project, $folder]) }}"
                                                         method="POST" class="d-inline"
-                                                        onsubmit="return confirm('本当に削除しますか？フォルダ内のすべてのタスクも削除されます。');">
+                                                        onsubmit="return confirm('本当に削除しますか？フォルダ内のすべての工程も削除されます。');">
                                                         @csrf
                                                         @method('DELETE')
                                                         <button type="submit" class="btn btn-sm btn-outline-danger">

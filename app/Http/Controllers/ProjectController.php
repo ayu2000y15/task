@@ -9,7 +9,7 @@ use Carbon\Carbon;
 class ProjectController extends Controller
 {
     /**
-     * プロジェクト一覧を表示
+     * 衣装案件一覧を表示
      */
     public function index()
     {
@@ -20,7 +20,7 @@ class ProjectController extends Controller
     }
 
     /**
-     * 新規プロジェクト作成フォームを表示
+     * 新規衣装案件作成フォームを表示
      */
     public function create()
     {
@@ -29,13 +29,16 @@ class ProjectController extends Controller
     }
 
     /**
-     * 新規プロジェクトを保存
+     * 新規衣装案件を保存
      */
     public function store(Request $request)
     {
         $this->authorize('create', Project::class);
         $validated = $request->validate([
             'title' => 'required|string|max:255',
+            'character_name' => 'nullable|string|max:255',
+            'series_title' => 'nullable|string|max:255',
+            'client_name' => 'nullable|string|max:255',
             'description' => 'nullable|string',
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',
@@ -44,6 +47,9 @@ class ProjectController extends Controller
 
         $project = Project::create([
             'title' => $validated['title'],
+            'character_name' => $validated['character_name'],
+            'series_title' => $validated['series_title'],
+            'client_name' => $validated['client_name'],
             'description' => $validated['description'],
             'start_date' => Carbon::parse($validated['start_date']),
             'end_date' => Carbon::parse($validated['end_date']),
@@ -52,20 +58,22 @@ class ProjectController extends Controller
         ]);
 
         return redirect()->route('projects.show', $project)
-            ->with('success', 'プロジェクトが作成されました。');
+            //->with('success', '衣装案件が作成されました。');
+            ->with('success', '衣装案件が作成されました。');
     }
 
     /**
-     * プロジェクト詳細を表示
+     * 衣装案件詳細を表示
      */
     public function show(Project $project)
     {
         $this->authorize('view', $project);
+        $project->load(['measurements', 'materials']);
         return view('projects.show', compact('project'));
     }
 
     /**
-     * プロジェクト編集フォームを表示
+     * 衣装案件編集フォームを表示
      */
     public function edit(Project $project)
     {
@@ -74,13 +82,16 @@ class ProjectController extends Controller
     }
 
     /**
-     * プロジェクトを更新
+     * 衣装案件を更新
      */
     public function update(Request $request, Project $project)
     {
         $this->authorize('update', $project);
         $validated = $request->validate([
             'title' => 'required|string|max:255',
+            'character_name' => 'nullable|string|max:255',
+            'series_title' => 'nullable|string|max:255',
+            'client_name' => 'nullable|string|max:255',
             'description' => 'nullable|string',
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',
@@ -89,6 +100,9 @@ class ProjectController extends Controller
 
         $project->update([
             'title' => $validated['title'],
+            'character_name' => $validated['character_name'],
+            'series_title' => $validated['series_title'],
+            'client_name' => $validated['client_name'],
             'description' => $validated['description'],
             'start_date' => Carbon::parse($validated['start_date']),
             'end_date' => Carbon::parse($validated['end_date']),
@@ -97,20 +111,22 @@ class ProjectController extends Controller
         ]);
 
         return redirect()->route('projects.show', $project)
-            ->with('success', 'プロジェクトが更新されました。');
+            //->with('success', '衣装案件が更新されました。');
+            ->with('success', '衣装案件が更新されました。');
     }
 
     /**
-     * プロジェクトを削除
+     * 衣装案件を削除
      */
     public function destroy(Project $project)
     {
         $this->authorize('delete', $project);
-        // プロジェクトに関連するタスクも削除
+        // 衣装案件に関連する工程も削除
         $project->tasks()->delete();
         $project->delete();
 
         return redirect()->route('projects.index')
-            ->with('success', 'プロジェクトが削除されました。');
+            //->with('success', '衣装案件が削除されました。');
+            ->with('success', '衣装案件が削除されました。');
     }
 }

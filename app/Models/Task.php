@@ -33,7 +33,7 @@ class Task extends Model
     ];
 
     /**
-     * このタスクが属するプロジェクト
+     * この工程が属する衣装案件
      */
     public function project()
     {
@@ -41,7 +41,7 @@ class Task extends Model
     }
 
     /**
-     * このタスクに紐づくファイルを取得します。
+     * この工程に紐づくファイルを取得します。
      */
     public function files()
     {
@@ -49,7 +49,7 @@ class Task extends Model
     }
 
     /**
-     * このタスクの親タスク
+     * この工程の親工程
      */
     public function parent()
     {
@@ -57,7 +57,7 @@ class Task extends Model
     }
 
     /**
-     * このタスクの子タスク
+     * この工程の子工程
      */
     public function children()
     {
@@ -65,7 +65,7 @@ class Task extends Model
     }
 
     /**
-     * タスクの期間（日数）を取得
+     * 工程の期間（日数）を取得
      */
     public function getDurationAttribute()
     {
@@ -76,7 +76,7 @@ class Task extends Model
     }
 
     /**
-     * タスクの階層レベルを取得
+     * 工程の階層レベルを取得
      */
     public function getLevelAttribute()
     {
@@ -92,7 +92,7 @@ class Task extends Model
     }
 
     /**
-     * タスクの全子孫を取得
+     * 工程の全子孫を取得
      */
     public function getAllDescendants()
     {
@@ -107,7 +107,7 @@ class Task extends Model
     }
 
     /**
-     * 指定されたタスクが自身の子孫であるか（自身が祖先であるか）をチェック
+     * 指定された工程が自身の子孫であるか（自身が祖先であるか）をチェック
      *
      * @param Task $otherTask
      * @return boolean

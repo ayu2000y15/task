@@ -1,10 +1,10 @@
 @extends('layouts.app')
 
-@section('title', '新規プロジェクト')
+@section('title', '新規衣装案件')
 
 @section('content')
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1>新規プロジェクト</h1>
+        <h1>新規衣装案件</h1>
         <a href="{{ route('projects.index') }}" class="btn btn-outline-secondary">
             <i class="fas fa-arrow-left"></i> 戻る
         </a>
@@ -16,10 +16,37 @@
                 <form action="{{ route('projects.store') }}" method="POST" class="row g-3">
                     @csrf
                     <div class="col-md-6">
-                        <label for="title" class="form-label">プロジェクト名 <span class="text-danger">*</span></label>
+                        <label for="title" class="form-label">案件名 <span class="text-danger">*</span></label>
                         <input type="text" class="form-control @error('title') is-invalid @enderror" id="title" name="title"
                             value="{{ old('title') }}" required>
                         @error('title')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="character_name" class="form-label">キャラクター名</label>
+                        <input type="text" class="form-control @error('character_name') is-invalid @enderror"
+                            id="character_name" name="character_name" value="{{ old('character_name') }}">
+                        @error('character_name')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="series_title" class="form-label">作品名</label>
+                        <input type="text" class="form-control @error('series_title') is-invalid @enderror"
+                            id="series_title" name="series_title" value="{{ old('series_title') }}">
+                        @error('series_title')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="client_name" class="form-label">依頼主名</label>
+                        <input type="text" class="form-control @error('client_name') is-invalid @enderror" id="client_name"
+                            name="client_name" value="{{ old('client_name') }}">
+                        @error('client_name')
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
                     </div>
@@ -44,7 +71,7 @@
                     </div>
 
                     <div class="col-md-6">
-                        <label for="end_date" class="form-label">終了日 <span class="text-danger">*</span></label>
+                        <label for="end_date" class="form-label">終了日（納期） <span class="text-danger">*</span></label>
                         <input type="date" class="form-control @error('end_date') is-invalid @enderror" id="end_date"
                             name="end_date" value="{{ old('end_date', date('Y-m-d', strtotime('+1 month'))) }}" required>
                         @error('end_date')
@@ -53,7 +80,7 @@
                     </div>
 
                     <div class="col-md-12">
-                        <label for="description" class="form-label">説明</label>
+                        <label for="description" class="form-label">備考</label>
                         <textarea class="form-control @error('description') is-invalid @enderror" id="description"
                             name="description" rows="4">{{ old('description') }}</textarea>
                         @error('description')

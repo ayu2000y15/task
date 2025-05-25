@@ -1,13 +1,13 @@
 @extends('layouts.app')
 
-@section('title', $project->title)
+@section('title', '案件詳細 - ' . $project->title)
 
 @section('content')
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1>{{ $project->title }}</h1>
         <div>
             <a href="{{ route('projects.tasks.create', $project) }}" class="btn btn-primary me-2">
-                <i class="fas fa-plus"></i> タスク追加
+                <i class="fas fa-plus"></i> 工程追加
             </a>
             <a href="{{ route('projects.edit', $project) }}" class="btn btn-warning me-2">
                 <i class="fas fa-edit"></i> 編集
@@ -22,17 +22,32 @@
         <div class="col-md-4">
             <div class="card mb-4">
                 <div class="card-header" style="background-color: {{ $project->color }}; color: white;">
-                    <h5 class="mb-0">プロジェクト情報</h5>
+                    <h5 class="mb-0">案件情報</h5>
                 </div>
                 <div class="card-body">
-                    <div class="mb-3">
-                        <strong>説明:</strong>
-                        <p>{{ $project->description ?? '説明はありません' }}</p>
-                    </div>
                     <div class="mb-3">
                         <strong>期間:</strong>
                         <p>{{ $project->start_date->format('Y年m月d日') }} 〜 {{ $project->end_date->format('Y年m月d日') }}</p>
                     </div>
+
+                    <div class="mb-3">
+                        <strong>作品名:</strong>
+                        <p>{{ $project->series_title ?? '-' }}</p>
+                    </div>
+                    <div class="mb-3">
+                        <strong>キャラクター名:</strong>
+                        <p>{{ $project->character_name ?? '-' }}</p>
+                    </div>
+                    <div class="mb-3">
+                        <strong>依頼主名:</strong>
+                        <p>{{ $project->client_name ?? '-' }}</p>
+                    </div>
+
+                    <div class="mb-3">
+                        <strong>備考:</strong>
+                        <p>{{ $project->description ?? '-' }}</p>
+                    </div>
+
                     <div class="mb-3">
                         <strong>ステータス:</strong>
                         @php
@@ -47,9 +62,153 @@
                         </div>
                     </div>
                     <div class="mb-3">
-                        <strong>タスク:</strong>
-                        <p>{{ $totalTasks }}個 (完了: {{ $completedTasks }}個)</p>
+                        <strong>工程数:</strong>
+                        <p>{{ $totalTasks }}工程 (完了: {{ $completedTasks }}工程)</p>
                     </div>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">採寸情報</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <tbody>
+                            @forelse($project->measurements as $measurement)
+                                <tr>
+                                    <th>{{ $measurement->item }}</th>
+                                    <td>{{ $measurement->value }} {{ $measurement->unit }}</td>
+                                    <td class="text-end">
+                                        <form action="{{ route('projects.measurements.destroy', [$project, $measurement]) }}" method="POST" onsubmit="return confirm('本当に削除しますか？');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="btn btn-xs btn-outline-danger"><i class="fas fa-trash"></i></button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="3" class="text-center text-muted">採寸データがありません</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card-footer">
+                    <form action="{{ route('projects.measurements.store', $project) }}" method="POST" class="row gx-2">
+                        @csrf
+                        <div class="col">
+                            <input type="text" name="item" class="form-control form-control-sm" placeholder="項目 (例:バスト)" required>
+                        </div>
+                        <div class="col">
+                            <input type="text" name="value" class="form-control form-control-sm" placeholder="数値 (例:88)" required>
+                        </div>
+                        <div class="col-auto">
+                            <select name="unit" class="form-select form-select-sm">
+                                <option value="cm">cm</option>
+                                <option value="mm">mm</option>
+                                <option value="inch">inch</option>
+                            </select>
+                        </div>
+                        <div class="col-auto"><button type="submit" class="btn btn-sm btn-primary">追加</button></div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header"><h5 class="mb-0">材料リスト（お買い物リスト）</h5></div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>状態</th>
+                                <th>材料名</th>
+                                <th class="text-end">価格</th>
+                                <th>必要量</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($project->materials as $material)
+                                <tr>
+                                    <td>
+                                        <input type="checkbox" class="form-check-input material-status-check" data-url="{{ route('projects.materials.update', [$project, $material]) }}" {{ $material->status === '購入済' ? 'checked' : '' }}>
+                                    </td>
+                                    <td>{{ $material->name }}</td>
+                                    <td class="text-end">{{ !is_null($material->price) ? number_format($material->price) . ' 円' : '-' }}</td>
+                                    <td>{{ $material->quantity_needed }}</td>
+                                    <td class="text-end">
+                                        <form action="{{ route('projects.materials.destroy', [$project, $material]) }}" method="POST" onsubmit="return confirm('本当に削除しますか？');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="btn btn-xs btn-outline-danger"><i class="fas fa-trash"></i></button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr><td colspan="5" class="text-center text-muted">材料が登録されていません</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card-footer">
+                    <form action="{{ route('projects.materials.store', $project) }}" method="POST" class="row gx-2">
+                        @csrf
+                        <div class="col-5"><input type="text" name="name" class="form-control form-control-sm" placeholder="材料名" required></div>
+                        <div class="col"><input type="number" name="price" class="form-control form-control-sm" placeholder="価格（円）"></div>
+                        <div class="col"><input type="text" name="quantity_needed" class="form-control form-control-sm" placeholder="必要量 (例:3m)" required></div>
+                        <div class="col-auto"><button type="submit" class="btn btn-sm btn-primary">追加</button></div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">コスト管理</h5>
+                    <span class="badge bg-dark">合計: {{ number_format($project->costs->sum('amount')) }} 円</span>
+                </div>
+                <div class="card-body">
+                     <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>日付</th>
+                                <th>内容</th>
+                                <th>種別</th>
+                                <th class="text-end">金額</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($project->costs as $cost)
+                                <tr>
+                                    <td>{{ $cost->cost_date->format('Y/m/d') }}</td>
+                                    <td>{{ $cost->item_description }}</td>
+                                    <td><span class="badge bg-info text-dark">{{ $cost->type }}</span></td>
+                                    <td class="text-end">{{ number_format($cost->amount) }} 円</td>
+                                    <td class="text-end">
+                                        <form action="{{ route('projects.costs.destroy', [$project, $cost]) }}" method="POST" onsubmit="return confirm('本当に削除しますか？');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="btn btn-xs btn-outline-danger"><i class="fas fa-trash"></i></button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr><td colspan="5" class="text-center text-muted">コストが登録されていません</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card-footer">
+                    <form action="{{ route('projects.costs.store', $project) }}" method="POST" class="row gx-2">
+                        @csrf
+                        <div class="col-4"><input type="text" name="item_description" class="form-control form-control-sm" placeholder="内容 (例:作業費)" required></div>
+                        <div class="col"><input type="number" name="amount" class="form-control form-control-sm" placeholder="金額" required></div>
+                        <div class="col"><input type="date" name="cost_date" class="form-control form-control-sm" value="{{ today()->format('Y-m-d') }}" required></div>
+                        <div class="col"><select name="type" class="form-select form-select-sm"><option value="作業費">作業費</option><option value="材料費">材料費</option><option value="その他">その他</option></select></div>
+                        <div class="col-auto"><button type="submit" class="btn btn-sm btn-primary">手動で追加</button></div>
+                    </form>
                 </div>
             </div>
 
@@ -59,7 +218,7 @@
                 </div>
                 <div class="card-body">
                     <div class="mb-3">
-                        <strong>ステータス別タスク数:</strong>
+                        <strong>ステータス別工程数:</strong>
                         <ul class="list-group mt-2">
                             <li class="list-group-item d-flex justify-content-between align-items-center">
                                 未着手
@@ -89,15 +248,15 @@
                         </ul>
                     </div>
                     <div class="mb-3">
-                        <strong>タイプ別タスク数:</strong>
+                        <strong>タイプ別工程数:</strong>
                         <ul class="list-group mt-2">
                             <li class="list-group-item d-flex justify-content-between align-items-center">
-                                通常タスク
+                                通常工程
                                 <span
                                     class="badge bg-primary rounded-pill">{{ $project->tasks->where('is_milestone', false)->where('is_folder', false)->count() }}</span>
                             </li>
                             <li class="list-group-item d-flex justify-content-between align-items-center">
-                                マイルストーン
+                                重要納期
                                 <span
                                     class="badge bg-info rounded-pill">{{ $project->tasks->where('is_milestone', true)->count() }}</span>
                             </li>
@@ -115,13 +274,13 @@
         <div class="col-md-8">
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">タスク一覧</h5>
+                    <h5 class="mb-0">工程一覧</h5>
                     <div class="btn-group">
                         <a href="{{ route('projects.tasks.create', $project) }}" class="btn btn-sm btn-primary">
-                            <i class="fas fa-plus"></i> タスク追加
+                            <i class="fas fa-plus"></i> 工程追加
                         </a>
                         <button class="btn btn-sm btn-outline-secondary" id="toggleCompletedBtn">
-                            <i class="fas fa-eye-slash"></i> 完了タスクを隠す
+                            <i class="fas fa-eye-slash"></i> 完了工程を隠す
                         </button>
                     </div>
                 </div>
@@ -130,7 +289,7 @@
                         <table class="table table-hover mb-0">
                             <thead class="table-light">
                                 <tr>
-                                    <th>タスク名</th>
+                                    <th>工程名</th>
                                     <th>担当者</th>
                                     <th>期間</th>
                                     <th>工数</th>
@@ -142,7 +301,7 @@
                             <tbody>
                                 @if($project->tasks->isEmpty())
                                     <tr>
-                                        <td colspan="7" class="text-center py-4">タスクがありません</td>
+                                        <td colspan="7" class="text-center py-4">工程がありません</td>
                                     </tr>
                                 @else
                                     @foreach($project->tasks->sortBy(function ($task) {
@@ -272,7 +431,7 @@
 @section('scripts')
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            // 完了タスクの表示/非表示切り替え
+            // 完了工程の表示/非表示切り替え
             const toggleCompletedBtn = document.getElementById('toggleCompletedBtn');
             let completedTasksHidden = false;
 
@@ -281,22 +440,49 @@
                     const completedTasks = document.querySelectorAll('.completed-task');
 
                     if (completedTasksHidden) {
-                        // 完了タスクを表示
+                        // 完了工程を表示
                         completedTasks.forEach(taskRow => { // Renamed 'task' to 'taskRow' to avoid conflict
                             taskRow.style.display = '';
                         });
-                        toggleCompletedBtn.innerHTML = '<i class="fas fa-eye-slash"></i> 完了タスクを隠す';
+                        toggleCompletedBtn.innerHTML = '<i class="fas fa-eye-slash"></i> 完了工程を隠す';
                         completedTasksHidden = false;
                     } else {
-                        // 完了タスクを非表示
+                        // 完了工程を非表示
                         completedTasks.forEach(taskRow => { // Renamed 'task' to 'taskRow'
                             taskRow.style.display = 'none';
                         });
-                        toggleCompletedBtn.innerHTML = '<i class="fas fa-eye"></i> 完了タスクを表示';
+                        toggleCompletedBtn.innerHTML = '<i class="fas fa-eye"></i> 完了工程を表示';
                         completedTasksHidden = true;
                     }
                 });
             }
         });
     </script>
+@endsection
+
+@section('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const statusCheckboxes = document.querySelectorAll('.material-status-check');
+
+    statusCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function () {
+            const url = this.dataset.url;
+            const newStatus = this.checked ? '購入済' : '未購入';
+            const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+            fetch(url, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': token
+                },
+                body: JSON.stringify({ status: newStatus })
+            })
+            .then(response => response.json())
+            .catch(error => console.error('Error:', error));
+        });
+    });
+});
+</script>
 @endsection

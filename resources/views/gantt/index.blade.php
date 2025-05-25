@@ -10,7 +10,7 @@
                 data-bs-target="#filterPanel">
                 <i class="fas fa-filter"></i> フィルター
             </button>
-            <a href="{{ route('projects.create') }}" class="btn btn-primary">新規プロジェクト</a>
+            <a href="{{ route('projects.create') }}" class="btn btn-primary">新規衣装案件</a>
         </div>
     </div>
 
@@ -37,7 +37,7 @@
             })
         )
         <div class="alert alert-info">
-            表示するタスクがありません。フィルター条件を変更するか、新規プロジェクト/タスクを作成してください。
+            表示する工程がありません。フィルター条件を変更するか、新規衣装案件/工程を作成してください。
         </div>
     @else
         <div class="gantt-container">
@@ -45,7 +45,7 @@
                 <table class="table table-bordered" id="ganttTable">
                     <thead class="gantt-header">
                         <tr>
-                            <th rowspan="2" class="gantt-sticky-col" style="min-width: 400px; vertical-align: top;">タスク</th>
+                            <th rowspan="2" class="gantt-sticky-col" style="min-width: 400px; vertical-align: top;">工程</th>
                             <th rowspan="2" class="detail-column" style="min-width: 100px; vertical-align: top;">担当者</th>
                             <th rowspan="2" class="detail-column" style="min-width: 80px; vertical-align: top;">工数</th>
                             <th rowspan="2" class="detail-column" style="min-width: 120px; vertical-align: top;">開始日</th>
@@ -116,7 +116,7 @@
                                             <div class="task-actions">
                                                 <a href="{{ route('projects.tasks.create', $project) }}"
                                                     class="btn btn-sm btn-outline-primary">
-                                                    <i class="fas fa-plus"></i> タスク追加
+                                                    <i class="fas fa-plus"></i> 工程追加
                                                 </a>
                                                 <a href="{{ route('projects.edit', $project) }}" class="btn btn-sm btn-outline-warning">
                                                     <i class="fas fa-edit"></i>

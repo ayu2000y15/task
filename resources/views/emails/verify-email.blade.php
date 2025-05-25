@@ -10,7 +10,8 @@
         <h1 class="email-title"
             style="font-size: 20px; margin: 0 0 5px 0; font-weight: 600; color: #ffffff; text-align: center;">メールアドレス認証</h1>
         <p class="email-subtitle" style="font-size: 13px; margin: 0; opacity: 0.9; color: #ffffff; text-align: center;">
-            {{ config('app.name') }}</p>
+            {{ config('app.name') }}
+        </p>
     </div>
 
     <div class="email-body" style="padding: 25px 20px; background-color: #ffffff; color: #333333;">
@@ -32,12 +33,12 @@
                 style="background-color: #f8f9fa; border-left: 3px solid #007bff; padding: 12px 15px; margin: 15px 0; border-radius: 0 6px 6px 0; font-size: 14px; color: #333333;">
                 <strong style="color: #333333;">🎉 認証後にできること</strong><br>
                 <span style="color: #333333;">• すべての機能をご利用いただけます</span><br>
-                <span style="color: #333333;">• タスクの作成・管理</span><br>
-                <span style="color: #333333;">• プロジェクトの共有</span><br>
+                <span style="color: #333333;">• 工程の作成・管理</span><br>
+                <span style="color: #333333;">• 衣装案件の共有</span><br>
                 <span style="color: #333333;">• 通知の受信</span>
             </div>
 
-            <p style="margin: 0; color: #333333;">認証が完了すると、すぐにタスク管理ツールをご利用いただけます。</p>
+            <p style="margin: 0; color: #333333;">認証が完了すると、すぐに工程管理ツールをご利用いただけます。</p>
         </div>
 
         <div class="email-warning"

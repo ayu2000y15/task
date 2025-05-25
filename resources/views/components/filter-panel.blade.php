@@ -6,7 +6,7 @@
         </div>
         <form action="{{ $action }}" method="GET" class="row g-3">
             <div class="col-md-3">
-                <label for="project_id" class="form-label">プロジェクト</label>
+                <label for="project_id" class="form-label">衣装案件</label>
                 <select class="form-select" id="project_id" name="project_id">
                     <option value="">すべて</option>
                     @foreach($allProjects as $project)
@@ -41,7 +41,7 @@
                 </select>
             </div>
             <div class="col-md-3">
-                <label for="search" class="form-label">タスク名検索</label>
+                <label for="search" class="form-label">工程名検索</label>
                 <input type="text" class="form-control" id="search" name="search"
                     value="{{ $filters['search'] ?? '' }}">
             </div>

@@ -59,7 +59,7 @@
                             <i class="fas fa-folder-open"></i>
                         </a>
                     @elseif($task->is_milestone)
-                        <i class="fas fa-flag" title="マイルストーン"></i>
+                        <i class="fas fa-flag" title="重要納期"></i>
                     @endif
                     </span>
 
@@ -86,7 +86,7 @@
                 <div class="task-actions">
                     @if(!$task->is_folder && !$task->is_milestone)
                         <a href="{{ route('projects.tasks.create', ['project' => $project->id, 'parent' => $task->id]) }}"
-                            class="btn btn-sm btn-outline-primary" title="子タスク追加">
+                            class="btn btn-sm btn-outline-primary" title="子工程追加">
                             <i class="fas fa-plus"></i>
                         </a>
                     @endif
@@ -148,7 +148,7 @@
                     <div class="milestone-diamond" style="background-color: {{ $task->project->color ?? $project->color }};"></div>
                     <div class="gantt-tooltip">
                         <div class="tooltip-content">
-                            {{ $task->name }} (マイルストーン)<br>
+                            {{ $task->name }} (重要納期)<br>
                             {{ $taskStartDate ? \Carbon\Carbon::parse($taskStartDate)->format('Y/m/d') : '' }}
                         </div>
                         <div class="tooltip-arrow"></div>

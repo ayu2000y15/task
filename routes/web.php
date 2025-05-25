@@ -7,6 +7,9 @@ use App\Http\Controllers\GanttChartController;
 use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\MeasurementController;
+use App\Http\Controllers\MaterialController;
+use App\Http\Controllers\CostController;
 
 // ホーム
 Route::get('/', [HomeController::class, 'index'])->name('home.index');
@@ -15,7 +18,7 @@ Route::get('/dashboard', fn() => redirect()->route('home.index'))->middleware(['
 
 Route::middleware('auth')->group(function () {
 
-    // プロジェクト
+    // 衣装案件
     Route::resource('projects', ProjectController::class);
     // 担当者更新用のルート
     Route::post('/projects/{project}/tasks/{task}/assignee', [TaskController::class, 'updateAssignee'])->name('projects.tasks.assignee');
@@ -25,7 +28,7 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-    // タスク
+    // 工程
     Route::get('tasks', [TaskController::class, 'index'])->name('tasks.index');
     // Route::get('tasks/export', [TaskController::class, 'export'])->name('tasks.export'); // exportメソッドが見当たらないためコメントアウト
     Route::resource('projects.tasks', TaskController::class)->except(['index']);
@@ -50,6 +53,19 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [\App\Http\Controllers\ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [\App\Http\Controllers\ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [\App\Http\Controllers\ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    // 採寸データ (案件詳細ページ内で処理)
+    Route::post('/projects/{project}/measurements', [MeasurementController::class, 'store'])->name('projects.measurements.store');
+    Route::delete('/projects/{project}/measurements/{measurement}', [MeasurementController::class, 'destroy'])->name('projects.measurements.destroy');
+
+    // 材料データ (案件詳細ページ内で処理)
+    Route::post('/projects/{project}/materials', [MaterialController::class, 'store'])->name('projects.materials.store');
+    Route::patch('/projects/{project}/materials/{material}', [MaterialController::class, 'update'])->name('projects.materials.update');
+    Route::delete('/projects/{project}/materials/{material}', [MaterialController::class, 'destroy'])->name('projects.materials.destroy');
+
+    // コストデータ (案件詳細ページ内で処理)
+    Route::post('/projects/{project}/costs', [CostController::class, 'store'])->name('projects.costs.store');
+    Route::delete('/projects/{project}/costs/{cost}', [CostController::class, 'destroy'])->name('projects.costs.destroy');
 
     // 管理機能
     Route::get('/users', [\App\Http\Controllers\UserController::class, 'index'])->name('users.index');

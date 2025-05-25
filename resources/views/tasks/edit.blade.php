@@ -135,11 +135,11 @@
 @endsection
 
 {{-- @section('title') と @section('content') は変更なし --}}
-@section('title', 'タスク編集')
+@section('title', '工程編集')
 
 @section('content')
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1>タスク編集 - {{ $project->title }}</h1>
+        <h1>工程編集 - {{ $project->title }}</h1>
     </div>
 
     @if ($errors->any())
@@ -155,7 +155,7 @@
     <div class="centered-form">
         <div class="card">
             <div class="card-header">
-                <h2>タスク編集</h2>
+                <h2>工程編集</h2>
             </div>
             <div class="card-body">
                 {{-- メインのフォームにIDを付与 --}}
@@ -164,7 +164,7 @@
                     @method('PUT')
 
                     <div class="mb-3">
-                        <label class="form-label">タスク種別</label>
+                        <label class="form-label">工程種別</label>
                         @php
                             $taskType = 'task';
                             if ($task->is_milestone) {
@@ -177,14 +177,14 @@
                             <input class="form-check-input" type="radio" id="is_task_edit" name="is_milestone_or_folder" value="task" disabled
                                 {{ old('is_milestone_or_folder', $taskType) == 'task' ? 'checked' : '' }} >
                             <label class="form-check-label" for="is_task_edit">
-                                <i class="fas fa-tasks"></i> タスク
+                                <i class="fas fa-tasks"></i> 工程
                             </label>
                         </div>
                         <div class="form-check">
                             <input class="form-check-input" type="radio" id="is_milestone_edit" name="is_milestone_or_folder" value="milestone" disabled
                                 {{ old('is_milestone_or_folder', $taskType) == 'milestone' ? 'checked' : '' }} >
                             <label class="form-check-label" for="is_milestone_edit">
-                                <i class="fas fa-flag"></i> マイルストーン
+                                <i class="fas fa-flag"></i> 重要納期
                             </label>
                         </div>
                         <div class="form-check">
@@ -197,7 +197,7 @@
                     </div>
 
                     <div class="mb-3">
-                        <label for="name" class="form-label">タスク名</label>
+                        <label for="name" class="form-label">工程名</label>
                         <input type="text" class="form-control @error('name') is-invalid @enderror" id="name" name="name"
                             value="{{ old('name', $task->name) }}" required>
                         @error('name')
@@ -322,7 +322,7 @@
                     </div>
 
                     <div class="mb-3">
-                        <label for="parent_id" class="form-label">親タスク</label>
+                        <label for="parent_id" class="form-label">親工程</label>
                         <select class="form-select @error('parent_id') is-invalid @enderror" id="parent_id"
                             name="parent_id">
                             <option value="">なし</option>
@@ -381,12 +381,12 @@
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="deleteTaskModalLabel">タスク削除の確認</h5>
+                    <h5 class="modal-title" id="deleteTaskModalLabel">工程削除の確認</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <p>タスク「{{ $task->name }}」を削除しますか？</p>
-                    <p class="text-danger">この操作は取り消せません。このタスクに関連するすべての子タスクも削除されます。</p>
+                    <p>工程「{{ $task->name }}」を削除しますか？</p>
+                    <p class="text-danger">この操作は取り消せません。この工程に関連するすべての子工程も削除されます。</p>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
@@ -579,7 +579,7 @@
                                 console.log('All files processed successfully, submitting main form.');
                                 document.getElementById('task-edit-form').submit();
                             } else if (this.getRejectedFiles().length > 0) {
-                                alert('ファイルアップロードに失敗したファイルがあるため、タスクの更新は行われませんでした。');
+                                alert('ファイルアップロードに失敗したファイルがあるため、工程の更新は行われませんでした。');
                                 // 失敗したファイルをクリア
                                 this.removeAllFiles(true); // trueでキャンセルされたファイルも削除
                             }
