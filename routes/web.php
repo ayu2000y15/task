@@ -10,6 +10,8 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\MeasurementController;
 use App\Http\Controllers\MaterialController;
 use App\Http\Controllers\CostController;
+use App\Http\Controllers\ProcessTemplateController;
+use App\Http\Controllers\CharacterController;
 
 // ホーム
 Route::get('/', [HomeController::class, 'index'])->name('home.index');
@@ -32,6 +34,7 @@ Route::middleware('auth')->group(function () {
     Route::get('tasks', [TaskController::class, 'index'])->name('tasks.index');
     // Route::get('tasks/export', [TaskController::class, 'export'])->name('tasks.export'); // exportメソッドが見当たらないためコメントアウト
     Route::resource('projects.tasks', TaskController::class)->except(['index']);
+    Route::post('/projects/{project}/tasks/from-template', [TaskController::class, 'storeFromTemplate'])->name('projects.tasks.fromTemplate');
     Route::post('projects/{project}/tasks/{task}/progress', [TaskController::class, 'updateProgress'])->name('tasks.update_progress');
     Route::post('tasks/update-position', [TaskController::class, 'updatePosition'])->name('tasks.update_position');
     Route::post('tasks/update-parent', [TaskController::class, 'updateParent'])->name('tasks.update_parent');
@@ -55,18 +58,26 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [\App\Http\Controllers\ProfileController::class, 'destroy'])->name('profile.destroy');
 
     // 採寸データ (案件詳細ページ内で処理)
-    Route::post('/projects/{project}/measurements', [MeasurementController::class, 'store'])->name('projects.measurements.store');
-    Route::delete('/projects/{project}/measurements/{measurement}', [MeasurementController::class, 'destroy'])->name('projects.measurements.destroy');
+    Route::post('/projects/{project}/characters/{character}/measurements', [MeasurementController::class, 'store'])->name('projects.characters.measurements.store');
+    Route::delete('/projects/{project}/characters/{character}/measurements/{measurement}', [MeasurementController::class, 'destroy'])->name('projects.characters.measurements.destroy');
 
     // 材料データ (案件詳細ページ内で処理)
-    Route::post('/projects/{project}/materials', [MaterialController::class, 'store'])->name('projects.materials.store');
-    Route::patch('/projects/{project}/materials/{material}', [MaterialController::class, 'update'])->name('projects.materials.update');
-    Route::delete('/projects/{project}/materials/{material}', [MaterialController::class, 'destroy'])->name('projects.materials.destroy');
+    Route::post('/projects/{project}/characters/{character}/materials', [MaterialController::class, 'store'])->name('projects.characters.materials.store');
+    Route::patch('/projects/{project}/characters/{character}/materials/{material}', [MaterialController::class, 'update'])->name('projects.characters.materials.update');
+    Route::delete('/projects/{project}/characters/{character}/materials/{material}', [MaterialController::class, 'destroy'])->name('projects.characters.materials.destroy');
 
     // コストデータ (案件詳細ページ内で処理)
-    Route::post('/projects/{project}/costs', [CostController::class, 'store'])->name('projects.costs.store');
-    Route::delete('/projects/{project}/costs/{cost}', [CostController::class, 'destroy'])->name('projects.costs.destroy');
+    Route::post('/projects/{project}/characters/{character}/costs', [CostController::class, 'store'])->name('projects.characters.costs.store');
+    Route::delete('/projects/{project}/characters/{character}/costs/{cost}', [CostController::class, 'destroy'])->name('projects.characters.costs.destroy');
 
+    // 工程テンプレート管理
+    Route::resource('process-templates', ProcessTemplateController::class);
+    Route::post('process-templates/{processTemplate}/items', [ProcessTemplateController::class, 'storeItem'])->name('process-templates.items.store');
+    // Route::put('process-templates/{processTemplate}/items/{item}', [ProcessTemplateController::class, 'updateItem'])->name('process-templates.items.update'); // 今回はシンプルにするため更新は省略
+    Route::delete('process-templates/{processTemplate}/items/{item}', [ProcessTemplateController::class, 'destroyItem'])->name('process-templates.items.destroy');
+
+    // キャラクター管理 (案件詳細ページ内で処理の起点、編集は別ページ)
+    Route::resource('projects.characters', CharacterController::class)->except(['index', 'show', 'create'])->shallow();;
     // 管理機能
     Route::get('/users', [\App\Http\Controllers\UserController::class, 'index'])->name('users.index');
     Route::get('/users/{user}/edit', [\App\Http\Controllers\UserController::class, 'edit'])->name('users.edit');

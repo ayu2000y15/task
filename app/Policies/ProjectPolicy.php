@@ -31,4 +31,19 @@ class ProjectPolicy
     {
         return $user->hasPermissionTo('projects.delete');
     }
+
+    public function manageMeasurements(User $user, Project $project): bool
+    {
+        return $user->hasPermissionTo('measurements.manage');
+    }
+
+    public function manageMaterials(User $user, Project $project): bool
+    {
+        return $user->hasPermissionTo('materials.manage');
+    }
+
+    public function manageCosts(User $user, Project $project): bool
+    {
+        return $user->hasPermissionTo('costs.manage');
+    }
 }

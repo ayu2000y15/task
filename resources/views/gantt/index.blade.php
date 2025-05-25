@@ -10,7 +10,9 @@
                 data-bs-target="#filterPanel">
                 <i class="fas fa-filter"></i> フィルター
             </button>
+            @can('create', App\Models\Project::class)
             <a href="{{ route('projects.create') }}" class="btn btn-primary">新規衣装案件</a>
+            @endcan
         </div>
     </div>
 

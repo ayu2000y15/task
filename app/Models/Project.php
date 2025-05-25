@@ -13,7 +13,6 @@ class Project extends Model
 
     protected $fillable = [
         'title',
-        'character_name',
         'series_title',
         'client_name',
         'description',
@@ -54,5 +53,10 @@ class Project extends Model
     public function costs(): HasMany
     {
         return $this->hasMany(Cost::class);
+    }
+
+    public function characters(): HasMany
+    {
+        return $this->hasMany(Character::class);
     }
 }

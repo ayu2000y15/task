@@ -11,7 +11,7 @@ class Cost extends Model
     use HasFactory;
 
     protected $fillable = [
-        'project_id',
+        'character_id',
         'item_description',
         'amount',
         'type',
@@ -22,8 +22,8 @@ class Cost extends Model
         'cost_date' => 'date',
     ];
 
-    public function project(): BelongsTo
+    public function character(): BelongsTo
     {
-        return $this->belongsTo(Project::class);
+        return $this->belongsTo(Character::class);
     }
 }

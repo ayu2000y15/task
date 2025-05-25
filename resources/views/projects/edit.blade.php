@@ -35,6 +35,26 @@
                         @enderror
                     </div>
 
+                    {{-- 作品名の入力欄 --}}
+                    <div class="col-md-6">
+                        <label for="series_title" class="form-label">作品名</label>
+                        <input type="text" class="form-control @error('series_title') is-invalid @enderror"
+                            id="series_title" name="series_title" value="{{ old('series_title', $project->series_title) }}">
+                        @error('series_title')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    {{-- 依頼主名の入力欄 --}}
+                    <div class="col-md-6">
+                        <label for="client_name" class="form-label">依頼主名</label>
+                        <input type="text" class="form-control @error('client_name') is-invalid @enderror" id="client_name"
+                            name="client_name" value="{{ old('client_name', $project->client_name) }}">
+                        @error('client_name')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+
                     <div class="col-md-6">
                         <label for="color" class="form-label">カラー</label>
                         <div class="input-group">

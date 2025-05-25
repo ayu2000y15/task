@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Storage;
 use App\Models\TaskFile;
 use Carbon\Carbon;
 use App\Services\TaskService;
+use App\Models\ProcessTemplate;
 use Illuminate\Support\Facades\Log;
 
 class TaskController extends Controller
@@ -50,14 +51,14 @@ class TaskController extends Controller
     public function create(Request $request, Project $project)
     {
         $this->authorize('create', Task::class);
-
+        $processTemplates = ProcessTemplate::orderBy('name')->get();
         $parentTask = null;
 
         if ($request->has('parent')) {
             $parentTask = Task::findOrFail($request->parent);
         }
 
-        return view('tasks.create', compact('project', 'parentTask'));
+        return view('tasks.create', compact('project', 'parentTask', 'processTemplates'));
     }
 
     /**
@@ -434,5 +435,40 @@ class TaskController extends Controller
         $file->delete();
 
         return response()->json(['success' => true, 'message' => 'ファイルを削除しました。']);
+    }
+
+    public function storeFromTemplate(Request $request, Project $project)
+    {
+        $this->authorize('create', Task::class);
+        $validated = $request->validate([
+            'process_template_id' => 'required|exists:process_templates,id',
+            'template_start_date' => 'required|date',
+        ]);
+
+        $template = ProcessTemplate::with('items')->findOrFail($validated['process_template_id']);
+        $currentStartDate = Carbon::parse($validated['template_start_date']);
+
+        foreach ($template->items as $item) {
+            $taskData = [
+                'name' => $item->name,
+                'description' => null, // 必要であればテンプレート項目に説明も追加
+                'assignee' => null,
+                'parent_id' => $request->input('parent_id_for_template'), // テンプレート適用時の親タスクID
+                'is_milestone' => false,
+                'is_folder' => false,
+                'progress' => 0,
+                'status' => 'not_started',
+                'start_date' => $currentStartDate->copy(),
+                'duration' => $item->default_duration ?? 1,
+            ];
+            $taskData['end_date'] = $currentStartDate->copy()->addDays(($item->default_duration ?? 1) - 1);
+
+            $project->tasks()->create($taskData);
+
+            // 次のタスクの開始日を、今のタスクの終了日の翌日に設定 (休日考慮なしの単純な連続)
+            $currentStartDate = $taskData['end_date']->addDay();
+        }
+
+        return redirect()->route('projects.show', $project)->with('success', 'テンプレートから工程を一括作成しました。');
     }
 }

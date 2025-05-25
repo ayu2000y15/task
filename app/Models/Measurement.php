@@ -11,15 +11,15 @@ class Measurement extends Model
     use HasFactory;
 
     protected $fillable = [
-        'project_id',
+        'character_id',
         'item',
         'value',
         'unit',
         'notes',
     ];
 
-    public function project(): BelongsTo
+    public function character(): BelongsTo
     {
-        return $this->belongsTo(Project::class);
+        return $this->belongsTo(Character::class);
     }
 }

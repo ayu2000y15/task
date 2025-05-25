@@ -11,7 +11,7 @@ class Material extends Model
     use HasFactory;
 
     protected $fillable = [
-        'project_id',
+        'character_id',
         'name',
         'supplier',
         'price',
@@ -19,8 +19,8 @@ class Material extends Model
         'status',
     ];
 
-    public function project(): BelongsTo
+    public function character(): BelongsTo
     {
-        return $this->belongsTo(Project::class);
+        return $this->belongsTo(Character::class);
     }
 }

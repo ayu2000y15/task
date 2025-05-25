@@ -796,9 +796,11 @@
             <h5 class="mb-0">衣装案件管理</h5>
         </div>
 
-        <a href="{{ route('projects.create') }}" class="add-project-btn">
-            <i class="fas fa-plus me-2"></i> 新規衣装案件
-        </a>
+        @can('create', App\Models\Project::class)
+            <a href="{{ route('projects.create') }}" class="add-project-btn">
+                <i class="fas fa-plus me-2"></i> 新規衣装案件
+            </a>
+        @endcan
 
         <div class="sidebar-section">
             <div class="sidebar-section-title">
@@ -880,6 +882,7 @@
                         <ul class="dropdown-menu" aria-labelledby="adminMenu">
                             <li><a class="dropdown-item" href="{{ route('users.index') }}">ユーザー管理</a></li>
                             <li><a class="dropdown-item" href="{{ route('roles.index') }}">権限設定</a></li>
+                            <li><a class="dropdown-item" href="{{ route('process-templates.index') }}">工程テンプレート管理</a></li>
                         </ul>
                     </li>
                 @endcan
@@ -908,7 +911,7 @@
                             </a>
                             <a class="dropdown-item" href="{{ route('logout') }}"
                                 onclick="event.preventDefault();
-                                                                                                                                     document.getElementById('logout-form').submit();">
+                                                                                                                                             document.getElementById('logout-form').submit();">
                                 ログアウト
                             </a>
 

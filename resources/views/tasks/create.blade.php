@@ -7,15 +7,37 @@
         <h1>工程作成 - {{ $project->title }}</h1>
     </div>
 
-    @if ($errors->any())
-        <div class="alert alert-danger">
-            <ul class="mb-0">
-                @foreach ($errors->all() as $error)
-                    <li>{{ $error }}</li>
-                @endforeach
-            </ul>
+    {{-- テンプレート適用フォーム --}}
+    <div class="card mb-4">
+        <div class="card-header">テンプレートから工程を一括作成</div>
+        <div class="card-body">
+            <form action="{{ route('projects.tasks.fromTemplate', $project) }}" method="POST">
+                @csrf
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-5">
+                        <label for="process_template_id" class="form-label">工程テンプレートを選択</label>
+                        <select class="form-select" id="process_template_id" name="process_template_id" required>
+                            <option value="">選択してください</option>
+                            @foreach($processTemplates as $template)
+                                <option value="{{ $template->id }}">{{ $template->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="template_start_date" class="form-label">最初の工程の開始日</label>
+                        <input type="date" class="form-control" id="template_start_date" name="template_start_date"
+                            value="{{ old('template_start_date', now()->format('Y-m-d')) }}" required>
+                    </div>
+                    <input type="hidden" name="parent_id_for_template" value="{{ optional($parentTask)->id }}"> {{--
+                    親タスクがある場合、それも引き継ぐ --}}
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-info w-100">テンプレートを適用して作成</button>
+                    </div>
+                </div>
+            </form>
         </div>
-    @endif
+    </div>
+    <hr>
 
     <div class="centered-form">
         <div class="card">

@@ -35,6 +35,10 @@ class PermissionsSeeder extends Seeder
             // 権限管理
             ['name' => 'roles.viewAny', 'display_name' => '権限設定表示'],
             ['name' => 'roles.update', 'display_name' => '権限設定編集'],
+
+            ['name' => 'measurements.manage', 'display_name' => '採寸データ管理 (追加/削除)'],
+            ['name' => 'materials.manage', 'display_name' => '材料リスト管理 (追加/更新/削除)'],
+            ['name' => 'costs.manage', 'display_name' => 'コスト管理 (追加/削除)'],
         ];
 
         foreach ($permissions as $permission) {

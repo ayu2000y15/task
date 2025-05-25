@@ -25,15 +25,6 @@
                     </div>
 
                     <div class="col-md-6">
-                        <label for="character_name" class="form-label">キャラクター名</label>
-                        <input type="text" class="form-control @error('character_name') is-invalid @enderror"
-                            id="character_name" name="character_name" value="{{ old('character_name') }}">
-                        @error('character_name')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                    </div>
-
-                    <div class="col-md-6">
                         <label for="series_title" class="form-label">作品名</label>
                         <input type="text" class="form-control @error('series_title') is-invalid @enderror"
                             id="series_title" name="series_title" value="{{ old('series_title') }}">

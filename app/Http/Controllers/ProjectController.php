@@ -36,7 +36,6 @@ class ProjectController extends Controller
         $this->authorize('create', Project::class);
         $validated = $request->validate([
             'title' => 'required|string|max:255',
-            'character_name' => 'nullable|string|max:255',
             'series_title' => 'nullable|string|max:255',
             'client_name' => 'nullable|string|max:255',
             'description' => 'nullable|string',
@@ -47,7 +46,6 @@ class ProjectController extends Controller
 
         $project = Project::create([
             'title' => $validated['title'],
-            'character_name' => $validated['character_name'],
             'series_title' => $validated['series_title'],
             'client_name' => $validated['client_name'],
             'description' => $validated['description'],
@@ -68,7 +66,8 @@ class ProjectController extends Controller
     public function show(Project $project)
     {
         $this->authorize('view', $project);
-        $project->load(['measurements', 'materials']);
+        // キャラクター情報と、各キャラクターに紐づく詳細情報も読み込む
+        $project->load(['characters.measurements', 'characters.materials', 'characters.costs']);
         return view('projects.show', compact('project'));
     }
 
@@ -89,7 +88,6 @@ class ProjectController extends Controller
         $this->authorize('update', $project);
         $validated = $request->validate([
             'title' => 'required|string|max:255',
-            'character_name' => 'nullable|string|max:255',
             'series_title' => 'nullable|string|max:255',
             'client_name' => 'nullable|string|max:255',
             'description' => 'nullable|string',
@@ -100,7 +98,6 @@ class ProjectController extends Controller
 
         $project->update([
             'title' => $validated['title'],
-            'character_name' => $validated['character_name'],
             'series_title' => $validated['series_title'],
             'client_name' => $validated['client_name'],
             'description' => $validated['description'],
