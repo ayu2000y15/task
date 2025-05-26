@@ -3,6 +3,7 @@
 @section('title', '案件詳細 - ' . $project->title)
 
 @section('styles')
+    <link rel="stylesheet" href="{{ asset('css/tooltip.css') }}">
     <style>
         .project-header-card {
             background: linear-gradient(135deg,
@@ -761,7 +762,7 @@
                                                     </button>
                                                 @endcan
                                                 @can('viewAny', App\Models\Task::class)
-                                                    <button class="character-tab" data-tab="tasks-{{ $character->id }}"> {{-- ★ 工程タブ追加 --}}
+                                                    <button class="character-tab" data-tab="tasks-{{ $character->id }}">
                                                         <i class="fas fa-tasks"></i> 工程 ({{ $character->tasks->count() }})
                                                     </button>
                                                 @endcan
@@ -892,7 +893,7 @@
                                             @endcan
 
                                             @can('viewAny', App\Models\Task::class)
-                                                {{-- ★キャラクター工程タブコンテンツ --}}
+                                                {{-- キャラクター工程タブコンテンツ --}}
                                                 <div class="character-content" id="tasks-{{ $character->id }}">
                                                         @if($character->tasks->isEmpty())
                                                             <p class="text-center text-muted mt-3">このキャラクターの工程はありません。</p>
@@ -910,7 +911,14 @@
                                                                 </thead>
                                                                 <tbody>
                                                                     @foreach($character->tasks()->orderBy('start_date')->get() as $task)
-                                                                    <tr>
+                                                                    @php
+                                                                        // メモがある場合はホバー可能クラスを追加
+                                                                        $hoverClass = !empty($task->description) ? 'task-row-hoverable' : '';
+                                                                    @endphp
+                                                                    <tr class="{{ $hoverClass }}"
+                                                                        @if(!empty($task->description))
+                                                                            data-task-description="{{ htmlspecialchars($task->description) }}"
+                                                                        @endif>
                                                                         <td class="text-center">
                                                                             @if($task->is_milestone)
                                                                                 <i class="fas fa-flag text-danger" title="重要納期"></i>
@@ -927,7 +935,8 @@
                                                                             @endif
                                                                         </td>
                                                                         <td>
-                                                                            <a href="{{ route('projects.tasks.edit', [$project, $task]) }}" class="text-decoration-none">
+                                                                            <a href="{{ route('projects.tasks.edit', [$project, $task]) }}"
+                                                                               class="text-decoration-none {{ !empty($task->description) ? 'task-name-with-description' : '' }}">
                                                                                 {{ $task->name }}
                                                                             </a>
                                                                             @if(!$task->is_milestone && !$task->is_folder && $task->end_date && $task->end_date < now() && !in_array($task->status, ['completed', 'cancelled']))
@@ -1042,8 +1051,14 @@
                                                         } elseif (!$task->is_folder && !$task->is_milestone && $daysUntilDue !== null && $daysUntilDue >= 0 && $daysUntilDue <= 2) {
                                                             $rowClass = 'task-due-soon';
                                                         }
+
+                                                        // メモがある場合はホバー可能クラスを追加
+                                                        $hoverClass = !empty($task->description) ? 'task-row-hoverable' : '';
                                                     @endphp
-                                                    <tr class="task-row {{ $rowClass }}">
+                                                    <tr class="task-row {{ $rowClass }} {{ $hoverClass }}"
+                                                        @if(!empty($task->description))
+                                                            data-task-description="{{ htmlspecialchars($task->description) }}"
+                                                        @endif>
                                                         <td class="text-center">
                                                             @if($task->is_milestone)
                                                                 <i class="fas fa-flag text-danger" title="重要納期"></i>
@@ -1061,7 +1076,8 @@
                                                         </td>
                                                         <td>
                                                             <div class="d-flex align-items-center">
-                                                                <a href="{{ route('projects.tasks.edit', [$project, $task]) }}" class="text-decoration-none fw-medium">
+                                                                <a href="{{ route('projects.tasks.edit', [$project, $task]) }}"
+                                                                   class="text-decoration-none fw-medium {{ !empty($task->description) ? 'task-name-with-description' : '' }}">
                                                                     {{ $task->name }}
                                                                 </a>
                                                                 @if(!$task->is_milestone && !$task->is_folder && $task->end_date && $task->end_date < $now && $task->status !== 'completed' && $task->status !== 'cancelled')
@@ -1112,9 +1128,13 @@
                 </div>
             </div>
         </div>
+
+    <!-- ツールチップ要素 -->
+    <div id="taskDescriptionTooltip" class="task-description-tooltip"></div>
 @endsection
 
 @section('scripts')
+    <script src="{{ asset('js/task-tooltip.js') }}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             // 折り畳みセクションの制御
@@ -1258,21 +1278,6 @@
                     })
                     .catch(error => console.error('Error refreshing costs tab:', error));
             }
-
-            // フォーム送信後の自動リセット (コスト追加フォームなど)
-            document.querySelectorAll('.character-form form').forEach(form => {
-                form.addEventListener('submit', function(event) {
-                    // 標準のフォーム送信を使い、ページリロードでコスト一覧が更新されることを期待する場合は
-                    // event.preventDefault() は不要。
-                    // もしこちらもAJAX化するなら preventDefault が必要。
-                    // 現状は標準送信なので、リセットはリロード後には不要かもしれないが、
-                    // UXのために残す場合は、送信成功後に実行されるようにする必要がある。
-                    // ここでは、一旦標準のフォーム送信に任せるため、リセットロジックはコメントアウトまたは削除を検討。
-                    // setTimeout(() => {
-                    //     this.reset();
-                    // }, 100);
-                });
-            });
 
             // 折り畳みボタンのクリック時に親の動作を防ぐ
             document.querySelectorAll('.collapsible-toggle').forEach(toggle => {

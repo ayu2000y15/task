@@ -3,7 +3,11 @@
 @section('title', 'ホーム')
 
 @section('styles')
+<link rel="stylesheet" href="{{ asset('css/tooltip.css') }}">
 <style>
+    a{
+        text-decoration: none;
+    }
     .project-icon-list {
         width: 30px;
         height: 30px;
@@ -96,8 +100,14 @@
                                         } elseif($daysUntilDue !== null && $daysUntilDue >= 0 && $daysUntilDue <= 2 && $task->status !== 'completed' && $task->status !== 'cancelled') {
                                             $rowClass = 'task-due-soon';
                                         }
+
+                                        // メモがある場合はホバー可能クラスを追加
+                                        $hoverClass = !empty($task->description) ? 'task-row-hoverable' : '';
                                     @endphp
-                                    <tr class="{{ $rowClass }}">
+                                    <tr class="{{ $rowClass }} {{ $hoverClass }}"
+                                        @if(!empty($task->description))
+                                            data-task-description="{{ htmlspecialchars($task->description) }}"
+                                        @endif>
                                         <td>
                                             <a href="{{ route('projects.show', $task->project) }}" style="color: {{ $task->project->color }};">
                                                 <span class="project-icon-list" style="background-color: {{ $task->project->color }};">
@@ -133,7 +143,10 @@
                                                     </span>
                                                     @endif
                                                 </span>
-                                                <a href="{{ route('projects.tasks.edit', [$task->project, $task]) }}">{{ $task->name }}</a>
+                                                <a href="{{ route('projects.tasks.edit', [$task->project, $task]) }}"
+                                                   class="{{ !empty($task->description) ? 'task-name-with-description' : '' }}">
+                                                    {{ $task->name }}
+                                                </a>
 
                                                 @if($task->end_date && $task->end_date < $now && $task->status !== 'completed' && $task->status !== 'cancelled')
                                                     <span class="ms-2 badge bg-danger">期限切れ</span>
@@ -234,11 +247,20 @@
                                 } elseif($daysUntilDue !== null && $daysUntilDue >= 0 && $daysUntilDue <= 2 && $task->status !== 'completed' && $task->status !== 'cancelled') {
                                     $itemClass = 'task-due-soon';
                                 }
+
+                                // メモがある場合はホバー可能クラスを追加
+                                $hoverClass = !empty($task->description) ? 'task-row-hoverable' : '';
                             @endphp
-                            <li class="list-group-item {{ $itemClass }}">
+                            <li class="list-group-item {{ $itemClass }} {{ $hoverClass }}"
+                                @if(!empty($task->description))
+                                    data-task-description="{{ htmlspecialchars($task->description) }}"
+                                @endif>
                                 <div class="d-flex justify-content-between align-items-center">
                                     <div>
-                                        <a href="{{ route('projects.tasks.edit', [$task->project, $task]) }}">{{ $task->name }}</a>
+                                        <a href="{{ route('projects.tasks.edit', [$task->project, $task]) }}"
+                                           class="{{ !empty($task->description) ? 'task-name-with-description' : '' }}">
+                                            {{ $task->name }}
+                                        </a>
                                         <span class="ms-2 small text-muted">
                                             {{ $task->character->name ?? '' }}
                                         </span>
@@ -284,7 +306,7 @@
 
 <div class="row mt-4">
     <div class="col-md-12">
-        <h2>ToDoリスト（直近7日間）</h2>
+        <h2>ToDoリスト</h2>
         <div class="row">
             @php
                 $todoColumnMap = [
@@ -319,13 +341,22 @@
                                         } elseif($daysUntilDue !== null && $daysUntilDue >= 0 && $daysUntilDue <= 2 && !in_array($task->status, ['completed', 'cancelled'])) {
                                             $itemClass = 'task-due-soon';
                                         }
+
+                                        // メモがある場合はホバー可能クラスを追加
+                                        $hoverClass = !empty($task->description) ? 'task-row-hoverable' : '';
                                     @endphp
-                                    <div class="todo-item {{ $itemClass }} d-flex align-items-center">
+                                    <div class="todo-item {{ $itemClass }} {{ $hoverClass }} d-flex align-items-center"
+                                         @if(!empty($task->description))
+                                             data-task-description="{{ htmlspecialchars($task->description) }}"
+                                         @endif>
                                         <span class="todo-project-icon" style="background-color: {{ $task->project->color }};">
                                             {{ mb_substr($task->project->title, 0, 1) }}
                                         </span>
                                         <div class="todo-text flex-grow-1">
-                                            <a href="{{ route('projects.tasks.edit', [$task->project, $task]) }}">{{ $task->name }}</a>
+                                            <a href="{{ route('projects.tasks.edit', [$task->project, $task]) }}"
+                                               class="{{ !empty($task->description) ? 'task-name-with-description' : '' }}">
+                                                {{ $task->name }}
+                                            </a>
                                             <small class="text-muted d-block">
                                                 {{ $task->character->name ?? '案件全体' }}
                                                 @if($task->assignee)
@@ -361,9 +392,13 @@
         </div>
     </div>
 </div>
+
+<!-- ツールチップ要素 -->
+<div id="taskDescriptionTooltip" class="task-description-tooltip"></div>
 @endsection
 
 @section('scripts')
+<script src="{{ asset('js/task-tooltip.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const statusSelects = document.querySelectorAll('.task-status-select');
@@ -384,7 +419,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (progress === 100) progress = 10;
                 if (progress === 0 && status === 'in_progress') progress = 10;
             }
-
 
             fetch(`/projects/${projectId}/tasks/${taskId}/progress`, {
                 method: 'POST',

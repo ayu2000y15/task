@@ -1,0 +1,43 @@
+/* ツールチップのスタイル */
+.task-description-tooltip {
+    position: absolute;
+    background-color: #333;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    max-width: 300px;
+    word-wrap: break-word;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s, visibility 0.3s;
+    pointer-events: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    white-space: pre-wrap;
+}
+
+.task-description-tooltip.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* ホバー可能な工程行のスタイル */
+.task-row-hoverable {
+    position: relative;
+    cursor: pointer;
+}
+
+.task-row-hoverable:hover {
+    background-color: rgba(0, 123, 255, 0.05);
+}
+
+/* 工程名にメモアイコンを表示 */
+.task-name-with-description::after {
+    content: "\f249";
+    font-family: "Font Awesome 5 Free";
+    font-weight: 900;
+    margin-left: 5px;
+    color: #6c757d;
+    font-size: 0.8rem;
+}

@@ -113,7 +113,7 @@
                     {{-- ★ここまでキャラクター選択 --}}
 
                     <div class="mb-3">
-                        <label for="description" class="form-label">説明</label>
+                        <label for="description" class="form-label">メモ</label>
                         <textarea class="form-control @error('description') is-invalid @enderror" id="description"
                             name="description" rows="3">{{ old('description') }}</textarea>
                         @error('description')

@@ -519,4 +519,66 @@ class TaskController extends Controller
         }
         return redirect()->route('gantt.index', ['project_id' => $project->id])->with('success', 'テンプレートから工程を一括作成しました。');
     }
+
+    /**
+     * 工程のメモ（description）を更新
+     */
+    /**
+     * 工程のメモ（description）を更新
+     */
+    public function updateDescription(Request $request, Project $project, Task $task): JsonResponse
+    {
+        try {
+            // バリデーション
+            $validated = $request->validate([
+                'description' => 'nullable|string|max:2000',
+            ]);
+
+            // 工程が指定されたプロジェクトに属しているかチェック
+            if ($task->project_id !== $project->id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => '指定された工程が見つかりません',
+                ], 404);
+            }
+
+            // 権限チェック（簡単な実装）
+            // より詳細な権限チェックが必要な場合は、Policyを使用してください
+            // $this->authorize('update', $task);
+
+            // メモを更新
+            $task->description = $validated['description'] ?? '';
+            $task->save();
+
+            Log::info('Task description updated', [
+                'task_id' => $task->id,
+                'project_id' => $project->id,
+                'user_id' => auth()->id(),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'メモを更新しました',
+                'description' => $task->description,
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'バリデーションエラー',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Task description update failed', [
+                'task_id' => $task->id ?? null,
+                'project_id' => $project->id ?? null,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'メモの更新に失敗しました: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
 }

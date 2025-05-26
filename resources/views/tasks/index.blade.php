@@ -3,6 +3,7 @@
 @section('title', '工程一覧')
 
 @section('styles')
+<link rel="stylesheet" href="{{ asset('css/tooltip.css') }}">
 <style>
     .project-icon-list {
         width: 30px;
@@ -137,8 +138,14 @@
                                                 case 'on_hold': $statusColor = '#ffc107'; break;
                                                 case 'cancelled': $statusColor = '#dc3545'; break;
                                             }
+
+                                            // メモがある場合はホバー可能クラスを追加
+                                            $hoverClass = !empty($task->description) ? 'task-row-hoverable' : '';
                                         @endphp
-                                        <tr>
+                                        <tr class="{{ $rowClass }} {{ $hoverClass }}"
+                                            @if(!empty($task->description))
+                                                data-task-description="{{ htmlspecialchars($task->description) }}"
+                                            @endif>
                                             <td class="col-project">
                                                 <a href="{{ route('projects.show', $task->project) }}" class="text-decoration-none"
                                                     style="color: {{ $task->project->color }};">
@@ -172,7 +179,7 @@
                                                             <small class="text-muted d-block">{{ $folderPath }}</small>
                                                         @endif
                                                         <a href="{{ route('projects.tasks.edit', [$task->project, $task]) }}"
-                                                            class="text-decoration-none">{{ $task->name }}</a>
+                                                            class="text-decoration-none {{ !empty($task->description) ? 'task-name-with-description' : '' }}">{{ $task->name }}</a>
                                                         @if($task->end_date && $task->end_date < $now && !in_array($task->status, ['completed', 'cancelled']))
                                                             <span class="ms-2 badge bg-danger">期限切れ</span>
                                                         @elseif($daysUntilDue !== null && $daysUntilDue >= 0 && $daysUntilDue <= 2 && !in_array($task->status, ['completed', 'cancelled']))
@@ -293,8 +300,14 @@
                                                 case 'on_hold': $statusColor = '#ffc107'; break;
                                                 case 'cancelled': $statusColor = '#dc3545'; break;
                                             }
+
+                                            // メモがある場合はホバー可能クラスを追加
+                                            $hoverClass = !empty($milestone->description) ? 'task-row-hoverable' : '';
                                         @endphp
-                                        <tr>
+                                        <tr class="{{ $rowClass }} {{ $hoverClass }}"
+                                            @if(!empty($milestone->description))
+                                                data-task-description="{{ htmlspecialchars($milestone->description) }}"
+                                            @endif>
                                             <td class="col-project">
                                                 <a href="{{ route('projects.show', $milestone->project) }}"
                                                     class="text-decoration-none" style="color: {{ $milestone->project->color }};">
@@ -307,7 +320,7 @@
                                                 <div class="d-flex align-items-center">
                                                     <span class="task-icon me-1"><i class="fas fa-flag" title="重要納期"></i></span>
                                                     <a href="{{ route('projects.tasks.edit', [$milestone->project, $milestone]) }}"
-                                                        class="text-decoration-none">{{ $milestone->name }}</a>
+                                                        class="text-decoration-none {{ !empty($milestone->description) ? 'task-name-with-description' : '' }}">{{ $milestone->name }}</a>
                                                 </div>
                                             </td>
                                             <td>
@@ -397,8 +410,14 @@
                                             $parentName = $parentFolder ? $parentFolder->name : '-';
                                             $fileCount = ($folder->files && is_countable($folder->files)) ? $folder->files->count() : 0;
                                             $hasFiles = $fileCount > 0;
+
+                                            // メモがある場合はホバー可能クラスを追加
+                                            $hoverClass = !empty($folder->description) ? 'task-row-hoverable' : '';
                                         @endphp
-                                        <tr>
+                                        <tr class="{{ $hoverClass }}"
+                                            @if(!empty($folder->description))
+                                                data-task-description="{{ htmlspecialchars($folder->description) }}"
+                                            @endif>
                                             <td class="col-project">
                                                 <a href="{{ route('projects.show', $folder->project) }}"
                                                     class="text-decoration-none" style="color: {{ $folder->project->color }};">
@@ -416,7 +435,8 @@
                                                             <i class="fas fa-chevron-down"></i>
                                                         </button>
                                                     @endif
-                                                    <a href="{{ route('projects.tasks.edit', [$folder->project, $folder]) }}" class="text-decoration-none">{{ $folder->name }}</a>
+                                                    <a href="{{ route('projects.tasks.edit', [$folder->project, $folder]) }}"
+                                                       class="text-decoration-none {{ !empty($folder->description) ? 'task-name-with-description' : '' }}">{{ $folder->name }}</a>
                                                 </div>
                                             </td>
                                             <td>
@@ -494,9 +514,13 @@
             </div>
         </div>
     </div>
+
+    <!-- ツールチップ要素 -->
+    <div id="taskDescriptionTooltip" class="task-description-tooltip"></div>
 @endsection
 
 @section('scripts')
+    <script src="{{ asset('js/task-tooltip.js') }}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             // Tooltipの初期化
@@ -643,11 +667,7 @@
                                 const fileList = document.getElementById(`file-list-for-folder-${folderId}`);
                                 if (fileList && fileList.children.length === 0) {
                                     fileList.innerHTML = '<li class="list-group-item text-center text-muted">ファイルがありません。</li>';
-                                    // トグルボタンを非表示または無効化する処理もここに追加可能
-                                    // 例: 親のtrからトグルボタンを探して制御する
-                                    // document.querySelector(`button[data-bs-target="#folder-files-${folderId}"]`).style.display = 'none';
                                 }
-                                // ヘッダーのファイル数も更新 (必要であれば)
                             } else {
                                 alert('ファイルの削除に失敗しました: ' + (data.message || '不明なエラー'));
                             }
