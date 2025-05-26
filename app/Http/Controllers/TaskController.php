@@ -95,7 +95,7 @@ class TaskController extends Controller
             'duration' => 'nullable|integer|min:1|required_if:is_milestone_or_folder,task|prohibited_if:is_milestone_or_folder,milestone',
             'is_milestone_or_folder' => 'required|in:milestone,folder,task,todo_task', // todo_task を追加
             'status' => 'required_unless:is_milestone_or_folder,folder|nullable|in:not_started,in_progress,completed,on_hold,cancelled',
-            'end_date' => 'nullable|date|after_or_equal:start_date|prohibited_if:is_milestone_or_folder,milestone',
+            'end_date' => 'nullable|date|after_or_equal:start_date|prohibited_if:is_milestone_or_folder,milestone', // バリデーションとしては残すが、基本的には自動計算 or null
         ]);
 
         $isFolder = $request->input('is_milestone_or_folder') === 'folder';
@@ -109,7 +109,7 @@ class TaskController extends Controller
             'assignee' => $validated['assignee'] ?? null,
             'parent_id' => $request->input('parent_id'),
             'is_milestone' => $isMilestone, // マイルストーンフラグを設定
-            'is_folder' => $isFolder,
+            'is_folder' => $isFolder,   // フォルダフラグを設定
             'progress' => 0,
         ];
 
@@ -117,7 +117,6 @@ class TaskController extends Controller
             $taskData['start_date'] = null;
             $taskData['end_date'] = null;
             $taskData['duration'] = null;
-            $taskData['status'] = null;
             $taskData['progress'] = null;
         } elseif ($isMilestone) {
             $startDate = isset($validated['start_date']) ? Carbon::parse($validated['start_date']) : null;
@@ -125,6 +124,7 @@ class TaskController extends Controller
                 $taskData['start_date'] = $startDate;
                 $taskData['end_date'] = $startDate->copy();
             } else {
+                // バリデーションでstart_dateは必須のはずだが念のため
                 $taskData['start_date'] = null;
                 $taskData['end_date'] = null;
             }
@@ -138,22 +138,21 @@ class TaskController extends Controller
             $taskData['is_folder'] = false;    // 明示的にfalse
             $taskData['status'] = $validated['status'] ?? 'not_started';
         } else { // 通常工程 (is_milestone_or_folder === 'task') - 日付あり
+            // 'task' が選択された場合、start_date と duration はバリデーションで必須になっている
             $startDate = Carbon::parse($validated['start_date']);
-            // start_dateが入力されていればdurationもバリデーションで要求される
             $duration = $validated['duration'];
             $endDate = $startDate->copy()->addDays($duration - 1);
 
             $taskData['start_date'] = $startDate;
             $taskData['end_date'] = $endDate;
             $taskData['duration'] = $duration;
-
             $taskData['status'] = $validated['status'] ?? 'not_started';
         }
-
         // フォルダの場合、ステータスは常にnull
         if ($isFolder) {
             $taskData['status'] = null;
         }
+
 
         $task = new Task($taskData);
         $project->tasks()->save($task);
@@ -188,11 +187,11 @@ class TaskController extends Controller
             'duration' => 'nullable|integer|min:1|required_with:start_date|prohibited_if:is_milestone_or_folder,milestone', // 開始日があれば工数も必須(マイルストーン除く)
             'assignee' => 'nullable|string|max:255',
             'parent_id' => 'nullable|exists:tasks,id',
-            'status' => 'nullable|in:not_started,in_progress,completed,on_hold,cancelled',
-            'end_date' => 'nullable|date|after_or_equal:start_date|prohibited_if:is_milestone_or_folder,milestone',
+            'status' => 'required_unless:is_milestone_or_folder,folder|nullable|in:not_started,in_progress,completed,on_hold,cancelled',
+            'end_date' => 'nullable|date|after_or_equal:start_date|prohibited_if:is_milestone_or_folder,milestone', // 更新時は直接指定されることは少ないが念のため
         ]);
 
-        $isFolder = $task->is_folder;
+        $isFolder = $task->is_folder; // 編集画面ではタスクタイプは変更不可とする想定
         $isMilestone = $task->is_milestone;
 
         $taskData = [
@@ -207,39 +206,37 @@ class TaskController extends Controller
             $taskData['start_date'] = null;
             $taskData['end_date'] = null;
             $taskData['duration'] = null;
-            $taskData['status'] = null;
-            $taskData['progress'] = null;
+            $taskData['progress'] = null; // フォルダは進捗なし
         } elseif ($isMilestone) {
-            if (isset($validated['start_date'])) {
-                $startDate = Carbon::parse($validated['start_date']);
-                $taskData['start_date'] = $startDate;
-                $taskData['end_date'] = $startDate->copy();
-            }
-            $taskData['duration'] = 1;
-            $taskData['status'] = $validated['status'] ?? $task->status;
-        } else { // 通常工程
+            // マイルストーンは開始日のみ更新可能（バリデーションで必須）
             if ($request->filled('start_date')) {
                 $startDate = Carbon::parse($validated['start_date']);
-                // start_dateが入力されていればdurationもバリデーションで要求される
-                $duration = $validated['duration'];
+                $taskData['start_date'] = $startDate;
+                $taskData['end_date'] = $startDate->copy(); // 終了日も同じ日に
+            }
+            $taskData['duration'] = 1; // マイルストーンの工数は常に1
+            $taskData['status'] = $validated['status'] ?? $task->status;
+        } else { // 通常工程
+            if ($request->filled('start_date') && $request->filled('duration')) {
+                $startDate = Carbon::parse($validated['start_date']);
+                $duration = $validated['duration']; // バリデーションで必須
                 $endDate = $startDate->copy()->addDays($duration - 1);
 
                 $taskData['start_date'] = $startDate;
                 $taskData['end_date'] = $endDate;
                 $taskData['duration'] = $duration;
-            } else {
-                // 期限なしタスクとして更新 (日付情報をクリア)
+            } elseif (!$request->filled('start_date')) { // 開始日がクリアされた場合 = 期限なしタスクへ変更
                 $taskData['start_date'] = null;
                 $taskData['end_date'] = null;
                 $taskData['duration'] = null;
             }
+            // それ以外（開始日のみ、または工数のみ）の場合は、既存の値を維持するか、エラーとするかはバリデーション次第
+            // 現状のバリデーションでは、開始日があれば工数も必須なので、片方だけ入力されることはない想定
             $taskData['status'] = $validated['status'] ?? $task->status;
         }
-
         if ($isFolder) { // フォルダの場合はステータスは常にnull
             $taskData['status'] = null;
         }
-
         $task->fill($taskData);
         $task->save();
 
@@ -489,11 +486,17 @@ class TaskController extends Controller
             'process_template_id' => 'required|exists:process_templates,id',
             'template_start_date' => 'required|date',
             'parent_id_for_template' => 'nullable|exists:tasks,id',
+            'character_id_for_template' => ['nullable', 'exists:characters,id', function ($attribute, $value, $fail) use ($project) {
+                if ($value && !$project->characters()->where('id', $value)->exists()) {
+                    $fail('選択されたキャラクターはこの案件に所属していません。');
+                }
+            }],
         ]);
 
         $template = ProcessTemplate::with('items')->findOrFail($validated['process_template_id']);
         $currentStartDate = Carbon::parse($validated['template_start_date']);
         $parentTaskIdForTemplate = $validated['parent_id_for_template'] ?? null;
+        $characterIdForTemplate = $validated['character_id_for_template'] ?? null;
 
         foreach ($template->items as $item) {
             $taskData = [
@@ -501,6 +504,7 @@ class TaskController extends Controller
                 'description' => null,
                 'assignee' => null,
                 'parent_id' => $parentTaskIdForTemplate,
+                'character_id' => $characterIdForTemplate,
                 'is_milestone' => false,
                 'is_folder' => false,
                 'progress' => 0,

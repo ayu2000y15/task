@@ -392,7 +392,7 @@
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 
     <script>
-        Dropzone.autoDiscover = false;
+        Dropzone.autoDiscover = false; // グローバルスコープで最初に設定
 
         document.addEventListener('DOMContentLoaded', function () {
             const startDateInput = document.getElementById('start_date');
@@ -402,10 +402,12 @@
             const statusField = document.getElementById('status-field');
             const characterIdWrapper = document.getElementById('character_id_wrapper');
             const fileManagementSection = document.getElementById('file-management-section');
-            const currentTaskType = '{{ $taskType }}'; // PHPから渡される現在のタスク種別
+            const currentTaskType = '{{ $taskType ?? 'task' }}';
             let myDropzone;
+            const overlay = document.getElementById('upload-loading-overlay'); // オーバーレイ要素をキャッシュ
 
             function formatDate(date) {
+                if (!(date instanceof Date) || isNaN(date)) return '';
                 const year = date.getFullYear();
                 const month = String(date.getMonth() + 1).padStart(2, '0');
                 const day = String(date.getDate()).padStart(2, '0');
@@ -415,14 +417,10 @@
             function updateEndDateForTask() {
                 if (!startDateInput || !durationInput || !endDateInput) { return; }
                 if (!startDateInput.value || !durationInput.value) { endDateInput.value = ''; return; }
-
                 const startDate = new Date(startDateInput.value);
                 if (isNaN(startDate.getTime())) { endDateInput.value = ''; return; }
-
                 const duration = parseInt(durationInput.value);
-                if (duration <= 0 && currentTaskType === 'task') { endDateInput.value = ''; return; }
-
-
+                if (currentTaskType === 'task' && duration <= 0) { endDateInput.value = ''; return; }
                 if (duration > 0) {
                     const endDate = new Date(startDate);
                     endDate.setDate(startDate.getDate() + duration - 1);
@@ -435,11 +433,9 @@
             function updateDurationForTask() {
                 if (!startDateInput || !endDateInput || !durationInput) { return; }
                 if (!startDateInput.value || !endDateInput.value) { durationInput.value = ''; return; }
-
                 const startDate = new Date(startDateInput.value);
                 const endDate = new Date(endDateInput.value);
                 if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) { durationInput.value = ''; return; }
-
                 if (endDate >= startDate) {
                     const diffTime = Math.abs(endDate - startDate);
                     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
@@ -454,29 +450,23 @@
             function setTaskTypeSpecificFields() {
                 const requiredDateAndDurationFields = [startDateInput, durationInput, endDateInput];
                 const statusSelect = document.getElementById('status');
-
                 if(characterIdWrapper) characterIdWrapper.style.display = 'block';
 
                 if (currentTaskType === 'folder') {
                     if(taskFields) taskFields.style.display = 'none';
                     if(statusField) statusField.style.display = 'none';
                     requiredDateAndDurationFields.forEach(field => {
-                        if(field) {
-                            field.removeAttribute('required');
-                        }
+                        if(field) field.removeAttribute('required');
                     });
                     if(statusSelect) statusSelect.removeAttribute('required');
                     if(fileManagementSection) fileManagementSection.style.display = 'block';
                 } else if (currentTaskType === 'milestone') {
                     if(taskFields) taskFields.style.display = 'block';
                     if(statusField) statusField.style.display = 'block';
-
                     if(startDateInput) {
                         startDateInput.removeAttribute('disabled');
                         startDateInput.setAttribute('required', 'required');
-                    } else {
-                        return;
-                    }
+                    } else { return; }
                     if(durationInput) {
                         durationInput.value = 1;
                         durationInput.setAttribute('disabled', true);
@@ -491,18 +481,17 @@
                     }
                     if(statusSelect) statusSelect.setAttribute('required', 'required');
                     if(fileManagementSection) fileManagementSection.style.display = 'none';
-                } else { // 'task' (通常工程)
+                } else { // 'task'
                     if(taskFields) taskFields.style.display = 'block';
                     if(statusField) statusField.style.display = 'block';
                     requiredDateAndDurationFields.forEach(field => {
                         if(field) {
                             field.removeAttribute('disabled');
-                            field.removeAttribute('required'); // 通常タスクでは任意入力
+                            field.removeAttribute('required');
                         }
                     });
                     if(durationInput) durationInput.removeAttribute('disabled');
                     if(endDateInput) endDateInput.removeAttribute('disabled');
-                    // ステータスは通常タスクでも必須とする（仕様による）
                     if(statusSelect) statusSelect.setAttribute('required', 'required');
                     if(fileManagementSection) fileManagementSection.style.display = 'none';
                 }
@@ -522,8 +511,7 @@
 
             setTaskTypeSpecificFields();
 
-            // 初期値に基づいて日付を計算（編集画面用）
-            if (currentTaskType === 'task' && startDateInput && startDateInput.value && durationInput && durationInput.value && endDateInput) {
+            if (currentTaskType === 'task' && startDateInput && startDateInput.value && durationInput && endDateInput) {
                  if (!endDateInput.value && durationInput.value) {
                     updateEndDateForTask();
                  } else if (!durationInput.value && endDateInput.value) {
@@ -534,20 +522,34 @@
                 if(durationInput) durationInput.value = 1;
             }
 
-
             const dropzoneElement = document.getElementById('file-upload-dropzone-edit');
             if (currentTaskType === 'folder' && dropzoneElement) {
+                const csrfTokenEl = document.querySelector('meta[name="csrf-token"]');
+                const uploadUrl = '{{ route('projects.tasks.files.upload', [$project, $task]) }}';
+
+                if (!uploadUrl || uploadUrl === '{{ Request::url() }}') { // route() が失敗すると現在のURLが返ることがある
+                    console.error("Dropzone URL is not defined or invalid. Blade route might have failed or $project/$task is missing.");
+                    return;
+                }
+                if (!csrfTokenEl || !csrfTokenEl.getAttribute('content')) {
+                    console.error("CSRF token not found for Dropzone.");
+                    return;
+                }
+
                 myDropzone = new Dropzone(dropzoneElement, {
-                    url: '{{ route('projects.tasks.files.upload', [$project, $task]) }}',
+                    url: uploadUrl,
                     method: 'post',
                     paramName: "file",
                     maxFilesize: 100,
+                    maxFiles: 10,
+                    parallelUploads: 10,
                     acceptedFiles: ".jpeg,.jpg,.png,.gif,.svg,.bmp,.tiff,.webp,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.rar,.7z,.tar,.gz,.txt,.md,.csv,.json,.xml,.html,.css,.js,.php,.py,.java,.c,.cpp,.cs,.rb,.go,.sql,.ai,.psd,.fig,.sketch,video/*,audio/*,application/octet-stream",
                     addRemoveLinks: true,
                     dictDefaultMessage: "",
                     dictRemoveFile: "×",
+                    dictMaxFilesExceeded: "一度にアップロードできるファイルは10個までです。",
                     headers: {
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                        'X-CSRF-TOKEN': csrfTokenEl.getAttribute('content')
                     },
                     autoProcessQueue: false,
                     init: function() {
@@ -560,29 +562,36 @@
                                 dropzoneInstance.hiddenFileInput.click();
                             });
                         }
+                        // "processingmultiple" からオーバーレイ表示ロジックを削除
                         this.on("success", function(file, response) {
                             updateFileListEdit();
-                            dropzoneInstance.removeFile(file);
+                            this.removeFile(file);
                         });
                         this.on("error", function(file, message) {
                             let errorMessage = "アップロードに失敗しました。";
                             if(typeof message === "string") {
                                 errorMessage = message;
-                            } else if (message.errors && message.errors.file) {
+                            } else if (message && message.errors && message.errors.file) {
                                 errorMessage = message.errors.file[0];
-                            } else if (message.message) {
+                            } else if (message && message.message) {
                                 errorMessage = message.message;
                             }
                             alert("エラー: " + errorMessage);
-                            dropzoneInstance.removeFile(file);
+                            this.removeFile(file);
                         });
                         this.on("queuecomplete", function() {
-                            if (this.getRejectedFiles().length === 0 && this.getUploadingFiles().length === 0 && this.getQueuedFiles().length === 0) {
-                                document.getElementById('task-edit-form').submit();
-                            } else if (this.getRejectedFiles().length > 0) {
-                                alert('ファイルアップロードに失敗したファイルがあるため、工程の更新は行われませんでした。');
-                                this.removeAllFiles(true);
+                            if(overlay) overlay.style.display = 'none'; // Hide overlay
+                            const form = document.getElementById('task-edit-form');
+                            if (this.getRejectedFiles().length === 0 && this.getQueuedFiles().length === 0 && this.getUploadingFiles().length === 0 && this.getFilesWithStatus(Dropzone.ERROR).length === 0) {
+                                // ファイル処理がすべて成功した場合のみフォームを送信（ボタンクリックが起点の場合）
+                                // このイベントはDropzone処理完了を示すので、ボタンクリック側のロジックで送信を制御
+                            } else if (this.getRejectedFiles().length > 0 || this.getFilesWithStatus(Dropzone.ERROR).length > 0) {
+                                alert('一部のファイルのアップロードに失敗しました。');
                             }
+                        });
+                        this.on("errormultiple", function(files, message) {
+                            if(overlay) overlay.style.display = 'none'; // Hide overlay on error
+                            alert('一部または全てのファイルのアップロードに失敗しました。詳細を確認してください。');
                         });
                     }
                 });
@@ -592,10 +601,24 @@
             if (updateTaskButton) {
                 updateTaskButton.addEventListener('click', function(e) {
                     e.preventDefault();
+                    const form = document.getElementById('task-edit-form');
+
                     if (currentTaskType === 'folder' && myDropzone && myDropzone.getQueuedFiles().length > 0) {
+                        if(overlay) overlay.style.display = 'flex'; // Show overlay before processing
+
+                        // queuecompleteでフォーム送信を制御するため、一度リスナーをクリアして再設定する
+                        myDropzone.off("queuecomplete"); // 既存のリスナーをクリア
+                        myDropzone.on("queuecomplete", function() {
+                            if(overlay) overlay.style.display = 'none';
+                            if (this.getRejectedFiles().length === 0 && this.getQueuedFiles().length === 0 && this.getUploadingFiles().length === 0 && this.getFilesWithStatus(Dropzone.ERROR).length === 0) {
+                                if(form) form.submit(); // 全て成功したらフォーム送信
+                            } else {
+                                alert('ファイルのアップロードに問題があったため、工程の更新は行われませんでした。エラーを確認してください。');
+                            }
+                        });
                         myDropzone.processQueue();
                     } else {
-                        document.getElementById('task-edit-form').submit();
+                        if(form) form.submit();
                     }
                 });
             }
@@ -603,23 +626,37 @@
             function updateFileListEdit() {
                 const fileListElement = document.getElementById('file-list-edit');
                 if (!fileListElement) return;
-                axios.get('{{ route('projects.tasks.files.index', [$project, $task]) }}')
+                const viewUrl = `/projects/{{$project->id}}/tasks/{{$task->id}}/files`;
+                axios.get(viewUrl)
                     .then(function(response) {
                         fileListElement.innerHTML = response.data;
+                    })
+                    .catch(function(error){
+                        console.error("Error fetching file list for edit page:", error);
+                        fileListElement.innerHTML = '<li class="list-group-item text-danger">ファイルリストの読み込みに失敗しました。</li>';
                     });
             }
 
             const fileListElementForEvent = document.getElementById('file-list-edit');
             if(fileListElementForEvent) {
                 fileListElementForEvent.addEventListener('click', function(e) {
-                    if (e.target.classList.contains('delete-file-btn') || e.target.closest('.delete-file-btn')) {
+                    const deleteButton = e.target.closest('.delete-file-btn');
+                    if (deleteButton) {
                         e.preventDefault();
-                        const button = e.target.closest('.delete-file-btn');
-                        const fileId = button.dataset.fileId;
-                        const url = button.dataset.url;
+                        const fileId = deleteButton.dataset.fileId;
+                        const url = deleteButton.dataset.url;
+                        if (!url) {
+                            console.error("Delete URL not found on button");
+                            return;
+                        }
                         if (confirm('本当にこのファイルを削除しますか？')) {
+                            const csrfTokenMeta = document.querySelector('meta[name="csrf-token"]');
+                            if (!csrfTokenMeta || !csrfTokenMeta.content) { // .content を確認
+                                console.error("CSRF token meta tag not found or empty.");
+                                return;
+                            }
                             axios.delete(url, {
-                                headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') }
+                                headers: { 'X-CSRF-TOKEN': csrfTokenMeta.content } // .content を使用
                             })
                             .then(function(response) {
                                 if (response.data.success) {

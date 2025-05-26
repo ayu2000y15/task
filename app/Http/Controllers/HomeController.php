@@ -50,7 +50,9 @@ class HomeController extends Controller
             ->limit(10)
             ->get();
 
-        $inProgressTasks = Task::where('status', 'in_progress')
+        $inProgressTasks = Task::whereNull('start_date')
+            ->whereNull('end_date')
+            ->where('status', 'in_progress')
             // ->whereBetween('updated_at', [$sevenDaysAgo, $todayEnd]) // 例：もし更新日で絞るなら
             ->where('is_milestone', false)
             ->where('is_folder', false)
@@ -58,7 +60,9 @@ class HomeController extends Controller
             ->limit(10)
             ->get();
 
-        $onHoldTasks = Task::where('status', 'on_hold')
+        $onHoldTasks = Task::whereNull('start_date')
+            ->whereNull('end_date')
+            ->where('status', 'on_hold')
             // ->whereBetween('updated_at', [$sevenDaysAgo, $todayEnd]) // 例：もし更新日で絞るなら
             ->where('is_milestone', false)
             ->where('is_folder', false)

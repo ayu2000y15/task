@@ -53,4 +53,15 @@ class CharacterController extends Controller
 
         return redirect()->route('projects.show', $project)->with('success', 'キャラクターを削除しました。');
     }
+
+    /**
+     * キャラクターのコスト情報部分のHTMLを返す (AJAX用)
+     */
+    public function getCharacterCostsPartial(Project $project, Character $character)
+    {
+        $this->authorize('view', $project); // 親プロジェクトの閲覧権限で代用
+        abort_if($character->project_id !== $project->id, 404);
+
+        return view('projects.partials.character_costs_list', compact('project', 'character'));
+    }
 }

@@ -819,10 +819,14 @@
 
                                                 <!-- 材料タブ -->
                                                 <div class="character-content" id="materials-{{ $character->id }}">
+                                                    <div class="alert alert-info alert-sm p-2 small mb-3">
+                                                        <i class="fas fa-info-circle me-1"></i>
+                                                        材料を「購入済」にすると価格が登録されていれば同名の「材料費」としてコストに自動追加されます。逆に「未購入」に戻したり材料自体を削除した場合、または対応する「材料費」コスト（同名・同額）を手動で削除した場合、材料のステータスが「未購入」に戻ることがあります。
+                                                    </div>
                                                     <table class="table table-sm character-table">
                                                         <thead>
                                                             <tr>
-                                                                <th width="30">状態</th>
+                                                                <th width="50">購入</th>
                                                                 <th>材料名</th>
                                                                 <th>価格</th>
                                                                 <th>必要量</th>
@@ -882,15 +886,32 @@
                                                             <table class="table table-sm character-table mt-2">
                                                                 <thead>
                                                                     <tr>
+                                                                        <th width="30"></th>
                                                                         <th>工程名</th>
+                                                                        <th>担当者</th>
                                                                         <th>期間</th>
-                                                                        <th>状態</th>
+                                                                        <th>工数</th>
                                                                         <th><i class="fas fa-edit"></i></th>
                                                                     </tr>
                                                                 </thead>
                                                                 <tbody>
                                                                     @foreach($character->tasks()->orderBy('start_date')->get() as $task)
                                                                     <tr>
+                                                                        <td class="text-center">
+                                                                            @if($task->is_milestone)
+                                                                                <i class="fas fa-flag text-danger" title="重要納期"></i>
+                                                                            @elseif($task->is_folder)
+                                                                                <i class="fas fa-folder text-primary" title="フォルダ"></i>
+                                                                            @else
+                                                                                @switch($task->status)
+                                                                                    @case('completed') <i class="fas fa-check-circle text-success" title="完了"></i> @break
+                                                                                    @case('in_progress') <i class="fas fa-play-circle text-primary" title="進行中"></i> @break
+                                                                                    @case('on_hold') <i class="fas fa-pause-circle text-warning" title="保留中"></i> @break
+                                                                                    @case('cancelled') <i class="fas fa-times-circle text-danger" title="キャンセル"></i> @break
+                                                                                    @default <i class="far fa-circle text-secondary" title="未着手"></i>
+                                                                                @endswitch
+                                                                            @endif
+                                                                        </td>
                                                                         <td>
                                                                             <a href="{{ route('projects.tasks.edit', [$project, $task]) }}" class="text-decoration-none">
                                                                                 {{ $task->name }}
@@ -899,23 +920,16 @@
                                                                                 <span class="ms-1 badge bg-danger">期限切れ</span>
                                                                             @endif
                                                                         </td>
+                                                                        <td>
+                                                                            <span class="text-muted">{{ $task->assignee ?? '-' }}</span>
+                                                                        </td>
                                                                         <td class="small">
                                                                             {{ $task->start_date ? $task->start_date->format('m/d') : '-' }}
                                                                             ~
                                                                             {{ $task->end_date ? $task->end_date->format('m/d') : '-' }}
                                                                         </td>
                                                                         <td>
-                                                                            @php
-                                                                                $statusConfig = [
-                                                                                    'not_started' => ['class' => 'secondary', 'label' => '未着手'],
-                                                                                    'in_progress' => ['class' => 'primary', 'label' => '進行中'],
-                                                                                    'completed' => ['class' => 'success', 'label' => '完了'],
-                                                                                    'on_hold' => ['class' => 'warning', 'label' => '保留中'],
-                                                                                    'cancelled' => ['class' => 'danger', 'label' => 'キャンセル'],
-                                                                                ];
-                                                                                $config = $statusConfig[$task->status] ?? ['class' => 'light', 'label' => $task->status ?? '-'];
-                                                                            @endphp
-                                                                            <span class="badge badge-status bg-{{ $config['class'] }}">{{ $config['label'] }}</span>
+                                                                            <span class="text-muted">{{ $task->is_folder ? '-' : ($task->duration ? $task->duration . '日' : '-') }}</span>
                                                                         </td>
                                                                         <td><a href="{{ route('projects.tasks.edit', [$project, $task]) }}" class="btn btn-xs btn-outline-primary"><i class="fas fa-edit"></i></a></td>
                                                                     </tr>
@@ -927,65 +941,7 @@
 
                                                 <!-- コストタブ -->
                                                 <div class="character-content" id="costs-{{ $character->id }}">
-                                                    <div class="cost-summary">
-                                                        合計: {{ number_format($character->costs->sum('amount')) }}円
-                                                    </div>
-                                                    <table class="table table-sm character-table">
-                                                        <thead>
-                                                            <tr>
-                                                                <th>日付</th>
-                                                                <th>内容</th>
-                                                                <th>種別</th>
-                                                                <th>金額</th>
-                                                                <th width="30"></th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            @forelse($character->costs as $cost)
-                                                                <tr>
-                                                                    <td>{{ $cost->cost_date->format('m/d') }}</td>
-                                                                    <td>{{ $cost->item_description }}</td>
-                                                                    <td><span class="badge badge-status bg-info">{{ $cost->type }}</span></td>
-                                                                    <td>{{ number_format($cost->amount) }}円</td>
-                                                                    <td>
-                                                                        <form action="{{ route('projects.characters.costs.destroy', [$project, $character, $cost]) }}"
-                                                                              method="POST" onsubmit="return confirm('削除しますか？');">
-                                                                            @csrf @method('DELETE')
-                                                                            <button type="submit" class="btn btn-sm btn-outline-danger">
-                                                                                <i class="fas fa-trash"></i>
-                                                                            </button>
-                                                                        </form>
-                                                                    </td>
-                                                                </tr>
-                                                            @empty
-                                                                <tr><td colspan="5" class="text-center text-muted">コストなし</td></tr>
-                                                            @endforelse
-                                                        </tbody>
-                                                    </table>
-                                                    <div class="character-form">
-                                                        <form action="{{ route('projects.characters.costs.store', [$project, $character]) }}" method="POST" class="row g-2">
-                                                            @csrf
-                                                            <div class="col-3">
-                                                                <input type="text" name="item_description" class="form-control form-control-sm" placeholder="内容" required>
-                                                            </div>
-                                                            <div class="col-3">
-                                                                <input type="number" name="amount" class="form-control form-control-sm" placeholder="金額" required>
-                                                            </div>
-                                                            <div class="col-3">
-                                                                <input type="date" name="cost_date" class="form-control form-control-sm" value="{{ today()->format('Y-m-d') }}" required>
-                                                            </div>
-                                                            <div class="col-3">
-                                                                <select name="type" class="form-select form-select-sm">
-                                                                    <option value="材料費">材料費</option>
-                                                                    <option value="作業費">作業費</option>
-                                                                    <option value="その他">その他</option>
-                                                                </select>
-                                                            </div>
-                                                            <div class="col-3">
-                                                                <button type="submit" class="btn btn-primary btn-sm w-100">追加</button>
-                                                            </div>
-                                                        </form>
-                                                    </div>
+                                                    @include('projects.partials.character_costs_list', ['project' => $project, 'character' => $character])
                                                 </div>
                                             </div>
                                         @endcan
@@ -1011,11 +967,11 @@
                                 </div>
                                 <div class="summary-item">
                                     <i class="fas fa-check-circle text-success"></i>
-                                    <span>{{ $project->tasks->where('status', 'completed')->count() }}完了</span>
+                                    <span>{{ $project->tasksWithoutCharacter->where('status', 'completed')->count() }}完了</span>
                                 </div>
                                 <div class="summary-item">
                                     <i class="fas fa-play-circle text-primary"></i>
-                                    <span>{{ $project->tasks->where('status', 'in_progress')->count() }}進行中</span>
+                                    <span>{{ $project->tasksWithoutCharacter->where('status', 'in_progress')->count() }}進行中</span>
                                 </div>
                             </div>
                             <div class="d-flex align-items-center gap-2">
@@ -1039,13 +995,11 @@
                                 <table class="table table-hover tasks-table">
                                     <thead>
                                         <tr>
-                                            <th width="40"></th>
+                                            <th width="30"></th>
                                             <th>工程名</th>
                                             <th>担当者</th>
                                             <th>期間</th>
                                             <th>工数</th>
-                                            <th>進捗</th>
-                                            <th>ステータス</th>
                                             <th width="120">操作</th>
                                         </tr>
                                     </thead>
@@ -1080,7 +1034,13 @@
                                                             @elseif($task->is_folder)
                                                                 <i class="fas fa-folder text-primary" title="フォルダ"></i>
                                                             @else
-                                                                <i class="fas fa-circle-dot text-muted" title="通常工程"></i>
+                                                                @switch($task->status)
+                                                                    @case('completed') <i class="fas fa-check-circle text-success" title="完了"></i> @break
+                                                                    @case('in_progress') <i class="fas fa-play-circle text-primary" title="進行中"></i> @break
+                                                                    @case('on_hold') <i class="fas fa-pause-circle text-warning" title="保留中"></i> @break
+                                                                    @case('cancelled') <i class="fas fa-times-circle text-danger" title="キャンセル"></i> @break
+                                                                    @default <i class="far fa-circle text-secondary" title="未着手"></i>
+                                                                @endswitch
                                                             @endif
                                                         </td>
                                                         <td>
@@ -1106,38 +1066,6 @@
                                                         </td>
                                                         <td>
                                                             <span class="text-muted">{{ $task->is_folder ? '-' : ($task->duration ? $task->duration . '日' : '-') }}</span>
-                                                        </td>
-                                                        <td>
-                                                            @if(!$task->is_folder && !$task->is_milestone)
-                                                                <div class="d-flex align-items-center">
-                                                                    <div class="progress me-2" style="height: 6px; width: 50px;">
-                                                                        <div class="progress-bar" role="progressbar"
-                                                                            style="width: {{ $task->progress }}%; background-color: {{ $project->color }};"
-                                                                            aria-valuenow="{{ $task->progress }}" aria-valuemin="0" aria-valuemax="100">
-                                                                        </div>
-                                                                    </div>
-                                                                    <small class="text-muted">{{ $task->progress }}%</small>
-                                                                </div>
-                                                            @else
-                                                                <span class="text-muted">-</span>
-                                                            @endif
-                                                        </td>
-                                                        <td>
-                                                            @if($task->is_folder)
-                                                                <span class="text-muted">-</span>
-                                                            @else
-                                                                @php
-                                                                    $statusConfig = [
-                                                                        'not_started' => ['class' => 'secondary', 'label' => '未着手'],
-                                                                        'in_progress' => ['class' => 'primary', 'label' => '進行中'],
-                                                                        'completed' => ['class' => 'success', 'label' => '完了'],
-                                                                        'on_hold' => ['class' => 'warning', 'label' => '保留中'],
-                                                                        'cancelled' => ['class' => 'danger', 'label' => 'キャンセル'],
-                                                                    ];
-                                                                    $config = $statusConfig[$task->status] ?? ['class' => 'light', 'label' => $task->status ?? '-'];
-                                                                @endphp
-                                                                <span class="badge badge-status bg-{{ $config['class'] }}">{{ $config['label'] }}</span>
-                                                            @endif
                                                         </td>
                                                         <td>
                                                             <div class="btn-group btn-group-sm">
@@ -1253,13 +1181,21 @@
                 });
             }
 
-            // 材料ステータス更新
+            // 材料ステータス更新とコスト表示リフレッシュ
             document.body.addEventListener('change', function(event) {
                 if (event.target.classList.contains('material-status-check')) {
                     const checkbox = event.target;
                     const url = checkbox.dataset.url;
                     const newStatus = checkbox.checked ? '購入済' : '未購入';
                     const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                    const characterItem = checkbox.closest('.character-item');
+                    const characterId = characterItem ? characterItem.dataset.characterId : null;
+                    const projectId = '{{ $project->id }}';
+
+                    if (!characterId) {
+                        console.error('Character ID not found for material status update.');
+                        return;
+                    }
 
                     fetch(url, {
                         method: 'PATCH',
@@ -1271,24 +1207,54 @@
                     })
                     .then(response => response.json())
                     .then(data => {
-                        if (!data.success) {
-                            console.error('ステータス更新に失敗しました');
-                            checkbox.checked = !checkbox.checked; // 元に戻す
+                        if (data.success) {
+                            refreshCharacterCosts(projectId, characterId);
+                        } else {
+                            console.error('材料ステータス更新に失敗しました');
+                            checkbox.checked = !checkbox.checked;
                         }
                     })
                     .catch(error => {
                         console.error('Error updating material status:', error);
-                        checkbox.checked = !checkbox.checked; // 元に戻す
+                        checkbox.checked = !checkbox.checked;
                     });
                 }
             });
 
-            // フォーム送信後の自動リセット
+            function refreshCharacterCosts(projectId, characterId) {
+                const costsTabContent = document.getElementById(`costs-${characterId}`);
+                if (!costsTabContent) {
+                    console.error(`Costs tab content for character ${characterId} not found.`);
+                    return;
+                }
+
+                const costsPartialUrl = `/projects/${projectId}/characters/${characterId}/costs-partial`;
+
+                fetch(costsPartialUrl)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`Network response was not ok: ${response.statusText}`);
+                        }
+                        return response.text();
+                    })
+                    .then(html => {
+                        costsTabContent.innerHTML = html;
+                    })
+                    .catch(error => console.error('Error refreshing costs tab:', error));
+            }
+
+            // フォーム送信後の自動リセット (コスト追加フォームなど)
             document.querySelectorAll('.character-form form').forEach(form => {
-                form.addEventListener('submit', function() {
-                    setTimeout(() => {
-                        this.reset();
-                    }, 100);
+                form.addEventListener('submit', function(event) {
+                    // 標準のフォーム送信を使い、ページリロードでコスト一覧が更新されることを期待する場合は
+                    // event.preventDefault() は不要。
+                    // もしこちらもAJAX化するなら preventDefault が必要。
+                    // 現状は標準送信なので、リセットはリロード後には不要かもしれないが、
+                    // UXのために残す場合は、送信成功後に実行されるようにする必要がある。
+                    // ここでは、一旦標準のフォーム送信に任せるため、リセットロジックはコメントアウトまたは削除を検討。
+                    // setTimeout(() => {
+                    //     this.reset();
+                    // }, 100);
                 });
             });
 

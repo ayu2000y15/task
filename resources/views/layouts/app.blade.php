@@ -911,7 +911,7 @@
                             </a>
                             <a class="dropdown-item" href="{{ route('logout') }}"
                                 onclick="event.preventDefault();
-                                                                                                                                             document.getElementById('logout-form').submit();">
+                                                                                                                                                     document.getElementById('logout-form').submit();">
                                 ログアウト
                             </a>
 
@@ -982,6 +982,11 @@
     </script>
 
     @yield('scripts')
+    <div id="upload-loading-overlay"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background-color:rgba(0,0,0,0.75); z-index:10050; /* z-index値を高く設定 */ align-items:center; justify-content:center; flex-direction:column; color:white;">
+        <i class="fas fa-spinner fa-spin fa-3x mb-3"></i>
+        <p>アップロード中です...</p>
+    </div>
 </body>
 
 </html>

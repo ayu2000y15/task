@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Project;
+use App\Models\Material; // Material モデルを use
 use App\Models\Cost;
 use Illuminate\Http\Request;
 use App\Models\Character;
@@ -28,8 +29,34 @@ class CostController extends Controller
     {
         $this->authorize('manageCosts', $project);
         abort_if($cost->character_id !== $character->id, 404);
+
+        $deletedCostType = $cost->type;
+        $deletedCostItemDescription = $cost->item_description;
+        $deletedCostAmount = $cost->amount;
+        $deletedCostCharacterId = $cost->character_id; // Character ID を取得
+
         $cost->delete();
 
-        return back()->with('success', 'コストを削除しました。');
+        $successMessage = 'コストを削除しました。';
+
+        // 削除されたコストが「材料費」タイプであった場合、関連する材料のステータスを更新
+        if ($deletedCostType === '材料費') {
+            // Costが属していたCharacterモデルを取得
+            $costCharacter = Character::find($deletedCostCharacterId);
+            if ($costCharacter) {
+                $materialToUpdate = $costCharacter->materials()
+                    ->where('name', $deletedCostItemDescription)
+                    ->where('price', $deletedCostAmount) // 金額も一致するもの（自動追加された可能性が高い）
+                    ->where('status', '購入済')        // 現在「購入済」であるもの
+                    ->first();
+
+                if ($materialToUpdate) {
+                    $materialToUpdate->update(['status' => '未購入']);
+                    $successMessage = 'コストを削除し、関連する材料のステータスを「未購入」に更新しました。';
+                }
+            }
+        }
+
+        return back()->with('success', $successMessage);
     }
 }

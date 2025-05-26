@@ -79,6 +79,8 @@ Route::middleware('auth')->group(function () {
 
     // キャラクター管理 (案件詳細ページ内で処理の起点、編集は別ページ)
     Route::resource('projects.characters', CharacterController::class)->except(['index', 'show', 'create'])->shallow();;
+    Route::get('/projects/{project}/characters/{character}/costs-partial', [CharacterController::class, 'getCharacterCostsPartial'])->name('projects.characters.costs.partial');
+
     // 管理機能
     Route::get('/users', [\App\Http\Controllers\UserController::class, 'index'])->name('users.index');
     Route::get('/users/{user}/edit', [\App\Http\Controllers\UserController::class, 'edit'])->name('users.edit');

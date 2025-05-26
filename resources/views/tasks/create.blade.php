@@ -14,7 +14,7 @@
             <form action="{{ route('projects.tasks.fromTemplate', $project) }}" method="POST">
                 @csrf
                 <div class="row g-3 align-items-end">
-                    <div class="col-md-5">
+                    <div class="col-md-4">
                         <label for="process_template_id" class="form-label">工程テンプレートを選択</label>
                         <select class="form-select" id="process_template_id" name="process_template_id" required>
                             <option value="">選択してください</option>
@@ -23,14 +23,23 @@
                             @endforeach
                         </select>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
+                        <label for="character_id_for_template" class="form-label">所属先キャラクター (任意)</label>
+                        <select class="form-select" id="character_id_for_template" name="character_id_for_template">
+                            <option value="">案件全体 (キャラクター未所属)</option>
+                            @foreach($project->characters as $character)
+                                <option value="{{ $character->id }}">{{ $character->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-3">
                         <label for="template_start_date" class="form-label">最初の工程の開始日</label>
                         <input type="date" class="form-control" id="template_start_date" name="template_start_date"
                             value="{{ old('template_start_date', now()->format('Y-m-d')) }}" required>
                     </div>
                     <input type="hidden" name="parent_id_for_template" value="{{ optional($parentTask)->id }}"> {{--
                     親タスクがある場合、それも引き継ぐ --}}
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <button type="submit" class="btn btn-info w-100">テンプレートを適用して作成</button>
                     </div>
                 </div>
@@ -60,7 +69,7 @@
                         <div class="form-check">
                             <input class="form-check-input" type="radio" id="is_todo_task" name="is_milestone_or_folder" value="todo_task">
                             <label class="form-check-label" for="is_todo_task">
-                                <i class="fas fa-list-check"></i> 工程（期限なし）
+                                <i class="fas fa-list-check"></i> タスク（期限なし）
                             </label>
                         </div>
                         <div class="form-check">
