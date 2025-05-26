@@ -9,7 +9,7 @@
         <a href="{{ route('projects.create') }}" class="btn btn-primary">
             <i class="fas fa-plus"></i> 新規衣装案件
         </a>
-        @endcan
+        endcan
     </div>
 
     @if($projects->isEmpty())

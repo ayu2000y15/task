@@ -9,14 +9,16 @@
             <a href="{{ route('projects.show', $project) }}" class="btn btn-outline-secondaryme-2">
                 <i class="fas fa-arrow-left"></i> 戻る
             </a>
-            <form action="{{ route('projects.destroy', $project) }}" method="POST" class="d-inline"
-                onsubmit="return confirm('本当に削除しますか？衣装案件内のすべての工程も削除されます。');">
-                @csrf
-                @method('DELETE')
-                <button type="submit" class="btn btn-danger">
-                    <i class="fas fa-trash"></i> 削除
-                </button>
-            </form>
+            @can('delete', $project)
+                <form action="{{ route('projects.destroy', $project) }}" method="POST" class="d-inline"
+                    onsubmit="return confirm('本当に削除しますか？衣装案件内のすべての工程も削除されます。');">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash"></i> 削除
+                    </button>
+                </form>
+            @endcan
         </div>
     </div>
 

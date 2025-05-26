@@ -13,12 +13,10 @@ use App\Http\Controllers\CostController;
 use App\Http\Controllers\ProcessTemplateController;
 use App\Http\Controllers\CharacterController;
 
-// ホーム
-Route::get('/', [HomeController::class, 'index'])->name('home.index');
-
-Route::get('/dashboard', fn() => redirect()->route('home.index'))->middleware(['auth', 'verified'])->name('dashboard');
-
 Route::middleware('auth')->group(function () {
+    // ホーム
+    Route::get('/', [HomeController::class, 'index'])->name('home.index');
+    Route::get('/dashboard', fn() => redirect()->route('home.index'))->middleware(['auth', 'verified'])->name('dashboard');
 
     // 衣装案件
     Route::resource('projects', ProjectController::class);

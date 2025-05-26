@@ -16,6 +16,7 @@ class CalendarController extends Controller
      */
     public function index(Request $request, TaskService $taskService)
     {
+        $this->authorize('viewAny', Project::class);
         $filters = [
             'project_id' => $request->input('project_id', ''),
             'character_id' => $request->input('character_id', ''), // ★ 追加

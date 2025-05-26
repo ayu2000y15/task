@@ -14,6 +14,7 @@ class HomeController extends Controller
      */
     public function index()
     {
+        $this->authorize('viewAny', Project::class);
         Carbon::setLocale('ja');
         $projectCount = Project::count();
         $activeProjectCount = Project::where('end_date', '>=', Carbon::today())->count();

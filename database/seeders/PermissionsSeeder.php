@@ -39,6 +39,9 @@ class PermissionsSeeder extends Seeder
             ['name' => 'measurements.manage', 'display_name' => '採寸データ管理 (追加/削除)'],
             ['name' => 'materials.manage', 'display_name' => '材料リスト管理 (追加/更新/削除)'],
             ['name' => 'costs.manage', 'display_name' => 'コスト管理 (追加/削除)'],
+
+            ['name' => 'process_templates.viewAny', 'display_name' => '工程テンプレート一覧表示'],
+            ['name' => 'process_templates.update', 'display_name' => '工程テンプレート更新'],
         ];
 
         foreach ($permissions as $permission) {

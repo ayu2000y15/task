@@ -87,33 +87,37 @@
                     @endif
                 </div>
                 <div class="task-actions">
-                    @if(!$task->is_folder && !$task->is_milestone)
-                        <a href="{{ route('projects.tasks.create', ['project' => $project->id, 'parent' => $task->id, 'character_id_for_child' => $taskCharacterId]) }}"
-                            class="btn btn-sm btn-outline-primary" title="子工程追加">
-                            <i class="fas fa-plus"></i>
-                        </a>
-                    @endif
-                    {{-- ★ フォルダの場合、ファイルアップロードボタンを追加 --}}
-                    @if($task->is_folder)
-                    <button type="button" class="btn btn-sm btn-outline-success gantt-upload-file-btn"
-                            data-bs-toggle="modal" data-bs-target="#ganttFileUploadModal"
-                            data-project-id="{{ $project->id }}" data-task-id="{{ $task->id }}" data-task-name="{{ $task->name }}"
-                            title="ファイルアップロード">
-                        <i class="fas fa-upload"></i>
-                    </button>
-                    @endif
-                    <a href="{{ route('projects.tasks.edit', [$project, $task]) }}" class="btn btn-sm btn-outline-warning" title="編集">
-                        <i class="fas fa-edit"></i>
-                    </a>
-
-                    <form action="{{ route('projects.tasks.destroy', [$project, $task]) }}" method="POST" class="d-inline"
-                        onsubmit="return confirm('本当に削除しますか？');">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit" class="btn btn-sm btn-outline-danger" title="削除">
-                            <i class="fas fa-trash"></i>
+                    @can('create', \App\Models\Task::class)
+                        @if(!$task->is_folder && !$task->is_milestone)
+                            <a href="{{ route('projects.tasks.create', ['project' => $project->id, 'parent' => $task->id, 'character_id_for_child' => $taskCharacterId]) }}"
+                                class="btn btn-sm btn-outline-primary" title="子工程追加">
+                                <i class="fas fa-plus"></i>
+                            </a>
+                        @endif
+                    @endcan
+                    @can('update', $task)
+                        @if($task->is_folder)
+                        <button type="button" class="btn btn-sm btn-outline-success gantt-upload-file-btn"
+                                data-bs-toggle="modal" data-bs-target="#ganttFileUploadModal"
+                                data-project-id="{{ $project->id }}" data-task-id="{{ $task->id }}" data-task-name="{{ $task->name }}"
+                                title="ファイルアップロード">
+                            <i class="fas fa-upload"></i>
                         </button>
-                    </form>
+                        @endif
+                        <a href="{{ route('projects.tasks.edit', [$project, $task]) }}" class="btn btn-sm btn-outline-warning" title="編集">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                    @endcan
+                    @can('delete', $task)
+                        <form action="{{ route('projects.tasks.destroy', [$project, $task]) }}" method="POST" class="d-inline"
+                            onsubmit="return confirm('本当に削除しますか？');">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="btn btn-sm btn-outline-danger" title="削除">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </form>
+                    @endcan
                 </div>
             </div>
         </td>

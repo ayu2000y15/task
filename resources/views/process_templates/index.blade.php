@@ -27,14 +27,16 @@
                                 <td>{{ Str::limit($template->description, 50) }}</td>
                                 <td>{{ $template->items_count ?? $template->items->count() }}</td>
                                 <td>
-                                    <a href="{{ route('process-templates.show', $template) }}"
-                                        class="btn btn-sm btn-outline-primary">編集</a>
-                                    <form action="{{ route('process-templates.destroy', $template) }}" method="POST"
-                                        class="d-inline" onsubmit="return confirm('本当に削除しますか？');">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="btn btn-sm btn-outline-danger">削除</button>
-                                    </form>
+                                    @can('update', App\Models\ProcessTemplate::class)
+                                        <a href="{{ route('process-templates.show', $template) }}"
+                                            class="btn btn-sm btn-outline-primary">編集</a>
+                                        <form action="{{ route('process-templates.destroy', $template) }}" method="POST"
+                                            class="d-inline" onsubmit="return confirm('本当に削除しますか？');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">削除</button>
+                                        </form>
+                                    @endcan
                                 </td>
                             </tr>
                         @empty

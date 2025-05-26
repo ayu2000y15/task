@@ -515,9 +515,11 @@
                 </div>
                 <div class="col-md-4">
                     <div class="action-buttons text-end">
-                        <a href="{{ route('projects.tasks.create', $project) }}" class="btn btn-primary btn-sm">
-                            <i class="fas fa-plus"></i> 工程追加
-                        </a>
+                        @can('create', App\Models\Task::class)
+                            <a href="{{ route('projects.tasks.create', $project) }}" class="btn btn-primary btn-sm">
+                                <i class="fas fa-plus"></i> 工程追加
+                            </a>
+                        @endcan
                         @can('update', $project)
                             <a href="{{ route('projects.edit', $project) }}" class="btn btn-outline-warning btn-sm">
                                 <i class="fas fa-edit"></i> 編集
@@ -746,23 +748,31 @@
                                             </div>
                                         </div>
 
-                                        @can('update', $project)
-                                            <div class="character-body">
-                                                <div class="character-tabs">
+                                        <div class="character-body">
+                                            <div class="character-tabs">
+                                                @can('manageMeasurements', $project)
                                                     <button class="character-tab active" data-tab="measurements-{{ $character->id }}">
                                                         <i class="fas fa-ruler"></i> 採寸
                                                     </button>
+                                                @endcan
+                                                @can('manageMaterials', $project)
                                                     <button class="character-tab" data-tab="materials-{{ $character->id }}">
                                                         <i class="fas fa-box"></i> 材料
                                                     </button>
+                                                @endcan
+                                                @can('viewAny', App\Models\Task::class)
                                                     <button class="character-tab" data-tab="tasks-{{ $character->id }}"> {{-- ★ 工程タブ追加 --}}
                                                         <i class="fas fa-tasks"></i> 工程 ({{ $character->tasks->count() }})
                                                     </button>
+                                                @endcan
+                                                @can('manageCosts', $project)
                                                     <button class="character-tab" data-tab="costs-{{ $character->id }}">
                                                         <i class="fas fa-yen-sign"></i> コスト
                                                     </button>
-                                                </div>
+                                                @endcan
+                                            </div>
 
+                                            @can('manageMeasurements', $project)
                                                 <!-- 採寸タブ -->
                                                 <div class="character-content active" id="measurements-{{ $character->id }}">
                                                     <table class="table table-sm character-table">
@@ -816,7 +826,9 @@
                                                         </form>
                                                     </div>
                                                 </div>
+                                            @endcan
 
+                                            @can('manageMaterials', $project)
                                                 <!-- 材料タブ -->
                                                 <div class="character-content" id="materials-{{ $character->id }}">
                                                     <div class="alert alert-info alert-sm p-2 small mb-3">
@@ -877,7 +889,9 @@
                                                         </form>
                                                     </div>
                                                 </div>
+                                            @endcan
 
+                                            @can('viewAny', App\Models\Task::class)
                                                 {{-- ★キャラクター工程タブコンテンツ --}}
                                                 <div class="character-content" id="tasks-{{ $character->id }}">
                                                         @if($character->tasks->isEmpty())
@@ -938,13 +952,15 @@
                                                             </table>
                                                         @endif
                                                     </div>
+                                            @endcan
 
+                                            @can('manageCosts', $project)
                                                 <!-- コストタブ -->
                                                 <div class="character-content" id="costs-{{ $character->id }}">
                                                     @include('projects.partials.character_costs_list', ['project' => $project, 'character' => $character])
                                                 </div>
-                                            </div>
-                                        @endcan
+                                            @endcan
+                                        </div>
                                     </div>
                                 @endforeach
                             </div>

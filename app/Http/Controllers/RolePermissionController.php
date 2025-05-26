@@ -13,7 +13,7 @@ class RolePermissionController extends Controller
      */
     public function index()
     {
-        $this->authorize('roles.viewAny');
+        $this->authorize('viewAny', Role::class); // RolePolicy@viewAny を呼び出す
         $roles = Role::with('permissions')->get();
         $permissions = Permission::all()->groupBy(function ($permission) {
             return explode('.', $permission->name)[0]; // 'projects.view' -> 'projects'
@@ -27,7 +27,7 @@ class RolePermissionController extends Controller
      */
     public function update(Request $request, Role $role)
     {
-        $this->authorize('roles.update');
+        $this->authorize('update', $role); // RolePolicy@update を呼び出す
         $request->validate([
             'permissions' => 'array',
             'permissions.*' => 'exists:permissions,id',

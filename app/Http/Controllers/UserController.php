@@ -13,7 +13,7 @@ class UserController extends Controller
      */
     public function index()
     {
-        $this->authorize('users.viewAny');
+        $this->authorize('viewAny', User::class);
         $users = User::with('roles')->paginate(20);
         return view('users.index', compact('users'));
     }
@@ -23,7 +23,7 @@ class UserController extends Controller
      */
     public function edit(User $user)
     {
-        $this->authorize('update', $user);
+        $this->authorize('update', $user); // UserPolicy@update が呼び出される
         $roles = Role::all();
         return view('users.edit', compact('user', 'roles'));
     }
@@ -33,7 +33,7 @@ class UserController extends Controller
      */
     public function update(Request $request, User $user)
     {
-        $this->authorize('update', $user);
+        $this->authorize('update', $user); // UserPolicy@update が呼び出される
         $request->validate([
             'roles' => 'array',
             'roles.*' => 'exists:roles,id',
@@ -43,4 +43,8 @@ class UserController extends Controller
 
         return redirect()->route('users.index')->with('success', 'ユーザーの役割を更新しました。');
     }
+
+    // 必要に応じて、UserPolicy に合わせて create, store, show, destroy メソッドも追加・修正できます。
+    // 例: public function create() { $this->authorize('create', User::class); ... }
+    // 例: public function destroy(User $user) { $this->authorize('delete', $user); ... }
 }

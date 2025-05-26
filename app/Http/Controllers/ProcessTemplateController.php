@@ -10,20 +10,20 @@ class ProcessTemplateController extends Controller
 {
     public function index()
     {
-        $this->authorize('roles.viewAny'); // 簡易的にroles.viewAnyで代用
+        $this->authorize('viewAny', ProcessTemplate::class);
         $templates = ProcessTemplate::orderBy('name')->get();
         return view('process_templates.index', compact('templates'));
     }
 
     public function create()
     {
-        $this->authorize('roles.update'); // 簡易的にroles.updateで代用
+        $this->authorize('create', ProcessTemplate::class);
         return view('process_templates.create');
     }
 
     public function store(Request $request)
     {
-        $this->authorize('roles.update');
+        $this->authorize('create', ProcessTemplate::class);
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:process_templates,name',
             'description' => 'nullable|string',
@@ -34,14 +34,14 @@ class ProcessTemplateController extends Controller
 
     public function show(ProcessTemplate $processTemplate) // Route model binding
     {
-        $this->authorize('roles.viewAny');
+        $this->authorize('view', $processTemplate);
         $processTemplate->load('items'); // Eager load items
         return view('process_templates.show', compact('processTemplate'));
     }
 
     public function update(Request $request, ProcessTemplate $processTemplate)
     {
-        $this->authorize('roles.update');
+        $this->authorize('update', $processTemplate);
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:process_templates,name,' . $processTemplate->id,
             'description' => 'nullable|string',
@@ -52,7 +52,7 @@ class ProcessTemplateController extends Controller
 
     public function destroy(ProcessTemplate $processTemplate)
     {
-        $this->authorize('roles.update');
+        $this->authorize('delete', $processTemplate);
         $processTemplate->delete(); // Items will be deleted by cascading delete in DB
         return redirect()->route('process-templates.index')->with('success', '工程テンプレートを削除しました。');
     }
@@ -60,7 +60,8 @@ class ProcessTemplateController extends Controller
     // Template Items
     public function storeItem(Request $request, ProcessTemplate $processTemplate)
     {
-        $this->authorize('roles.update');
+        // 親テンプレートの更新権限でアイテム追加を制御
+        $this->authorize('update', $processTemplate);
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'default_duration' => 'nullable|integer|min:1',
@@ -72,7 +73,8 @@ class ProcessTemplateController extends Controller
 
     public function destroyItem(ProcessTemplate $processTemplate, ProcessTemplateItem $item)
     {
-        $this->authorize('roles.update');
+        // 親テンプレートの更新権限でアイテム削除を制御
+        $this->authorize('update', $processTemplate);
         if ($item->process_template_id !== $processTemplate->id) {
             abort(404);
         }

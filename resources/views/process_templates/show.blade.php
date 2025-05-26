@@ -10,24 +10,26 @@
             <div class="card mb-4">
                 <div class="card-header">テンプレート情報</div>
                 <div class="card-body">
-                    <form action="{{ route('process-templates.update', $processTemplate) }}" method="POST">
-                        @csrf
-                        @method('PUT')
-                        <div class="mb-3">
-                            <label for="name" class="form-label">テンプレート名 <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control @error('name') is-invalid @enderror" id="name"
-                                name="name" value="{{ old('name', $processTemplate->name) }}" required>
-                            @error('name') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                        </div>
-                        <div class="mb-3">
-                            <label for="description" class="form-label">説明</label>
-                            <textarea class="form-control @error('description') is-invalid @enderror" id="description"
-                                name="description"
-                                rows="3">{{ old('description', $processTemplate->description) }}</textarea>
-                            @error('description') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                        </div>
-                        <button type="submit" class="btn btn-primary">テンプレート情報を更新</button>
-                    </form>
+                    @can('update', App\Models\ProcessTemplate::class)
+                        <form action="{{ route('process-templates.update', $processTemplate) }}" method="POST">
+                            @csrf
+                            @method('PUT')
+                            <div class="mb-3">
+                                <label for="name" class="form-label">テンプレート名 <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control @error('name') is-invalid @enderror" id="name"
+                                    name="name" value="{{ old('name', $processTemplate->name) }}" required>
+                                @error('name') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            </div>
+                            <div class="mb-3">
+                                <label for="description" class="form-label">説明</label>
+                                <textarea class="form-control @error('description') is-invalid @enderror" id="description"
+                                    name="description"
+                                    rows="3">{{ old('description', $processTemplate->description) }}</textarea>
+                                @error('description') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            </div>
+                            <button type="submit" class="btn btn-primary">テンプレート情報を更新</button>
+                        </form>
+                    @endcan
                 </div>
             </div>
 
@@ -51,13 +53,15 @@
                                     <td>{{ $item->name }}</td>
                                     <td>{{ $item->default_duration ?? '-' }}</td>
                                     <td>
-                                        <form action="{{ route('process-templates.items.destroy', [$processTemplate, $item]) }}"
-                                            method="POST" onsubmit="return confirm('本当に削除しますか？');">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="btn btn-xs btn-outline-danger"><i
-                                                    class="fas fa-trash"></i></button>
-                                        </form>
+                                        @can('delete', arguments: App\Models\ProcessTemplate::class)
+                                            <form action="{{ route('process-templates.items.destroy', [$processTemplate, $item]) }}"
+                                                method="POST" onsubmit="return confirm('本当に削除しますか？');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="btn btn-xs btn-outline-danger"><i
+                                                        class="fas fa-trash"></i></button>
+                                            </form>
+                                        @endcan
                                     </td>
                                 </tr>
                             @empty

@@ -841,48 +841,64 @@
         <!-- メインナビゲーション -->
         <div class="d-flex justify-content-between">
             <ul class="nav nav-tabs main-nav">
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('home.*') ? 'active' : '' }}"
-                        href="{{ route('home.index') }}">
-                        <i class="fas fa-home"></i> ホーム
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('tasks.*') ? 'active' : '' }}"
-                        href="{{ route('tasks.index') }}">
-                        <i class="fas fa-tasks"></i> 工程
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('gantt.*') ? 'active' : '' }}"
-                        href="{{ route('gantt.index') }}">
-                        <i class="fas fa-chart-gantt"></i> ガントチャート
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('calendar.*') ? 'active' : '' }}"
-                        href="{{ route('calendar.index') }}">
-                        <i class="fas fa-calendar-alt"></i> カレンダー
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('projects.*') && !request()->routeIs('projects.*.tasks.*') ? 'active' : '' }}"
-                        href="{{ route('projects.index') }}">
-                        <i class="fas fa-tshirt"></i> 衣装案件
-                    </a>
-                </li>
+                @can('viewAny', App\Models\Project::class)
+                    <li class="nav-item">
+                        <a class="nav-link {{ request()->routeIs('home.*') ? 'active' : '' }}"
+                            href="{{ route('home.index') }}">
+                            <i class="fas fa-home"></i> ホーム
+                        </a>
+                    </li>
+                @endcan
+                @can('viewAny', App\Models\Project::class)
+                    <li class="nav-item">
+                        <a class="nav-link {{ request()->routeIs('tasks.*') ? 'active' : '' }}"
+                            href="{{ route('tasks.index') }}">
+                            <i class="fas fa-tasks"></i> 工程
+                        </a>
+                    </li>
+                @endcan
+                @can('viewAny', App\Models\Project::class)
+                    <li class="nav-item">
+                        <a class="nav-link {{ request()->routeIs('gantt.*') ? 'active' : '' }}"
+                            href="{{ route('gantt.index') }}">
+                            <i class="fas fa-chart-gantt"></i> ガントチャート
+                        </a>
+                    </li>
+                @endcan
+                @can('viewAny', App\Models\Project::class)
+                    <li class="nav-item">
+                        <a class="nav-link {{ request()->routeIs('calendar.*') ? 'active' : '' }}"
+                            href="{{ route('calendar.index') }}">
+                            <i class="fas fa-calendar-alt"></i> カレンダー
+                        </a>
+                    </li>
+                @endcan
+                @can('viewAny', App\Models\Project::class)
+                    <li class="nav-item">
+                        <a class="nav-link {{ request()->routeIs('projects.*') && !request()->routeIs('projects.*.tasks.*') ? 'active' : '' }}"
+                            href="{{ route('projects.index') }}">
+                            <i class="fas fa-tshirt"></i> 衣装案件
+                        </a>
+                    </li>
+                @endcan
             </ul>
             <ul class="nav nav-tabs main-nav">
-                @can('users.viewAny')
+                @can('viewAny', App\Models\ProcessTemplate::class)
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="adminMenu" role="button" data-bs-toggle="dropdown"
                             aria-expanded="false">
                             <i class="fas fa-cog"></i> 管理
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="adminMenu">
-                            <li><a class="dropdown-item" href="{{ route('users.index') }}">ユーザー管理</a></li>
-                            <li><a class="dropdown-item" href="{{ route('roles.index') }}">権限設定</a></li>
-                            <li><a class="dropdown-item" href="{{ route('process-templates.index') }}">工程テンプレート管理</a></li>
+                            @can('viewAny', App\Models\User::class)
+                                <li><a class="dropdown-item" href="{{ route('users.index') }}">ユーザー管理</a></li>
+                            @endcan
+                            @can('viewAny', App\Models\Role::class)
+                                <li><a class="dropdown-item" href="{{ route('roles.index') }}">権限設定</a></li>
+                            @endcan
+                            @can('viewAny', App\Models\ProcessTemplate::class)
+                                <li><a class="dropdown-item" href="{{ route('process-templates.index') }}">工程テンプレート管理</a></li>
+                            @endcan
                         </ul>
                     </li>
                 @endcan
@@ -911,7 +927,7 @@
                             </a>
                             <a class="dropdown-item" href="{{ route('logout') }}"
                                 onclick="event.preventDefault();
-                                                                                                                                                     document.getElementById('logout-form').submit();">
+                                                                                                                                                                                                                                     document.getElementById('logout-form').submit();">
                                 ログアウト
                             </a>
 
