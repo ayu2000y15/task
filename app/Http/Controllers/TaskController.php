@@ -23,17 +23,26 @@ class TaskController extends Controller
 
         $filters = [
             'project_id' => $request->input('project_id', ''),
+            'character_id' => $request->input('character_id', ''),
             'assignee' => $request->input('assignee', ''),
             'status' => $request->input('status', ''),
             'search' => $request->input('search', ''),
             'due_date' => $request->input('due_date', ''),
         ];
 
-        $query = $taskService->buildFilteredQuery($filters)->with(['project', 'files', 'children']);
-        $tasks = $query->orderBy('end_date', 'asc')->get();
+        $query = $taskService->buildFilteredQuery($filters)->with(['project', 'files', 'children', 'character']);
+        $tasks = $query->orderByRaw('ISNULL(tasks.start_date), tasks.start_date ASC, tasks.name ASC')->get();
 
-        $projects = Project::all();
-        $assignees = Task::distinct('assignee')->whereNotNull('assignee')->pluck('assignee');
+        $allProjects = Project::orderBy('title')->get();
+
+        $charactersForFilter = collect();
+        if (!empty($filters['project_id'])) {
+            $projectWithChars = Project::find($filters['project_id']);
+            if ($projectWithChars) {
+                $charactersForFilter = $projectWithChars->characters()->orderBy('name')->get();
+            }
+        }
+        $assignees = Task::distinct('assignee')->whereNotNull('assignee')->orderBy('assignee')->pluck('assignee');
         $statusOptions = [
             'not_started' => '未着手',
             'in_progress' => '進行中',
@@ -42,7 +51,14 @@ class TaskController extends Controller
             'cancelled' => 'キャンセル',
         ];
 
-        return view('tasks.index', compact('tasks', 'projects', 'assignees', 'statusOptions', 'filters'));
+        return view('tasks.index', compact(
+            'tasks',
+            'allProjects',
+            'charactersForFilter',
+            'assignees',
+            'statusOptions',
+            'filters'
+        ));
     }
 
     /**
@@ -53,6 +69,7 @@ class TaskController extends Controller
         $this->authorize('create', Task::class);
         $processTemplates = ProcessTemplate::orderBy('name')->get();
         $parentTask = null;
+        $project->load('characters');
 
         if ($request->has('parent')) {
             $parentTask = Task::findOrFail($request->parent);
@@ -71,23 +88,27 @@ class TaskController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'start_date' => 'nullable|date',
-            'end_date' => 'nullable|date|after_or_equal:start_date',
+            'character_id' => 'nullable|exists:characters,id',
+            'start_date' => 'required_if:is_milestone_or_folder,milestone|required_if:is_milestone_or_folder,task|nullable|date',
             'assignee' => 'nullable|string|max:255',
             'parent_id' => 'nullable|exists:tasks,id',
-            'duration' => 'nullable|integer|min:1',
-            'is_milestone_or_folder' => 'required|in:milestone,folder,task',
+            'duration' => 'nullable|integer|min:1|required_if:is_milestone_or_folder,task|prohibited_if:is_milestone_or_folder,milestone',
+            'is_milestone_or_folder' => 'required|in:milestone,folder,task,todo_task', // todo_task を追加
+            'status' => 'required_unless:is_milestone_or_folder,folder|nullable|in:not_started,in_progress,completed,on_hold,cancelled',
+            'end_date' => 'nullable|date|after_or_equal:start_date|prohibited_if:is_milestone_or_folder,milestone',
         ]);
 
         $isFolder = $request->input('is_milestone_or_folder') === 'folder';
         $isMilestone = $request->input('is_milestone_or_folder') === 'milestone';
+        $isTodoTask = $request->input('is_milestone_or_folder') === 'todo_task';
 
         $taskData = [
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
+            'character_id' => (array_key_exists('character_id', $validated) && $validated['character_id'] !== '') ? $validated['character_id'] : null,
             'assignee' => $validated['assignee'] ?? null,
             'parent_id' => $request->input('parent_id'),
-            'is_milestone' => $isMilestone,
+            'is_milestone' => $isMilestone, // マイルストーンフラグを設定
             'is_folder' => $isFolder,
             'progress' => 0,
         ];
@@ -108,32 +129,36 @@ class TaskController extends Controller
                 $taskData['end_date'] = null;
             }
             $taskData['duration'] = 1;
-            $taskData['status'] = $request->input('status', 'not_started');
-        } else {
-            if (isset($validated['start_date'])) {
-                $startDate = Carbon::parse($validated['start_date']);
-                if (!empty($validated['duration'])) {
-                    $endDate = $startDate->copy()->addDays($validated['duration'] - 1);
-                } elseif (isset($validated['end_date'])) {
-                    $endDate = Carbon::parse($validated['end_date']);
-                } else {
-                    $endDate = $startDate->copy();
-                }
-                $taskData['start_date'] = $startDate;
-                $taskData['end_date'] = $endDate;
-                $taskData['duration'] = $endDate->diffInDays($startDate) + 1;
-            } else {
-                $taskData['start_date'] = null;
-                $taskData['end_date'] = null;
-                $taskData['duration'] = null;
-            }
-            $taskData['status'] = $request->input('status', 'not_started');
+            $taskData['status'] = $validated['status'] ?? 'not_started';
+        } elseif ($isTodoTask) { // 工程（期限なし）
+            $taskData['start_date'] = null;
+            $taskData['end_date'] = null;
+            $taskData['duration'] = null;
+            $taskData['is_milestone'] = false; // 明示的にfalse
+            $taskData['is_folder'] = false;    // 明示的にfalse
+            $taskData['status'] = $validated['status'] ?? 'not_started';
+        } else { // 通常工程 (is_milestone_or_folder === 'task') - 日付あり
+            $startDate = Carbon::parse($validated['start_date']);
+            // start_dateが入力されていればdurationもバリデーションで要求される
+            $duration = $validated['duration'];
+            $endDate = $startDate->copy()->addDays($duration - 1);
+
+            $taskData['start_date'] = $startDate;
+            $taskData['end_date'] = $endDate;
+            $taskData['duration'] = $duration;
+
+            $taskData['status'] = $validated['status'] ?? 'not_started';
+        }
+
+        // フォルダの場合、ステータスは常にnull
+        if ($isFolder) {
+            $taskData['status'] = null;
         }
 
         $task = new Task($taskData);
         $project->tasks()->save($task);
 
-        return redirect()->route('tasks.index', ['project_id' => $project->id])->with('success', '工程が作成されました。');
+        return redirect()->route('gantt.index', ['project_id' => $project->id])->with('success', '工程が作成されました。');
     }
 
     /**
@@ -141,7 +166,8 @@ class TaskController extends Controller
      */
     public function edit(Project $project, Task $task)
     {
-        $this->authorize('update', Task::class);
+        $this->authorize('update', $task);
+        $project->load('characters');
 
         $files = $task->is_folder ? $task->files()->orderBy('original_name')->get() : collect();
         return view('tasks.edit', compact('project', 'task', 'files'));
@@ -152,17 +178,18 @@ class TaskController extends Controller
      */
     public function update(Request $request, Project $project, Task $task)
     {
-        $this->authorize('update', Task::class);
+        $this->authorize('update', $task);
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'start_date' => 'nullable|date',
-            'end_date' => 'nullable|date',
-            'duration' => 'nullable|integer|min:1',
+            'character_id' => 'nullable|exists:characters,id',
+            'start_date' => 'required_if:is_milestone_or_folder,milestone|nullable|date', // マイルストーンの場合は必須
+            'duration' => 'nullable|integer|min:1|required_with:start_date|prohibited_if:is_milestone_or_folder,milestone', // 開始日があれば工数も必須(マイルストーン除く)
             'assignee' => 'nullable|string|max:255',
             'parent_id' => 'nullable|exists:tasks,id',
             'status' => 'nullable|in:not_started,in_progress,completed,on_hold,cancelled',
+            'end_date' => 'nullable|date|after_or_equal:start_date|prohibited_if:is_milestone_or_folder,milestone',
         ]);
 
         $isFolder = $task->is_folder;
@@ -171,10 +198,9 @@ class TaskController extends Controller
         $taskData = [
             'name' => $validated['name'],
             'description' => $validated['description'],
+            'character_id' => (array_key_exists('character_id', $validated) && $validated['character_id'] !== '') ? $validated['character_id'] : null,
             'assignee' => $validated['assignee'],
             'parent_id' => $validated['parent_id'],
-            'is_milestone' => $isMilestone,
-            'is_folder' => $isFolder,
         ];
 
         if ($isFolder) {
@@ -191,27 +217,33 @@ class TaskController extends Controller
             }
             $taskData['duration'] = 1;
             $taskData['status'] = $validated['status'] ?? $task->status;
-        } else {
-            if (isset($validated['start_date'])) {
+        } else { // 通常工程
+            if ($request->filled('start_date')) {
                 $startDate = Carbon::parse($validated['start_date']);
-                if (!empty($validated['duration'])) {
-                    $endDate = $startDate->copy()->addDays($validated['duration'] - 1);
-                } elseif (isset($validated['end_date'])) {
-                    $endDate = Carbon::parse($validated['end_date']);
-                } else {
-                    $endDate = $startDate->copy();
-                }
+                // start_dateが入力されていればdurationもバリデーションで要求される
+                $duration = $validated['duration'];
+                $endDate = $startDate->copy()->addDays($duration - 1);
+
                 $taskData['start_date'] = $startDate;
                 $taskData['end_date'] = $endDate;
-                $taskData['duration'] = $endDate->diffInDays($startDate) + 1;
+                $taskData['duration'] = $duration;
+            } else {
+                // 期限なしタスクとして更新 (日付情報をクリア)
+                $taskData['start_date'] = null;
+                $taskData['end_date'] = null;
+                $taskData['duration'] = null;
             }
             $taskData['status'] = $validated['status'] ?? $task->status;
+        }
+
+        if ($isFolder) { // フォルダの場合はステータスは常にnull
+            $taskData['status'] = null;
         }
 
         $task->fill($taskData);
         $task->save();
 
-        return redirect()->route('tasks.index', ['project_id' => $task->project_id])->with('success', '工程が更新されました。');
+        return redirect()->route('gantt.index', ['project_id' => $task->project_id])->with('success', '工程が更新されました。');
     }
 
     /**
@@ -219,10 +251,10 @@ class TaskController extends Controller
      */
     public function destroy(Project $project, Task $task)
     {
-        $this->authorize('delete', Task::class);
+        $this->authorize('delete', $task);
 
         $this->deleteTaskAndChildren($task);
-        return redirect()->route('tasks.index', ['project_id' => $project->id])->with('success', '工程が削除されました。');
+        return redirect()->route('gantt.index', ['project_id' => $project->id])->with('success', '工程が削除されました。');
     }
 
     /**
@@ -230,10 +262,11 @@ class TaskController extends Controller
      */
     private function deleteTaskAndChildren(Task $task)
     {
-        $this->authorize('delete', arguments: Task::class);
-
         if ($task->is_folder) {
-            Storage::disk('local')->deleteDirectory('task_files/' . $task->id);
+            foreach ($task->files as $file) {
+                Storage::disk('local')->delete($file->path);
+                $file->delete();
+            }
         }
         foreach ($task->children as $child) {
             $this->deleteTaskAndChildren($child);
@@ -247,15 +280,22 @@ class TaskController extends Controller
      */
     public function updateProgress(Request $request, Project $project, Task $task)
     {
+        $this->authorize('update', $task);
+
         $validated = $request->validate([
-            'progress' => 'required|integer|min:0|max:100',
+            'progress' => 'sometimes|required|integer|min:0|max:100',
             'status' => 'required|string|in:not_started,in_progress,completed,on_hold,cancelled',
         ]);
 
-        $task->update([
-            'progress' => $validated['progress'],
-            'status' => $validated['status'],
-        ]);
+        $updateData = ['status' => $validated['status']];
+        if (isset($validated['progress'])) {
+            $updateData['progress'] = $validated['progress'];
+        } elseif ($validated['status'] === 'completed') {
+            $updateData['progress'] = 100;
+        } elseif (in_array($validated['status'], ['not_started', 'cancelled'])) {
+            $updateData['progress'] = 0;
+        }
+        $task->update($updateData);
 
         return response()->json([
             'success' => true,
@@ -264,7 +304,7 @@ class TaskController extends Controller
     }
 
     /**
-     * 工程の位置（日付）を更新
+     * 工程の位置（日付）を更新 (ガントチャート用)
      */
     public function updatePosition(Request $request)
     {
@@ -275,6 +315,7 @@ class TaskController extends Controller
         ]);
 
         $task = Task::findOrFail($validated['task_id']);
+        $this->authorize('update', $task);
 
         $startDate = Carbon::parse($validated['start_date']);
         $endDate = Carbon::parse($validated['end_date']);
@@ -293,7 +334,7 @@ class TaskController extends Controller
     }
 
     /**
-     * 工程の親工程を更新
+     * 工程の親工程を更新 (ガントチャート用)
      */
     public function updateParent(Request $request)
     {
@@ -303,6 +344,7 @@ class TaskController extends Controller
         ]);
 
         $task = Task::findOrFail($validated['task_id']);
+        $this->authorize('update', $task);
 
         if ($validated['parent_id'] == $task->id) {
             return response()->json([
@@ -310,12 +352,14 @@ class TaskController extends Controller
                 'message' => '自分自身を親工程にはできません。'
             ], 422);
         }
-
-        if ($validated['parent_id'] && $this->wouldCreateCycle($task->id, $validated['parent_id'])) {
-            return response()->json([
-                'success' => false,
-                'message' => '循環参照が発生するため、この操作はできません。'
-            ], 422);
+        if ($validated['parent_id']) {
+            $newParent = Task::find($validated['parent_id']);
+            if ($task->isAncestorOf($newParent)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => '循環参照が発生するため、この操作はできません。'
+                ], 422);
+            }
         }
 
         $task->update([
@@ -328,34 +372,13 @@ class TaskController extends Controller
         ]);
     }
 
-    /**
-     * 循環参照が発生するかチェック
-     */
-    private function wouldCreateCycle($taskId, $newParentId)
-    {
-        $currentParentId = $newParentId;
-
-        while ($currentParentId) {
-            if ($currentParentId == $taskId) {
-                return true;
-            }
-
-            $parent = Task::find($currentParentId);
-            if (!$parent) {
-                break;
-            }
-
-            $currentParentId = $parent->parent_id;
-        }
-
-        return false;
-    }
 
     /**
      * 担当者を更新する
      */
     public function updateAssignee(Request $request, Project $project, Task $task)
     {
+        $this->authorize('update', $task);
         $validated = $request->validate([
             'assignee' => 'nullable|string|max:255',
         ], [
@@ -376,25 +399,25 @@ class TaskController extends Controller
      */
     public function uploadFiles(Request $request, Project $project, Task $task)
     {
+        $this->authorize('update', $task);
         if (!$task->is_folder) {
             return response()->json(['error' => 'ファイルはフォルダにのみアップロードできます。'], 422);
         }
 
         $request->validate([
-            'file' => 'required|file|max:10240', // 10MB max
+            'file' => 'required|file|max:102400',
         ]);
 
         $file = $request->file('file');
         $path = 'task_files/' . $task->id;
         $storedName = $file->hashName();
-
-        Storage::disk('local')->putFileAs($path, $file, $storedName);
+        $fullPath = Storage::disk('local')->putFileAs($path, $file, $storedName);
 
         $taskFile = $task->files()->create([
             'original_name' => $file->getClientOriginalName(),
             'stored_name' => $storedName,
-            'path' => $path . '/' . $storedName,
-            'mime_type' => $file->getMimeType(),
+            'path' => $fullPath,
+            'mime_type' => $file->getMimeType() ?? 'application/octet-stream',
             'size' => $file->getSize(),
         ]);
 
@@ -406,8 +429,9 @@ class TaskController extends Controller
      */
     public function getFiles(Project $project, Task $task)
     {
+        $this->authorize('update', $task);
         $files = $task->files()->orderBy('original_name')->get();
-        return view('tasks.partials.file-list', compact('files'))->render();
+        return view('tasks.partials.file-list', ['files' => $files, 'project' => $project, 'task' => $task])->render();
     }
 
     /**
@@ -415,11 +439,31 @@ class TaskController extends Controller
      */
     public function downloadFile(Project $project, Task $task, TaskFile $file)
     {
+        $this->authorize('update', $task);
         if ($file->task_id !== $task->id) {
             abort(404);
         }
+        if (!Storage::disk('local')->exists($file->path)) {
+            abort(404, 'ファイルが見つかりません。');
+        }
 
         return Storage::disk('local')->download($file->path, $file->original_name);
+    }
+
+    /**
+     * ファイルをブラウザで表示する (画像プレビュー用)
+     */
+    public function showFile(Project $project, Task $task, TaskFile $file)
+    {
+        $this->authorize('update', $task);
+        if ($file->task_id !== $task->id) {
+            abort(404);
+        }
+        if (!Storage::disk('local')->exists($file->path)) {
+            abort(404, 'ファイルが見つかりません。');
+        }
+
+        return response()->file(Storage::disk('local')->path($file->path));
     }
 
     /**
@@ -427,6 +471,7 @@ class TaskController extends Controller
      */
     public function deleteFile(Project $project, Task $task, TaskFile $file)
     {
+        $this->authorize('update', $task);
         if ($file->task_id !== $task->id) {
             abort(404);
         }
@@ -443,17 +488,19 @@ class TaskController extends Controller
         $validated = $request->validate([
             'process_template_id' => 'required|exists:process_templates,id',
             'template_start_date' => 'required|date',
+            'parent_id_for_template' => 'nullable|exists:tasks,id',
         ]);
 
         $template = ProcessTemplate::with('items')->findOrFail($validated['process_template_id']);
         $currentStartDate = Carbon::parse($validated['template_start_date']);
+        $parentTaskIdForTemplate = $validated['parent_id_for_template'] ?? null;
 
         foreach ($template->items as $item) {
             $taskData = [
                 'name' => $item->name,
-                'description' => null, // 必要であればテンプレート項目に説明も追加
+                'description' => null,
                 'assignee' => null,
-                'parent_id' => $request->input('parent_id_for_template'), // テンプレート適用時の親タスクID
+                'parent_id' => $parentTaskIdForTemplate,
                 'is_milestone' => false,
                 'is_folder' => false,
                 'progress' => 0,
@@ -464,11 +511,8 @@ class TaskController extends Controller
             $taskData['end_date'] = $currentStartDate->copy()->addDays(($item->default_duration ?? 1) - 1);
 
             $project->tasks()->create($taskData);
-
-            // 次のタスクの開始日を、今のタスクの終了日の翌日に設定 (休日考慮なしの単純な連続)
             $currentStartDate = $taskData['end_date']->addDay();
         }
-
-        return redirect()->route('projects.show', $project)->with('success', 'テンプレートから工程を一括作成しました。');
+        return redirect()->route('gantt.index', ['project_id' => $project->id])->with('success', 'テンプレートから工程を一括作成しました。');
     }
 }

@@ -4,7 +4,7 @@
 
 @section('styles')
 <style>
-    .project-icon-list { /* 工程一覧用衣装案件アイコン */
+    .project-icon-list {
         width: 30px;
         height: 30px;
         display: flex;
@@ -14,37 +14,36 @@
         margin-right: 10px;
         font-weight: bold;
         color: white;
-        vertical-align: middle; /* アイコンとテキストの縦位置を合わせる */
+        vertical-align: middle;
     }
     .todo-project-icon {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 20px; /* アイコンのサイズ */
-        height: 20px; /* アイコンのサイズ */
-        border-radius: 4px; /* 少し角丸に */
+        width: 20px;
+        height: 20px;
+        border-radius: 4px;
         color: white;
         font-weight: bold;
-        font-size: 0.75em; /* 文字サイズ */
-        margin-right: 8px; /* テキストとの間隔 */
-        flex-shrink: 0; /* 縮まないように */
+        font-size: 0.75em;
+        margin-right: 8px;
+        flex-shrink: 0;
     }
     .todo-item .todo-text {
         display: flex;
-        flex-direction: column; /* 工程名とサブテキストを縦に並べる */
+        flex-direction: column;
     }
     .todo-item .todo-project {
         font-size: 0.8em;
         color: #6c757d;
     }
     .todo-item .todo-actions {
-        margin-left: auto; /* 右端に寄せる */
-        padding-left: 10px; /* テキストとの間隔 */
+        margin-left: auto;
+        padding-left: 10px;
     }
-    /* ToDoリストヘッダーの背景色 */
-    .todo-header.not_started { background-color: #6c757d; color: white; } /* 未着手: Secondary */
-    .todo-header.in_progress { background-color: #0d6efd; color: white; } /* 進行中: Primary */
-    .todo-header.on_hold { background-color: #ffc107; color: black; }    /* 保留中: Warning (文字色を黒に) */
+    .todo-header.not_started { background-color: #6c757d; color: white; }
+    .todo-header.in_progress { background-color: #0d6efd; color: white; }
+    .todo-header.on_hold { background-color: #ffc107; color: black; }
 </style>
 @endsection
 
@@ -62,7 +61,6 @@
 
 <div class="row">
     <div class="col-md-8">
-        {{-- 最近の工程 --}}
         <div class="card mb-4">
             <div class="card-header">
                 <h5 class="mb-0">最近の工程</h5>
@@ -74,6 +72,7 @@
                             <tr>
                                 <th></th>
                                 <th>工程名</th>
+                                <th>キャラクター</th>
                                 <th>担当者</th>
                                 <th>期限</th>
                                 <th>ステータス</th>
@@ -83,7 +82,7 @@
                         <tbody>
                             @if($recentTasks->isEmpty())
                                 <tr>
-                                    <td colspan="6" class="text-center py-4">表示する工程がありません</td>
+                                    <td colspan="7" class="text-center py-4">表示する工程がありません</td>
                                 </tr>
                             @else
                                 @foreach($recentTasks as $task)
@@ -143,6 +142,9 @@
                                                 @endif
                                             </div>
                                         </td>
+                                        <td>
+                                            {{ $task->character->name ?? '-' }}
+                                        </td>
                                         <td>{{ $task->assignee ?? '-' }}</td>
                                         <td>
                                             @if($task->end_date && $task->end_date < $now && $task->status !== 'completed' && $task->status !== 'cancelled')
@@ -192,7 +194,6 @@
     </div>
 
     <div class="col-md-4">
-        {{-- 衣装案件概要 --}}
         <div class="card mb-4">
             <div class="card-header">
                 <h5 class="mb-0">衣装案件概要</h5>
@@ -213,7 +214,6 @@
             </div>
         </div>
 
-        {{-- 期限間近の工程 --}}
         <div class="card">
             <div class="card-header">
                 <h5 class="mb-0">期限間近の工程</h5>
@@ -239,6 +239,9 @@
                                 <div class="d-flex justify-content-between align-items-center">
                                     <div>
                                         <a href="{{ route('projects.tasks.edit', [$task->project, $task]) }}">{{ $task->name }}</a>
+                                        <span class="ms-2 small text-muted">
+                                            {{ $task->character->name ?? '' }}
+                                        </span>
                                         <div class="small">
                                             @if($task->end_date && $task->end_date < $now && $task->status !== 'completed' && $task->status !== 'cancelled')
                                                 <span class="text-danger">
@@ -323,21 +326,16 @@
                                         </span>
                                         <div class="todo-text flex-grow-1">
                                             <a href="{{ route('projects.tasks.edit', [$task->project, $task]) }}">{{ $task->name }}</a>
-                                            <div class="todo-project">
-                                                @if($task->end_date && $task->end_date < $now && !in_array($task->status, ['completed', 'cancelled']))
-                                                    <span class="text-danger">
-                                                        <i class="fas fa-exclamation-circle"></i>
-                                                        {{ $task->end_date->format('Y/m/d') }}
-                                                    </span>
-                                                @elseif($daysUntilDue !== null && $daysUntilDue >= 0 && $daysUntilDue <= 2 && !in_array($task->status, ['completed', 'cancelled']))
-                                                    <span class="text-warning">
-                                                        <i class="fas fa-exclamation-triangle"></i>
-                                                        {{ $task->end_date->format('Y/m/d') }}
-                                                    </span>
-                                                @elseif($task->end_date)
-                                                    <span>{{ $task->end_date->format('Y/m/d') }}</span>
+                                            <small class="text-muted d-block">
+                                                {{ $task->character->name ?? '案件全体' }}
+                                                @if($task->assignee)
+                                                <span class="ms-1 text-truncate" style="max-width: 100px;">({{ $task->assignee }})</span>
                                                 @endif
-                                                <span class="ms-2 text-truncate" style="max-width: 100px;">{{ $task->assignee }}</span>
+                                            </small>
+                                            <div class="todo-project">
+                                                @if($task->created_at)
+                                                    <small class="text-muted">作成日: {{ $task->created_at->format('Y/m/d') }}</small>
+                                                @endif
                                             </div>
                                         </div>
                                         <div class="todo-actions">
@@ -377,20 +375,14 @@ document.addEventListener('DOMContentLoaded', function() {
             let progress = 0;
 
             const taskItem = this.closest('.todo-item') || this.closest('tr');
-            // Try to get current progress if available (e.g., from a hidden field or another element)
-            // For this example, we simplify:
             if (status === 'completed') {
                 progress = 100;
             } else if (status === 'not_started' || status === 'on_hold' || status === 'cancelled') {
                 progress = 0;
             } else if (status === 'in_progress') {
-                // If task was previously completed, reset progress. Otherwise, keep or set to a default.
-                // This requires knowing previous progress. For simplicity, set to 50 if not already set.
-                // You might want to fetch current task progress if it's critical to preserve it.
-                // For ToDo list, we don't display progress, so a default for 'in_progress' is okay.
-                progress = (taskItem && taskItem.dataset.progress) ? parseInt(taskItem.dataset.progress) : 10; // Default 10% if starting
-                if (progress === 100) progress = 10; // If it was 100 (completed) and now in_progress, reset
-                if (progress === 0 && status === 'in_progress') progress = 10; // If not started and now in_progress
+                progress = (taskItem && taskItem.dataset.progress) ? parseInt(taskItem.dataset.progress) : 10;
+                if (progress === 100) progress = 10;
+                if (progress === 0 && status === 'in_progress') progress = 10;
             }
 
 

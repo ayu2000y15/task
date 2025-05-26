@@ -19,8 +19,8 @@
     </div>
 
     <x-filter-panel :action="route('calendar.index')" :filters="$filters" :all-projects="$allProjects"
-        :all-assignees="$allAssignees" :status-options="$statusOptions" />
-
+        :all-characters="$charactersForFilter" {{-- ★ :all-charactersを追加 --}} :all-assignees="$allAssignees"
+        :status-options="$statusOptions" />
     <div class="card">
         <div class="card-header">
             <div class="d-flex justify-content-between align-items-center">

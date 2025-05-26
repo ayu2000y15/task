@@ -38,13 +38,16 @@
                 $rowClass = 'task-due-soon';
             }
         }
+        // 親から引き継いだキャラクターID、またはタスク自身のキャラクターIDを使用
+        $taskCharacterId = $task->character_id ?? ($parent_character_id ?? null);
     @endphp
 
     <tr
-        class="project-{{ $project->id }}-tasks {{ $task->parent_id ? 'task-parent-' . $task->parent_id : '' }} {{ $rowClass }} task-level-{{$level}}">
-        <td class="gantt-sticky-col position-relative">
+        class="project-{{ $project->id }}-tasks {{ $task->parent_id ? 'task-parent-' . $task->parent_id : ($taskCharacterId ? 'task-parent-char-' . $taskCharacterId : '') }} {{ $rowClass }} task-level-{{$level}}"
+        data-project-id-for-toggle="{{ $project->id }}" {{ $taskCharacterId ? 'data-character-id-for-toggle=' . $taskCharacterId : '' }}>
+        <td class="gantt-sticky-col">
             <div class="d-flex justify-content-between align-items-center">
-                <div class="task-name-column d-flex align-items-center" style="padding-left: calc(15px + {{ $level * 20 }}px);">
+                <div class="task-name-column d-flex align-items-center" style="padding-left: calc(15px + {{ $level * 20 }}px + {{ $taskCharacterId && $level > 0 ? '20px' : '0px' }});">
                     <span style="width:20px; text-align:center;" class="me-1 task-primary-icon">
                     @if(!$task->is_folder && !$task->is_milestone)
                         @switch($task->status)
@@ -85,14 +88,24 @@
                 </div>
                 <div class="task-actions">
                     @if(!$task->is_folder && !$task->is_milestone)
-                        <a href="{{ route('projects.tasks.create', ['project' => $project->id, 'parent' => $task->id]) }}"
+                        <a href="{{ route('projects.tasks.create', ['project' => $project->id, 'parent' => $task->id, 'character_id_for_child' => $taskCharacterId]) }}"
                             class="btn btn-sm btn-outline-primary" title="子工程追加">
                             <i class="fas fa-plus"></i>
                         </a>
                     @endif
+                    {{-- ★ フォルダの場合、ファイルアップロードボタンを追加 --}}
+                    @if($task->is_folder)
+                    <button type="button" class="btn btn-sm btn-outline-success gantt-upload-file-btn"
+                            data-bs-toggle="modal" data-bs-target="#ganttFileUploadModal"
+                            data-project-id="{{ $project->id }}" data-task-id="{{ $task->id }}" data-task-name="{{ $task->name }}"
+                            title="ファイルアップロード">
+                        <i class="fas fa-upload"></i>
+                    </button>
+                    @endif
                     <a href="{{ route('projects.tasks.edit', [$project, $task]) }}" class="btn btn-sm btn-outline-warning" title="編集">
                         <i class="fas fa-edit"></i>
                     </a>
+
                     <form action="{{ route('projects.tasks.destroy', [$project, $task]) }}" method="POST" class="d-inline"
                         onsubmit="return confirm('本当に削除しますか？');">
                         @csrf
@@ -140,12 +153,13 @@
 
                 $hasMilestone = $task->is_milestone && $taskStartDate && $dateStr === $taskStartDate;
                 $hasBar = !$task->is_folder && !$task->is_milestone && $taskStartDate && $taskEndDate && $startPosition >= 0 && $i >= $startPosition && $i < ($startPosition + $taskLength);
+                $barColor = $task->character->project->color ?? ($task->project->color ?? '#6c757d');
 
                 if ($hasMilestone || $hasBar) $classes[] = 'has-bar';
             @endphp
             <td class="gantt-cell {{ implode(' ', $classes) }} p-0" data-date="{{ $dateStr }}">
                 @if($hasMilestone)
-                    <div class="milestone-diamond" style="background-color: {{ $task->project->color ?? $project->color }};"></div>
+                    <div class="milestone-diamond" style="background-color: {{ $barColor }};"></div>
                     <div class="gantt-tooltip">
                         <div class="tooltip-content">
                             {{ $task->name }} (重要納期)<br>
@@ -153,17 +167,13 @@
                         </div>
                         <div class="tooltip-arrow"></div>
                     </div>
-                @elseif($hasBar)
-                    {{-- 進捗バー表示を削除し、単色のバーにする --}}
-                    <div class="h-100 w-100 gantt-bar" style="background-color: {{ $task->project->color ?? $project->color }}; opacity: 0.3;">
-                        {{-- <div class="task-progress" id="task-progress-bar-{{ $task->id }}" data-progress="{{ $task->progress }}"
-                            style="width: {{ $task->progress }}%; height: 100%; background-color: rgba(255, 255, 255, 0.3);"></div> --}}
+                @elseif($hasBar && !$task->is_folder && !$task->is_milestone)
+                    <div class="h-100 w-100 gantt-bar" style="background-color: {{ $barColor }}; opacity: 0.7;">
                     </div>
                     <div class="gantt-tooltip task">
                         <div class="tooltip-content">
                             {{ $task->name }}<br>
-                            期間: {{ $taskStartDate ? \Carbon\Carbon::parse($taskStartDate)->format('Y/m/d') : '' }} 〜 {{ $taskEndDate ? \Carbon\Carbon::parse($taskEndDate)->format('Y/m/d') : '' }}<br>
-                            {{-- 進捗: {{ $task->progress }}%<br> --}} {{-- 進捗表示もツールチップから削除 --}}
+                            期間: {{ $taskStartDate ? \Carbon\Carbon::parse($taskStartDate)->format('m/d') : '' }}〜{{ $taskEndDate ? \Carbon\Carbon::parse($taskEndDate)->format('m/d') : '' }}<br>
                             担当: {{ $task->assignee ?? '未割当' }}
                         </div>
                         <div class="tooltip-arrow"></div>
@@ -174,6 +184,6 @@
     </tr>
 
     @if($task->children->count() > 0 && !$task->is_folder && !$task->is_milestone)
-        @include('gantt.partials.task_rows', ['tasks' => $task->children->sortBy(function($childTask) { return $childTask->start_date ?? '9999-12-31'; }), 'project' => $project, 'dates' => $dates, 'holidays' => $holidays, 'today' => $today, 'level' => $level + 1])
+        @include('gantt.partials.task_rows', ['tasks' => $task->children->sortBy(function($childTask) { return $childTask->start_date ?? '9999-12-31'; }), 'project' => $project, 'character' => $character ?? ($task->character ?? null), 'dates' => $dates, 'holidays' => $holidays, 'today' => $today, 'level' => $level + 1, 'parent_character_id' => $taskCharacterId])
     @endif
 @endforeach

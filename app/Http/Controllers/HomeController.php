@@ -22,6 +22,8 @@ class HomeController extends Controller
         $recentTasks = Task::whereNotNull('end_date') // end_dateがnullでない工程のみ対象
             ->whereDate('end_date', '>=', Carbon::today())
             ->orderBy('end_date')
+            ->where('is_milestone', false)
+            ->where('is_folder', false)
             ->limit(10)
             ->get();
 
@@ -30,6 +32,8 @@ class HomeController extends Controller
             ->whereDate('end_date', '<=', Carbon::today()->addDays(7))
             ->whereNotIn('status', ['completed', 'cancelled'])
             ->orderBy('end_date')
+            ->where('is_milestone', false)
+            ->where('is_folder', false)
             ->limit(5)
             ->get();
 
@@ -37,21 +41,27 @@ class HomeController extends Controller
         $sevenDaysAgo = Carbon::now()->subDays(7)->startOfDay();
         $todayEnd = Carbon::now()->endOfDay();
 
-        $todoTasks = Task::where('status', 'not_started')
-            ->whereNotNull('start_date') // start_dateがnullでないもののみ
-            ->whereBetween('start_date', [$sevenDaysAgo, $todayEnd])
-            ->orderBy('start_date')
+        $todoTasks = Task::whereNull('start_date')
+            ->whereNull('end_date')
+            ->whereNotIn('status', ['completed', 'cancelled'])
+            ->where('is_milestone', false)
+            ->where('is_folder', false)
+            ->orderBy('created_at', 'desc')
             ->limit(10)
             ->get();
 
         $inProgressTasks = Task::where('status', 'in_progress')
             // ->whereBetween('updated_at', [$sevenDaysAgo, $todayEnd]) // 例：もし更新日で絞るなら
+            ->where('is_milestone', false)
+            ->where('is_folder', false)
             ->orderBy('updated_at', 'desc') // 例：更新が新しい順
             ->limit(10)
             ->get();
 
         $onHoldTasks = Task::where('status', 'on_hold')
             // ->whereBetween('updated_at', [$sevenDaysAgo, $todayEnd]) // 例：もし更新日で絞るなら
+            ->where('is_milestone', false)
+            ->where('is_folder', false)
             ->orderBy('updated_at', 'desc') // 例：更新が新しい順
             ->limit(10)
             ->get();

@@ -4,7 +4,7 @@
 
 @section('styles')
 <style>
-    .project-icon-list { /* 工程一覧用衣装案件アイコン */
+    .project-icon-list {
         width: 30px;
         height: 30px;
         display: flex;
@@ -14,15 +14,14 @@
         margin-right: 10px;
         font-weight: bold;
         color: white;
-        vertical-align: middle; /* アイコンとテキストの縦位置を合わせる */
+        vertical-align: middle;
     }
     .table th.col-project, .table td.col-project {
-        width: 5%; /* 衣装案件列の幅を狭くする */
+        width: 5%;
     }
     .table th.col-task-name, .table td.col-task-name {
-        width: 30%; /* 工程名列の幅を広げる */
+        width: 30%;
     }
-    /* 他の列の幅も必要に応じて調整 */
 </style>
 @endsection
 
@@ -45,14 +44,14 @@
     <x-filter-panel
         :action="route('tasks.index')"
         :filters="$filters"
-        :all-projects="$projects"
+        :all-projects="$allProjects"
+        :all-characters="$charactersForFilter"
         :all-assignees="$assignees"
         :status-options="$statusOptions"
         :show-due-date-filter="true"
     />
 
     <ul class="nav nav-tabs mb-3" id="taskTabs" role="tablist">
-        {{-- (タブ部分は変更なし) --}}
         <li class="nav-item" role="presentation">
             <button class="nav-link active" id="tasks-tab" data-bs-toggle="tab" data-bs-target="#tasks" type="button"
                 role="tab" aria-controls="tasks" aria-selected="true">
@@ -92,8 +91,9 @@
                         <table class="table table-hover mb-0">
                             <thead class="table-light">
                                 <tr>
-                                    <th class="col-project"></th> {{-- class追加 --}}
-                                    <th class="col-task-name">工程名</th> {{-- class追加 --}}
+                                    <th class="col-project"></th>
+                                    <th class="col-task-name">工程名</th>
+                                    <th>キャラクター</th>
                                     <th>担当者</th>
                                     <th>開始日</th>
                                     <th>終了日</th>
@@ -105,12 +105,11 @@
                             <tbody>
                                 @if($tasks->where('is_milestone', false)->where('is_folder', false)->isEmpty())
                                     <tr>
-                                        <td colspan="8" class="text-center py-4">表示する工程がありません</td>
+                                        <td colspan="9" class="text-center py-4">表示する工程がありません</td>
                                     </tr>
                                 @else
                                     @foreach($tasks->where('is_milestone', false)->where('is_folder', false) as $task)
                                         @php
-                                            // (既存のPHPロジックは変更なし)
                                             $rowClass = '';
                                             $now = \Carbon\Carbon::now()->startOfDay();
                                             $daysUntilDue = $task->end_date ? $now->diffInDays($task->end_date, false) : null;
@@ -140,7 +139,7 @@
                                             }
                                         @endphp
                                         <tr>
-                                            <td class="col-project"> {{-- class追加 --}}
+                                            <td class="col-project">
                                                 <a href="{{ route('projects.show', $task->project) }}" class="text-decoration-none"
                                                     style="color: {{ $task->project->color }};">
                                                     <span class="project-icon-list" style="background-color: {{ $task->project->color }};">
@@ -148,7 +147,7 @@
                                                     </span>
                                                 </a>
                                             </td>
-                                            <td class="col-task-name"> {{-- class追加 --}}
+                                            <td class="col-task-name">
                                                 <div class="d-flex align-items-center">
                                                     <span class="task-icon me-1">
                                                         @switch($task->status)
@@ -182,7 +181,9 @@
                                                     </div>
                                                 </div>
                                             </td>
-                                            {{-- (担当者以降の列は変更なし) --}}
+                                            <td>
+                                                {{ $task->character->name ?? '-' }}
+                                            </td>
                                             <td>
                                                 <div class="editable-cell" data-task-id="{{ $task->id }}" data-field="assignee"
                                                     data-value="{{ $task->assignee }}">
@@ -260,8 +261,9 @@
                         <table class="table table-hover mb-0">
                             <thead class="table-light">
                                 <tr>
-                                    <th class="col-project"></th> {{-- class追加 --}}
-                                    <th class="col-task-name">重要納期名</th> {{-- class追加 --}}
+                                    <th class="col-project"></th>
+                                    <th class="col-task-name">重要納期名</th>
+                                    <th>キャラクター</th>
                                     <th>日付</th>
                                     <th>ステータス</th>
                                     <th>操作</th>
@@ -270,12 +272,11 @@
                             <tbody>
                                 @if($tasks->where('is_milestone', true)->isEmpty())
                                     <tr>
-                                        <td colspan="5" class="text-center py-4">表示する重要納期がありません</td>
+                                        <td colspan="6" class="text-center py-4">表示する重要納期がありません</td>
                                     </tr>
                                 @else
                                     @foreach($tasks->where('is_milestone', true) as $milestone)
                                         @php
-                                            // (既存のPHPロジックは変更なし)
                                             $rowClass = '';
                                             $now = \Carbon\Carbon::now()->startOfDay();
                                             $daysUntilDue = $milestone->end_date ? $now->diffInDays($milestone->end_date, false) : null;
@@ -294,7 +295,7 @@
                                             }
                                         @endphp
                                         <tr>
-                                            <td class="col-project"> {{-- class追加 --}}
+                                            <td class="col-project">
                                                 <a href="{{ route('projects.show', $milestone->project) }}"
                                                     class="text-decoration-none" style="color: {{ $milestone->project->color }};">
                                                     <span class="project-icon-list" style="background-color: {{ $milestone->project->color }};">
@@ -302,14 +303,16 @@
                                                     </span>
                                                 </a>
                                             </td>
-                                            <td class="col-task-name"> {{-- class追加 --}}
+                                            <td class="col-task-name">
                                                 <div class="d-flex align-items-center">
                                                     <span class="task-icon me-1"><i class="fas fa-flag" title="重要納期"></i></span>
                                                     <a href="{{ route('projects.tasks.edit', [$milestone->project, $milestone]) }}"
                                                         class="text-decoration-none">{{ $milestone->name }}</a>
                                                 </div>
                                             </td>
-                                            {{-- (日付以降の列は変更なし) --}}
+                                            <td>
+                                                {{ $milestone->character->name ?? '-' }}
+                                            </td>
                                             <td>
                                                 @if($milestone->end_date && $milestone->end_date < $now && $milestone->status !== 'completed' && $milestone->status !== 'cancelled')
                                                     <span class="text-danger">
@@ -374,17 +377,18 @@
                         <table class="table table-hover mb-0">
                             <thead class="table-light">
                                 <tr>
-                                    <th class="col-project"></th> {{-- class追加 --}}
-                                    <th class="col-task-name">フォルダ名</th> {{-- class追加 --}}
+                                    <th class="col-project"></th>
+                                    <th class="col-task-name">フォルダ名</th>
+                                    <th>キャラクター</th>
                                     <th>親工程</th>
-                                    <th>ファイル数</th> {{-- 列名変更 --}}
+                                    <th>ファイル数</th>
                                     <th>操作</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @if($tasks->where('is_folder', true)->isEmpty())
                                     <tr>
-                                        <td colspan="5" class="text-center py-4">表示するフォルダがありません</td>
+                                        <td colspan="6" class="text-center py-4">表示するフォルダがありません</td>
                                     </tr>
                                 @else
                                     @foreach($tasks->where('is_folder', true)->sortBy('name') as $folder)
@@ -392,9 +396,10 @@
                                             $parentFolder = $folder->parent;
                                             $parentName = $parentFolder ? $parentFolder->name : '-';
                                             $fileCount = ($folder->files && is_countable($folder->files)) ? $folder->files->count() : 0;
+                                            $hasFiles = $fileCount > 0;
                                         @endphp
-                                        <tr> {{-- $rowClass はフォルダには適用しないので削除 --}}
-                                            <td class="col-project"> {{-- class追加 --}}
+                                        <tr>
+                                            <td class="col-project">
                                                 <a href="{{ route('projects.show', $folder->project) }}"
                                                     class="text-decoration-none" style="color: {{ $folder->project->color }};">
                                                     <span class="project-icon-list" style="background-color: {{ $folder->project->color }};">
@@ -402,12 +407,20 @@
                                                     </span>
                                                 </a>
                                             </td>
-                                            <td class="col-task-name"> {{-- class追加 --}}
+                                            <td class="col-task-name">
                                                 <div class="d-flex align-items-center">
                                                     <span class="task-icon me-1"><i class="fas fa-folder text-primary"></i></span>
-                                                    <a href="{{ route('projects.tasks.edit', [$folder->project, $folder]) }}"
-                                                        class="text-decoration-none">{{ $folder->name }}</a>
+                                                    @if($hasFiles)
+                                                        <button class="btn btn-sm btn-outline-secondary me-2 py-0 px-1" type="button" data-bs-toggle="collapse"
+                                                                data-bs-target="#folder-files-{{ $folder->id }}" aria-expanded="false" aria-controls="folder-files-{{ $folder->id }}">
+                                                            <i class="fas fa-chevron-down"></i>
+                                                        </button>
+                                                    @endif
+                                                    <a href="{{ route('projects.tasks.edit', [$folder->project, $folder]) }}" class="text-decoration-none">{{ $folder->name }}</a>
                                                 </div>
+                                            </td>
+                                            <td>
+                                                {{ $folder->character->name ?? '-' }}
                                             </td>
                                             <td>{{ $parentName }}</td>
                                             <td>
@@ -432,6 +445,46 @@
                                                 </div>
                                             </td>
                                         </tr>
+                                        @if($hasFiles)
+                                        <tr class="collapse" id="folder-files-{{ $folder->id }}">
+                                            <td colspan="6" class="p-3 bg-light">
+                                                <h6 class="mb-2"><i class="fas fa-paperclip"></i> 添付ファイル ({{ $fileCount }}件)</h6>
+                                                <ul class="list-group list-group-flush" id="file-list-for-folder-{{ $folder->id }}">
+                                                    @foreach($folder->files as $file)
+                                                    <li class="list-group-item d-flex align-items-center justify-content-between" id="folder-{{$folder->id}}-file-item-{{ $file->id }}">
+                                                        <div class="d-flex align-items-center">
+                                                            @if(Str::startsWith($file->mime_type, 'image/'))
+                                                                <a href="{{ route('projects.tasks.files.show', [$file->task->project, $file->task, $file]) }}" data-bs-toggle="tooltip" title="プレビュー" target="_blank">
+                                                                    <img src="{{ route('projects.tasks.files.show', [$file->task->project, $file->task, $file]) }}" alt="{{ $file->original_name }}" class="img-thumbnail me-2" style="width: 40px; height: 40px; object-fit: cover;">
+                                                                </a>
+                                                            @else
+                                                                <i class="fas fa-file-alt fa-2x me-2 text-secondary" style="width: 40px;"></i>
+                                                            @endif
+                                                            <div>
+                                                                <a href="{{ route('projects.tasks.files.download', [$file->task->project, $file->task, $file]) }}" class="text-decoration-none">
+                                                                    {{ $file->original_name }}
+                                                                </a>
+                                                                <small class="text-muted d-block">{{ round($file->size / 1024, 1) }} KB</small>
+                                                            </div>
+                                                        </div>
+                                                        <div class="btn-group btn-group-sm">
+                                                            <a href="{{ route('projects.tasks.files.download', [$file->task->project, $file->task, $file]) }}" class="btn btn-outline-secondary" title="ダウンロード">
+                                                                <i class="fas fa-download"></i>
+                                                            </a>
+                                                            <button type="button" class="btn btn-outline-danger folder-file-delete-btn"
+                                                                    data-folder-id="{{ $folder->id }}"
+                                                                    data-file-id="{{ $file->id }}"
+                                                                    data-url="{{ route('projects.tasks.files.destroy', [$file->task->project, $file->task, $file]) }}"
+                                                                    title="削除">
+                                                                <i class="fas fa-trash"></i>
+                                                            </button>
+                                                        </div>
+                                                    </li>
+                                                    @endforeach
+                                                </ul>
+                                            </td>
+                                        </tr>
+                                        @endif
                                     @endforeach
                                 @endif
                             </tbody>
@@ -446,7 +499,12 @@
 @section('scripts')
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            // (既存のJavaScriptは変更なし)
+            // Tooltipの初期化
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl)
+            })
+
             const statusSelects = document.querySelectorAll('.task-status-select');
 
             statusSelects.forEach(select => {
@@ -556,6 +614,48 @@
                     listViewBtn.classList.remove('active');
                 });
             }
+
+            // フォルダ内ファイル削除処理
+            document.addEventListener('click', function(e) {
+                const deleteButton = e.target.closest('.folder-file-delete-btn');
+                if (deleteButton) {
+                    e.preventDefault();
+                    const url = deleteButton.dataset.url;
+                    const fileId = deleteButton.dataset.fileId;
+                    const folderId = deleteButton.dataset.folderId;
+
+                    if (confirm('本当にこのファイルを削除しますか？')) {
+                        fetch(url, {
+                            method: 'DELETE',
+                            headers: {
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                                'Accept': 'application/json'
+                            }
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                const fileItem = document.getElementById(`folder-${folderId}-file-item-${fileId}`);
+                                if (fileItem) {
+                                    fileItem.remove();
+                                }
+                                // ファイル数が0になったかチェックして表示を更新
+                                const fileList = document.getElementById(`file-list-for-folder-${folderId}`);
+                                if (fileList && fileList.children.length === 0) {
+                                    fileList.innerHTML = '<li class="list-group-item text-center text-muted">ファイルがありません。</li>';
+                                    // トグルボタンを非表示または無効化する処理もここに追加可能
+                                    // 例: 親のtrからトグルボタンを探して制御する
+                                    // document.querySelector(`button[data-bs-target="#folder-files-${folderId}"]`).style.display = 'none';
+                                }
+                                // ヘッダーのファイル数も更新 (必要であれば)
+                            } else {
+                                alert('ファイルの削除に失敗しました: ' + (data.message || '不明なエラー'));
+                            }
+                        })
+                        .catch(error => console.error('Error:', error));
+                    }
+                }
+            });
         });
     </script>
 @endsection

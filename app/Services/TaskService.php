@@ -21,6 +21,7 @@ class TaskService
 
         $this->applyProjectFilter($query, $filters['project_id'] ?? null);
         $this->applyAssigneeFilter($query, $filters['assignee'] ?? null);
+        $this->applyCharacterFilter($query, $filters['character_id'] ?? null); // ★ 追加
         $this->applyStatusFilter($query, $filters['status'] ?? null);
         $this->applySearchFilter($query, $filters['search'] ?? null);
         $this->applyDueDateFilter($query, $filters['due_date'] ?? null);
@@ -46,6 +47,17 @@ class TaskService
     {
         if ($assignee) {
             $query->where('assignee', $assignee);
+        }
+    }
+
+    /**
+     * キャラクターでフィルタリング
+     */
+    public function applyCharacterFilter(Builder|Relation $query, ?string $characterId): void
+    {
+        if ($characterId) {
+            // 'none' はキャラクターに紐づかないタスクを示す特別な値として扱う
+            $query->where($characterId === 'none' ? 'character_id' : 'character_id', $characterId === 'none' ? null : $characterId);
         }
     }
 

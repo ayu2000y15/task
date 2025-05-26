@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Project;
 use App\Models\Task;
+use App\Models\Character;
 use App\Models\Holiday;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
@@ -18,39 +19,57 @@ class GanttChartController extends Controller
     public function index(Request $request, TaskService $taskService)
     {
         $filters = [
-            'project_id' => $request->input('project_id'),
-            'assignee' => $request->input('assignee'),
-            'status' => $request->input('status'),
-            'search' => $request->input('search'),
-            'start_date' => $request->input('start_date'),
-            'end_date' => $request->input('end_date'),
+            'project_id' => $request->input('project_id', ''),
+            'character_id' => $request->input('character_id', ''),
+            'assignee' => $request->input('assignee', ''),
+            'status' => $request->input('status', ''),
+            'search' => $request->input('search', ''),
+            'start_date' => $request->input('start_date', ''),
+            'end_date' => $request->input('end_date', ''),
         ];
 
-        $projectsQuery = Project::with(['tasks' => function ($query) use ($filters) {
-            app(TaskService::class)->applyAssigneeFilter($query, $filters['assignee']);
-            app(TaskService::class)->applyStatusFilter($query, $filters['status']);
-            app(TaskService::class)->applySearchFilter($query, $filters['search']);
-            app(TaskService::class)->applyDateRangeFilter($query, $filters['start_date'], $filters['end_date']);
-        }]);
+        $projectsQuery = Project::query();
 
+        // プロジェクトIDで絞り込み
         if (!empty($filters['project_id'])) {
             $projectsQuery->where('id', $filters['project_id']);
         }
 
-        $projects = $projectsQuery->get();
+        // タスク関連のフィルターロジックをクロージャにまとめる
+        $taskFilterLogic = function ($query) use ($filters, $taskService) {
+            if (!empty($filters['character_id'])) {
+                if ($filters['character_id'] === 'none') {
+                    $query->whereNull('character_id');
+                } else {
+                    $query->where('character_id', $filters['character_id']);
+                }
+            }
+            $taskService->applyAssigneeFilter($query, $filters['assignee']);
+            $taskService->applyStatusFilter($query, $filters['status']);
+            $taskService->applySearchFilter($query, $filters['search']);
+            $taskService->applyDateRangeFilter($query, $filters['start_date'], $filters['end_date']);
+        };
+
+        // フィルター条件に合致するタスクを持つプロジェクトのみを対象にする
+        $projectsQuery->whereHas('tasks', $taskFilterLogic);
+
+        $projects = $projectsQuery->with([
+            'characters' => function ($query) use ($taskFilterLogic) {
+                $query->whereHas('tasks', $taskFilterLogic)->orderBy('name');
+            },
+            'characters.tasks' => function ($query) use ($taskFilterLogic) {
+                $taskFilterLogic($query);
+            },
+            'tasks' => $taskFilterLogic,
+        ])->get();
 
         $startDate = null;
         $endDate = null;
 
-        if (!empty($filters['start_date'])) {
+        if (!empty($filters['start_date']) && !empty($filters['end_date'])) {
             $startDate = Carbon::parse($filters['start_date']);
-        }
-
-        if (!empty($filters['end_date'])) {
             $endDate = Carbon::parse($filters['end_date']);
-        }
-
-        if (!$startDate || !$endDate) {
+        } else {
             foreach ($projects as $project) {
                 if (!$startDate || $project->start_date->lt($startDate)) {
                     $startDate = $project->start_date->copy();
@@ -58,6 +77,16 @@ class GanttChartController extends Controller
 
                 if (!$endDate || $project->end_date->gt($endDate)) {
                     $endDate = $project->end_date->copy();
+                }
+
+                // フィルター後のタスクの期間も考慮
+                foreach ($project->tasks as $task) {
+                    if ($task->start_date && (!$startDate || $task->start_date->lt($startDate))) {
+                        $startDate = $task->start_date->copy();
+                    }
+                    if ($task->end_date && (!$endDate || $task->end_date->gt($endDate))) {
+                        $endDate = $task->end_date->copy();
+                    }
                 }
             }
         }
@@ -68,6 +97,10 @@ class GanttChartController extends Controller
 
         if (!$endDate) {
             $endDate = Carbon::today()->addMonths(1);
+        }
+
+        if ($startDate->gt($endDate)) {
+            $startDate = $endDate->copy()->subDays(30);
         }
 
         $dates = [];
@@ -102,6 +135,15 @@ class GanttChartController extends Controller
         ];
 
         $allProjects = Project::orderBy('title')->get();
+        // フィルター用にキャラクター一覧も取得
+        $characters = collect();
+        if (!empty($filters['project_id'])) {
+            $projectWithChars = Project::with('characters')->find($filters['project_id']);
+            if ($projectWithChars) {
+                $characters = $projectWithChars->characters;
+            }
+        }
+
         $today = Carbon::today();
 
         return view('gantt.index', [
@@ -112,6 +154,7 @@ class GanttChartController extends Controller
             'allAssignees' => $allAssignees,
             'statusOptions' => $statusOptions,
             'allProjects' => $allProjects,
+            'characters' => $characters,
             'today' => $today,
         ]);
     }

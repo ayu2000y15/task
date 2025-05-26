@@ -11,8 +11,8 @@ return new class extends Migration
         Schema::create('characters', function (Blueprint $table) {
             $table->id();
             $table->foreignId('project_id')->constrained()->onDelete('cascade');
-            $table->string('name'); // キャラクター名
-            $table->text('description')->nullable(); // キャラクターに関する備考など
+            $table->string('name');
+            $table->text('description')->nullable();
             $table->timestamps();
         });
     }

@@ -36,4 +36,9 @@ class Character extends Model
     {
         return $this->hasMany(Cost::class);
     }
+
+    public function tasks(): HasMany
+    {
+        return $this->hasMany(Task::class);
+    }
 }

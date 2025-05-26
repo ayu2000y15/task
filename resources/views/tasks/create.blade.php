@@ -58,6 +58,12 @@
                             </label>
                         </div>
                         <div class="form-check">
+                            <input class="form-check-input" type="radio" id="is_todo_task" name="is_milestone_or_folder" value="todo_task">
+                            <label class="form-check-label" for="is_todo_task">
+                                <i class="fas fa-list-check"></i> 工程（期限なし）
+                            </label>
+                        </div>
+                        <div class="form-check">
                             <input class="form-check-input @error('is_milestone') is-invalid @enderror" type="radio"
                                 id="is_milestone" name="is_milestone_or_folder" value="milestone" {{ old('is_milestone_or_folder') == 'milestone' ? 'checked' : '' }}>
                             <label class="form-check-label" for="is_milestone">
@@ -82,6 +88,21 @@
                         @enderror
                     </div>
 
+                    {{-- ★ここからキャラクター選択を追加 --}}
+                    <div class="mb-3">
+                        <label for="character_id" class="form-label">所属先</label>
+                        <select class="form-select @error('character_id') is-invalid @enderror" id="character_id" name="character_id">
+                            <option value="">案件全体</option>
+                            @foreach($project->characters as $character)
+                                <option value="{{ $character->id }}" {{ old('character_id') == $character->id ? 'selected' : '' }}>
+                                    {{ $character->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                        @error('character_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                    </div>
+                    {{-- ★ここまでキャラクター選択 --}}
+
                     <div class="mb-3">
                         <label for="description" class="form-label">説明</label>
                         <textarea class="form-control @error('description') is-invalid @enderror" id="description"
@@ -95,9 +116,7 @@
                         <div class="row mb-3">
                             <div class="col-md-4">
                                 <label for="start_date" class="form-label">開始日</label>
-                                <input type="date" class="form-control @error('start_date') is-invalid @enderror"
-                                    id="start_date" name="start_date"
-                                    value="{{ old('start_date', now()->format('Y-m-d')) }}" required>
+                                <input type="date" class="form-control @error('start_date') is-invalid @enderror" id="start_date" name="start_date" value="{{ old('start_date') }}">
                                 @error('start_date')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
@@ -105,8 +124,7 @@
 
                             <div class="col-md-4">
                                 <label for="duration" class="form-label">工数（日）</label>
-                                <input type="number" class="form-control @error('duration') is-invalid @enderror"
-                                    id="duration" name="duration" value="{{ old('duration', 1) }}" min="1" required>
+                                <input type="number" class="form-control @error('duration') is-invalid @enderror" id="duration" name="duration" value="{{ old('duration', 1) }}" min="1">
                                 @error('duration')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
@@ -114,9 +132,7 @@
 
                             <div class="col-md-4">
                                 <label for="end_date" class="form-label">終了日</label>
-                                <input type="date" class="form-control @error('end_date') is-invalid @enderror"
-                                    id="end_date" name="end_date" value="{{ old('end_date', now()->format('Y-m-d')) }}"
-                                    required>
+                                <input type="date" class="form-control @error('end_date') is-invalid @enderror" id="end_date" name="end_date" value="{{ old('end_date') }}">
                                 @error('end_date')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
@@ -139,7 +155,7 @@
                             name="parent_id">
                             <option value="">なし</option>
                             @foreach($project->tasks as $potentialParent)
-                                <option value="{{ $potentialParent->id }}" {{ old('parent_id') == $potentialParent->id ? 'selected' : '' }}>
+                                <option value="{{ $potentialParent->id }}" {{ (old('parent_id', optional($parentTask)->id)) == $potentialParent->id ? 'selected' : '' }}>
                                     {{ $potentialParent->name }}
                                 </option>
                             @endforeach
@@ -153,8 +169,7 @@
                         <div class="row mb-3">
                             <div class="col-md-6">
                                 <label for="status" class="form-label">ステータス</label>
-                                <select class="form-select @error('status') is-invalid @enderror" id="status" name="status"
-                                    required>
+                                <select class="form-select @error('status') is-invalid @enderror" id="status" name="status">
                                     <option value="not_started" {{ old('status', 'not_started') == 'not_started' ? 'selected' : '' }}>未着手
                                     </option>
                                     <option value="in_progress" {{ old('status') == 'in_progress' ? 'selected' : '' }}>進行中
@@ -191,7 +206,7 @@
             const taskTypeRadios = document.querySelectorAll('input[name="is_milestone_or_folder"]');
             const taskFields = document.getElementById('task-fields');
             const statusField = document.getElementById('status-field');
-            const requiredDateAndDurationFields = [startDateInput, durationInput, endDateInput]; // ステータスは別扱い
+            const requiredDateAndDurationFields = [startDateInput, durationInput, endDateInput];
 
             function formatDate(date) {
                 const year = date.getFullYear();
@@ -202,93 +217,157 @@
 
             function updateEndDate() {
                 if (document.querySelector('input[name="is_milestone_or_folder"]:checked').value === 'milestone') {
-                    endDateInput.value = startDateInput.value;
+                    if (startDateInput.value) {
+                        endDateInput.value = startDateInput.value;
+                    } else {
+                        endDateInput.value = '';
+                    }
                     return;
                 }
-                if (!startDateInput.value || !durationInput.value) return;
+                // 「工程（期限なし）」の場合は日付計算をスキップ
+                if (document.querySelector('input[name="is_milestone_or_folder"]:checked').value === 'todo_task') {
+                    endDateInput.value = ''; // 念のためクリア
+                    return;
+                }
+
+                if (!startDateInput.value || !durationInput.value) { endDateInput.value = ''; return; }
                 const startDate = new Date(startDateInput.value);
+                if (isNaN(startDate.getTime())) { endDateInput.value = ''; return; } // 無効な日付ならクリア
                 const duration = parseInt(durationInput.value);
                 if (!isNaN(startDate.getTime()) && duration > 0) {
                     const endDate = new Date(startDate);
                     endDate.setDate(startDate.getDate() + duration - 1);
                     endDateInput.value = formatDate(endDate);
+                } else if (isNaN(startDate.getTime()) && duration > 0 && document.querySelector('input[name="is_milestone_or_folder"]:checked').value === 'task') {
+                    // 開始日なしで工数のみ入力された場合（通常工程）は、今日を開始日として終了日を計算する (任意)
+                    const tempStartDate = new Date();
+                    startDateInput.value = formatDate(tempStartDate);
+                    const startDate = new Date(startDateInput.value); // 再度取得
+                    const endDate = new Date(startDate);
+                    endDate.setDate(startDate.getDate() + duration - 1);
+                    endDateInput.value = formatDate(endDate);
+                } else {
+                     endDateInput.value = '';
                 }
             }
 
             function updateDuration() {
                 if (document.querySelector('input[name="is_milestone_or_folder"]:checked').value === 'milestone') {
-                    durationInput.value = 1;
+                    durationInput.value = startDateInput.value ? 1 : '';
                     return;
                 }
-                if (!startDateInput.value || !endDateInput.value) return;
+                 // 「工程（期限なし）」の場合は日付計算をスキップ
+                if (document.querySelector('input[name="is_milestone_or_folder"]:checked').value === 'todo_task') {
+                    durationInput.value = ''; // 念のためクリア
+                    return;
+                }
+
+                if (!startDateInput.value || !endDateInput.value) { durationInput.value = ''; return; }
                 const startDate = new Date(startDateInput.value);
                 const endDate = new Date(endDateInput.value);
-                if (!isNaN(startDate.getTime()) && !isNaN(endDate.getTime()) && endDate >= startDate) {
+                if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) { durationInput.value = ''; return; }
+
+                if (endDate >= startDate) {
                     const diffTime = Math.abs(endDate - startDate);
                     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
                     durationInput.value = diffDays;
                 } else if (endDate < startDate) {
-                    durationInput.value = 1; // Or handle error
+                    durationInput.value = 1;
+                } else {
+                    durationInput.value = '';
                 }
             }
 
             function toggleTaskTypeFields() {
                 const selectedType = document.querySelector('input[name="is_milestone_or_folder"]:checked').value;
+                const characterIdFieldWrapper = document.getElementById('character_id').closest('.mb-3');
+
 
                 if (selectedType === 'folder') {
                     taskFields.style.display = 'none';
-                    statusField.style.display = 'none'; // フォルダにステータスは不要
-                    requiredDateAndDurationFields.forEach(field => field.removeAttribute('required'));
-                    document.getElementById('status').removeAttribute('required');
+                    statusField.style.display = 'none';
+                    if (characterIdFieldWrapper) characterIdFieldWrapper.style.display = 'block';
+                    requiredDateAndDurationFields.forEach(field => { field.removeAttribute('required'); field.value = ''; });
+                    if(document.getElementById('status')) document.getElementById('status').removeAttribute('required');
                 } else if (selectedType === 'milestone') {
                     taskFields.style.display = 'block';
-                    statusField.style.display = 'block'; // 重要納期にはステータスも表示
+                    statusField.style.display = 'block';
+                    if (characterIdFieldWrapper) characterIdFieldWrapper.style.display = 'block';
 
                     startDateInput.removeAttribute('disabled');
                     startDateInput.setAttribute('required', 'required');
+                    if (!startDateInput.value && requiredDateAndDurationFields.includes(startDateInput)) {
+                        startDateInput.value = formatDate(new Date());
+                    }
 
                     durationInput.value = 1;
                     durationInput.setAttribute('disabled', true);
-                    durationInput.removeAttribute('required'); // disabledなので不要だが念のため
+                    durationInput.removeAttribute('required');
 
                     endDateInput.setAttribute('disabled', true);
-                    endDateInput.removeAttribute('required'); // disabledなので不要だが念のため
-                    if (startDateInput.value) { // 開始日が入力されていれば終了日を同日に設定
+                    endDateInput.removeAttribute('required');
+
+                    if (startDateInput.value) {
                         endDateInput.value = startDateInput.value;
                     }
 
-                    document.getElementById('status').setAttribute('required', 'required');
-                } else { // 'task'
+                    if(document.getElementById('status')) document.getElementById('status').setAttribute('required', 'required');
+                } else if (selectedType === 'task') {
                     taskFields.style.display = 'block';
                     statusField.style.display = 'block';
+                    if (characterIdFieldWrapper) characterIdFieldWrapper.style.display = 'block';
                     requiredDateAndDurationFields.forEach(field => {
                         field.removeAttribute('disabled');
                         field.setAttribute('required', 'required');
                     });
-                    durationInput.removeAttribute('disabled'); // readonly から disabled に変更したので念のため
-                    endDateInput.removeAttribute('disabled');  // readonly から disabled に変更したので念のため
-                    document.getElementById('status').setAttribute('required', 'required');
+
+                    if (!startDateInput.value) startDateInput.value = formatDate(new Date());
+                    if (!durationInput.value) durationInput.value = 1;
+                    updateEndDate(); // 「工程」選択時に日付を初期設定・計算
+
+                    durationInput.removeAttribute('disabled');
+                    endDateInput.removeAttribute('disabled');
+                    if(document.getElementById('status')) document.getElementById('status').setAttribute('required', 'required');
+                } else if (selectedType === 'todo_task') {
+                    taskFields.style.display = 'block';
+                    statusField.style.display = 'block';
+                    if (characterIdFieldWrapper) characterIdFieldWrapper.style.display = 'block';
+                    requiredDateAndDurationFields.forEach(field => {
+                        field.removeAttribute('disabled');
+                        field.removeAttribute('required');
+                        field.value = '';
+                    });
+
+                    durationInput.removeAttribute('disabled');
+                    endDateInput.removeAttribute('disabled');
+                    if(document.getElementById('status')) document.getElementById('status').setAttribute('required', 'required');
                 }
             }
 
-            startDateInput.addEventListener('change', function () {
+            startDateInput.addEventListener('change', function() {
                 const selectedType = document.querySelector('input[name="is_milestone_or_folder"]:checked').value;
                 if (selectedType === 'milestone') {
-                    endDateInput.value = this.value; // 重要納期なら終了日を開始日に追従
-                } else {
-                    updateEndDate(); // 通常工程なら工数に基づいて終了日を計算
+                    endDateInput.value = this.value;
+                     durationInput.value = this.value ? 1 : ''; // 開始日がクリアされたら工数もクリア
+                } else if (selectedType !== 'todo_task') { // todo_task 以外の場合のみ日付計算
+                    updateEndDate();
                 }
             });
-            durationInput.addEventListener('input', updateEndDate); // 工数が変更されたら終了日を更新
-            endDateInput.addEventListener('change', updateDuration);   // 終了日が変更されたら工数を更新
+            durationInput.addEventListener('input', function() {
+                 if (document.querySelector('input[name="is_milestone_or_folder"]:checked').value !== 'todo_task') {
+                    updateEndDate();
+                 }
+            });
+            endDateInput.addEventListener('change', function() {
+                 if (document.querySelector('input[name="is_milestone_or_folder"]:checked').value !== 'todo_task') {
+                    updateDuration();
+                 }
+            });
+
 
             taskTypeRadios.forEach(radio => radio.addEventListener('change', toggleTaskTypeFields));
 
-            // 初期表示時の処理
             toggleTaskTypeFields();
-            if (document.querySelector('input[name="is_milestone_or_folder"]:checked').value !== 'milestone') {
-                updateEndDate(); // フォルダ以外で、かつ初期値がある場合に終了日を計算
-            }
         });
     </script>
 @endsection

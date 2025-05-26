@@ -33,6 +33,14 @@ class Project extends Model
         return $this->hasMany(Task::class);
     }
 
+    /**
+     * キャラクターに紐づかない工程のみを取得するリレーション
+     */
+    public function tasksWithoutCharacter()
+    {
+        return $this->hasMany(Task::class)->whereNull('character_id');
+    }
+
     public function toggleFavorite()
     {
         $this->is_favorite = !$this->is_favorite;

@@ -12,6 +12,7 @@ class Task extends Model
     protected $fillable = [
         'project_id',
         'parent_id',
+        'character_id', // ★ 追加
         'name',
         'description',
         'start_date',
@@ -46,6 +47,14 @@ class Task extends Model
     public function files()
     {
         return $this->hasMany(\App\Models\TaskFile::class);
+    }
+
+    /**
+     * この工程が属するキャラクター (nullable)
+     */
+    public function character()
+    {
+        return $this->belongsTo(Character::class);
     }
 
     /**

@@ -23,21 +23,17 @@ class CharacterController extends Controller
         return back()->with('success', 'キャラクターを追加しました。');
     }
 
-    public function edit(Project $project, Character $character)
+    public function edit(Character $character)
     {
+        $project = $character->project;
         $this->authorize('update', $project); // プロジェクト更新権限でキャラクター編集も許可
-        if ($character->project_id !== $project->id) {
-            abort(404);
-        }
         return view('characters.edit', compact('project', 'character'));
     }
 
-    public function update(Request $request, Project $project, Character $character)
+    public function update(Request $request, Character $character)
     {
+        $project = $character->project;
         $this->authorize('update', $project);
-        if ($character->project_id !== $project->id) {
-            abort(404);
-        }
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -53,9 +49,6 @@ class CharacterController extends Controller
     {
         $project = $character->project;
         $this->authorize('update', $project); // プロジェクト更新権限でキャラクター削除も許可
-        if ($character->project_id !== $project->id) {
-            abort(404);
-        }
         $character->delete(); // 関連する採寸・材料・コストもDBのカスケード削除で消える想定
 
         return redirect()->route('projects.show', $project)->with('success', 'キャラクターを削除しました。');

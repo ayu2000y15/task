@@ -17,17 +17,21 @@ class CalendarController extends Controller
     public function index(Request $request, TaskService $taskService)
     {
         $filters = [
-            'project_id' => $request->input('project_id'),
-            'assignee' => $request->input('assignee'),
-            'status' => $request->input('status'),
-            'search' => $request->input('search'),
+            'project_id' => $request->input('project_id', ''),
+            'character_id' => $request->input('character_id', ''), // ★ 追加
+            'assignee' => $request->input('assignee', ''),
+            'status' => $request->input('status', ''),
+            'search' => $request->input('search', ''),
         ];
 
+        // TaskService を使った絞り込みを適用 (character_id も考慮)
         $projectsQuery = Project::with(['tasks' => function ($query) use ($filters) {
             app(TaskService::class)->applyAssigneeFilter($query, $filters['assignee']);
+            app(TaskService::class)->applyCharacterFilter($query, $filters['character_id']); // Character filter
             app(TaskService::class)->applyStatusFilter($query, $filters['status']);
             app(TaskService::class)->applySearchFilter($query, $filters['search']);
         }]);
+
 
         if (!empty($filters['project_id'])) {
             $projectsQuery->where('id', $filters['project_id']);
@@ -55,7 +59,7 @@ class CalendarController extends Controller
             ];
 
             foreach ($project->tasks as $task) {
-                if ($task->is_folder) { // フォルダはカレンダーイベントとして追加しない
+                if ($task->is_folder) {
                     continue;
                 }
 
@@ -78,8 +82,8 @@ class CalendarController extends Controller
                 $events[] = [
                     'id' => 'task_' . $task->id,
                     'title' => $task->name,
-                    'start' => $task->start_date ? $task->start_date->format('Y-m-d') : null, // null チェック
-                    'end' => $task->end_date ? $task->end_date->addDay()->format('Y-m-d') : null, // null チェック
+                    'start' => $task->start_date ? $task->start_date->format('Y-m-d') : null,
+                    'end' => $task->end_date ? $task->end_date->addDay()->format('Y-m-d') : null,
                     'color' => $taskColor,
                     'textColor' => '#ffffff',
                     'allDay' => true,
@@ -87,10 +91,9 @@ class CalendarController extends Controller
                     'classNames' => [
                         'task-event',
                         $task->is_milestone ? 'milestone-event' : '',
-                        // 'is_folder' は上で continue しているので、ここでは不要
                     ],
                     'extendedProps' => [
-                        'type' => $task->is_milestone ? 'milestone' : 'task', // is_folder は除外
+                        'type' => $task->is_milestone ? 'milestone' : 'task',
                         'description' => $task->description,
                         'assignee' => $task->assignee,
                         'progress' => $task->progress,
@@ -138,13 +141,23 @@ class CalendarController extends Controller
         ];
 
         $allProjects = Project::orderBy('title')->get();
+        // フィルター用にキャラクター一覧も取得
+        $charactersForFilter = collect();
+        if (!empty($filters['project_id'])) {
+            $projectWithChars = Project::with('characters')->find($filters['project_id']);
+            if ($projectWithChars) {
+                $charactersForFilter = $projectWithChars->characters;
+            }
+        }
+
 
         return view('calendar.index', [
             'events' => json_encode($events),
             'filters' => $filters,
+            'allProjects' => $allProjects,
+            'charactersForFilter' => $charactersForFilter, // ★ 追加
             'allAssignees' => $allAssignees,
             'statusOptions' => $statusOptions,
-            'allProjects' => $allProjects,
         ]);
     }
 }

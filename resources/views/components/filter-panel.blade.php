@@ -17,6 +17,22 @@
                 </select>
             </div>
             <div class="col-md-3">
+                <label for="character_id" class="form-label">キャラクター</label>
+                <select class="form-select" id="character_id" name="character_id" {{ !isset($filters['project_id']) && (!isset($allCharacters) || $allCharacters->isEmpty()) ? 'disabled' : '' }}>
+                    <option value="">すべて</option>
+                    @if(isset($filters['project_id']) || (isset($allCharacters) && !$allCharacters->isEmpty())) {{-- ★
+                        $characters を $allCharacters に変更 --}}
+                        <option value="none" @if(isset($filters['character_id']) && $filters['character_id'] == 'none')
+                        selected @endif>案件全体(キャラクター未所属)</option>
+                        @foreach($allCharacters as $character) {{-- ★ $characters を $allCharacters に変更 --}}
+                            <option value="{{ $character->id }}" @if(isset($filters['character_id']) && $filters['character_id'] == $character->id) selected @endif>
+                                {{ $character->name }}
+                            </option>
+                        @endforeach
+                    @endif
+                </select>
+            </div>
+            <div class="col-md-3">
                 <label for="assignee" class="form-label">担当者</label>
                 <select class="form-select" id="assignee" name="assignee">
                     <option value="">すべて</option>
@@ -85,26 +101,3 @@
         </form>
     </div>
 </div>
-
-{{-- フィルターパネルを閉じるボタンのためのScriptは不要になったため削除 --}}
-{{--
-@push('scripts')
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        if (typeof filterPanelInitialized === 'undefined') {
-            const closeFilterBtn = document.getElementById('closeFilterBtn');
-            if (closeFilterBtn) {
-                closeFilterBtn.addEventListener('click', function () {
-                    const filterPanel = document.getElementById('filterPanel');
-                    const bsCollapse = new bootstrap.Collapse(filterPanel, {
-                        toggle: false
-                    });
-                    bsCollapse.hide();
-                });
-            }
-            window.filterPanelInitialized = true;
-        }
-    });
-</script>
-@endpush
---}}

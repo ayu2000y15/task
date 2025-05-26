@@ -56,7 +56,6 @@ class ProjectController extends Controller
         ]);
 
         return redirect()->route('projects.show', $project)
-            //->with('success', '衣装案件が作成されました。');
             ->with('success', '衣装案件が作成されました。');
     }
 
@@ -66,8 +65,15 @@ class ProjectController extends Controller
     public function show(Project $project)
     {
         $this->authorize('view', $project);
-        // キャラクター情報と、各キャラクターに紐づく詳細情報も読み込む
-        $project->load(['characters.measurements', 'characters.materials', 'characters.costs']);
+        // キャラクター情報と、各キャラクターに紐づくタスクやその他の詳細情報も読み込む
+        $project->load([
+            'characters' => function ($query) {
+                $query->with(['tasks', 'measurements', 'materials', 'costs'])->orderBy('name');
+            },
+            'tasksWithoutCharacter' => function ($query) {
+                $query->orderBy('start_date');
+            }
+        ]);
         return view('projects.show', compact('project'));
     }
 
@@ -108,7 +114,6 @@ class ProjectController extends Controller
         ]);
 
         return redirect()->route('projects.show', $project)
-            //->with('success', '衣装案件が更新されました。');
             ->with('success', '衣装案件が更新されました。');
     }
 
@@ -123,7 +128,6 @@ class ProjectController extends Controller
         $project->delete();
 
         return redirect()->route('projects.index')
-            //->with('success', '衣装案件が削除されました。');
             ->with('success', '衣装案件が削除されました。');
     }
 }

@@ -8,16 +8,16 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('process_templates', function (Blueprint $table) {
+        Schema::create('holidays', function (Blueprint $table) {
             $table->id();
-            $table->string('name'); // 例: ジャケット基本工程
-            $table->text('description')->nullable();
+            $table->date('date');
+            $table->string('name');
             $table->timestamps();
         });
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('process_templates');
+        Schema::dropIfExists('holidays');
     }
 };

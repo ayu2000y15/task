@@ -11,7 +11,7 @@
                 <i class="fas fa-filter"></i> フィルター
             </button>
             @can('create', App\Models\Project::class)
-            <a href="{{ route('projects.create') }}" class="btn btn-primary">新規衣装案件</a>
+                <a href="{{ route('projects.create') }}" class="btn btn-primary"><i class="fas fa-plus"></i> 新規衣装案件</a>
             @endcan
         </div>
     </div>
@@ -31,11 +31,15 @@
     </div>
 
     <x-filter-panel :action="route('gantt.index')" :filters="$filters" :all-projects="$allProjects"
-        :all-assignees="$allAssignees" :status-options="$statusOptions" :show-date-range-filter="true" />
+        :all-characters="$characters" :all-assignees="$allAssignees" :status-options="$statusOptions"
+        :show-date-range-filter="true" />
 
     @if(
             $projects->isEmpty() || $projects->every(function ($project) {
-                return $project->tasks->isEmpty();
+                // 案件全体のタスク、またはキャラクターに紐づくタスクのいずれかがあれば表示対象とする
+                return $project->tasks()->whereNull('character_id')->get()->isEmpty() && $project->characters->every(function ($char) {
+                    return $char->tasks->isEmpty();
+                });
             })
         )
         <div class="alert alert-info">
@@ -99,8 +103,8 @@
                     </thead>
                     <tbody>
                         @foreach($projects as $project)
-                            @if(!$project->tasks->isEmpty())
-                                <tr class="project-header">
+                            @if($project->tasks()->whereNull('character_id')->whereNull('parent_id')->exists() || $project->characters()->whereHas('tasks')->exists() || $project->tasks()->whereNotNull('character_id')->whereNull('parent_id')->exists())
+                                <tr class="project-header project-{{ $project->id }}-tasks task-level-0">
                                     <td class="gantt-sticky-col">
                                         <div class="d-flex justify-content-between">
                                             <div class="task-name">
@@ -126,7 +130,11 @@
                                             </div>
                                         </div>
                                     </td>
-                                    <td class="detail-column" colspan="5"></td>
+                                    <td class="detail-column">&nbsp;</td> {{-- 担当者 --}}
+                                    <td class="detail-column">&nbsp;</td> {{-- 工数 --}}
+                                    <td class="detail-column">&nbsp;</td> {{-- 開始日 --}}
+                                    <td class="detail-column">&nbsp;</td> {{-- 完了日 --}}
+                                    <td class="detail-column">&nbsp;</td> {{-- ステータス --}}
 
                                     @php
                                         $projectStartDate = $project->start_date->format('Y-m-d');
@@ -146,18 +154,18 @@
                                         @php
                                             $dateStr = $dates[$i]['date']->format('Y-m-d');
                                             $isHoliday = isset($holidays[$dateStr]);
-                                            $classes = [];
+                                            $cellClasses = [];
                                             if ($dates[$i]['is_saturday'])
-                                                $classes[] = 'saturday';
+                                                $cellClasses[] = 'saturday';
                                             elseif ($dates[$i]['is_sunday'] || $isHoliday)
-                                                $classes[] = 'sunday';
+                                                $cellClasses[] = 'sunday';
                                             if ($dates[$i]['date']->isSameDay($today))
-                                                $classes[] = 'today';
+                                                $cellClasses[] = 'today';
                                             $hasBar = $startPosition >= 0 && $i >= $startPosition && $i < ($startPosition + $projectLength);
                                             if ($hasBar)
-                                                $classes[] = 'has-bar';
+                                                $cellClasses[] = 'has-bar';
                                         @endphp
-                                        <td class="gantt-cell {{ implode(' ', $classes) }} p-0" data-date="{{ $dateStr }}">
+                                        <td class="gantt-cell {{ implode(' ', $cellClasses) }} p-0" data-date="{{ $dateStr }}">
                                             @if($hasBar)
                                                 <div class="h-100 w-100 gantt-bar"
                                                     style="background-color: {{ $project->color }}; opacity: 0.7;"></div>
@@ -173,8 +181,61 @@
                                         </td>
                                     @endfor
                                 </tr>
-                                @include('gantt.partials.task_rows', ['tasks' => $project->tasks->where('parent_id', null)->sortBy(function ($task) {
-                                return $task->start_date ?? '9999-12-31'; }), 'project' => $project, 'dates' => $dates, 'holidays' => $holidays, 'today' => $today, 'level' => 0])
+                                {{-- 案件全体の工程 (キャラクターに紐づかない) --}}
+                                @php
+                                    $projectLevelTasks = $project->tasks
+                                        ->whereNull('character_id')
+                                        ->whereNull('parent_id')
+                                        ->sortBy(function ($task, $key) {
+                                            // [is_null(start_date), start_date, name] の順でソート
+                                            return [$task->start_date === null, $task->start_date, $task->name];
+                                        });
+                                @endphp
+                                @include('gantt.partials.task_rows', ['tasks' => $projectLevelTasks, 'project' => $project, 'dates' => $dates, 'holidays' => $holidays, 'today' => $today, 'level' => 0, 'parent_character_id' => null])
+
+                                {{-- キャラクターごとの工程 --}}
+                                @foreach($project->characters->sortBy('name') as $character)
+                                    @php
+                                        $characterTasks = $character->tasks
+                                            ->whereNull('parent_id')
+                                            ->sortBy(function ($task, $key) {
+                                                return [$task->start_date === null, $task->start_date, $task->name];
+                                            });
+                                    @endphp
+                                    <tr class="character-header project-{{ $project->id }}-tasks task-level-0"
+                                        data-project-id-for-toggle="{{ $project->id }}">
+                                        <td class="gantt-sticky-col">
+                                            <div class="d-flex align-items-center" style="padding-left: 20px;">
+                                                <span class="toggle-children" data-character-id="{{ $character->id }}"
+                                                    data-project-id-of-char="{{ $project->id }}">
+                                                    <i class="fas fa-chevron-down"></i>
+                                                </span>
+                                                <i class="fas fa-user-circle text-info me-2 ms-1" style="font-size: 1.1em;"></i>
+                                                <strong>{{ $character->name }}</strong>
+                                            </div>
+                                        </td>
+                                        <td class="detail-column">&nbsp;</td>
+                                        <td class="detail-column">&nbsp;</td>
+                                        <td class="detail-column">&nbsp;</td>
+                                        <td class="detail-column">&nbsp;</td>
+                                        <td class="detail-column">&nbsp;</td>
+                                        @for($i = 0; $i < count($dates); $i++)
+                                            @php
+                                                $dateStr = $dates[$i]['date']->format('Y-m-d');
+                                                $isHoliday = isset($holidays[$dateStr]);
+                                                $cellClasses = [];
+                                                if ($dates[$i]['is_saturday'])
+                                                    $cellClasses[] = 'saturday';
+                                                elseif ($dates[$i]['is_sunday'] || $isHoliday)
+                                                    $cellClasses[] = 'sunday';
+                                                if ($dates[$i]['date']->isSameDay($today))
+                                                    $cellClasses[] = 'today';
+                                            @endphp
+                                            <td class="gantt-cell {{ implode(' ', $cellClasses) }} p-0" data-date="{{ $dateStr }}">&nbsp;</td>
+                                        @endfor
+                                    </tr>
+                                    @include('gantt.partials.task_rows', ['tasks' => $characterTasks, 'project' => $project, 'character' => $character, 'dates' => $dates, 'holidays' => $holidays, 'today' => $today, 'level' => 1, 'parent_character_id' => $character->id])
+                                @endforeach
                             @endif
                         @endforeach
                     </tbody>
@@ -182,10 +243,53 @@
             </div>
         </div>
     @endif
+
+    {{-- ★ここからファイルアップロードモーダルを追加 --}}
+    <div class="modal fade" id="ganttFileUploadModal" tabindex="-1" aria-labelledby="ganttFileUploadModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="ganttFileUploadModalLabel">ファイルアップロード: <span id="ganttFolderUploadName"
+                            class="fw-bold"></span></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    {{-- Dropzone.js フォーム --}}
+                    <form action="#" method="post" class="dropzone dropzone-custom-style mb-3"
+                        id="gantt-file-upload-dropzone">
+                        @csrf {{-- CSRFトークン --}}
+                        <div class="dz-message text-center" data-dz-message>
+                            <p class="mb-2">ここにファイルをドラッグ＆ドロップ</p>
+                            <p class="mb-3 text-muted small">または</p>
+                            <button type="button" class="btn btn-outline-primary dz-button-bootstrap">
+                                <i class="fas fa-folder-open me-1"></i>ファイルを選択
+                            </button>
+                        </div>
+                    </form>
+
+                    <h6><i class="fas fa-list-ul"></i> アップロード済みファイル</h6>
+                    <div style="max-height: 200px; overflow-y: auto;">
+                        <ul class="list-group" id="gantt-uploaded-file-list">
+                            {{-- ここにAjaxでファイル一覧がロードされます --}}
+                            <li class="list-group-item text-center text-muted">ファイルを読み込み中...</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">閉じる</button>
+                    <button type="button" class="btn btn-primary" id="ganttProcessUploadQueueBtn"><i
+                            class="fas fa-upload"></i> 選択したファイルをアップロード</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {{-- ★ここまでファイルアップロードモーダル --}}
 @endsection
 
 @section('styles')
     <style>
+        /* ... （既存のスタイルは変更なし） ... */
         .gantt-container {
             overflow-x: auto;
             position: relative;
@@ -196,23 +300,46 @@
         }
 
         .gantt-sticky-col {
+            position: -webkit-sticky;
+            /* Safari対応 */
+            position: sticky;
             left: 0;
             z-index: 10;
             background-color: #fff;
+            /* 背景色がないと下のセルが透ける */
             border-right: 2px solid #dee2e6;
+            /* 区切り線を明確に */
         }
 
         .gantt-header th {
+            position: -webkit-sticky;
+            /* Safari対応 */
+            position: sticky;
             top: 0;
             background-color: #f8f9fa;
             z-index: 20;
+            /* スティッキー列より手前に */
         }
 
         .gantt-header .gantt-sticky-col {
-            left: 0;
             z-index: 30;
+            /* 日付ヘッダーよりさらに手前に */
         }
 
+        .character-header td {
+            /* キャラクターヘッダー行のスタイル */
+            background-color: #f0f8ff;
+            /* 例: AliceBlue */
+            font-weight: 500;
+            /* border-bottom: 1px dashed #ccc; */
+            /* 必要であれば区切り線 */
+        }
+
+        .character-header:hover td {
+            background-color: #e6f2ff;
+        }
+
+        /* 他のスタイルは前回提示のものを流用 */
         .gantt-cell {
             min-width: 30px !important;
             text-align: center;
@@ -234,14 +361,12 @@
             background-color: #ffe9e9;
         }
 
-        /* #ganttTable.week-view .gantt-cell { min-width: 80px !important; } */
         .task-progress {
             height: 100%;
             background-color: rgba(255, 255, 255, 0.3);
             border-radius: inherit;
         }
 
-        /* 進捗バーの背景を白っぽく */
         .milestone-diamond {
             width: 16px;
             height: 16px;
@@ -282,15 +407,6 @@
             color: #6c757d;
         }
 
-        .assignee-edit-form {
-            position: absolute;
-            background: white;
-            z-index: 100;
-            padding: 5px;
-            border: 1px solid #ced4da;
-            border-radius: 4px;
-        }
-
         .editable-cell {
             cursor: pointer;
         }
@@ -309,7 +425,6 @@
             z-index: 100;
         }
 
-        /* opacityの変更は削除 */
         .gantt-tooltip {
             display: none;
             position: absolute;
@@ -350,18 +465,218 @@
             display: block;
         }
 
-        /* .has-bar を追加してバーのあるセルでのみツールチップ表示 */
         tr:hover .gantt-sticky-col {
             background-color: #f8f9fa;
         }
+
+        /* ▼ Dropzoneカスタムスタイル (tasks.edit.blade.php からコピー) ▼ */
+        .dropzone-custom-style {
+            border: 2px dashed #007bff !important;
+            border-radius: .25rem;
+            padding: 1rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            min-height: 150px;
+        }
+
+        .dropzone-custom-style .dz-message {
+            color: #6c757d;
+            font-weight: 500;
+            width: 100%;
+            text-align: center;
+            align-self: center;
+        }
+
+        .dropzone-custom-style .dz-message p {
+            margin-bottom: 0.5rem;
+        }
+
+        .dropzone-custom-style .dz-preview {
+            width: 120px;
+            height: auto;
+            margin: 0.25rem;
+            background-color: transparent;
+            border: 1px solid #dee2e6;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            border-radius: 20px;
+            /* Bootstrap 5風に調整 */
+        }
+
+        .dropzone-custom-style .dz-image {
+            width: 80px;
+            height: 80px;
+            display: flex;
+            border: 1px solid #dee2e6;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+            z-index: 1;
+        }
+
+        .dropzone-custom-style .dz-image img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            background-color: transparent;
+        }
+
+        .dropzone-custom-style .dz-details {
+            display: block;
+            text-align: center;
+            width: 100%;
+            position: relative;
+        }
+
+        .dropzone-custom-style .dz-filename {
+            display: block;
+            font-size: 0.75em;
+            color: #495057;
+            white-space: normal;
+            word-wrap: break-word;
+            line-height: 1.2;
+            margin-top: 0.25rem;
+        }
+
+        .dropzone-custom-style .dz-filename span {
+            background-color: transparent;
+        }
+
+        .dropzone-custom-style .dz-size {
+            font-size: 0.65em;
+            color: #6c757d;
+            margin-top: 0.15rem;
+            background-color: transparent;
+        }
+
+        .dropzone-custom-style .dz-progress,
+        .dropzone-custom-style .dz-error-message,
+        .dropzone-custom-style .dz-success-mark,
+        .dropzone-custom-style .dz-error-mark {
+            display: none;
+        }
+
+        .dropzone-custom-style .dz-remove {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: rgba(220, 53, 69, 0.8);
+            color: white;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            font-size: 12px;
+            line-height: 18px;
+            text-align: center;
+            font-weight: bold;
+            text-decoration: none;
+            cursor: pointer;
+            opacity: 1;
+            z-index: 30;
+        }
+
+        .dropzone-custom-style .dz-remove:hover {
+            text-decoration: none !important;
+            color: #aaaaaa;
+        }
+
+        /* ▲ Dropzoneカスタムスタイル ▲ */
     </style>
 @endsection
 
 @section('scripts')
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script> {{-- ドラッグ＆ドロップに必要なら --}}
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dropzone/5.9.3/min/dropzone.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script>
-        $(document).ready(function () {
-            $('#ganttTable').addClass('day-view');
+        Dropzone.autoDiscover = false;
+        let ganttDropzoneInstance; // Dropzoneインスタンス (スクリプトブロック内でグローバル)
+        let currentUploadProjectId;  // モーダルに渡す現在のプロジェクトID
+        let currentUploadTaskId;     // モーダルに渡す現在のタスクID (フォルダID)
 
+        // --- ヘルパー関数定義 (DOM Ready 前でも定義は可能) ---
+
+        // 指定されたフォルダのファイル一覧を取得して表示する関数
+        function fetchAndDisplayGanttFiles(projectId, taskId) {
+            const ganttUploadedFileListEl = document.getElementById('gantt-uploaded-file-list');
+            if (!ganttUploadedFileListEl) return;
+            ganttUploadedFileListEl.innerHTML = '<li class="list-group-item text-center text-muted">ファイルを読み込み中...</li>';
+
+            axios.get(`/projects/${projectId}/tasks/${taskId}/files`) // ルート名は要確認
+                .then(function (response) {
+                    ganttUploadedFileListEl.innerHTML = response.data;
+                })
+                .catch(function (error) {
+                    ganttUploadedFileListEl.innerHTML = '<li class="list-group-item text-center text-danger">ファイル一覧の取得に失敗しました。</li>';
+                    console.error("Error fetching files for Gantt modal:", error);
+                });
+        }
+
+        // Dropzoneの初期化関数
+        function initializeGanttDropzone(projectId, taskId) {
+            const dropzoneElement = document.getElementById('gantt-file-upload-dropzone');
+            if (!dropzoneElement) {
+                console.error('Dropzone element #gantt-file-upload-dropzone not found!');
+                return;
+            }
+
+            if (ganttDropzoneInstance) {
+                ganttDropzoneInstance.destroy();
+            }
+
+            ganttDropzoneInstance = new Dropzone(dropzoneElement, {
+                url: `/projects/${projectId}/tasks/${taskId}/files`, // TaskController@uploadFiles のルート
+                method: 'post',
+                paramName: "file",
+                maxFilesize: 100, // 100MB
+                acceptedFiles: ".jpeg,.jpg,.png,.gif,.svg,.bmp,.tiff,.webp,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.rar,.7z,.tar,.gz,.txt,.md,.csv,.json,.xml,.html,.css,.js,.php,.py,.java,.c,.cpp,.cs,.rb,.go,.sql,.ai,.psd,.fig,.sketch,video/*,audio/*,application/octet-stream",
+                addRemoveLinks: true,
+                dictRemoveFile: "削除",
+                dictCancelUpload: "キャンセル",
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                },
+                autoProcessQueue: false,
+                init: function () {
+                    const dzInstance = this;
+                    const customButton = dropzoneElement.querySelector('.dz-button-bootstrap');
+                    if (customButton) {
+                        customButton.addEventListener('click', function () {
+                            dzInstance.hiddenFileInput.click();
+                        });
+                    }
+
+                    this.on("success", function (file, response) {
+                        fetchAndDisplayGanttFiles(currentUploadProjectId, currentUploadTaskId);
+                        dzInstance.removeFile(file);
+                    });
+                    this.on("error", function (file, message) {
+                        let errorMessage = "アップロードに失敗しました。";
+                        if (typeof message === "string") errorMessage = message;
+                        else if (message.errors && message.errors.file) errorMessage = message.errors.file[0];
+                        else if (message.message) errorMessage = message.message;
+                        alert("エラー: " + errorMessage);
+                        dzInstance.removeFile(file);
+                    });
+                    this.on("queuecomplete", function () {
+                        if (this.getQueuedFiles().length === 0 && this.getUploadingFiles().length === 0) {
+                            // console.log('All files processed for this queue.');
+                        }
+                    });
+                }
+            });
+        }
+
+        // --- DOM Ready後の処理 ---
+        $(document).ready(function () {
+
+            $('#ganttTable').addClass('day-view'); // デフォルトは日表示
+
+            // 詳細表示/非表示トグル
             $('#toggleDetails').on('click', function () {
                 const $table = $('#ganttTable');
                 const $button = $(this);
@@ -374,110 +689,147 @@
                 }
             });
 
+            // 階層トグル
             $(document).on('click', '.toggle-children', function () {
-                const $icon = $(this).find('i');
+                const $toggleSpan = $(this);
+                const $icon = $toggleSpan.find('i');
                 const isExpanded = $icon.hasClass('fa-chevron-down');
-                const taskId = $(this).data('task-id');
-                const projectId = $(this).data('project-id');
+                const $parentRow = $toggleSpan.closest('tr');
 
-                let childrenSelector;
-                if (taskId) {
-                    childrenSelector = `tr.task-parent-${taskId}`;
-                } else if (projectId) {
-                    childrenSelector = `tr.project-${projectId}-tasks.task-level-0`;
-                } else {
+                let $directChildrenToToggle;
+
+                if ($parentRow.hasClass('project-header')) {
+                    const projectId = $toggleSpan.data('project-id');
+                    $directChildrenToToggle = $(`tr.project-${projectId}-tasks.task-level-0:not(.project-header)`);
+                } else if ($parentRow.hasClass('character-header')) {
+                    const characterId = $toggleSpan.data('character-id');
+                    const projectIdOfChar = $toggleSpan.data('project-id-of-char');
+                    $directChildrenToToggle = $(`tr.project-${projectIdOfChar}-tasks.task-parent-char-${characterId}.task-level-1`);
+                } else { // 通常の工程行のトグル
+                    const taskId = $toggleSpan.data('task-id');
+                    if (taskId) {
+                        $directChildrenToToggle = $(`tr.task-parent-${taskId}`);
+                    }
+                }
+
+                if (!$directChildrenToToggle || $directChildrenToToggle.length === 0) {
+                    if (isExpanded) $icon.removeClass('fa-chevron-down').addClass('fa-chevron-right');
+                    else $icon.removeClass('fa-chevron-right').addClass('fa-chevron-down');
                     return;
                 }
-                const $directChildren = $(childrenSelector);
 
                 if (isExpanded) {
                     $icon.removeClass('fa-chevron-down').addClass('fa-chevron-right');
-                    // すべての子孫を非表示にする
-                    function hideAllDescendants($elements) {
+                    function closeAllDescendants($elements) {
                         $elements.each(function () {
-                            $(this).hide();
-                            const childTaskId = $(this).find('.toggle-children').data('task-id');
-                            if (childTaskId) {
-                                $(this).find('.toggle-children i.fa-chevron-down')
-                                    .removeClass('fa-chevron-down').addClass('fa-chevron-right');
-                                hideAllDescendants($(`tr.task-parent-${childTaskId}`));
+                            const $currentElement = $(this);
+                            $currentElement.hide();
+                            const $toggleSpanOnCurrentElement = $currentElement.find('.toggle-children').first();
+                            if ($toggleSpanOnCurrentElement.length > 0) {
+                                $toggleSpanOnCurrentElement.find('i').removeClass('fa-chevron-down').addClass('fa-chevron-right');
+                                let $grandChildren;
+                                const characterId = $toggleSpanOnCurrentElement.data('character-id');
+                                const taskId = $toggleSpanOnCurrentElement.data('task-id');
+                                if (characterId) {
+                                    const projectIdOfChar = $toggleSpanOnCurrentElement.data('project-id-of-char');
+                                    $grandChildren = $(`tr.project-${projectIdOfChar}-tasks.task-parent-char-${characterId}.task-level-1`);
+                                } else if (taskId) {
+                                    $grandChildren = $(`tr.task-parent-${taskId}`);
+                                }
+                                if ($grandChildren && $grandChildren.length > 0) {
+                                    closeAllDescendants($grandChildren);
+                                }
                             }
                         });
                     }
-                    hideAllDescendants($directChildren);
+                    closeAllDescendants($directChildrenToToggle);
                 } else {
                     $icon.removeClass('fa-chevron-right').addClass('fa-chevron-down');
-                    $directChildren.show();
-                    // 注意：この場合、直下の子のみを開きます。
-                    // 子要素のトグル状態は変更しないため、以前に閉じられていた孫は閉じたままになります。
+                    $directChildrenToToggle.show();
                 }
             });
 
+            // 「今日」へスクロール
+            function scrollToToday() {
+                const $todayCell = $('.gantt-cell.today').first();
+                if ($todayCell.length) {
+                    const ganttContainer = $('.gantt-container');
+                    const stickyColWidth = $('.gantt-sticky-col').first().outerWidth() || 0;
+                    // セルのコンテナ内での相対位置を取得し、スクロール量を計算
+                    const cellOffsetLeft = $todayCell.offset().left - ganttContainer.offset().left + ganttContainer.scrollLeft();
+                    const targetScroll = cellOffsetLeft - stickyColWidth - 50; // 50px は少し余裕を持たせるため
 
+                    ganttContainer.animate({ scrollLeft: Math.max(0, targetScroll) }, 300);
+                }
+            }
+            $('#todayBtn').on('click', scrollToToday);
+            // scrollToToday(); // 初期表示時にも呼ぶ場合
+
+            // ステータス変更 (インライン)
             $(document).on('change', '.status-select', function () {
                 const taskId = $(this).data('task-id');
                 const projectId = $(this).data('project-id');
                 const status = $(this).val();
-                let progress = $(`#task-progress-bar-${taskId}`).parent().data('progress') || 0;
+                let progress = 0;
+                // バーの現在の進捗を取得するロジックは、進捗バー自体がないため削除
+                // const currentProgressBar = $(`#task-progress-bar-${taskId}`);
+                // const currentProgress = currentProgressBar.length ? parseInt(currentProgressBar.parent().data('progress')) : 0;
 
                 if (status === 'completed') {
                     progress = 100;
                 } else if (status === 'not_started' || status === 'cancelled') {
                     progress = 0;
+                } else if (status === 'in_progress') {
+                    // 進行中に変更された場合、もし進捗が0なら10%などに設定しても良い
+                    // progress = (currentProgress === 0 || currentProgress === 100) ? 10 : currentProgress;
+                    // 今回は進捗バーがないので、サーバー側でよしなに処理されることを期待
                 }
 
                 $.ajax({
                     url: `/projects/${projectId}/tasks/${taskId}/progress`,
                     method: 'POST',
                     headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
-                    data: { status: status, progress: progress },
+                    data: { status: status, progress: progress }, // progress も一緒に送る
                     success: function (response) {
-                        if (response.success) {
-                            $(`#task-progress-bar-${taskId}`).css('width', progress + '%').parent().data('progress', progress);
-                            let statusColor = '';
-                            switch (status) {
-                                case 'not_started': statusColor = '#6c757d'; break;
-                                case 'in_progress': statusColor = '#0d6efd'; break;
-                                case 'completed': statusColor = '#198754'; break;
-                                case 'on_hold': statusColor = '#ffc107'; break;
-                                case 'cancelled': statusColor = '#dc3545'; break;
-                            }
-                            $(`.status-indicator-${taskId}`).css('background-color', statusColor);
+                        if (!response.success) {
+                            console.error('ステータス更新に失敗しました: ' + (response.message || ''));
+                            // alert('ステータス更新に失敗しました。'); // 必要ならユーザーに通知
                         }
+                        location.reload(); // 更新後にリロードする場合
+                    },
+                    error: function () {
+                        console.error('ステータス更新中にエラーが発生しました。');
+                        // alert('エラーが発生しました。'); // 必要ならユーザーに通知
                     }
                 });
             });
 
-            // function scrollToToday() {
-            //     const $todayCell = $('.gantt-cell.today').first();
-            //     if ($todayCell.length) {
-            //         const stickyColWidth = $('.gantt-sticky-col').first().outerWidth() || 0;
-            //         const cellPositionInContainer = $todayCell.position().left;
-            //         const currentScrollLeft = $('.gantt-container').scrollLeft();
-            //         const targetScroll = currentScrollLeft + cellPositionInContainer - stickyColWidth - 50;
-
-            //         $('.gantt-container').animate({ scrollLeft: targetScroll > 0 ? targetScroll : 0 }, 300);
-            //     }
-            // }
-
-            $('#todayBtn').on('click', scrollToToday);
-            scrollToToday();
-
-
+            // 担当者編集 (インライン)
             $(document).on('click', '.editable-cell[data-field="assignee"]', function () {
                 const $this = $(this);
+                if ($this.find('input').length) return;
+
+                const currentValue = $this.text().trim() === '-' ? '' : $this.text().trim();
                 const taskId = $this.data('task-id');
-                const currentValue = $this.data('value') || '';
-                $this.addClass('d-none');
-                const $editForm = $this.next('.assignee-edit-form');
-                $editForm.removeClass('d-none');
-                const $input = $editForm.find('input');
-                $input.focus();
-                $input.select();
-                function completeEdit() {
+
+                let projectId;
+                const $taskRow = $this.closest('tr[class*="project-"]'); // project-X-tasks クラスを持つ最も近いtr
+                const classList = $taskRow.attr('class');
+                const projectMatch = classList ? classList.match(/project-(\d+)-tasks/) : null;
+                if (projectMatch && projectMatch[1]) {
+                    projectId = projectMatch[1];
+                } else {
+                    console.error('Project ID not found for task:', taskId, 'on row with classes:', classList);
+                    return;
+                }
+
+                $this.html(`<input type="text" class="form-control form-control-sm assignee-input-inline" value="${currentValue}" data-task-id="${taskId}" data-project-id="${projectId}">`);
+                const $input = $this.find('input');
+                $input.focus().select();
+
+                function completeAssigneeEdit() {
                     const newValue = $input.val().trim();
                     if (newValue !== currentValue) {
-                        const projectId = $input.data('project-id');
                         $.ajax({
                             url: `/projects/${projectId}/tasks/${taskId}/assignee`,
                             method: 'POST',
@@ -486,17 +838,86 @@
                             success: function (data) {
                                 if (data.success) {
                                     $this.text(newValue || '-');
-                                    $this.data('value', newValue);
-                                } else { alert('担当者の更新に失敗しました。'); }
+                                } else {
+                                    console.error('担当者の更新に失敗しました: ' + (data.message || ''));
+                                    $this.text(currentValue || '-');
+                                }
                             },
-                            error: function () { alert('エラーが発生しました。'); }
+                            error: function () {
+                                console.error('担当者更新中にエラーが発生しました。');
+                                $this.text(currentValue || '-');
+                            }
                         });
+                    } else {
+                        $this.text(currentValue || '-');
                     }
-                    $editForm.addClass('d-none');
-                    $this.removeClass('d-none');
                 }
-                $input.on('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); completeEdit(); } });
-                $input.on('blur', completeEdit);
+                $input.on('blur', completeAssigneeEdit);
+                $input.on('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); completeAssigneeEdit(); } else if (e.key === 'Escape') { $input.val(currentValue); completeAssigneeEdit(); } });
+            });
+
+
+            // --- ファイルアップロードモーダル関連の処理 ---
+            const fileUploadModalEl = document.getElementById('ganttFileUploadModal');
+            const ganttFolderUploadNameEl = document.getElementById('ganttFolderUploadName');
+            const processQueueBtn = document.getElementById('ganttProcessUploadQueueBtn');
+
+            $(document).on('click', '.gantt-upload-file-btn', function () {
+                currentUploadProjectId = $(this).data('project-id');
+                currentUploadTaskId = $(this).data('task-id');
+                const taskName = $(this).data('task-name');
+
+                if (ganttFolderUploadNameEl) ganttFolderUploadNameEl.textContent = taskName;
+
+                initializeGanttDropzone(currentUploadProjectId, currentUploadTaskId);
+                fetchAndDisplayGanttFiles(currentUploadProjectId, currentUploadTaskId);
+            });
+
+            if (processQueueBtn) {
+                processQueueBtn.addEventListener('click', function () {
+                    if (ganttDropzoneInstance && ganttDropzoneInstance.getQueuedFiles().length > 0) {
+                        ganttDropzoneInstance.processQueue();
+                    } else {
+                        alert('アップロードするファイルが選択されていません。');
+                    }
+                });
+            }
+
+            if (fileUploadModalEl) {
+                fileUploadModalEl.addEventListener('hidden.bs.modal', function () {
+                    if (ganttDropzoneInstance) {
+                        ganttDropzoneInstance.removeAllFiles(true);
+                    }
+                    const ganttUploadedFileListEl = document.getElementById('gantt-uploaded-file-list');
+                    if (ganttUploadedFileListEl) {
+                        ganttUploadedFileListEl.innerHTML = '<li class="list-group-item text-center text-muted">ファイルを読み込み中...</li>';
+                    }
+                });
+            }
+
+            $(document).on('click', '#gantt-uploaded-file-list .delete-file-btn', function (e) {
+                e.preventDefault();
+                const button = $(this);
+                const url = button.data('url');
+
+                if (confirm('本当にこのファイルを削除しますか？')) {
+                    axios.delete(url, { headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') } })
+                        .then(function (response) {
+                            if (response.data.success) {
+                                button.closest('.list-group-item').remove();
+                                const ganttUploadedFileListEl = document.getElementById('gantt-uploaded-file-list');
+                                if (ganttUploadedFileListEl && $(ganttUploadedFileListEl).children().length === 0) {
+                                    ganttUploadedFileListEl.innerHTML = '<li class="list-group-item text-center text-muted">アップロードされたファイルはありません。</li>';
+                                }
+                            } else {
+                                alert('ファイルの削除に失敗しました。\n' + (response.data.message || ''));
+                            }
+                        })
+                        .catch(function (error) {
+                            alert('ファイルの削除中にエラーが発生しました。');
+                            console.error(error);
+                        });
+                }
             });
         });
     </script>

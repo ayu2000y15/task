@@ -755,6 +755,9 @@
                                                     <button class="character-tab" data-tab="materials-{{ $character->id }}">
                                                         <i class="fas fa-box"></i> 材料
                                                     </button>
+                                                    <button class="character-tab" data-tab="tasks-{{ $character->id }}"> {{-- ★ 工程タブ追加 --}}
+                                                        <i class="fas fa-tasks"></i> 工程 ({{ $character->tasks->count() }})
+                                                    </button>
                                                     <button class="character-tab" data-tab="costs-{{ $character->id }}">
                                                         <i class="fas fa-yen-sign"></i> コスト
                                                     </button>
@@ -871,6 +874,57 @@
                                                     </div>
                                                 </div>
 
+                                                {{-- ★キャラクター工程タブコンテンツ --}}
+                                                <div class="character-content" id="tasks-{{ $character->id }}">
+                                                        @if($character->tasks->isEmpty())
+                                                            <p class="text-center text-muted mt-3">このキャラクターの工程はありません。</p>
+                                                        @else
+                                                            <table class="table table-sm character-table mt-2">
+                                                                <thead>
+                                                                    <tr>
+                                                                        <th>工程名</th>
+                                                                        <th>期間</th>
+                                                                        <th>状態</th>
+                                                                        <th><i class="fas fa-edit"></i></th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    @foreach($character->tasks()->orderBy('start_date')->get() as $task)
+                                                                    <tr>
+                                                                        <td>
+                                                                            <a href="{{ route('projects.tasks.edit', [$project, $task]) }}" class="text-decoration-none">
+                                                                                {{ $task->name }}
+                                                                            </a>
+                                                                            @if(!$task->is_milestone && !$task->is_folder && $task->end_date && $task->end_date < now() && !in_array($task->status, ['completed', 'cancelled']))
+                                                                                <span class="ms-1 badge bg-danger">期限切れ</span>
+                                                                            @endif
+                                                                        </td>
+                                                                        <td class="small">
+                                                                            {{ $task->start_date ? $task->start_date->format('m/d') : '-' }}
+                                                                            ~
+                                                                            {{ $task->end_date ? $task->end_date->format('m/d') : '-' }}
+                                                                        </td>
+                                                                        <td>
+                                                                            @php
+                                                                                $statusConfig = [
+                                                                                    'not_started' => ['class' => 'secondary', 'label' => '未着手'],
+                                                                                    'in_progress' => ['class' => 'primary', 'label' => '進行中'],
+                                                                                    'completed' => ['class' => 'success', 'label' => '完了'],
+                                                                                    'on_hold' => ['class' => 'warning', 'label' => '保留中'],
+                                                                                    'cancelled' => ['class' => 'danger', 'label' => 'キャンセル'],
+                                                                                ];
+                                                                                $config = $statusConfig[$task->status] ?? ['class' => 'light', 'label' => $task->status ?? '-'];
+                                                                            @endphp
+                                                                            <span class="badge badge-status bg-{{ $config['class'] }}">{{ $config['label'] }}</span>
+                                                                        </td>
+                                                                        <td><a href="{{ route('projects.tasks.edit', [$project, $task]) }}" class="btn btn-xs btn-outline-primary"><i class="fas fa-edit"></i></a></td>
+                                                                    </tr>
+                                                                    @endforeach
+                                                                </tbody>
+                                                            </table>
+                                                        @endif
+                                                    </div>
+
                                                 <!-- コストタブ -->
                                                 <div class="character-content" id="costs-{{ $character->id }}">
                                                     <div class="cost-summary">
@@ -948,12 +1002,12 @@
                         <div class="collapsible-title">
                             <i class="fas fa-tasks me-2"></i>
                             工程一覧
-                        </div>
+                        </div> <span class="text-muted small ms-2">(案件全体の工程)</span>
                         <div class="collapsible-meta">
                             <div class="section-summary">
                                 <div class="summary-item">
                                     <i class="fas fa-list"></i>
-                                    <span>{{ $project->tasks->count() }}件</span>
+                                    <span>{{ $project->tasksWithoutCharacter->count() }}件</span>
                                 </div>
                                 <div class="summary-item">
                                     <i class="fas fa-check-circle text-success"></i>
@@ -996,15 +1050,15 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        @if($project->tasks->isEmpty())
+                                        @if($project->tasksWithoutCharacter->isEmpty())
                                             <tr>
                                                 <td colspan="8" class="text-center py-5">
                                                     <i class="fas fa-tasks text-muted mb-2" style="font-size: 2rem;"></i>
-                                                    <p class="text-muted mb-0">工程がありません</p>
+                                                    <p class="text-muted mb-0">案件全体の工程がありません</p>
                                                 </td>
                                             </tr>
                                         @else
-                                            @foreach($project->tasks->sortBy(function ($task) {
+                                            @foreach($project->tasksWithoutCharacter->sortBy(function ($task) {
                                                 return $task->start_date ?? '9999-12-31'; }) as $task)
                                                     @php
                                                         $rowClass = '';
