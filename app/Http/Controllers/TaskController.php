@@ -418,7 +418,17 @@ class TaskController extends Controller
             'size' => $file->getSize(),
         ]);
 
-        return response()->json($taskFile, 201);
+        // データベースから最新のファイルリストを再取得
+        $files = $task->fresh()->files()->orderBy('original_name')->get();
+
+        // 更新されたファイルリストのHTMLを生成
+        $updatedHtml = view('tasks.partials.file-list-tailwind', compact('files', 'project', 'task'))->render();
+
+        // フロントエンドが期待する形式でJSONレスポンスを返す
+        return response()->json([
+            'success' => true,
+            'html' => $updatedHtml
+        ]);
     }
 
     /**
@@ -428,7 +438,7 @@ class TaskController extends Controller
     {
         $this->authorize('update', $task);
         $files = $task->files()->orderBy('original_name')->get();
-        return view('tasks.partials.file-list', ['files' => $files, 'project' => $project, 'task' => $task])->render();
+        return view('tasks.partials.file-list-tailwind', ['files' => $files, 'project' => $project, 'task' => $task])->render();
     }
 
     /**

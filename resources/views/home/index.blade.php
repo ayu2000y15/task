@@ -2,191 +2,88 @@
 
 @section('title', 'ホーム')
 
-@section('styles')
-<link rel="stylesheet" href="{{ asset('css/tooltip.css') }}">
-<style>
-    a{
-        text-decoration: none;
-    }
-    .project-icon-list {
-        width: 30px;
-        height: 30px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 5px;
-        margin-right: 10px;
-        font-weight: bold;
-        color: white;
-        vertical-align: middle;
-    }
-    .todo-project-icon {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 20px;
-        height: 20px;
-        border-radius: 4px;
-        color: white;
-        font-weight: bold;
-        font-size: 0.75em;
-        margin-right: 8px;
-        flex-shrink: 0;
-    }
-    .todo-item .todo-text {
-        display: flex;
-        flex-direction: column;
-    }
-    .todo-item .todo-project {
-        font-size: 0.8em;
-        color: #6c757d;
-    }
-    .todo-item .todo-actions {
-        margin-left: auto;
-        padding-left: 10px;
-    }
-    .todo-header.not_started { background-color: #6c757d; color: white; }
-    .todo-header.in_progress { background-color: #0d6efd; color: white; }
-    .todo-header.on_hold { background-color: #ffc107; color: black; }
-
-    /* モバイル用表示制御のためのクラス */
-    @media (max-width: 768px) {
-        .hide-on-mobile {
-            display: none !important;
-        }
-        .show-on-mobile-flex { /* display:flex など特定の値が必要な場合 */
-            display: flex !important;
-        }
-        .show-on-mobile-block {
-            display: block !important;
-        }
-        .show-on-mobile-inline-block {
-            display: inline-block !important;
-        }
-    }
-    .assignee-mobile-show { /* デフォルトは非表示 */
-        display: none;
-    }
-
-</style>
-@endsection
-
 @section('content')
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h1>ホーム</h1>
-    <div>
-        @can('create', App\Models\Project::class)
-        <a href="{{ route('projects.create') }}" class="btn btn-primary">
-            <i class="fas fa-plus"></i> 新規衣装案件
-        </a>
-        @endcan
-    </div>
-</div>
+<div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
-<div class="row">
-    <div class="col-md-8">
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5 class="mb-0">最近の工程</h5>
-            </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead class="table-light">
+    <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+        <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-200">ホーム</h1>
+        <div class="flex-shrink-0">
+            @can('create', App\Models\Project::class)
+            <x-primary-button class="ml-2" onclick="location.href='{{ route('projects.create') }}'"><i class="fas fa-plus mr-1"></i>新規衣装案件</x-primary-button>
+
+            @endcan
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="md:col-span-2">
+            <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                    <h5 class="text-lg font-semibold text-gray-700 dark:text-gray-300">最近の工程</h5>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                        <thead class="bg-gray-50 dark:bg-gray-700">
                             <tr>
-                                <th></th>
-                                <th>工程名</th>
-                                <th class="hide-on-mobile">キャラクター</th>
-                                <th>担当者</th>
-                                <th class="hide-on-mobile">期限</th>
-                                <th class="hide-on-mobile">ステータス</th>
-                                <th class="hide-on-mobile">操作</th>
+                                <th scope="col" class="pl-4 pr-2 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-12"></th>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider min-w-[200px]">工程名</th>
+                                <th scope="col" class="hidden sm:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">キャラクター</th>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">担当者</th>
+                                <th scope="col" class="hidden sm:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">期限</th>
+                                <th scope="col" class="hidden sm:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-36 min-w-[140px]">ステータス</th> <th scope="col" class="hidden sm:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">操作</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                             @if($recentTasks->isEmpty())
                                 <tr>
-                                    <td colspan="7" class="text-center py-4">表示する工程がありません</td>
+                                    <td colspan="7" class="px-6 py-12 text-center text-sm text-gray-500 dark:text-gray-400">
+                                        表示する工程がありません
+                                    </td>
                                 </tr>
                             @else
                                 @foreach($recentTasks as $task)
                                     @php
-                                        $rowClass = '';
-                                        $now = \Carbon\Carbon::now()->startOfDay();
-                                        $daysUntilDue = $task->end_date ? $now->diffInDays($task->end_date, false) : null;
-
-                                        if($task->end_date && $task->end_date < $now && $task->status !== 'completed' && $task->status !== 'cancelled') {
-                                            $rowClass = 'task-overdue';
-                                        } elseif($daysUntilDue !== null && $daysUntilDue >= 0 && $daysUntilDue <= 2 && $task->status !== 'completed' && $task->status !== 'cancelled') {
-                                            $rowClass = 'task-due-soon';
-                                        }
                                         $hoverClass = !empty($task->description) ? 'task-row-hoverable' : '';
                                     @endphp
-                                    <tr class="{{ $rowClass }} {{ $hoverClass }}"
+                                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 {{ $hoverClass }}"
                                         @if(!empty($task->description))
                                             data-task-description="{{ htmlspecialchars($task->description) }}"
                                         @endif>
-                                        <td>
-                                            <a href="{{ route('projects.show', $task->project) }}" style="color: {{ $task->project->color }};">
-                                                <span class="project-icon-list" style="background-color: {{ $task->project->color }};">
+                                        <td class="pl-4 pr-2 py-3 whitespace-nowrap">
+                                            <a href="{{ route('projects.show', $task->project) }}" class="flex items-center group">
+                                                <span class="w-6 h-6 flex items-center justify-center rounded text-white text-xs font-bold mr-2 flex-shrink-0" style="background-color: {{ $task->project->color }};">
                                                     {{ mb_substr($task->project->title, 0, 1) }}
                                                 </span>
                                             </a>
                                         </td>
-                                        <td>
-                                            <div class="d-flex align-items-center">
-                                                <span class="task-icon me-2">
-                                                    @if($task->is_milestone)
-                                                        <i class="fas fa-flag"></i>
-                                                    @elseif($task->is_folder)
-                                                        <i class="fas fa-folder"></i>
+                                        <td class="px-4 py-3 text-sm text-gray-900 dark:text-gray-100 align-top"> <div class="flex items-start"> <span class="mr-2 mt-1 flex-shrink-0"> @if($task->is_milestone) <i class="fas fa-flag text-red-500"></i>
+                                                    @elseif($task->is_folder) <i class="fas fa-folder text-blue-500"></i>
                                                     @else
-                                                    <span class="task-icon me-1">
                                                         @switch($task->status)
-                                                            @case('completed')
-                                                                <i class="fas fa-check-circle text-success" title="完了"></i>
-                                                                @break
-                                                            @case('in_progress')
-                                                                <i class="fas fa-play-circle text-primary" title="進行中"></i>
-                                                                @break
-                                                            @case('on_hold')
-                                                                <i class="fas fa-pause-circle text-warning" title="保留中"></i>
-                                                                @break
-                                                            @case('cancelled')
-                                                                <i class="fas fa-times-circle text-danger" title="キャンセル"></i>
-                                                                @break
-                                                            @default
-                                                                <i class="far fa-circle text-secondary" title="未着手"></i>
+                                                            @case('completed') <i class="fas fa-check-circle text-green-500"></i> @break
+                                                            @case('in_progress') <i class="fas fa-play-circle text-blue-500"></i> @break
+                                                            @case('on_hold') <i class="fas fa-pause-circle text-yellow-500"></i> @break
+                                                            @case('cancelled') <i class="fas fa-times-circle text-red-500"></i> @break
+                                                            @default <i class="far fa-circle text-gray-400"></i>
                                                         @endswitch
-                                                    </span>
                                                     @endif
                                                 </span>
-                                                <a href="{{ route('projects.tasks.edit', [$task->project, $task]) }}"
-                                                   class="{{ !empty($task->description) ? 'task-name-with-description' : '' }}">
+                                                <a href="{{ route('projects.tasks.edit', [$task->project, $task]) }}" class="hover:text-blue-600 whitespace-normal break-words inline-block">
                                                     {{ $task->name }}
                                                 </a>
+                                                @if (!empty($task->description))
+                                                    <i class="far fa-comment-alt ml-1 text-gray-400 dark:text-gray-500 fa-xs" title="メモあり"></i>
+                                                @endif
                                             </div>
                                         </td>
-                                        <td class="hide-on-mobile">{{ $task->character->name ?? '-' }}</td>
-                                        <td>{{ $task->assignee ?? '-' }}</td>
-                                        <td class="hide-on-mobile">
-                                            @if($task->end_date && $task->end_date < $now && $task->status !== 'completed' && $task->status !== 'cancelled')
-                                                <span class="text-danger">
-                                                    <i class="fas fa-exclamation-circle"></i>
-                                                    {{ $task->end_date->format('Y/m/d') }}
-                                                </span>
-                                            @elseif($daysUntilDue !== null && $daysUntilDue >= 0 && $daysUntilDue <= 2 && $task->status !== 'completed' && $task->status !== 'cancelled')
-                                                <span class="text-warning">
-                                                    <i class="fas fa-exclamation-triangle"></i>
-                                                    {{ $task->end_date->format('Y/m/d') }}
-                                                </span>
-                                            @else
-                                                {{ optional($task->end_date)->format('Y/m/d') }}
-                                            @endif
+                                        <td class="hidden sm:table-cell px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 align-top">{{ $task->character->name ?? '-' }}</td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 align-top">{{ $task->assignee ?? '-' }}</td>
+                                        <td class="hidden sm:table-cell px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 align-top">
+                                            {{ optional($task->end_date)->format('Y/m/d') }}
                                         </td>
-                                        <td class="hide-on-mobile">
-                                            @if(!$task->is_folder)
-                                            <select class="form-select form-select-sm task-status-select"
+                                        <td class="hidden sm:table-cell px-4 py-3 whitespace-nowrap text-sm align-top">
+                                            @if(!$task->is_folder && !$task->is_milestone)
+                                            <select class="task-status-select form-select block w-full pl-3 pr-10 py-2 text-base border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md dark:bg-gray-700 dark:text-gray-300"
                                                     data-task-id="{{ $task->id }}"
                                                     data-project-id="{{ $task->project->id }}">
                                                 <option value="not_started" {{ $task->status === 'not_started' ? 'selected' : '' }}>未着手</option>
@@ -196,15 +93,16 @@
                                                 <option value="cancelled" {{ $task->status === 'cancelled' ? 'selected' : '' }}>キャンセル</option>
                                             </select>
                                             @else
-                                            -
+                                            <span class="text-gray-500 dark:text-gray-400">-</span>
                                             @endif
                                         </td>
-                                        <td class="hide-on-mobile">
-                                            <div class="btn-group">
-                                                <a href="{{ route('projects.tasks.edit', [$task->project, $task]) }}" class="btn btn-sm btn-outline-primary">
-                                                    <i class="fas fa-edit"></i>
-                                                </a>
-                                            </div>
+                                        <td class="hidden sm:table-cell px-4 py-3 whitespace-nowrap text-right text-sm font-medium align-top">
+                                            <x-icon-button
+                                            :href="route('projects.tasks.edit', [$task->project, $task])"
+                                            icon="fas fa-edit"
+                                            title="編集"
+                                            color="blue" {{-- または 'indigo' をコンポーネントに追加するか、デフォルトのグレーを使用 --}}
+                                            />
                                         </td>
                                     </tr>
                                 @endforeach
@@ -214,229 +112,143 @@
                 </div>
             </div>
         </div>
-    </div>
 
-    <div class="col-md-4">
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5 class="mb-0">衣装案件概要</h5>
+        <div class="space-y-6">
+            <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
+                <h5 class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4">衣装案件概要</h5>
+                <div class="space-y-3">
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-600 dark:text-gray-400">全衣装案件数:</span>
+                        <span class="px-2 py-1 text-xs font-semibold text-blue-800 bg-blue-100 rounded-full dark:bg-blue-700 dark:text-blue-200">{{ $projectCount }}</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-600 dark:text-gray-400">進行中の衣装案件:</span>
+                        <span class="px-2 py-1 text-xs font-semibold text-green-800 bg-green-100 rounded-full dark:bg-green-700 dark:text-green-200">{{ $activeProjectCount }}</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-600 dark:text-gray-400">全工程数:</span>
+                        <span class="px-2 py-1 text-xs font-semibold text-indigo-800 bg-indigo-100 rounded-full dark:bg-indigo-700 dark:text-indigo-200">{{ $taskCount }}</span>
+                    </div>
+                </div>
             </div>
-            <div class="card-body">
-                <div class="d-flex justify-content-between mb-3">
-                    <span>全衣装案件数:</span>
-                    <span class="badge bg-primary">{{ $projectCount }}</span>
-                </div>
-                <div class="d-flex justify-content-between mb-3">
-                    <span>進行中の衣装案件:</span>
-                    <span class="badge bg-success">{{ $activeProjectCount }}</span>
-                </div>
-                <div class="d-flex justify-content-between">
-                    <span>全工程数:</span>
-                    <span class="badge bg-info">{{ $taskCount }}</span>
-                </div>
-            </div>
-        </div>
 
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">期限間近の工程</h5>
-            </div>
-            <div class="card-body p-0">
-                <ul class="list-group list-group-flush upcoming-tasks-list">
+            <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg">
+                <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                    <h5 class="text-lg font-semibold text-gray-700 dark:text-gray-300">期限間近の工程</h5>
+                </div>
+                <ul class="divide-y divide-gray-200 dark:divide-gray-700">
                     @if($upcomingTasks->isEmpty())
-                        <li class="list-group-item text-center py-4">表示する工程がありません</li>
+                        <li class="px-6 py-8 text-center text-sm text-gray-500 dark:text-gray-400">表示する工程がありません</li>
                     @else
                         @foreach($upcomingTasks as $task)
-                            @php
-                                $itemClass = '';
-                                $now = \Carbon\Carbon::now()->startOfDay();
-                                $daysUntilDue = $task->end_date ? $now->diffInDays($task->end_date, false) : null;
-
-                                if($task->end_date && $task->end_date < $now && $task->status !== 'completed' && $task->status !== 'cancelled') {
-                                    $itemClass = 'task-overdue';
-                                } elseif($daysUntilDue !== null && $daysUntilDue >= 0 && $daysUntilDue <= 2 && $task->status !== 'completed' && $task->status !== 'cancelled') {
-                                    $itemClass = 'task-due-soon';
-                                }
-                                $hoverClass = !empty($task->description) ? 'task-row-hoverable' : '';
-                            @endphp
-                            <li class="list-group-item {{ $itemClass }} {{ $hoverClass }}"
-                                @if(!empty($task->description))
-                                    data-task-description="{{ htmlspecialchars($task->description) }}"
-                                @endif>
-                                <div class="d-flex justify-content-between align-items-center">
+                        <li class="p-4 hover:bg-gray-50 dark:hover:bg-gray-700 {{ !empty($task->description) ? 'task-row-hoverable' : '' }}"
+                            @if(!empty($task->description))
+                                data-task-description="{{ htmlspecialchars($task->description) }}"
+                            @endif>
+                            <div class="flex items-center justify-between">
+                                <div class="min-w-0 flex-1">
                                     <div>
-                                        <a href="{{ route('projects.tasks.edit', [$task->project, $task]) }}"
-                                           class="{{ !empty($task->description) ? 'task-name-with-description' : '' }} mb-1">
+                                        <a href="{{ route('projects.tasks.edit', [$task->project, $task]) }}" class="text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:underline whitespace-normal break-words inline-block">
                                             {{ $task->name }}
                                         </a>
-                                        <span class="ms-2 small text-muted character-name-mobile-hide">{{ $task->character->name ?? '' }}</span>
-                                        <div class="small">
-                                            <span class="assignee-mobile-show small text-muted">担当: {{ $task->assignee ?? '-' }}</span>
-                                            <span class="due-date-mobile-hide">
-                                                @if($task->end_date && $task->end_date < $now && $task->status !== 'completed' && $task->status !== 'cancelled')
-                                                    <span class="text-danger">
-                                                        <i class="fas fa-exclamation-circle"></i>
-                                                        {{ $task->end_date->format('Y/m/d') }} ({{ $task->end_date->diffForHumans() }})
-                                                    </span>
-                                                @elseif($daysUntilDue !== null && $daysUntilDue >= 0 && $daysUntilDue <= 2 && $task->status !== 'completed' && $task->status !== 'cancelled')
-                                                    <span class="text-warning">
-                                                        <i class="fas fa-exclamation-triangle"></i>
-                                                        {{ $task->end_date->format('Y/m/d') }} ({{ $task->end_date->diffForHumans() }})
-                                                    </span>
-                                                @else
-                                                    <span class="text-muted">
-                                                        {{ optional($task->end_date)->format('Y/m/d') }} {{ $task->end_date ? '(' . $task->end_date->diffForHumans() . ')' : '' }}
-                                                    </span>
-                                                @endif
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <div class="status-select-mobile-hide">
-                                         @if(!$task->is_folder)
-                                        <select class="form-select form-select-sm task-status-select"
-                                                style="width: auto;"
-                                                data-task-id="{{ $task->id }}"
-                                                data-project-id="{{ $task->project->id }}">
-                                            <option value="not_started" {{ $task->status === 'not_started' ? 'selected' : '' }}>未着手</option>
-                                            <option value="in_progress" {{ $task->status === 'in_progress' ? 'selected' : '' }}>進行中</option>
-                                            <option value="completed" {{ $task->status === 'completed' ? 'selected' : '' }}>完了</option>
-                                            <option value="on_hold" {{ $task->status === 'on_hold' ? 'selected' : '' }}>保留中</option>
-                                            <option value="cancelled" {{ $task->status === 'cancelled' ? 'selected' : '' }}>キャンセル</option>
-                                        </select>
+                                        @if (!empty($task->description))
+                                            <i class="far fa-comment-alt ml-1 text-gray-400 dark:text-gray-500 fa-xs align-middle" title="メモあり"></i>
                                         @endif
                                     </div>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ $task->character->name ?? '' }}</p>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                                        期限: {{ optional($task->end_date)->format('Y/m/d') }} ({{ $task->end_date ? $task->end_date->diffForHumans() : '' }})
+                                    </p>
                                 </div>
-                            </li>
+                                <div class="ml-2 flex-shrink-0">
+                                     @if(!$task->is_folder && !$task->is_milestone)
+                                    <select class="task-status-select form-select block w-full pl-2 pr-7 py-1 text-xs border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 rounded-md dark:bg-gray-700 dark:text-gray-300"
+                                            data-task-id="{{ $task->id }}" data-project-id="{{ $task->project->id }}">
+                                        <option value="not_started" {{ $task->status === 'not_started' ? 'selected' : '' }}>未着手</option>
+                                        <option value="in_progress" {{ $task->status === 'in_progress' ? 'selected' : '' }}>進行中</option>
+                                        <option value="completed" {{ $task->status === 'completed' ? 'selected' : '' }}>完了</option>
+                                        <option value="on_hold" {{ $task->status === 'on_hold' ? 'selected' : '' }}>保留中</option>
+                                        <option value="cancelled" {{ $task->status === 'cancelled' ? 'selected' : '' }}>キャンセル</option>
+                                    </select>
+                                    @endif
+                                </div>
+                            </div>
+                        </li>
                         @endforeach
                     @endif
                 </ul>
             </div>
         </div>
     </div>
-</div>
 
-<div class="row mt-4">
-    <div class="col-md-12">
-        <h2>ToDoリスト</h2>
-        <div class="row">
+    <div class="mt-8">
+        <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4">ToDoリスト (期限なし工程)</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             @php
-                $todoColumnMap = [
-                    'todoTasks' => ['label' => '未着手', 'status_class' => 'not_started'],
-                    'inProgressTasks' => ['label' => '進行中', 'status_class' => 'in_progress'],
-                    'onHoldTasks' => ['label' => '保留中', 'status_class' => 'on_hold'],
+                $todoColumns = [
+                    'todoTasks' => ['label' => '未着手', 'status_class' => 'not_started', 'icon' => 'far fa-circle', 'color' => 'gray'],
+                    'inProgressTasks' => ['label' => '進行中', 'status_class' => 'in_progress', 'icon' => 'fas fa-play-circle', 'color' => 'blue'],
+                    'onHoldTasks' => ['label' => '保留中', 'status_class' => 'on_hold', 'icon' => 'fas fa-pause-circle', 'color' => 'yellow'],
                 ];
             @endphp
 
-            @foreach($todoColumnMap as $varName => $columnData)
+            @foreach($todoColumns as $varName => $columnData)
                 @php $tasksInStatus = $$varName; @endphp
-                <div class="col-md-4 col-lg-4 mb-4">
-                    <div class="todo-section">
-                        <div class="todo-header {{ $columnData['status_class'] }}">
-                            <span>{{ $columnData['label'] }}</span>
-                            <span class="badge bg-light text-dark">{{ $tasksInStatus->count() }}</span>
-                        </div>
-                        <div class="todo-body">
-                            @if($tasksInStatus->isEmpty())
-                                <div class="todo-item text-center text-muted p-3">
-                                    工程がありません
-                                </div>
-                            @else
-                                @foreach($tasksInStatus as $task)
-                                    @php
-                                        $hoverClass = !empty($task->description) ? 'task-row-hoverable' : '';
-                                    @endphp
-                                    <div class="todo-item {{ $hoverClass }} d-flex align-items-center"
-                                         @if(!empty($task->description))
-                                             data-task-description="{{ htmlspecialchars($task->description) }}"
-                                         @endif>
-                                        <span class="todo-project-icon" style="background-color: {{ $task->project->color }};">
-                                            {{ mb_substr($task->project->title, 0, 1) }}
-                                        </span>
-                                        <div class="todo-text flex-grow-1">
-                                            <a href="{{ route('projects.tasks.edit', [$task->project, $task]) }}"
-                                               class="{{ !empty($task->description) ? 'task-name-with-description' : '' }}">
-                                                {{ $task->name }}
-                                            </a>
-                                            <small class="text-muted d-block character-name-mobile-hide">
-                                                {{ $task->character->name ?? '案件全体' }}
-                                            </small>
-                                            <div class="todo-project">
-                                                <small class="text-muted">担当: {{ $task->assignee ?? '-' }}</small>
-                                                <small class="text-muted created-at-mobile-hide ms-2">作成日: {{ $task->created_at ? $task->created_at->format('Y/m/d') : '-'}}</small>
-                                            </div>
-                                        </div>
-                                        <div class="todo-actions status-select-mobile-hide">
-                                            @if(!$task->is_folder)
-                                            <select class="form-select form-select-sm task-status-select"
-                                                    data-task-id="{{ $task->id }}"
-                                                    data-project-id="{{ $task->project->id }}">
-                                                <option value="not_started" {{ $task->status === 'not_started' ? 'selected' : '' }}>未着手</option>
-                                                <option value="in_progress" {{ $task->status === 'in_progress' ? 'selected' : '' }}>進行中</option>
-                                                <option value="completed" {{ $task->status === 'completed' ? 'selected' : '' }}>完了</option>
-                                                <option value="on_hold" {{ $task->status === 'on_hold' ? 'selected' : '' }}>保留中</option>
-                                                <option value="cancelled" {{ $task->status === 'cancelled' ? 'selected' : '' }}>キャンセル</option>
-                                            </select>
-                                            @endif
-                                        </div>
-                                    </div>
-                                @endforeach
-                            @endif
-                        </div>
+                <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg">
+                    <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center
+                                {{ 'bg-'.$columnData['color'].'-500' }} {{ $columnData['color'] === 'yellow' ? 'text-black' : 'text-white' }}
+                                dark:{{ 'bg-'.$columnData['color'].'-700' }} dark:text-{{$columnData['color']}}-100 rounded-t-lg">
+                        <h6 class="font-semibold">{{ $columnData['label'] }}</h6>
+                        <span class="px-2 py-0.5 text-xs font-semibold {{ $columnData['color'] === 'yellow' ? 'bg-gray-200 text-gray-700' : 'bg-white text-'.$columnData['color'].'-600' }} dark:bg-gray-600 dark:text-gray-200 rounded-full">{{ $tasksInStatus->count() }}</span>
                     </div>
+                    <ul class="divide-y divide-gray-200 dark:divide-gray-700 max-h-96 overflow-y-auto">
+                        @if($tasksInStatus->isEmpty())
+                            <li class="p-6 text-center text-sm text-gray-500 dark:text-gray-400">工程がありません</li>
+                        @else
+                            @foreach($tasksInStatus as $task)
+                            <li class="p-3 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-start {{ !empty($task->description) ? 'task-row-hoverable' : '' }}"
+                                @if(!empty($task->description))
+                                    data-task-description="{{ htmlspecialchars($task->description) }}"
+                                @endif>
+                                <span class="w-5 h-5 flex items-center justify-center rounded text-white text-xs font-bold mr-3 mt-1 flex-shrink-0" style="background-color: {{ $task->project->color }};">
+                                    {{ mb_substr($task->project->title, 0, 1) }}
+                                </span>
+                                <div class="flex-grow min-w-0">
+                                    <div>
+                                        <a href="{{ route('projects.tasks.edit', [$task->project, $task]) }}" class="text-sm font-medium text-gray-800 dark:text-gray-200 hover:text-blue-600 whitespace-normal break-words inline-block">
+                                            {{ $task->name }}
+                                        </a>
+                                        @if (!empty($task->description))
+                                            <i class="far fa-comment-alt ml-1 text-gray-400 dark:text-gray-500 fa-xs align-middle" title="メモあり"></i>
+                                        @endif
+                                    </div>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                                        {{ $task->character->name ?? '案件全体' }}
+                                        <span class="mx-1">&bull;</span>
+                                        担当: {{ $task->assignee ?? '-' }}
+                                        <span class="hidden sm:inline mx-1">&bull;</span>
+                                        <span class="hidden sm:inline">作成: {{ $task->created_at ? $task->created_at->format('Y/m/d') : '-'}}</span>
+                                    </p>
+                                </div>
+                                <div class="ml-2 flex-shrink-0">
+                                     @if(!$task->is_folder && !$task->is_milestone)
+                                    <select class="task-status-select form-select block w-full pl-2 pr-7 py-1 text-xs border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 rounded-md dark:bg-gray-700 dark:text-gray-300"
+                                            data-task-id="{{ $task->id }}" data-project-id="{{ $task->project->id }}">
+                                        <option value="not_started" {{ $task->status === 'not_started' ? 'selected' : '' }}>未着手</option>
+                                        <option value="in_progress" {{ $task->status === 'in_progress' ? 'selected' : '' }}>進行中</option>
+                                        <option value="completed" {{ $task->status === 'completed' ? 'selected' : '' }}>完了</option>
+                                        <option value="on_hold" {{ $task->status === 'on_hold' ? 'selected' : '' }}>保留中</option>
+                                        <option value="cancelled" {{ $task->status === 'cancelled' ? 'selected' : '' }}>キャンセル</option>
+                                    </select>
+                                    @endif
+                                </div>
+                            </li>
+                            @endforeach
+                        @endif
+                    </ul>
                 </div>
             @endforeach
         </div>
     </div>
 </div>
-
-<div id="taskDescriptionTooltip" class="task-description-tooltip"></div>
-@endsection
-
-@section('scripts')
-<script src="{{ asset('js/task-tooltip.js') }}"></script>
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const statusSelects = document.querySelectorAll('.task-status-select');
-    statusSelects.forEach(select => {
-        select.addEventListener('change', function() {
-            const taskId = this.dataset.taskId;
-            const projectId = this.dataset.projectId;
-            const status = this.value;
-            let progress = 0;
-
-            const taskItem = this.closest('.todo-item') || this.closest('tr');
-            if (status === 'completed') {
-                progress = 100;
-            } else if (status === 'not_started' || status === 'on_hold' || status === 'cancelled') {
-                progress = 0;
-            } else if (status === 'in_progress') {
-                progress = (taskItem && taskItem.dataset.progress) ? parseInt(taskItem.dataset.progress) : 10;
-                if (progress === 100) progress = 10; // 完了から進行中に戻したら10%
-                if (progress === 0 && status === 'in_progress') progress = 10; // 未着手から進行中にしたら10%
-            }
-
-            fetch(`/projects/${projectId}/tasks/${taskId}/progress`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                },
-                body: JSON.stringify({ status: status, progress: progress })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    location.reload(); // ページをリロードして表示を更新
-                } else {
-                    alert('ステータスの更新に失敗しました。\n' + (data.message || ''));
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('エラーが発生しました。');
-            });
-        });
-    });
-});
-</script>
 @endsection

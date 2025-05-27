@@ -1,679 +1,301 @@
 @extends('layouts.app')
 
-@section('styles')
+@section('title', '工程編集 - ' . $task->name)
+
+@push('styles')
     <link href="https://cdnjs.cloudflare.com/ajax/libs/dropzone/5.9.3/min/dropzone.min.css" rel="stylesheet">
     <style>
         .dropzone-custom-style {
-            border: 2px dashed #007bff !important;
-            border-radius: .25rem;
-            padding: 1rem;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.75rem;
-            min-height: 150px;
+            @apply border-2 border-dashed border-blue-500 rounded-md p-4 flex flex-wrap gap-3 min-h-[150px] bg-gray-50 dark:bg-gray-700/50;
         }
 
         .dropzone-custom-style .dz-message {
-            color: #6c757d;
-            font-weight: 500;
-            width: 100%;
-            text-align: center;
-            align-self: center;
+            @apply text-gray-600 dark:text-gray-400 font-medium w-full text-center self-center;
         }
 
         .dropzone-custom-style .dz-message p {
-            margin-bottom: 0.5rem;
+            @apply mb-2;
+        }
+
+        .dropzone-custom-style .dz-button-bootstrap {
+            @apply inline-flex items-center px-3 py-2 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-md font-semibold text-xs text-gray-700 dark:text-gray-200 uppercase tracking-widest shadow-sm hover:bg-gray-50 dark:hover:bg-gray-500;
         }
 
         .dropzone-custom-style .dz-preview {
-            width: 120px;
-            height: auto;
-            margin: 0.25rem;
-            background-color: transparent;
-            border: 1px solid #dee2e6;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            position: relative;
-            border-radius: 20px;
+            @apply w-32 h-auto m-1 bg-transparent border border-gray-300 dark:border-gray-600 flex flex-col items-center relative rounded-lg overflow-hidden;
         }
 
         .dropzone-custom-style .dz-image {
-            width: 80px;
-            height: 80px;
-            display: flex;
-            border: 1px solid #dee2e6;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-            position: relative;
-            z-index: 1;
-            }
+            @apply w-20 h-20 flex border border-gray-300 dark:border-gray-600 items-center justify-center overflow-hidden relative z-10;
+        }
 
-            .dropzone-custom-style .dz-image img {
-                max-width: 100%;
-                max-height: 100%;
-                object-fit: contain;
-                background-color: transparent;
-            }
+        .dropzone-custom-style .dz-image img {
+            @apply max-w-full max-h-full object-contain bg-transparent;
+        }
 
-                .dropzone-custom-style .dz-details {
-                    display: block;
-                    text-align: center;
-                    width: 100%;
-                    position: relative;
-                }
+        .dropzone-custom-style .dz-details {
+            @apply block text-center w-full relative p-1;
+        }
 
-                .dropzone-custom-style .dz-filename {
-                    display: block;
-                    font-size: 0.75em;
-                    color: #495057;
-                    white-space: normal;
-                    word-wrap: break-word;
-                    line-height: 1.2;
-                    margin-top: 0.25rem;
-                }
-                .dropzone-custom-style .dz-filename span {
-                    background-color: transparent;
-                }
+        .dropzone-custom-style .dz-filename {
+            @apply block text-xs text-gray-700 dark:text-gray-200 break-words leading-tight mt-1;
+        }
 
-                    .dropzone-custom-style .dz-size {
-                        font-size: 0.65em;
-                        color: #6c757d;
-                        margin-top: 0.15rem;
-                        background-color: transparent;
-                    }
-                    .dropzone-custom-style .dz-progress { display: none; }
-                    .dropzone-custom-style .dz-error-message { display: none; }
-                    .dropzone-custom-style .dz-success-mark,
-                    .dropzone-custom-style .dz-error-mark { display: none; }
+        .dropzone-custom-style .dz-filename span {
+            @apply bg-transparent;
+        }
 
-                    .dropzone-custom-style .dz-remove {
-                        position: absolute;
-                        top: 5px;
-                        right: 5px;
-                        background: rgba(220, 53, 69, 0.8);
-                        color: white;
-                        border-radius: 50%;
-                        width: 18px;
-                        height: 18px;
-                        font-size: 12px;
-                        line-height: 18px;
-                        text-align: center;
-                        font-weight: bold;
-                        text-decoration: none;
-                        cursor: pointer;
-                        opacity: 1;
-                        z-index: 30;
-                    }
+        .dropzone-custom-style .dz-size {
+            @apply text-[0.65em] text-gray-500 dark:text-gray-400 mt-0.5 bg-transparent;
+        }
 
-                    .dropzone-custom-style .dz-remove:hover {
-                        text-decoration: none !important;
-                        color: #aaaaaa;
-                    }
-                </style>
-@endsection
+        .dropzone-custom-style .dz-progress,
+        .dropzone-custom-style .dz-error-message,
+        .dropzone-custom-style .dz-success-mark,
+        .dropzone-custom-style .dz-error-mark {
+            @apply hidden;
+        }
 
-@section('title', '工程編集')
+        .dropzone-custom-style .dz-remove {
+            @apply absolute top-1 right-1 bg-red-600/80 hover:bg-red-700/90 text-white rounded-full w-[18px] h-[18px] text-xs leading-[18px] text-center font-bold no-underline cursor-pointer opacity-100 z-30;
+        }
+    </style>
+@endpush
 
 @section('content')
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1>工程編集 - {{ $project->title }}</h1>
-    </div>
-
-    @if ($errors->any())
-        <div class="alert alert-danger">
-            <ul class="mb-0">
-                @foreach ($errors->all() as $error)
-                    <li>{{ $error }}</li>
-                @endforeach
-            </ul>
+    <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8" id="task-form-page" data-project-id="{{ $project->id }}"
+        data-task-id="{{ $task->id }}">
+        <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+            <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-200">
+                工程編集 - <span class="font-normal text-xl truncate"
+                    title="{{ $task->name }}">{{ Str::limit($task->name, 30) }}</span>
+                <span class="text-lg text-gray-500 dark:text-gray-400 ml-2"> (案件:
+                    {{ Str::limit($project->title, 20) }})</span>
+            </h1>
+            <a href="{{ url()->previous(route('projects.show', $project)) }}"
+                class="inline-flex items-center px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md font-semibold text-xs text-gray-700 dark:text-gray-200 uppercase tracking-widest shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 disabled:opacity-25 transition ease-in-out duration-150">
+                <i class="fas fa-arrow-left mr-2"></i> 戻る
+            </a>
         </div>
-    @endif
 
-    <div class="centered-form">
-        <div class="card">
-            <div class="card-header">
-                <h2>工程編集</h2>
+        @if ($errors->any())
+            <div
+                class="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-md dark:bg-red-700 dark:text-red-100 dark:border-red-600">
+                <ul class="list-disc list-inside text-sm">
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
             </div>
-            <div class="card-body">
+        @endif
+
+        <div class="max-w-3xl mx-auto bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
+            <div class="p-6 sm:p-8">
                 <form action="{{ route('projects.tasks.update', [$project, $task]) }}" method="POST" id="task-edit-form">
                     @csrf
                     @method('PUT')
-
-                    <div class="mb-3">
-                        <label class="form-label">工程種別</label>
-                        @php
-                            $taskType = 'task';
-                            if ($task->is_milestone) {
-                                $taskType = 'milestone';
-                            } elseif ($task->is_folder) {
-                                $taskType = 'folder';
-                            }
-                        @endphp
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" id="is_task_edit" name="is_milestone_or_folder" value="task" disabled
-                                {{ old('is_milestone_or_folder', $taskType) == 'task' ? 'checked' : '' }} >
-                            <label class="form-check-label" for="is_task_edit">
-                                <i class="fas fa-tasks"></i> 工程
-                            </label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" id="is_milestone_edit" name="is_milestone_or_folder" value="milestone" disabled
-                                {{ old('is_milestone_or_folder', $taskType) == 'milestone' ? 'checked' : '' }} >
-                            <label class="form-check-label" for="is_milestone_edit">
-                                <i class="fas fa-flag"></i> 重要納期
-                            </label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" id="is_folder_edit" name="is_milestone_or_folder" value="folder" disabled
-                                {{ old('is_milestone_or_folder', $taskType) == 'folder' ? 'checked' : '' }} >
-                            <label class="form-check-label" for="is_folder_edit">
-                                <i class="fas fa-folder"></i> フォルダ
-                            </label>
-                        </div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="name" class="form-label">工程名</label>
-                        <input type="text" class="form-control @error('name') is-invalid @enderror" id="name" name="name"
-                            value="{{ old('name', $task->name) }}" required>
-                        @error('name')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                    </div>
-
-                    {{-- ★ここからキャラクター選択を追加 --}}
-                    <div class="mb-3" id="character_id_wrapper">
-                        <label for="character_id" class="form-label">所属先</label>
-                        <select class="form-select @error('character_id') is-invalid @enderror" id="character_id" name="character_id" >
-                            <option value="">案件全体</option>
-                            @foreach($project->characters as $character)
-                                <option value="{{ $character->id }}" {{ old('character_id', $task->character_id) == $character->id ? 'selected' : '' }}>
-                                    {{ $character->name }}
-                                </option>
-                            @endforeach
-                        </select>
-                        @error('character_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                    </div>
-                    {{-- ★ここまでキャラクター選択 --}}
-
-
-                    {{-- ファイル管理セクション --}}
-                    @if($task->is_folder)
-                        <div id="file-management-section" class="mb-3">
-                            <hr>
-                            <h5><i class="fas fa-file-alt"></i> ファイル管理</h5>
-                            <div class="dropzone dropzone-custom-style mb-3"
-                                    id="file-upload-dropzone-edit">
-                                <div class="dz-message text-center" data-dz-message>
-                                    <p class="mb-2">ここにドラッグアンドドロップ</p>
-                                    <p class="mb-3">または</p>
-                                    <div class="btn btn-outline-primary dz-button-bootstrap">
-                                        <i class="fas fa-folder-open me-1"></i>ファイルを選択
-                                    </div>
-                                </div>
-                            </div>
-
-                            <h6>アップロード済みファイル</h6>
-                            <ul class="list-group mb-3" id="file-list-edit">
-                                @include('tasks.partials.file-list', ['files' => $files, 'project' => $project, 'task' => $task])
-                            </ul>
-                            <hr>
-                        </div>
-                    @endif
-
-
-                    <div class="mb-3">
-                        <label for="description" class="form-label">メモ</label>
-                        <textarea class="form-control @error('description') is-invalid @enderror" id="description"
-                            name="description" rows="3">{{ old('description', $task->description) }}</textarea>
-                        @error('description')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                    </div>
-
-                    <div id="task-fields">
-                        <div class="row mb-3">
-                            <div class="col-md-4">
-                                <label for="start_date" class="form-label">開始日</label>
-                                <input type="date" class="form-control @error('start_date') is-invalid @enderror" id="start_date" name="start_date"
-                                    value="{{ old('start_date', optional($task->start_date)->format('Y-m-d')) }}" required>
-                                @error('start_date')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
-
-                            <div class="col-md-4">
-                                <label for="duration" class="form-label">工数（日）</label>
-                                <input type="number" class="form-control @error('duration') is-invalid @enderror" id="duration" name="duration" value="{{ old('duration', $task->duration) }}" min="1">
-                                @error('duration')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
-
-                            <div class="col-md-4">
-                                <label for="end_date" class="form-label">終了日</label>
-                                @php
-                                    $nowCarbon = \Carbon\Carbon::now()->startOfDay();
-                                    $daysUntilDue = $task->end_date ? $nowCarbon->diffInDays($task->end_date, false) : null;
-                                    $inputClass = 'form-control';
-
-                                    if ($task->end_date && $task->end_date < $nowCarbon && !in_array($task->status, ['completed', 'cancelled'])) {
-                                        $inputClass .= ' border-danger';
-                                    } elseif ($daysUntilDue !== null && $daysUntilDue >= 0 && $daysUntilDue <= 2 && !in_array($task->status, ['completed', 'cancelled'])) {
-                                        $inputClass .= ' border-warning';
-                                    }
-
-                                    if ($errors->has('end_date')) {
-                                        $inputClass .= ' is-invalid';
-                                    }
-                                @endphp
-
-                                <div class="input-group">
-                                    <input type="date" class="{{ $inputClass }}" id="end_date" name="end_date" value="{{ old('end_date', optional($task->end_date)->format('Y-m-d')) }}">
-                                    @if($task->end_date && $task->end_date < $nowCarbon && !in_array($task->status, ['completed', 'cancelled']))
-                                        <span class="input-group-text bg-danger text-white">
-                                            <i class="fas fa-exclamation-circle" title="期限切れ"></i>
-                                        </span>
-                                    @elseif($daysUntilDue !== null && $daysUntilDue >= 0 && $daysUntilDue <= 2 && !in_array($task->status, ['completed', 'cancelled']))
-                                        <span class="input-group-text bg-warning text-dark">
-                                            <i class="fas fa-exclamation-triangle" title="期限間近"></i>
-                                        </span>
-                                    @endif
-
-                                    @error('end_date')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
-
-                                @if($task->end_date && $task->end_date < $nowCarbon && !in_array($task->status, ['completed', 'cancelled']))
-                                    <div class="text-danger small mt-1">
-                                        <i class="fas fa-exclamation-circle"></i> 期限が過ぎています
-                                    </div>
-                                @elseif($daysUntilDue !== null && $daysUntilDue >= 0 && $daysUntilDue <= 2 && !in_array($task->status, ['completed', 'cancelled']))
-                                    <div class="text-warning small mt-1">
-                                        <i class="fas fa-exclamation-triangle"></i> 期限が間近です（残り{{ $daysUntilDue }}日）
-                                    </div>
-                                @endif
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="assignee" class="form-label">担当者</label>
-                        <input type="text" class="form-control @error('assignee') is-invalid @enderror" id="assignee"
-                            name="assignee" value="{{ old('assignee', $task->assignee) }}">
-                        @error('assignee')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="parent_id" class="form-label">親工程</label>
-                        <select class="form-select @error('parent_id') is-invalid @enderror" id="parent_id"
-                            name="parent_id">
-                            <option value="">なし</option>
-                            @foreach($project->tasks->where('id', '!=', $task->id) as $potentialParent)
-                                @if(!$task->isAncestorOf($potentialParent))
-                                    <option value="{{ $potentialParent->id }}" {{ old('parent_id', $task->parent_id) == $potentialParent->id ? 'selected' : '' }}>
-                                        {{ $potentialParent->name }}
-                                    </option>
-                                @endif
-                            @endforeach
-                        </select>
-                        @error('parent_id')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                    </div>
-
-                    <div id="status-field">
-                        <div class="row mb-3">
-                            <div class="col-md-6">
-                                <label for="status" class="form-label">ステータス</label>
-                                <select class="form-select @error('status') is-invalid @enderror" id="status" name="status">
-                                    <option value="not_started" {{ old('status', $task->status) == 'not_started' ? 'selected' : '' }}>未着手</option>
-                                    <option value="in_progress" {{ old('status', $task->status) == 'in_progress' ? 'selected' : '' }}>進行中</option>
-                                    <option value="completed" {{ old('status', $task->status) == 'completed' ? 'selected' : '' }}>
-                                        完了</option>
-                                    <option value="on_hold" {{ old('status', $task->status) == 'on_hold' ? 'selected' : '' }}>保留中
-                                    </option>
-                                    <option value="cancelled" {{ old('status', $task->status) == 'cancelled' ? 'selected' : '' }}>
-                                        キャンセル</option>
-                                </select>
-                                @error('status')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="d-flex justify-content-between">
-                        <a href="{{ url()->previous(route('projects.show', $project)) }}" class="btn btn-secondary">キャンセル</a>
+                    <div class="space-y-6">
                         <div>
-                            <button type="submit" class="btn btn-primary" id="update-task-button">更新</button>
-                            <button type="button" class="btn btn-danger" data-bs-toggle="modal"
-                                data-bs-target="#deleteTaskModal">
-                                削除
-                            </button>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">工程種別</label>
+                            @php
+                                $taskType = 'task';
+                                if ($task->is_milestone)
+                                    $taskType = 'milestone';
+                                elseif ($task->is_folder)
+                                    $taskType = 'folder';
+                                elseif (!$task->start_date && !$task->end_date)
+                                    $taskType = 'todo_task';
+                            @endphp
+                            <div class="space-y-2 sm:space-y-0 sm:flex sm:flex-wrap sm:gap-x-4 sm:gap-y-2">
+                                <div class="flex items-center">
+                                    <input
+                                        class="form-radio h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:checked:bg-indigo-500 disabled:cursor-not-allowed"
+                                        type="radio" id="is_task_type_task_edit" name="is_milestone_or_folder" value="task"
+                                        disabled {{ $taskType == 'task' ? 'checked' : '' }}>
+                                    <label class="ml-2 text-sm text-gray-700 dark:text-gray-300"
+                                        for="is_task_type_task_edit"><i class="fas fa-tasks mr-1"></i>工程</label>
+                                </div>
+                                <div class="flex items-center">
+                                    <input
+                                        class="form-radio h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:checked:bg-indigo-500 disabled:cursor-not-allowed"
+                                        type="radio" id="is_task_type_todo_task_edit" name="is_milestone_or_folder"
+                                        value="todo_task" disabled {{ $taskType == 'todo_task' ? 'checked' : '' }}>
+                                    <label class="ml-2 text-sm text-gray-700 dark:text-gray-300"
+                                        for="is_task_type_todo_task_edit"><i
+                                            class="fas fa-list-check mr-1"></i>タスク(期限なし)</label>
+                                </div>
+                                <div class="flex items-center">
+                                    <input
+                                        class="form-radio h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:checked:bg-indigo-500 disabled:cursor-not-allowed"
+                                        type="radio" id="is_task_type_milestone_edit" name="is_milestone_or_folder"
+                                        value="milestone" disabled {{ $taskType == 'milestone' ? 'checked' : '' }}>
+                                    <label class="ml-2 text-sm text-gray-700 dark:text-gray-300"
+                                        for="is_task_type_milestone_edit"><i class="fas fa-flag mr-1"></i>重要納期</label>
+                                </div>
+                                <div class="flex items-center">
+                                    <input
+                                        class="form-radio h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:checked:bg-indigo-500 disabled:cursor-not-allowed"
+                                        type="radio" id="is_task_type_folder_edit" name="is_milestone_or_folder"
+                                        value="folder" disabled {{ $taskType == 'folder' ? 'checked' : '' }}>
+                                    <label class="ml-2 text-sm text-gray-700 dark:text-gray-300"
+                                        for="is_task_type_folder_edit"><i class="fas fa-folder mr-1"></i>フォルダ</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label for="name_individual"
+                                class="block text-sm font-medium text-gray-700 dark:text-gray-300">工程名 <span
+                                    class="text-red-500">*</span></label>
+                            <input type="text" id="name_individual" name="name" value="{{ old('name', $task->name) }}"
+                                required
+                                class="form-input mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 disabled:bg-gray-100 dark:disabled:bg-gray-700/50 disabled:cursor-not-allowed dark:disabled:text-gray-400 @error('name') border-red-500 @enderror">
+                            @error('name')<p class="mt-1 text-xs text-red-500">{{ $message }}</p>@enderror
+                        </div>
+
+                        <div id="character_id_wrapper_individual" {{ $task->is_folder ? 'style="display:none;"' : '' }}>
+                            <label for="character_id_individual"
+                                class="block text-sm font-medium text-gray-700 dark:text-gray-300">所属先</label>
+                            <select id="character_id_individual" name="character_id"
+                                class="form-select mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 disabled:bg-gray-100 dark:disabled:bg-gray-700/50 disabled:cursor-not-allowed dark:disabled:text-gray-400 @error('character_id') border-red-500 @enderror">
+                                <option value="">案件全体</option>
+                                @foreach($project->characters as $character)
+                                    <option value="{{ $character->id }}" {{ old('character_id', $task->character_id) == $character->id ? 'selected' : '' }}>
+                                        {{ $character->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            @error('character_id')<p class="mt-1 text-xs text-red-500">{{ $message }}</p>@enderror
+                        </div>
+
+                        @if($task->is_folder)
+                            <div id="file-management-section" class="mb-3">
+                                <hr class="my-4 dark:border-gray-600">
+                                <h3 class="text-md font-semibold text-gray-700 dark:text-gray-200 mb-2"><i
+                                        class="fas fa-file-alt mr-2"></i>ファイル管理</h3>
+                                <div class="dropzone dropzone-custom-style mb-3" id="file-upload-dropzone-edit">
+                                    <div class="dz-message text-center" data-dz-message>
+                                        <p class="mb-2">ここにファイルをドラッグ＆ドロップ</p>
+                                        <p class="mb-3 text-xs text-gray-500 dark:text-gray-400">または</p>
+                                        <button type="button" class="dz-button-bootstrap">
+                                            <i class="fas fa-folder-open mr-1"></i>ファイルを選択
+                                        </button>
+                                    </div>
+                                </div>
+                                <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1">アップロード済みファイル</h4>
+                                <ul class="space-y-2 text-sm" id="file-list-edit">
+                                    @include('tasks.partials.file-list-tailwind', ['files' => $files, 'project' => $project, 'task' => $task])
+                                </ul>
+                                <hr class="mt-4 dark:border-gray-600">
+                            </div>
+                        @endif
+
+                        <div>
+                            <label for="description_individual"
+                                class="block text-sm font-medium text-gray-700 dark:text-gray-300">メモ</label>
+                            <textarea id="description_individual" name="description" rows="3"
+                                class="form-textarea mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 disabled:bg-gray-100 dark:disabled:bg-gray-700/50 disabled:cursor-not-allowed dark:disabled:text-gray-400 @error('description') border-red-500 @enderror">{{ old('description', $task->description) }}</textarea>
+                            @error('description')<p class="mt-1 text-xs text-red-500">{{ $message }}</p>@enderror
+                        </div>
+
+                        <div id="task-fields-individual" class="space-y-4">
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-4">
+                                <div>
+                                    <label for="start_date_individual"
+                                        class="block text-sm font-medium text-gray-700 dark:text-gray-300">開始日</label>
+                                    <input type="date" id="start_date_individual" name="start_date"
+                                        value="{{ old('start_date', optional($task->start_date)->format('Y-m-d')) }}"
+                                        class="form-input mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 disabled:bg-gray-100 dark:disabled:bg-gray-700/50 disabled:cursor-not-allowed dark:disabled:text-gray-400 @error('start_date') border-red-500 @enderror">
+                                    @error('start_date')<p class="mt-1 text-xs text-red-500">{{ $message }}</p>@enderror
+                                </div>
+                                <div>
+                                    <label for="duration_individual"
+                                        class="block text-sm font-medium text-gray-700 dark:text-gray-300">工数(日)</label>
+                                    <input type="number" id="duration_individual" name="duration"
+                                        value="{{ old('duration', $task->duration) }}" min="1"
+                                        class="form-input mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 disabled:bg-gray-100 dark:disabled:bg-gray-700/50 disabled:cursor-not-allowed dark:disabled:text-gray-400 @error('duration') border-red-500 @enderror">
+                                    @error('duration')<p class="mt-1 text-xs text-red-500">{{ $message }}</p>@enderror
+                                </div>
+                                <div>
+                                    <label for="end_date_individual"
+                                        class="block text-sm font-medium text-gray-700 dark:text-gray-300">終了日</label>
+                                    <input type="date" id="end_date_individual" name="end_date"
+                                        value="{{ old('end_date', optional($task->end_date)->format('Y-m-d')) }}"
+                                        class="form-input mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 disabled:bg-gray-100 dark:disabled:bg-gray-700/50 disabled:cursor-not-allowed dark:disabled:text-gray-400 @error('end_date') border-red-500 @enderror">
+                                    @error('end_date')<p class="mt-1 text-xs text-red-500">{{ $message }}</p>@enderror
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label for="assignee_individual"
+                                class="block text-sm font-medium text-gray-700 dark:text-gray-300">担当者</label>
+                            <input type="text" id="assignee_individual" name="assignee"
+                                value="{{ old('assignee', $task->assignee) }}"
+                                class="form-input mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 disabled:bg-gray-100 dark:disabled:bg-gray-700/50 disabled:cursor-not-allowed dark:disabled:text-gray-400 @error('assignee') border-red-500 @enderror">
+                            @error('assignee')<p class="mt-1 text-xs text-red-500">{{ $message }}</p>@enderror
+                        </div>
+
+                        <div>
+                            <label for="parent_id_individual"
+                                class="block text-sm font-medium text-gray-700 dark:text-gray-300">親工程 (フォルダのみ)</label>
+                            <select id="parent_id_individual" name="parent_id"
+                                class="form-select mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 disabled:bg-gray-100 dark:disabled:bg-gray-700/50 disabled:cursor-not-allowed dark:disabled:text-gray-400 @error('parent_id') border-red-500 @enderror">
+                                <option value="">なし</option>
+                                @foreach($project->tasks->where('is_folder', true)->where('id', '!=', $task->id)->sortBy('name') as $potentialParent)
+                                    @if(!$task->isAncestorOf($potentialParent))
+                                        <option value="{{ $potentialParent->id }}" {{ old('parent_id', $task->parent_id) == $potentialParent->id ? 'selected' : '' }}>
+                                            {{ $potentialParent->name }}
+                                        </option>
+                                    @endif
+                                @endforeach
+                            </select>
+                            @error('parent_id')<p class="mt-1 text-xs text-red-500">{{ $message }}</p>@enderror
+                        </div>
+
+                        <div id="status-field-individual">
+                            <label for="status_individual"
+                                class="block text-sm font-medium text-gray-700 dark:text-gray-300">ステータス</label>
+                            <select id="status_individual" name="status"
+                                class="form-select mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 disabled:bg-gray-100 dark:disabled:bg-gray-700/50 disabled:cursor-not-allowed dark:disabled:text-gray-400 @error('status') border-red-500 @enderror">
+                                <option value="not_started" {{ old('status', $task->status) == 'not_started' ? 'selected' : '' }}>未着手</option>
+                                <option value="in_progress" {{ old('status', $task->status) == 'in_progress' ? 'selected' : '' }}>進行中</option>
+                                <option value="completed" {{ old('status', $task->status) == 'completed' ? 'selected' : '' }}>
+                                    完了</option>
+                                <option value="on_hold" {{ old('status', $task->status) == 'on_hold' ? 'selected' : '' }}>保留中
+                                </option>
+                                <option value="cancelled" {{ old('status', $task->status) == 'cancelled' ? 'selected' : '' }}>
+                                    キャンセル</option>
+                            </select>
+                            @error('status')<p class="mt-1 text-xs text-red-500">{{ $message }}</p>@enderror
                         </div>
                     </div>
+
+                    <div class="mt-8 pt-5 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                        <button type="button"
+                            class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 text-sm font-medium"
+                            onclick="document.getElementById('delete-task-form').submit();">
+                            <i class="fas fa-trash mr-1"></i> この工程を削除
+                        </button>
+                        <div>
+                            <a href="{{ url()->previous(route('projects.show', $project)) }}"
+                                class="inline-flex items-center px-4 py-2 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-md font-semibold text-xs text-gray-700 dark:text-gray-200 uppercase tracking-widest shadow-sm hover:bg-gray-50 dark:hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 disabled:opacity-25 transition ease-in-out duration-150 mr-3">
+                                キャンセル
+                            </a>
+                            <x-primary-button>
+                                <i class="fas fa-save mr-2"></i> 更新
+                            </x-primary-button>
+                        </div>
+                    </div>
+                </form>
+                <form id="delete-task-form" action="{{ route('projects.tasks.destroy', [$project, $task]) }}" method="POST"
+                    style="display: none;" onsubmit="return confirm('本当に削除しますか？この工程に関連するすべての子工程も削除されます。');">
+                    @csrf
+                    @method('DELETE')
                 </form>
             </div>
         </div>
     </div>
-
-    <div class="modal fade" id="deleteTaskModal" tabindex="-1" aria-labelledby="deleteTaskModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="deleteTaskModalLabel">工程削除の確認</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <p>工程「{{ $task->name }}」を削除しますか？</p>
-                    <p class="text-danger">この操作は取り消せません。この工程に関連するすべての子工程も削除されます。</p>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
-                    <form action="{{ route('projects.tasks.destroy', [$project, $task]) }}" method="POST">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit" class="btn btn-danger">削除</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
 @endsection
 
-@section('scripts')
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/dropzone/5.9.3/min/dropzone.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-
-    <script>
-        Dropzone.autoDiscover = false; // グローバルスコープで最初に設定
-
-        document.addEventListener('DOMContentLoaded', function () {
-            const startDateInput = document.getElementById('start_date');
-            const durationInput = document.getElementById('duration');
-            const endDateInput = document.getElementById('end_date');
-            const taskFields = document.getElementById('task-fields');
-            const statusField = document.getElementById('status-field');
-            const characterIdWrapper = document.getElementById('character_id_wrapper');
-            const fileManagementSection = document.getElementById('file-management-section');
-            const currentTaskType = '{{ $taskType ?? 'task' }}';
-            let myDropzone;
-            const overlay = document.getElementById('upload-loading-overlay'); // オーバーレイ要素をキャッシュ
-
-            function formatDate(date) {
-                if (!(date instanceof Date) || isNaN(date)) return '';
-                const year = date.getFullYear();
-                const month = String(date.getMonth() + 1).padStart(2, '0');
-                const day = String(date.getDate()).padStart(2, '0');
-                return `${year}-${month}-${day}`;
-            }
-
-            function updateEndDateForTask() {
-                if (!startDateInput || !durationInput || !endDateInput) { return; }
-                if (!startDateInput.value || !durationInput.value) { endDateInput.value = ''; return; }
-                const startDate = new Date(startDateInput.value);
-                if (isNaN(startDate.getTime())) { endDateInput.value = ''; return; }
-                const duration = parseInt(durationInput.value);
-                if (currentTaskType === 'task' && duration <= 0) { endDateInput.value = ''; return; }
-                if (duration > 0) {
-                    const endDate = new Date(startDate);
-                    endDate.setDate(startDate.getDate() + duration - 1);
-                    endDateInput.value = formatDate(endDate);
-                } else {
-                    endDateInput.value = '';
-                }
-            }
-
-            function updateDurationForTask() {
-                if (!startDateInput || !endDateInput || !durationInput) { return; }
-                if (!startDateInput.value || !endDateInput.value) { durationInput.value = ''; return; }
-                const startDate = new Date(startDateInput.value);
-                const endDate = new Date(endDateInput.value);
-                if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) { durationInput.value = ''; return; }
-                if (endDate >= startDate) {
-                    const diffTime = Math.abs(endDate - startDate);
-                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-                    if(durationInput) durationInput.value = diffDays;
-                } else if (endDate < startDate) {
-                    if(durationInput) durationInput.value = 1;
-                } else {
-                    if(durationInput) durationInput.value = '';
-                }
-            }
-
-            function setTaskTypeSpecificFields() {
-                const requiredDateAndDurationFields = [startDateInput, durationInput, endDateInput];
-                const statusSelect = document.getElementById('status');
-                if(characterIdWrapper) characterIdWrapper.style.display = 'block';
-
-                if (currentTaskType === 'folder') {
-                    if(taskFields) taskFields.style.display = 'none';
-                    if(statusField) statusField.style.display = 'none';
-                    requiredDateAndDurationFields.forEach(field => {
-                        if(field) field.removeAttribute('required');
-                    });
-                    if(statusSelect) statusSelect.removeAttribute('required');
-                    if(fileManagementSection) fileManagementSection.style.display = 'block';
-                } else if (currentTaskType === 'milestone') {
-                    if(taskFields) taskFields.style.display = 'block';
-                    if(statusField) statusField.style.display = 'block';
-                    if(startDateInput) {
-                        startDateInput.removeAttribute('disabled');
-                        startDateInput.setAttribute('required', 'required');
-                    } else { return; }
-                    if(durationInput) {
-                        durationInput.value = 1;
-                        durationInput.setAttribute('disabled', true);
-                        durationInput.removeAttribute('required');
-                    }
-                    if(endDateInput) {
-                        endDateInput.setAttribute('disabled', true);
-                        endDateInput.removeAttribute('required');
-                        if(startDateInput && startDateInput.value) {
-                            endDateInput.value = startDateInput.value;
-                        }
-                    }
-                    if(statusSelect) statusSelect.setAttribute('required', 'required');
-                    if(fileManagementSection) fileManagementSection.style.display = 'none';
-                } else { // 'task'
-                    if(taskFields) taskFields.style.display = 'block';
-                    if(statusField) statusField.style.display = 'block';
-                    requiredDateAndDurationFields.forEach(field => {
-                        if(field) {
-                            field.removeAttribute('disabled');
-                            field.removeAttribute('required');
-                        }
-                    });
-                    if(durationInput) durationInput.removeAttribute('disabled');
-                    if(endDateInput) endDateInput.removeAttribute('disabled');
-                    if(statusSelect) statusSelect.setAttribute('required', 'required');
-                    if(fileManagementSection) fileManagementSection.style.display = 'none';
-                }
-            }
-
-            if(startDateInput) {
-                startDateInput.addEventListener('change', function() {
-                    if (currentTaskType === 'milestone') {
-                        if(endDateInput) endDateInput.value = this.value;
-                    } else if (currentTaskType === 'task') {
-                        if(durationInput && endDateInput) updateEndDateForTask();
-                    }
-                });
-            }
-            if(durationInput) durationInput.addEventListener('input', updateEndDateForTask);
-            if(endDateInput) endDateInput.addEventListener('change', updateDurationForTask);
-
-            setTaskTypeSpecificFields();
-
-            if (currentTaskType === 'task' && startDateInput && startDateInput.value && durationInput && endDateInput) {
-                 if (!endDateInput.value && durationInput.value) {
-                    updateEndDateForTask();
-                 } else if (!durationInput.value && endDateInput.value) {
-                    updateDurationForTask();
-                 }
-            } else if (currentTaskType === 'milestone' && startDateInput && startDateInput.value && endDateInput) {
-                endDateInput.value = startDateInput.value;
-                if(durationInput) durationInput.value = 1;
-            }
-
-            const dropzoneElement = document.getElementById('file-upload-dropzone-edit');
-            if (currentTaskType === 'folder' && dropzoneElement) {
-                const csrfTokenEl = document.querySelector('meta[name="csrf-token"]');
-                const uploadUrl = '{{ route('projects.tasks.files.upload', [$project, $task]) }}';
-
-                if (!uploadUrl || uploadUrl === '{{ Request::url() }}') { // route() が失敗すると現在のURLが返ることがある
-                    console.error("Dropzone URL is not defined or invalid. Blade route might have failed or $project/$task is missing.");
-                    return;
-                }
-                if (!csrfTokenEl || !csrfTokenEl.getAttribute('content')) {
-                    console.error("CSRF token not found for Dropzone.");
-                    return;
-                }
-
-                myDropzone = new Dropzone(dropzoneElement, {
-                    url: uploadUrl,
-                    method: 'post',
-                    paramName: "file",
-                    maxFilesize: 100,
-                    maxFiles: 10,
-                    parallelUploads: 10,
-                    acceptedFiles: ".jpeg,.jpg,.png,.gif,.svg,.bmp,.tiff,.webp,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.rar,.7z,.tar,.gz,.txt,.md,.csv,.json,.xml,.html,.css,.js,.php,.py,.java,.c,.cpp,.cs,.rb,.go,.sql,.ai,.psd,.fig,.sketch,video/*,audio/*,application/octet-stream",
-                    addRemoveLinks: true,
-                    dictDefaultMessage: "",
-                    dictRemoveFile: "×",
-                    dictMaxFilesExceeded: "一度にアップロードできるファイルは10個までです。",
-                    headers: {
-                        'X-CSRF-TOKEN': csrfTokenEl.getAttribute('content')
-                    },
-                    autoProcessQueue: false,
-                    init: function() {
-                        const dropzoneInstance = this;
-                        const customButton = dropzoneElement.querySelector('.dz-button-bootstrap');
-                        if (customButton) {
-                            customButton.addEventListener('click', function(e) {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                dropzoneInstance.hiddenFileInput.click();
-                            });
-                        }
-                        // "processingmultiple" からオーバーレイ表示ロジックを削除
-                        this.on("success", function(file, response) {
-                            updateFileListEdit();
-                            this.removeFile(file);
-                        });
-                        this.on("error", function(file, message) {
-                            let errorMessage = "アップロードに失敗しました。";
-                            if(typeof message === "string") {
-                                errorMessage = message;
-                            } else if (message && message.errors && message.errors.file) {
-                                errorMessage = message.errors.file[0];
-                            } else if (message && message.message) {
-                                errorMessage = message.message;
-                            }
-                            alert("エラー: " + errorMessage);
-                            this.removeFile(file);
-                        });
-                        this.on("queuecomplete", function() {
-                            if(overlay) overlay.style.display = 'none'; // Hide overlay
-                            const form = document.getElementById('task-edit-form');
-                            if (this.getRejectedFiles().length === 0 && this.getQueuedFiles().length === 0 && this.getUploadingFiles().length === 0 && this.getFilesWithStatus(Dropzone.ERROR).length === 0) {
-                                // ファイル処理がすべて成功した場合のみフォームを送信（ボタンクリックが起点の場合）
-                                // このイベントはDropzone処理完了を示すので、ボタンクリック側のロジックで送信を制御
-                            } else if (this.getRejectedFiles().length > 0 || this.getFilesWithStatus(Dropzone.ERROR).length > 0) {
-                                alert('一部のファイルのアップロードに失敗しました。');
-                            }
-                        });
-                        this.on("errormultiple", function(files, message) {
-                            if(overlay) overlay.style.display = 'none'; // Hide overlay on error
-                            alert('一部または全てのファイルのアップロードに失敗しました。詳細を確認してください。');
-                        });
-                    }
-                });
-            }
-
-            const updateTaskButton = document.getElementById('update-task-button');
-            if (updateTaskButton) {
-                updateTaskButton.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    const form = document.getElementById('task-edit-form');
-
-                    if (currentTaskType === 'folder' && myDropzone && myDropzone.getQueuedFiles().length > 0) {
-                        if(overlay) overlay.style.display = 'flex'; // Show overlay before processing
-
-                        // queuecompleteでフォーム送信を制御するため、一度リスナーをクリアして再設定する
-                        myDropzone.off("queuecomplete"); // 既存のリスナーをクリア
-                        myDropzone.on("queuecomplete", function() {
-                            if(overlay) overlay.style.display = 'none';
-                            if (this.getRejectedFiles().length === 0 && this.getQueuedFiles().length === 0 && this.getUploadingFiles().length === 0 && this.getFilesWithStatus(Dropzone.ERROR).length === 0) {
-                                if(form) form.submit(); // 全て成功したらフォーム送信
-                            } else {
-                                alert('ファイルのアップロードに問題があったため、工程の更新は行われませんでした。エラーを確認してください。');
-                            }
-                        });
-                        myDropzone.processQueue();
-                    } else {
-                        if(form) form.submit();
-                    }
-                });
-            }
-
-            function updateFileListEdit() {
-                const fileListElement = document.getElementById('file-list-edit');
-                if (!fileListElement) return;
-                const viewUrl = `/projects/{{$project->id}}/tasks/{{$task->id}}/files`;
-                axios.get(viewUrl)
-                    .then(function(response) {
-                        fileListElement.innerHTML = response.data;
-                    })
-                    .catch(function(error){
-                        console.error("Error fetching file list for edit page:", error);
-                        fileListElement.innerHTML = '<li class="list-group-item text-danger">ファイルリストの読み込みに失敗しました。</li>';
-                    });
-            }
-
-            const fileListElementForEvent = document.getElementById('file-list-edit');
-            if(fileListElementForEvent) {
-                fileListElementForEvent.addEventListener('click', function(e) {
-                    const deleteButton = e.target.closest('.delete-file-btn');
-                    if (deleteButton) {
-                        e.preventDefault();
-                        const fileId = deleteButton.dataset.fileId;
-                        const url = deleteButton.dataset.url;
-                        if (!url) {
-                            console.error("Delete URL not found on button");
-                            return;
-                        }
-                        if (confirm('本当にこのファイルを削除しますか？')) {
-                            const csrfTokenMeta = document.querySelector('meta[name="csrf-token"]');
-                            if (!csrfTokenMeta || !csrfTokenMeta.content) { // .content を確認
-                                console.error("CSRF token meta tag not found or empty.");
-                                return;
-                            }
-                            axios.delete(url, {
-                                headers: { 'X-CSRF-TOKEN': csrfTokenMeta.content } // .content を使用
-                            })
-                            .then(function(response) {
-                                if (response.data.success) {
-                                    const fileItem = document.getElementById('file-item-' + fileId);
-                                    if(fileItem) fileItem.remove();
-                                } else {
-                                    alert('ファイルの削除に失敗しました。\n' + (response.data.message || ''));
-                                }
-                            })
-                            .catch(function(error) {
-                                alert('ファイルの削除中にエラーが発生しました。');
-                                console.error(error);
-                            });
-                        }
-                    }
-                });
-            }
-        });
-    </script>
-@endsection
+{{-- @push('scripts') は削除し、tasks-form.js と tasks-edit-dropzone.js にロジックを記述 --}}

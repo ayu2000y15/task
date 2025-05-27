@@ -62,6 +62,6 @@ class CharacterController extends Controller
         $this->authorize('view', $project); // 親プロジェクトの閲覧権限で代用
         abort_if($character->project_id !== $project->id, 404);
 
-        return view('projects.partials.character_costs_list', compact('project', 'character'));
+        return view('projects.partials.character-costs-tailwind', compact('project', 'character'));
     }
 }

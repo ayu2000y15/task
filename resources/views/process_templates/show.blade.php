@@ -3,120 +3,130 @@
 @section('title', '工程テンプレート編集: ' . $processTemplate->name)
 
 @section('content')
-    <div class="container">
-        <h1>工程テンプレート編集: {{ $processTemplate->name }}</h1>
-        <div class="centered-form"> {{-- ★ centered-form div を追加 --}}
-            {{-- テンプレート自体の情報編集フォーム --}}
-            <div class="card mb-4">
-                <div class="card-header">テンプレート情報</div>
-                <div class="card-body">
+    <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+            <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-200">工程テンプレート編集: <span
+                    class="font-normal">{{ $processTemplate->name }}</span></h1>
+            <x-secondary-button as="a" href="{{ route('process-templates.index') }}">
+                <i class="fas fa-arrow-left mr-2"></i>
+                <span>一覧へ戻る</span>
+            </x-secondary-button>
+        </div>
+
+        <div class="max-w-4xl mx-auto space-y-6">
+            <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                    <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100">テンプレート情報</h2>
+                </div>
+                <div class="p-6">
                     @can('update', App\Models\ProcessTemplate::class)
                         <form action="{{ route('process-templates.update', $processTemplate) }}" method="POST">
                             @csrf
                             @method('PUT')
-                            <div class="mb-3">
-                                <label for="name" class="form-label">テンプレート名 <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control @error('name') is-invalid @enderror" id="name"
-                                    name="name" value="{{ old('name', $processTemplate->name) }}" required>
-                                @error('name') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            <div class="space-y-4">
+                                <div>
+                                    <x-input-label for="name" value="テンプレート名" required />
+                                    <x-text-input id="name" name="name" type="text" class="mt-1 block w-full"
+                                        :value="old('name', $processTemplate->name)" required />
+                                </div>
+                                <div>
+                                    <x-input-label for="description" value="説明" />
+                                    <x-textarea-input id="description" name="description" class="mt-1 block w-full"
+                                        rows="3">{{ old('description', $processTemplate->description) }}</x-textarea-input>
+                                </div>
                             </div>
-                            <div class="mb-3">
-                                <label for="description" class="form-label">説明</label>
-                                <textarea class="form-control @error('description') is-invalid @enderror" id="description"
-                                    name="description"
-                                    rows="3">{{ old('description', $processTemplate->description) }}</textarea>
-                                @error('description') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            <div class="flex items-center justify-end mt-6">
+                                <x-primary-button type="submit">
+                                    <i class="fas fa-save mr-2"></i>テンプレート情報を更新
+                                </x-primary-button>
                             </div>
-                            <button type="submit" class="btn btn-primary">テンプレート情報を更新</button>
                         </form>
                     @endcan
                 </div>
             </div>
 
-            {{-- 工程項目リストと追加フォーム --}}
-            <div class="card">
-                <div class="card-header">工程項目</div>
-                <div class="card-body">
-                    <table class="table table-sm table-hover">
-                        <thead>
-                            <tr>
-                                <th>順序</th>
-                                <th>工程名</th>
-                                <th>標準工数(日)</th>
-                                <th>操作</th>
+            <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                    <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100">工程項目</h2>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                        <thead class="bg-gray-50 dark:bg-gray-700">
+                            <tr> {{-- テーブルヘッダーは変更なし --}}
+                                <th scope="col"
+                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                    順序</th>
+                                <th scope="col"
+                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                    工程名</th>
+                                <th scope="col"
+                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                    標準工数(日)</th>
+                                <th scope="col"
+                                    class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                    操作</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            @forelse($processTemplate->items as $item)
+                        <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                            @forelse ($processTemplate->items as $item)
                                 <tr>
-                                    <td>{{ $item->order }}</td>
-                                    <td>{{ $item->name }}</td>
-                                    <td>{{ $item->default_duration ?? '-' }}</td>
-                                    <td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                        {{ $item->order }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                                        {{ $item->name }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                        {{ $item->default_duration ?? '-' }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                         @can('delete', arguments: App\Models\ProcessTemplate::class)
                                             <form action="{{ route('process-templates.items.destroy', [$processTemplate, $item]) }}"
-                                                method="POST" onsubmit="return confirm('本当に削除しますか？');">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit" class="btn btn-xs btn-outline-danger"><i
-                                                        class="fas fa-trash"></i></button>
+                                                method="POST">
+                                                <x-icon-button
+                                                    icon="fas fa-trash"
+                                                    title="削除"
+                                                    color="red"
+                                                    type="submit"
+                                                    method="DELETE"
+                                                    :confirm="'本当に削除しますか？'"
+                                                />
                                             </form>
                                         @endcan
                                     </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="4" class="text-center text-muted">工程項目がありません。</td>
+                                    <td colspan="4" class="px-6 py-12 text-center text-sm text-gray-500 dark:text-gray-400">
+                                        工程項目がありません。</td>
                                 </tr>
                             @endforelse
                         </tbody>
                     </table>
                 </div>
-                <div class="card-footer">
-                    <h5>工程項目を追加</h5>
-                    <form action="{{ route('process-templates.items.store', $processTemplate) }}" method="POST"
-                        class="row gx-2">
-                        @csrf
-                        <div class="col-md-5 mb-2">
-                            <label for="item_name" class="form-label">工程名</label>
-                            <input type="text" name="name"
-                                class="form-control form-control-sm @error('name', 'itemErrors') is-invalid @enderror"
-                                placeholder="工程名" required>
-                            @error('name', 'itemErrors') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                <div class="p-6 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700">
+                    <h3 class="text-md font-medium text-gray-900 dark:text-gray-100 mb-4">工程項目を追加</h3>
+                    <form action="{{ route('process-templates.items.store', $processTemplate) }}" method="POST"> @csrf
+                        <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 items-start">
+                            <div class="sm:col-span-2">
+                                <x-input-label for="item_name" value="工程名" required/>
+                                <x-text-input id="item_name" name="name" type="text" class="mt-1 block w-full" :value="old('name')" required />
+                                {{-- エラー表示は<x-text-input>が対応する想定 --}}
+                            </div>
+                            <div>
+                                <x-input-label for="item_default_duration" value="標準工数(日)" />
+                                <x-text-input id="item_default_duration" name="default_duration" type="number" min="0"
+                                    class="mt-1 block w-full" :value="old('default_duration')" />
+                            </div>
+                            <div>
+                                <x-input-label for="item_order" value="順序" required />
+                                <x-text-input id="item_order" name="order" type="number" min="0" class="mt-1 block w-full"
+                                    :value="old('order', ($processTemplate->items->max('order') ?? -1) + 1)" required />
+                            </div>
                         </div>
-                        <div class="col-md-3 mb-2">
-                            <label for="item_default_duration" class="form-label">標準工数(日)</label>
-                            <input type="number" name="default_duration"
-                                class="form-control form-control-sm @error('default_duration', 'itemErrors') is-invalid @enderror"
-                                placeholder="標準工数(日)">
-                            @error('default_duration', 'itemErrors') <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-                        <div class="col-md-2 mb-2">
-                            <label for="item_order" class="form-label">順序</label>
-                            <input type="number" name="order"
-                                class="form-control form-control-sm @error('order', 'itemErrors') is-invalid @enderror"
-                                placeholder="順序" value="{{ ($processTemplate->items->max('order') ?? -1) + 1 }}" required>
-                            @error('order', 'itemErrors') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                        </div>
-                        <div class="col-md-2 mb-2">
-                            <button type="submit" class="btn btn-sm btn-primary w-100">追加</button>
+                        <div class="flex justify-end mt-4">
+                            <x-primary-button type="submit">追加</x-primary-button>
                         </div>
                     </form>
-                    @if ($errors->itemErrors->any()) {{-- バリデーションエラーがあれば表示 --}}
-                        <div class="alert alert-danger mt-2 p-2">
-                            <ul class="mb-0">
-                                @foreach ($errors->itemErrors->all() as $error)
-                                    <li><small>{{ $error }}</small></li>
-                                @endforeach
-                            </ul>
-                        </div>
-                    @endif
                 </div>
             </div>
-        </div> {{-- ★ centered-form div の閉じタグ --}}
-        <div class="mt-3">
-            <a href="{{ route('process-templates.index') }}" class="btn btn-secondary">テンプレート一覧へ戻る</a>
         </div>
     </div>
 @endsection

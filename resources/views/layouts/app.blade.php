@@ -1,1046 +1,191 @@
 <!DOCTYPE html>
 <html lang="ja">
-{{-- <html lang="{{ str_replace('_', '-', app()->getLocale()) }}"> --}}
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>衣装案件管理 - @yield('title')</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>衣装案件管理 - @yield('title', config('app.name', 'Laravel'))</title>
+
+    <link rel="preconnect" href="https://fonts.bunny.net">
+    <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
         integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw=="
         crossorigin="anonymous" referrerpolicy="no-referrer" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/themes/classic.min.css">
-    <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css">
-    <style>
-        :root {
-            --sidebar-width: 250px;
-            --header-height: 60px;
-        }
 
-        tr.task-overdue:hover {
-            background-color: rgba(220, 53, 69, 0.15) !important;
-        }
-
-        tr.task-due-soon:hover {
-            background-color: rgba(255, 193, 7, 0.15) !important;
-        }
-
-        body {
-            min-height: 100vh;
-            margin: 0;
-            padding: 0;
-            overflow-x: hidden;
-        }
-
-        /* サイドバー */
-        .sidebar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: var(--sidebar-width);
-            height: 100vh;
-            background-color: #333;
-            color: #fff;
-            overflow-y: auto;
-            z-index: 1000;
-            transition: transform 0.3s ease;
-        }
-
-        /* モバイル用サイドバー */
-        @media (max-width: 768px) {
-            .sidebar {
-                transform: translateX(-100%);
-            }
-
-            .sidebar.show {
-                transform: translateX(0);
-            }
-
-            .main-content {
-                margin-left: 0 !important;
-            }
-
-            .toggle-sidebar {
-                display: block !important;
-            }
-        }
-
-        .sidebar-header {
-            padding: 15px;
-            background-color: #222;
-            border-bottom: 1px solid #444;
-        }
-
-        .sidebar-section {
-            margin-bottom: 20px;
-        }
-
-        .sidebar-section-title {
-            padding: 10px 15px;
-            font-size: 14px;
-            color: #aaa;
-            text-transform: uppercase;
-        }
-
-        .sidebar-item {
-            display: flex;
-            align-items: center;
-            padding: 10px 15px;
-            color: #fff;
-            text-decoration: none;
-            transition: background-color 0.2s;
-        }
-
-        .sidebar-item:hover {
-            background-color: #444;
-            color: #fff;
-        }
-
-        .sidebar-item.active {
-            background-color: #007bff;
-        }
-
-        .project-icon {
-            width: 30px;
-            height: 30px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 5px;
-            margin-right: 10px;
-            font-weight: bold;
-        }
-
-        .favorite-icon {
-            margin-left: auto;
-            color: #ffc107;
-        }
-
-        .add-project-btn {
-            display: flex;
-            align-items: center;
-            padding: 10px 15px;
-            color: #007bff;
-            text-decoration: none;
-            transition: background-color 0.2s;
-        }
-
-        .add-project-btn:hover {
-            background-color: #444;
-            color: #007bff;
-        }
-
-        /* メインコンテンツ */
-        .main-content {
-            margin-left: var(--sidebar-width);
-            padding: 20px;
-            min-height: 100vh;
-            transition: margin-left 0.3s ease;
-        }
-
-        /* モバイル用トグルボタン */
-        .toggle-sidebar {
-            position: fixed;
-            top: 10px;
-            left: 10px;
-            z-index: 1001;
-            display: none;
-            background-color: #333;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            padding: 8px 12px;
-        }
-
-        /* フォーム中央配置 */
-        .centered-form {
-            max-width: 800px;
-            margin: 0 auto;
-        }
-
-        /* ガントチャート */
-        .gantt-container {
-            overflow-x: auto;
-            max-width: 100%;
-        }
-
-        .gantt-header {
-            position: sticky;
-            top: 0;
-            background-color: #f8f9fa;
-            z-index: 10;
-        }
-
-        .gantt-row {
-            height: 40px;
-        }
-
-        .gantt-cell {
-            min-width: 30px;
-            height: 40px;
-            border-right: 1px solid #dee2e6;
-            text-align: center;
-            padding: 0;
-        }
-
-        .weekend {
-            background-color: #f8f9fa;
-        }
-
-        .saturday {
-            background-color: #e6f2ff !important;
-            /* 土曜日は青色背景 */
-        }
-
-        .sunday,
-        .holiday {
-            background-color: #ffe6e6 !important;
-            /* 日曜・祝日は赤色背景 */
-        }
-
-        .today {
-            background-color: #fffbcc !important;
-            /* 今日の日付は黄色背景 */
-            font-weight: bold;
-            border: 2px solid #ffc107;
-        }
-
-        .task-bar {
-            height: 30px;
-            margin-top: 5px;
-            border-radius: 3px;
-            position: relative;
-        }
-
-        .project-header {
-            background-color: #f0f0f0;
-            font-weight: bold;
-        }
-
-        .month-header {
-            background-color: #e9ecef;
-            font-weight: bold;
-        }
-
-        .task-folder {
-            background-color: #f8f9fa;
-            font-weight: bold;
-        }
-
-        .task-milestone {
-            text-align: center;
-        }
-
-        .milestone-diamond {
-            width: 20px;
-            height: 20px;
-            transform: rotate(45deg);
-            margin: 10px auto;
-        }
-
-        .toggle-children {
-            cursor: pointer;
-            width: 20px;
-            display: inline-block;
-            text-align: center;
-        }
-
-        .task-name {
-            display: flex;
-            align-items: center;
-        }
-
-        .task-actions {
-            visibility: hidden;
-        }
-
-        tr:hover .task-actions {
-            visibility: visible;
-        }
-
-        .color-picker-wrapper {
-            position: relative;
-            display: inline-block;
-        }
-
-        .color-preview {
-            width: 30px;
-            height: 30px;
-            border-radius: 5px;
-            cursor: pointer;
-            border: 1px solid #ced4da;
-        }
-
-        /* 階層構造 */
-        .task-indent {
-            margin-left: 20px;
-            border-left: 1px solid #ddd;
-            padding-left: 10px;
-        }
-
-        /* フィルターパネル */
-        .filter-panel {
-            background-color: #f8f9fa;
-            padding: 15px;
-            margin-bottom: 20px;
-            border-radius: 5px;
-            border: 1px solid #dee2e6;
-            position: relative;
-        }
-
-        .filter-close {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            cursor: pointer;
-            font-size: 1.2rem;
-        }
-
-        /* タブメニュー */
-        .main-nav {
-            background-color: #f8f9fa;
-            border-bottom: 1px solid #dee2e6;
-            margin-bottom: 20px;
-        }
-
-        .main-nav .nav-link {
-            color: #495057;
-            padding: 0.75rem 1rem;
-            border-bottom: 2px solid transparent;
-        }
-
-        .main-nav .nav-link:hover {
-            color: #007bff;
-        }
-
-        .main-nav .nav-link.active {
-            color: #007bff;
-            border-bottom: 2px solid #007bff;
-        }
-
-        .sub-nav {
-            background-color: #fff;
-            border-bottom: 1px solid #dee2e6;
-            margin-bottom: 20px;
-        }
-
-        .sub-nav .nav-link {
-            color: #6c757d;
-            padding: 0.5rem 1rem;
-        }
-
-        .sub-nav .nav-link:hover {
-            color: #007bff;
-        }
-
-        .sub-nav .nav-link.active {
-            color: #007bff;
-            font-weight: 500;
-        }
-
-        /* ToDoリスト */
-        .todo-section {
-            background-color: #fff;
-            border-radius: 5px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-            margin-bottom: 20px;
-        }
-
-        .todo-header {
-            padding: 10px 15px;
-            border-bottom: 1px solid #eee;
-            font-weight: bold;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-radius: 5px 5px 0 0;
-        }
-
-        .todo-header.todo {
-            background-color: #007bff;
-            color: white;
-        }
-
-        .todo-header.in-progress {
-            background-color: #28a745;
-            color: white;
-        }
-
-        .todo-header.review {
-            background-color: #6c757d;
-            color: white;
-        }
-
-        .todo-header.completed {
-            background-color: #dc3545;
-            color: white;
-        }
-
-        .todo-item {
-            padding: 10px 15px;
-            border-bottom: 1px solid #d0cfcf;
-            display: flex;
-            align-items: center;
-        }
-
-        .todo-item:last-child {
-            border-bottom: none;
-        }
-
-        .todo-checkbox {
-            margin-right: 10px;
-        }
-
-        .todo-text {
-            flex-grow: 1;
-        }
-
-        .todo-project {
-            font-size: 12px;
-            color: #6c757d;
-            margin-left: 10px;
-        }
-
-        .todo-actions {
-            visibility: hidden;
-        }
-
-        .todo-item:hover .todo-actions {
-            visibility: visible;
-        }
-
-        /* ヘッダー表示/非表示切り替え */
-        .toggle-details {
-            cursor: pointer;
-            padding: 5px 10px;
-            background-color: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 3px;
-            margin-right: 10px;
-        }
-
-        .toggle-details:hover {
-            background-color: #e9ecef;
-        }
-
-        .details-hidden .detail-column {
-            display: none;
-        }
-
-        /* カレンダービュー */
-        .calendar-container {
-            max-width: 100%;
-            margin: 0 auto;
-        }
-
-        .fc-event {
-            cursor: pointer;
-        }
-
-        .fc-day-sat {
-            background-color: #e6f2ff;
-            color: #0066cc;
-        }
-
-        .fc-day-sun {
-            background-color: #ffe6e6;
-            color: #cc0000;
-        }
-
-        .fc-holiday {
-            background-color: #ffe6e6;
-            color: #cc0000;
-        }
-
-        .fc-today {
-            background-color: #fffbcc !important;
-        }
-
-        /* レスポンシブ対応 */
-        @media (max-width: 768px) {
-            .card-body {
-                padding: 0.5rem;
-            }
-
-            .table th,
-            .table td {
-                padding: 0.5rem;
-            }
-
-            .btn-sm {
-                padding: 0.25rem 0.5rem;
-                font-size: 0.75rem;
-            }
-
-            .filter-panel .row {
-                margin-right: -5px;
-                margin-left: -5px;
-            }
-
-            .filter-panel .col-md-3,
-            .filter-panel .col-md-4,
-            .filter-panel .col-md-6,
-            .filter-panel .col-md-12 {
-                padding-right: 5px;
-                padding-left: 5px;
-            }
-
-            h1 {
-                font-size: 1.5rem;
-            }
-
-            .d-flex.justify-content-between {
-                flex-direction: column;
-                gap: 10px;
-            }
-
-            .d-flex.justify-content-between .btn-group {
-                display: flex;
-                width: 100%;
-            }
-
-            .d-flex.justify-content-between .btn {
-                flex: 1;
-            }
-        }
-
-        /* 編集可能なセル */
-        .editable-cell {
-            cursor: pointer;
-            position: relative;
-        }
-
-        .editable-cell:hover::after {
-            content: "\f044";
-            font-family: "Font Awesome 5 Free";
-            font-weight: 900;
-            position: absolute;
-            right: 5px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #6c757d;
-            font-size: 0.8rem;
-        }
-
-        /* インラインフォーム */
-        .inline-form {
-            display: none;
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 100;
-        }
-
-        .inline-form input,
-        .inline-form select {
-            width: 100%;
-            height: 100%;
-            padding: 0.25rem;
-            border: 1px solid #007bff;
-            border-radius: 0;
-        }
-
-        /* ガントチャートの週表示 */
-        .week-view .gantt-cell {
-            min-width: 60px;
-        }
-
-        /* ガントチャートの日付ヘッダー */
-        .date-header {
-            display: flex;
-            flex-direction: column;
-            font-size: 0.8rem;
-        }
-
-        .date-header .date {
-            font-weight: bold;
-        }
-
-        .date-header .day {
-            font-size: 0.7rem;
-            color: #6c757d;
-        }
-
-        .task-bar {
-            position: absolute;
-            height: 24px;
-            margin-top: 8px;
-            border-radius: 3px;
-            z-index: 10;
-        }
-
-        .task-progress {
-            height: 100%;
-            background-color: rgba(255, 255, 255, 0.3);
-            border-radius: 3px;
-        }
-
-        .milestone-diamond {
-            position: absolute;
-            width: 16px;
-            height: 16px;
-            transform: rotate(45deg);
-            margin: 12px;
-            z-index: 10;
-        }
-
-        /* 詳細を隠す機能のスタイル修正 */
-        #ganttTable.details-hidden .detail-column {
-            display: none;
-        }
-
-        /* 階層構造のインデント */
-        .task-indent {
-            padding-left: 20px;
-            border-left: 1px solid #ddd;
-        }
-
-        /* 期限切れ・期限間近のスタイル */
-        .task-overdue .task-bar {
-            border: 2px solid #dc3545;
-        }
-
-        .task-due-soon .task-bar {
-            border: 2px solid #ffc107;
-        }
-
-        /* 週表示モード */
-        .week-view .gantt-cell {
-            min-width: 60px !important;
-        }
-
-        .day-view .gantt-cell {
-            min-width: 30px !important;
-        }
-
-        /* 日付ヘッダーのスタイル */
-        .date-header {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            font-size: 0.8rem;
-        }
-
-        .date-header .day {
-            font-size: 0.7rem;
-            color: #6c757d;
-        }
-
-        /* ガントチャートの階層表示スタイル */
-        .task-icon {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 24px;
-            height: 24px;
-            margin-right: 8px;
-        }
-
-        .task-icon .fa-folder {
-            color: #4a86e8;
-        }
-
-        .toggle-children {
-            cursor: pointer;
-            width: 20px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            margin-right: 4px;
-        }
-
-        .toggle-children i {
-            transition: transform 0.2s;
-        }
-
-        /* フォルダ階層のスタイル */
-        .folder-structure .folder-item {
-            position: relative;
-            padding-left: 20px;
-        }
-
-        .folder-structure .folder-item::before {
-            content: "";
-            position: absolute;
-            left: 0;
-            top: 0;
-            bottom: 0;
-            width: 1px;
-            background-color: #ddd;
-        }
-
-        .folder-structure .folder-item::after {
-            content: "";
-            position: absolute;
-            left: 0;
-            top: 12px;
-            width: 10px;
-            height: 1px;
-            background-color: #ddd;
-        }
-
-        .folder-structure .folder-item:last-child::before {
-            height: 12px;
-        }
-
-        /* ファイルアップロードエリアのスタイル */
-        .dropzone {
-            border: 2px dashed #4a86e8;
-            border-radius: 5px;
-            background: #f8f9fa;
-            min-height: 150px;
-            padding: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .dropzone .dz-message {
-            text-align: center;
-            margin: 2em 0;
-        }
-
-        .dropzone .dz-preview .dz-image {
-            border-radius: 5px;
-        }
-
-        /* ファイルアイコンのスタイル */
-        .file-icon {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 24px;
-            height: 24px;
-            margin-right: 8px;
-        }
-
-        /* 階層表示のスタイル */
-        .hierarchy-line {
-            position: relative;
-        }
-
-        .hierarchy-line::before {
-            content: "";
-            position: absolute;
-            left: -10px;
-            top: 0;
-            bottom: 0;
-            width: 1px;
-            background-color: #ddd;
-        }
-
-        .hierarchy-line::after {
-            content: "";
-            position: absolute;
-            left: -10px;
-            top: 12px;
-            width: 10px;
-            height: 1px;
-            background-color: #ddd;
-        }
-
-        .hierarchy-line:last-child::before {
-            height: 12px;
-        }
-
-        /* --- ガントチャートのレスポンシブ対応 --- */
-        .gantt-sticky-col {
-            width: 350px;
-            min-width: 350px;
-            transition: width 0.3s ease, min-width 0.3s ease;
-        }
-
-        .task-name-column {
-            /* CSS変数を使用してインデントを制御 */
-            --base-padding: 15px;
-            --indent-size: 20px;
-            --char-indent-size: 20px;
-            padding-left: calc(var(--base-padding) + (var(--level, 0) * var(--indent-size)) + (var(--char-level, 0) * var(--char-indent-size)));
-        }
-
-        .gantt-sticky-col .task-name-column,
-        .gantt-sticky-col .task-name {
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        /* 768px以下のスクリーンサイズに適用 */
-        @media (max-width: 768px) {
-            .gantt-sticky-col {
-                position: static;
-                /* 固定を解除 */
-                width: auto;
-                min-width: auto;
-                border-right: none;
-                /* 右側の境界線を削除 */
-            }
-
-            .gantt-header th {
-                z-index: auto;
-                /* z-indexをリセット */
-            }
-
-            .task-name-column {
-                /* モバイルでのインデントを詰める */
-                --base-padding: 5px;
-                --indent-size: 15px;
-                --char-indent-size: 10px;
-            }
-
-            /* 横スクロール可能であることを示唆する影 */
-            .gantt-container {
-                -webkit-box-shadow: inset -10px 0px 8px -8px rgba(0, 0, 0, 0.1);
-                box-shadow: inset -10px 0px 8px -8px rgba(0, 0, 0, 0.1);
-            }
-        }
-
-        /* ステータスカラーバーのスタイル */
-        .status-color-bar {
-            display: inline-block;
-            width: 4px;
-            height: 20px;
-            margin-right: 8px;
-            border-radius: 2px;
-        }
-
-        /* 重要納期のスタイル改善 */
-        .milestone-diamond {
-            position: absolute;
-            width: 16px;
-            height: 16px;
-            background-color: #dc3545;
-            transform: rotate(45deg);
-            top: 7px;
-            z-index: 10;
-        }
-
-        /* 重要納期のホバー効果 */
-        .milestone-diamond:hover {
-            width: 20px;
-            height: 20px;
-            top: 5px;
-            transition: all 0.2s ease;
-        }
-    </style>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
     @yield('styles')
+    @stack('styles')
 </head>
+<body class="font-sans antialiased text-gray-900 bg-gray-100 dark:text-gray-100 dark:bg-gray-900">
+    <div x-data="{ sidebarOpen: false }">
+        <div x-show="sidebarOpen" class="fixed inset-0 z-20 bg-black opacity-50 md:hidden" @click="sidebarOpen = false" style="display: none;"></div>
 
-<body>
-    <button class="toggle-sidebar" id="toggleSidebar">
-        <i class="fas fa-bars"></i>
-    </button>
-
-    <div class="sidebar" id="sidebar">
-        <div class="sidebar-header">
-            <h5 class="mb-0">衣装案件管理</h5>
-        </div>
-
-        @can('create', App\Models\Project::class)
-            <a href="{{ route('projects.create') }}" class="add-project-btn">
-                <i class="fas fa-plus me-2"></i> 新規衣装案件
-            </a>
-        @endcan
-
-        <div class="sidebar-section">
-            <div class="sidebar-section-title">
-                お気に入り <span class="badge bg-secondary">{{ App\Models\Project::where('is_favorite', true)->count() }}
-                    案件</span>
+        <aside
+            class="fixed inset-y-0 left-0 z-30 w-64 h-screen overflow-y-auto transition duration-300 ease-in-out transform bg-white shadow-lg dark:bg-gray-800 md:translate-x-0"
+            :class="{'translate-x-0': sidebarOpen, '-translate-x-full': !sidebarOpen}">
+            <div class="flex items-center justify-center h-16 bg-gray-50 dark:bg-gray-700"> <a href="{{ route('home.index') }}" class="text-xl font-semibold text-gray-700 dark:text-white">衣装案件管理</a>
             </div>
-            @foreach(App\Models\Project::where('is_favorite', true)->get() as $project)
-                <a href="{{ route('projects.show', $project) }}"
-                    class="sidebar-item {{ request('project_id') == $project->id ? 'active' : '' }}">
-                    <div class="project-icon" style="background-color: {{ $project->color }};">
-                        {{ mb_substr($project->title, 0, 1) }}
-                    </div>
-                    {{ $project->title }}
-                    <i class="fas fa-star favorite-icon"></i>
+            <nav class="px-2 py-4 space-y-2">
+                @can('create', App\Models\Project::class)
+                <a href="{{ route('projects.create') }}" class="flex items-center px-3 py-2 text-sm font-medium text-gray-700 transition-colors duration-200 rounded-md dark:text-gray-200 hover:bg-gray-800 hover:text-white dark:hover:bg-blue-600">
+                    <i class="fas fa-plus w-5 h-5 mr-2"></i> 新規衣装案件
                 </a>
-            @endforeach
-        </div>
-
-        <div class="sidebar-section">
-            <div class="sidebar-section-title">
-                衣装案件 <span class="badge bg-secondary">{{ App\Models\Project::where('is_favorite', false)->count() }}
-                    案件</span>
-            </div>
-            @foreach(App\Models\Project::where('is_favorite', false)->get() as $project)
-                <a href="{{ route('projects.show', $project) }}"
-                    class="sidebar-item {{ request('project_id') == $project->id ? 'active' : '' }}">
-                    <div class="project-icon" style="background-color: {{ $project->color }};">
-                        {{ mb_substr($project->title, 0, 1) }}
+                @endcan
+                <div>
+                    <h3 class="px-3 py-2 text-xs font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                        お気に入り ({{ $favoriteProjects->count() }})
+                    </h3>
+                    <div class="space-y-1">
+                        @foreach($favoriteProjects as $project)
+                        <a href="{{ route('projects.show', $project) }}"
+                           class="flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 {{ (request()->is('projects/'.$project->id) || (isset($currentProject) && $currentProject->id == $project->id)) ? 'bg-blue-500 text-white dark:bg-blue-600' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700' }}">
+                            <span class="flex items-center justify-center w-5 h-5 mr-2 text-xs font-bold text-white rounded" style="background-color: {{ $project->color }};">
+                                {{ mb_substr($project->title, 0, 1) }}
+                            </span>
+                            <span class="truncate">{{ $project->title }}</span>
+                            <i class="fas fa-star text-yellow-400 ml-auto"></i>
+                        </a>
+                        @endforeach
                     </div>
-                    {{ $project->title }}
-                </a>
-            @endforeach
-        </div>
-    </div>
+                </div>
+                <div>
+                    <h3 class="px-3 py-2 text-xs font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                        衣装案件 ({{ $normalProjects->count() }})
+                    </h3>
+                    <div class="space-y-1">
+                        @foreach($normalProjects as $project)
+                        <a href="{{ route('projects.show', $project) }}"
+                           class="flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 {{ (request()->is('projects/'.$project->id) || (isset($currentProject) && $currentProject->id == $project->id)) ? 'bg-blue-500 text-white dark:bg-blue-600' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700' }}">
+                            <span class="flex items-center justify-center w-5 h-5 mr-2 text-xs font-bold text-white rounded" style="background-color: {{ $project->color }};">
+                                {{ mb_substr($project->title, 0, 1) }}
+                            </span>
+                            <span class="truncate">{{ $project->title }}</span>
+                        </a>
+                        @endforeach
+                    </div>
+                </div>
+            </nav>
+        </aside>
 
-    <div class="main-content">
-        <div class="d-flex justify-content-between">
-            <ul class="nav nav-tabs main-nav">
-                @can('viewAny', App\Models\Project::class)
-                    <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('home.*') ? 'active' : '' }}"
-                            href="{{ route('home.index') }}">
-                            <i class="fas fa-home"></i> ホーム
-                        </a>
-                    </li>
-                @endcan
-                @can('viewAny', App\Models\Project::class)
-                    <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('tasks.*') ? 'active' : '' }}"
-                            href="{{ route('tasks.index') }}">
-                            <i class="fas fa-tasks"></i> 工程
-                        </a>
-                    </li>
-                @endcan
-                @can('viewAny', App\Models\Project::class)
-                    <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('gantt.*') ? 'active' : '' }}"
-                            href="{{ route('gantt.index') }}">
-                            <i class="fas fa-chart-gantt"></i> ガントチャート
-                        </a>
-                    </li>
-                @endcan
-                @can('viewAny', App\Models\Project::class)
-                    <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('calendar.*') ? 'active' : '' }}"
-                            href="{{ route('calendar.index') }}">
-                            <i class="fas fa-calendar-alt"></i> カレンダー
-                        </a>
-                    </li>
-                @endcan
-                @can('viewAny', App\Models\Project::class)
-                    <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('projects.*') && !request()->routeIs('projects.*.tasks.*') ? 'active' : '' }}"
-                            href="{{ route('projects.index') }}">
-                            <i class="fas fa-tshirt"></i> 衣装案件
-                        </a>
-                    </li>
-                @endcan
-            </ul>
-            <ul class="nav nav-tabs main-nav">
-                @can('viewAny', App\Models\ProcessTemplate::class)
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="adminMenu" role="button" data-bs-toggle="dropdown"
-                            aria-expanded="false">
-                            <i class="fas fa-cog"></i> 管理
-                        </a>
-                        <ul class="dropdown-menu" aria-labelledby="adminMenu">
+        <div class="flex flex-col flex-1 md:ml-64">
+            <header class="flex items-center justify-between h-16 px-4 bg-white border-b dark:bg-gray-800 dark:border-gray-700 sticky top-0 z-50"> <div class="md:hidden">
+                    <button @click="sidebarOpen = !sidebarOpen" class="text-gray-500 dark:text-gray-300 focus:outline-none">
+                        <i class="fas fa-bars w-6 h-6"></i>
+                    </button>
+                </div>
+
+                <nav class="hidden md:flex flex-grow justify-start items-center space-x-1">
+                    @can('viewAny', App\Models\Project::class)
+                    <a class="px-3 py-2 text-sm font-medium rounded-md {{ request()->routeIs('home.*') ? 'text-blue-600 bg-blue-100 dark:text-blue-300 dark:bg-gray-700' : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700' }}"
+                        href="{{ route('home.index') }}">
+                        <i class="fas fa-home mr-1"></i> ホーム
+                    </a>
+                    @endcan
+                    @can('viewAny', App\Models\Project::class)
+                    <a class="px-3 py-2 text-sm font-medium rounded-md {{ request()->routeIs('tasks.*') ? 'text-blue-600 bg-blue-100 dark:text-blue-300 dark:bg-gray-700' : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700' }}"
+                        href="{{ route('tasks.index') }}">
+                        <i class="fas fa-tasks mr-1"></i> 工程
+                    </a>
+                    @endcan
+                    @can('viewAny', App\Models\Project::class)
+                    <a class="px-3 py-2 text-sm font-medium rounded-md {{ request()->routeIs('gantt.*') ? 'text-blue-600 bg-blue-100 dark:text-blue-300 dark:bg-gray-700' : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700' }}"
+                        href="{{ route('gantt.index') }}">
+                        <i class="fas fa-chart-gantt mr-1"></i> ガント
+                    </a>
+                    @endcan
+                    @can('viewAny', App\Models\Project::class)
+                    <a class="px-3 py-2 text-sm font-medium rounded-md {{ request()->routeIs('calendar.*') ? 'text-blue-600 bg-blue-100 dark:text-blue-300 dark:bg-gray-700' : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700' }}"
+                        href="{{ route('calendar.index') }}">
+                        <i class="fas fa-calendar-alt mr-1"></i> カレンダー
+                    </a>
+                    @endcan
+                    @can('viewAny', App\Models\Project::class)
+                    <a class="px-3 py-2 text-sm font-medium rounded-md {{ request()->routeIs('projects.*') && !request()->routeIs('projects.*.tasks.*') ? 'text-blue-600 bg-blue-100 dark:text-blue-300 dark:bg-gray-700' : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700' }}"
+                        href="{{ route('projects.index') }}">
+                        <i class="fas fa-tshirt mr-1"></i> 衣装案件
+                    </a>
+                    @endcan
+                </nav>
+
+                <div class="flex items-center space-x-4 pl-2">
+                    @can('viewAny', App\Models\ProcessTemplate::class)
+                    <div x-data="{ adminMenuOpen: false }" class="relative">
+                        <button @click="adminMenuOpen = !adminMenuOpen" class="flex items-center px-3 py-2 text-sm font-medium text-gray-700 rounded-md dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none">
+                            <i class="fas fa-cog mr-1"></i> 管理 <i class="fas fa-chevron-down fa-xs ml-1"></i>
+                        </button>
+                        <div x-show="adminMenuOpen" @click.away="adminMenuOpen = false"
+                             x-transition
+                             class="absolute right-0 mt-2 w-48 py-1 bg-white rounded-md shadow-lg dark:bg-gray-700 ring-1 ring-black ring-opacity-5 z-50"
+                             style="display: none;">
                             @can('viewAny', App\Models\User::class)
-                                <li><a class="dropdown-item" href="{{ route('users.index') }}">ユーザー管理</a></li>
+                            <a href="{{ route('users.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">ユーザー管理</a>
                             @endcan
                             @can('viewAny', App\Models\Role::class)
-                                <li><a class="dropdown-item" href="{{ route('roles.index') }}">権限設定</a></li>
+                            <a href="{{ route('roles.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">権限設定</a>
                             @endcan
                             @can('viewAny', App\Models\ProcessTemplate::class)
-                                <li><a class="dropdown-item" href="{{ route('process-templates.index') }}">工程テンプレート管理</a></li>
+                            <a href="{{ route('process-templates.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">工程テンプレート</a>
                             @endcan
-                        </ul>
-                    </li>
-                @endcan
-                @guest
-                    @if (Route::has('login'))
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ route('login') }}">ログイン</a>
-                        </li>
-                    @endif
-
-                    @if (Route::has('register'))
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ route('register') }}">新規登録</a>
-                        </li>
-                    @endif
-                @else
-                    <li class="nav-item dropdown">
-                        <a id="navbarDropdown" class="nav-link dropdown-toggle" href="#" role="button"
-                            data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" v-pre>
-                            {{ Auth::user()->name }}
-                        </a>
-
-                        <div class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
-                            <a class="dropdown-item" href="{{ route('profile.edit') }}">
-                                プロフィール
-                            </a>
-                            <a class="dropdown-item" href="{{ route('logout') }}"
-                                onclick="event.preventDefault();
-                                                                                                                                                                                                                                                                             document.getElementById('logout-form').submit();">
-                                ログアウト
-                            </a>
-
-                            <form id="logout-form" action="{{ route('logout') }}" method="POST" class="d-none">
+                        </div>
+                    </div>
+                    @endcan
+                    @auth
+                    <div x-data="{ userMenuOpen: false }" class="relative">
+                        <button @click="userMenuOpen = !userMenuOpen" class="flex items-center text-sm font-medium text-gray-700 rounded-md dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none p-2">
+                            <span>{{ Auth::user()->name }}</span>
+                            <i class="fas fa-chevron-down fa-xs ml-1"></i>
+                        </button>
+                        <div x-show="userMenuOpen" @click.away="userMenuOpen = false"
+                             x-transition
+                             class="absolute right-0 mt-2 w-48 py-1 bg-white rounded-md shadow-lg dark:bg-gray-700 ring-1 ring-black ring-opacity-5 z-50"
+                             style="display: none;">
+                            <a href="{{ route('profile.edit') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">プロフィール</a>
+                            <form method="POST" action="{{ route('logout') }}">
                                 @csrf
+                                <a href="{{ route('logout') }}"
+                                   onclick="event.preventDefault(); this.closest('form').submit();"
+                                   class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
+                                    ログアウト
+                                </a>
                             </form>
                         </div>
-                    </li>
-                @endguest
-            </ul>
+                    </div>
+                    @endauth
+                </div>
+            </header>
+
+            <main class="flex-1 p-4 md:p-6 overflow-y-auto h-full">
+                @if(session('success'))
+                <div class="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded-md dark:bg-green-700 dark:text-green-100 dark:border-green-600" role="alert">
+                    {{ session('success') }}
+                </div>
+                @endif
+                @if(session('error'))
+                <div class="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-md dark:bg-red-700 dark:text-red-100 dark:border-red-600" role="alert">
+                    {{ session('error') }}
+                </div>
+                @endif
+                @yield('content')
+            </main>
         </div>
-        @if(session('success'))
-            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                {{ session('success') }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        @endif
-
-        @if(session('error'))
-            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                {{ session('error') }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        @endif
-
-        @yield('content')
     </div>
 
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/pickr.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/locales-all.min.js"></script>
-
-    <script>
-        // サイドバートグル
-        document.getElementById('toggleSidebar').addEventListener('click', function () {
-            document.getElementById('sidebar').classList.toggle('show');
-        });
-
-        // 画面サイズが変わったときにサイドバーの表示を調整
-        window.addEventListener('resize', function () {
-            if (window.innerWidth > 768) {
-                document.getElementById('sidebar').classList.remove('show');
-            }
-        });
-
-        // モバイルでサイドバー外をクリックしたら閉じる
-        document.addEventListener('click', function (event) {
-            const sidebar = document.getElementById('sidebar');
-            const toggleBtn = document.getElementById('toggleSidebar');
-
-            if (window.innerWidth <= 768 &&
-                sidebar.classList.contains('show') &&
-                !sidebar.contains(event.target) &&
-                event.target !== toggleBtn) {
-                sidebar.classList.remove('show');
-            }
-        });
-
-
-    </script>
-
-    @yield('scripts')
+    <div id="taskDescriptionTooltip"
+         class="fixed z-[100] hidden rounded-md bg-gray-900 px-3 py-1.5 text-xs font-medium text-white shadow-lg whitespace-pre-wrap dark:bg-gray-700 max-w-xs"
+         role="tooltip">
+    </div>
+    <div id="imagePreviewModalGlobal" class="fixed top-0 left-0 w-full h-full bg-black bg-opacity-80 z-[1050] items-center justify-center p-4" style="display: none;">
+        <img id="previewImageFullGlobal" src="" alt="Full Image" class="max-w-[90vw] max-h-[90vh] object-contain block">
+        <button id="closePreviewModalBtnGlobal" class="absolute top-4 right-4 text-white text-3xl hover:text-gray-300 cursor-pointer">&times;</button>
+    </div>
     <div id="upload-loading-overlay"
-        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background-color:rgba(0,0,0,0.75); z-index:10050; /* z-index値を高く設定 */ align-items:center; justify-content:center; flex-direction:column; color:white;">
+        class="fixed inset-0 z-[10050] flex items-center justify-center flex-col text-white bg-black bg-opacity-75"
+        style="display:none;">
         <i class="fas fa-spinner fa-spin fa-3x mb-3"></i>
         <p>アップロード中です...</p>
     </div>
-</body>
 
+    @yield('scripts')
+    @stack('scripts')
+</body>
 </html>

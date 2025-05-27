@@ -3,27 +3,39 @@
 @section('title', '新規工程テンプレート作成')
 
 @section('content')
-    <div class="container">
-        <h1>新規工程テンプレート作成</h1>
+    <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+            <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-200">新規工程テンプレート作成</h1>
+            <x-secondary-button onclick="location.href='{{ route('process-templates.index') }}'">
+                <i class="fas fa-arrow-left mr-2"></i>
+                <span>一覧へ戻る</span>
+            </x-secondary-button>
+        </div>
 
-        <div class="card">
-            <div class="card-body">
+        <div class="max-w-xl mx-auto bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
+            <div class="p-6 sm:p-8">
                 <form action="{{ route('process-templates.store') }}" method="POST">
                     @csrf
-                    <div class="mb-3">
-                        <label for="name" class="form-label">テンプレート名 <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control @error('name') is-invalid @enderror" id="name" name="name"
-                            value="{{ old('name') }}" required>
-                        @error('name') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                    <div class="space-y-6">
+                        <div>
+                            <x-input-label for="name" value="テンプレート名" />
+                            <x-text-input id="name" name="name" type="text" class="mt-1 block w-full" :value="old('name')"
+                                required autofocus />
+                            <x-input-error :messages="$errors->get('name')" class="mt-2" />
+                        </div>
+                        <div>
+                            <x-input-label for="description" value="説明" />
+                            <x-textarea-input id="description" name="description" class="mt-1 block w-full"
+                                rows="4">{{ old('description') }}</x-textarea-input>
+                            <x-input-error :messages="$errors->get('description')" class="mt-2" />
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label for="description" class="form-label">説明</label>
-                        <textarea class="form-control @error('description') is-invalid @enderror" id="description"
-                            name="description" rows="3">{{ old('description') }}</textarea>
-                        @error('description') <div class="invalid-feedback">{{ $message }}</div> @enderror
+
+                    <div class="flex items-center justify-end mt-8 pt-5 border-t border-gray-200 dark:border-gray-700">
+                        <x-primary-button>
+                            <i class="fas fa-plus mr-2"></i>作成して工程項目を編集
+                        </x-primary-button>
                     </div>
-                    <button type="submit" class="btn btn-primary">作成して工程項目を編集</button>
-                    <a href="{{ route('process-templates.index') }}" class="btn btn-secondary">キャンセル</a>
                 </form>
             </div>
         </div>

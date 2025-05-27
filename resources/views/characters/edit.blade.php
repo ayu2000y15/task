@@ -3,44 +3,42 @@
 @section('title', 'キャラクター編集 - ' . $character->name)
 
 @section('content')
-    <div class="container">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1>キャラクター編集: {{ $character->name }}</h1>
-            <a href="{{ route('projects.show', $project) }}" class="btn btn-outline-secondary">
-                <i class="fas fa-arrow-left"></i> 「{{ $project->title }}」に戻る
-            </a>
+    <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+            <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-200">キャラクター編集: {{ $character->name }}</h1>
+            <x-secondary-button onclick="location.href='{{ route('projects.show', $project) }}'">
+                <i class="fas fa-arrow-left mr-2"></i>
+                <span>「{{ $project->title }}」に戻る</span>
+            </x-secondary-button>
         </div>
 
-        <div class="centered-form">
-            <div class="card">
-                <div class="card-body">
-                    <form action="{{ route('characters.update', $character) }}" method="POST">
-                        @csrf
-                        @method('PUT')
+        <div class="max-w-xl mx-auto bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
+            <div class="p-6 sm:p-8">
+                <form action="{{ route('characters.update', $character) }}" method="POST">
+                    @csrf
+                    @method('PUT')
 
-                        <div class="mb-3">
-                            <label for="name" class="form-label">キャラクター名 <span class="text-danger">*</span></label>
-                            <input type="text" name="name" id="name"
-                                class="form-control @error('name') is-invalid @enderror"
-                                value="{{ old('name', $character->name) }}" required>
-                            @error('name')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
+                    <div class="space-y-6">
+                        <div>
+                            <x-input-label for="name" value="キャラクター名" />
+                            <x-text-input id="name" name="name" type="text" class="mt-1 block w-full" :value="old('name', $character->name)" required autofocus />
+                            <x-input-error :messages="$errors->get('name')" class="mt-2" />
                         </div>
 
-                        <div class="mb-3">
-                            <label for="description" class="form-label">備考</label>
-                            <textarea name="description" id="description"
-                                class="form-control @error('description') is-invalid @enderror"
-                                rows="3">{{ old('description', $character->description) }}</textarea>
-                            @error('description')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
+                        <div>
+                            <x-input-label for="description" value="備考" />
+                            <x-textarea-input id="description" name="description" class="mt-1 block w-full"
+                                rows="4">{{ old('description', $character->description) }}</x-textarea-input>
+                            <x-input-error :messages="$errors->get('description')" class="mt-2" />
                         </div>
+                    </div>
 
-                        <button type="submit" class="btn btn-primary">更新</button>
-                    </form>
-                </div>
+                    <div class="flex items-center justify-end mt-8 pt-5 border-t border-gray-200 dark:border-gray-700">
+                        <x-primary-button>
+                            <i class="fas fa-save mr-2"></i>更新
+                        </x-primary-button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>

@@ -1,3 +1,299 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* resources/css/app.css */
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
+
+/* 既存のtooltip.cssの内容をここにペースト */
+/* 例: tooltip.css の内容 */
+.task-description-tooltip {
+    position: absolute;
+    background-color: #333; /* Tailwind: bg-gray-800 */
+    color: white; /* Tailwind: text-white */
+    padding: 8px 12px; /* Tailwind: px-3 py-2 */
+    border-radius: 4px; /* Tailwind: rounded */
+    font-size: 0.875rem; /* Tailwind: text-sm */
+    max-width: 300px; /* Tailwind: max-w-xs */
+    word-wrap: break-word;
+    z-index: 1000; /* Tailwind: z-50 (or higher if needed) */
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s, visibility 0.3s;
+    pointer-events: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2); /* Tailwind: shadow-lg */
+    white-space: pre-wrap;
+}
+.task-description-tooltip.show {
+    opacity: 1;
+    visibility: visible;
+}
+.task-row-hoverable {
+    position: relative;
+    cursor: pointer;
+}
+/* :hover states are better handled by Tailwind directly on elements, e.g. hover:bg-blue-50 */
+.task-name-with-description::after {
+    content: "\f249"; /* Font Awesome icon */
+    font-family: "Font Awesome 5 Free";
+    font-weight: 900;
+    margin-left: 5px; /* Tailwind: ml-1 */
+    color: #6c757d; /* Tailwind: text-gray-500 */
+    font-size: 0.8rem;
+}
+
+/* layouts/app.blade.php から移行するカスタムスタイル（Tailwindで代替できないもの） */
+/* 例：案件ごとの動的な色指定が難しい場合、ここでプレースホルダ的なクラスを用意するか、
+   インラインスタイルを許容するかを検討。
+   Tailwind JITなら bg-[{{ $project->color }}] のような書き方も可能だが、Bladeとの相性次第。
+   ここでは汎用的なスタイルや、特定のコンポーネントの基本スタイルを記述。 */
+
+/*
+  以前の layouts/app.blade.php にあった膨大なスタイルは、
+  Tailwindのユーティリティクラスへの置き換え、
+  またはこのように app.css への集約を進めます。
+  例として、主要なレイアウトやコンポーネントの基本スタイルをここに定義します。
+*/
+
+/* フィルターパネルの基本スタイルなど */
+.filter-panel {
+    /* Tailwindで代替できるものは極力そちらで */
+    /* @apply bg-gray-50 p-4 mb-4 rounded border border-gray-200; */
+}
+
+/* タブのスタイル */
+/* .main-nav .nav-link { @apply text-gray-600 px-3 py-2 rounded-md text-sm font-medium; } */
+/* .main-nav .nav-link.active { @apply bg-blue-100 text-blue-600; } */
+
+/*
+  注意: 以前の <style> タグ内の多くのスタイルは、
+  - Tailwindユーティリティクラス (例: `bg-white`, `p-4`, `rounded-md`, `text-lg`)
+  - Tailwindコンポーネントクラス (`@apply` を使ったカスタムコンポーネント)
+  - どうしても必要な場合は、このような形で `app.css` に残す
+  という方針でリファクタリングします。
+  ここではすべてを記述せず、主要な構造と、Tailwindへの移行方針を示すに留めます。
+*/
+
+/* task-row-hoverable: これはJavaScriptでツールチップを制御するためのマーカークラスなので、
+   スタイル自体はTailwindの hover:bg-gray-50 などで代替。
+   もしJSがこのクラス名に依存しているなら残す。 */
+.task-row-hoverable {
+    /* position: relative; */ /* 必要なら Tailwind: relative */
+    /* cursor: pointer; */ /* Tailwind: cursor-pointer */
+}
+
+/* .task-name-with-description::after のような Font Awesome を使ったアイコン表示は、
+   HTML側で直接 Font Awesome のクラス (例: <i class="fas fa-comment-alt ml-1 text-gray-400"></i>)
+   を記述する形に修正するのがTailwind流です。
+   もしCSSで続けたい場合は、この定義をapp.cssに残します。
+*/
+.task-name-with-description::after {
+    content: "\f249"; /* Font Awesome icon - comment-alt */
+    font-family: "Font Awesome 5 Free";
+    font-weight: 900;
+    margin-left: 0.25rem; /* Tailwind: ml-1 */
+    color: #9ca3af; /* Tailwind: text-gray-400 */
+    font-size: 0.75rem; /* Tailwind: text-xs */
+}
+
+/* .task-overdue, .task-due-soon のような状態に応じた背景色は、
+   Blade側で条件分岐し、適切なTailwindの背景色クラス (e.g., bg-red-100, bg-yellow-100) を適用します。
+   もしJSでこれらのクラス名に依存している場合は、クラス名は残しつつスタイルはTailwindで行うか、
+   JS側もdata属性などで制御するように変更します。
+*/
+
+/* Gantt Chart Specific Styles */
+.gantt-sticky-col {
+    @apply left-0 z-10 bg-white dark:bg-gray-800 border-r-2 border-gray-200 dark:border-gray-700;
+    /* 既存のgantt-sticky-colの定義も必要に応じてここに含めるか、上記の@applyが優先されるようにします */
+}
+
+.gantt-header th {
+    @apply sticky top-0 z-10 bg-gray-50 dark:bg-gray-700;
+}
+/* lg (1024px) 以上の画面サイズで列を固定 */
+@screen lg {
+    .gantt-sticky-col {
+        @apply sticky left-0 z-20;
+    }
+    .gantt-header .gantt-sticky-col {
+        /* ヘッダーの固定列を、日付ヘッダーより手前に表示 */
+        @apply z-20;
+    }
+}
+
+.gantt-cell.saturday {
+    @apply bg-sky-50 dark:bg-sky-900/30;
+}
+.gantt-cell.sunday {
+    /* 祝日も含む */
+    @apply bg-pink-50 dark:bg-pink-900/30;
+}
+.gantt-cell.today {
+    @apply !bg-yellow-100 dark:!bg-yellow-400/30 border-l-2 border-r-2 border-yellow-500 dark:border-yellow-600;
+}
+
+.milestone-diamond {
+    @apply w-4 h-4 transform rotate-45 mx-auto my-2 shadow-md relative z-[5];
+    /* background-color is applied via inline style in Blade */
+}
+
+.gantt-tooltip {
+    @apply absolute invisible opacity-0 transition-opacity duration-150 ease-in-out z-[1000] min-w-[150px];
+    /* top and left are set by JS or specific classes */
+}
+.gantt-tooltip-content {
+    @apply bg-gray-900 text-white text-xs px-2 py-1 rounded-md shadow-lg dark:bg-gray-700;
+}
+.gantt-tooltip-arrow {
+    @apply absolute w-0 h-0 border-solid border-transparent;
+    content: "";
+    border-width: 5px;
+    margin-left: -5px;
+    bottom: -10px; /* Assuming tooltip is above the arrow */
+    left: 50%;
+    border-top-color: #1f2937; /* dark:bg-gray-700 */
+}
+.dark .gantt-tooltip-arrow {
+    border-top-color: #374151;
+}
+
+/* Gantt Bar Hover Tooltip (alternative to JS positioning if preferred) */
+/*
+.gantt-cell.has-bar:hover .gantt-tooltip {
+    @apply visible opacity-100;
+}
+*/
+
+/* 工程名折り返しとアイコン整列のための調整 */
+.gantt-task-name-wrapper {
+    /* 新規: 工程名とアイコンなどを包括するラッパー */
+    @apply flex items-start flex-grow min-w-0; /* items-start で上揃え、min-w-0で折り返しを親に伝える */
+}
+
+.gantt-task-icon-toggle-wrapper {
+    /* 新規: アイコンとトグル専用のラッパー */
+    @apply flex items-center flex-shrink-0 h-5; /* h-5はテキストの1行分の高さ目安 */
+}
+
+.gantt-task-name-block {
+    /* 新規: 工程名とバッジをまとめるブロック */
+    @apply min-w-0 ml-1; /* ml-1はアイコン/トグルとのスペース */
+}
+
+.gantt-task-name-link,
+.gantt-task-name-text {
+    @apply whitespace-normal break-words; /* inline を削除し、自然なブロック要素の振る舞いに */
+}
+
+#ganttTable.details-hidden .detail-column {
+    display: none;
+}
+
+/* Dropzone Custom Styling (adjusted for Tailwind) */
+.dropzone-custom-style {
+    @apply border-2 border-dashed border-blue-500 dark:border-blue-400 rounded-md p-4 flex flex-wrap gap-3 min-h-[150px] bg-gray-50 dark:bg-gray-700/50;
+}
+.dropzone-custom-style .dz-message {
+    @apply text-gray-600 dark:text-gray-400 font-medium w-full text-center self-center;
+}
+.dropzone-custom-style .dz-message p {
+    @apply mb-2;
+}
+.dropzone-custom-style .dz-button-bootstrap {
+    /* Retained for JS compatibility if it targets this class */
+    @apply inline-flex items-center px-3 py-2 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-md font-semibold text-xs text-gray-700 dark:text-gray-200 uppercase tracking-widest shadow-sm hover:bg-gray-50 dark:hover:bg-gray-500;
+}
+.dropzone-custom-style .dz-preview {
+    @apply w-32 m-1 bg-transparent border border-gray-300 dark:border-gray-600 flex flex-col items-center relative rounded-lg overflow-hidden p-1;
+}
+.dropzone-custom-style .dz-image {
+    @apply w-20 h-20 flex border border-gray-300 dark:border-gray-600 items-center justify-center overflow-hidden relative z-10 bg-white dark:bg-gray-800;
+}
+.dropzone-custom-style .dz-image img {
+    @apply max-w-full max-h-full object-contain;
+}
+.dropzone-custom-style .dz-details {
+    @apply block text-center w-full relative p-1 mt-1;
+}
+.dropzone-custom-style .dz-filename {
+    @apply block text-xs text-gray-700 dark:text-gray-200 break-words leading-tight;
+}
+.dropzone-custom-style .dz-filename span {
+    @apply bg-transparent; /* Ensure text is visible */
+}
+.dropzone-custom-style .dz-size {
+    @apply text-[0.65em] text-gray-500 dark:text-gray-400 mt-0.5 bg-transparent; /* Ensure text is visible */
+}
+.dropzone-custom-style .dz-progress,
+.dropzone-custom-style .dz-error-message,
+.dropzone-custom-style .dz-success-mark,
+.dropzone-custom-style .dz-error-mark {
+    @apply hidden;
+}
+.dropzone-custom-style .dz-remove {
+    @apply absolute top-1 right-1 bg-red-600/80 hover:bg-red-700/90 text-white rounded-full w-[18px] h-[18px] text-xs leading-[18px] text-center font-bold no-underline cursor-pointer opacity-100 z-30;
+}
+
+/* Task name wrapping in Gantt */
+.gantt-task-name-link,
+.gantt-task-name-text {
+    @apply whitespace-normal break-words inline;
+}
+.gantt-task-name-container {
+    @apply whitespace-normal overflow-visible;
+}
+
+/* FullCalendar Customizations */
+.fc {
+    /* FullCalendarのコンテナ */
+    @apply text-sm;
+}
+
+/* ツールバーのボタンを既存のボタンに合わせる */
+.fc .fc-button {
+    @apply bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 shadow-sm
+        hover:bg-gray-50 dark:hover:bg-gray-600
+        focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500
+        px-3 py-1.5 text-xs font-semibold rounded-md capitalize;
+}
+.fc .fc-button-primary {
+    @apply bg-blue-600 text-white border-transparent hover:bg-blue-700 focus:ring-blue-500;
+}
+.fc .fc-button-primary:not(:disabled).fc-button-active,
+.fc .fc-button-primary:not(:disabled):active {
+    @apply bg-blue-700;
+}
+
+/* 土曜日のヘッダーと日付セルの色 */
+.fc-day-sat .fc-col-header-cell-cushion {
+    color: #0369a1; /* Tailwind: text-sky-600 */
+}
+.fc-day-sat {
+    @apply bg-sky-50/50 dark:bg-sky-900/20;
+}
+
+/* 日曜日のヘッダーと日付セルの色 */
+.fc-day-sun .fc-col-header-cell-cushion {
+    color: #be123c; /* Tailwind: text-rose-600 */
+}
+.fc-day-sun {
+    @apply bg-pink-50/50 dark:bg-pink-900/20;
+}
+
+.fc-daygrid-day-number {
+    @apply p-1.5 text-xs;
+}
+
+/* 祝日イベントのスタイル */
+.fc-event.holiday-event .fc-event-main {
+    @apply bg-pink-100 border-none text-pink-700 dark:bg-pink-900/50 dark:text-pink-200 font-semibold text-center;
+}
+
+/* マイルストーンのスタイル */
+.fc-event.milestone-event {
+    @apply ring-2 ring-offset-1 ring-yellow-400 dark:ring-yellow-500;
+}
+
+#calendar {
+    /* カレンダーが表示されるための最小の高さを確保 */
+    min-height: 70vh;
+}

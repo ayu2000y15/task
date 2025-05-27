@@ -1,13 +1,17 @@
-<div class="collapse {{ array_filter($filters) ? 'show' : '' }}" id="filterPanel">
-    <div class="filter-panel mb-4">
-        <div class="filter-close" id="closeFilterBtn" data-bs-toggle="collapse" data-bs-target="#filterPanel"
-            aria-label="フィルターを閉じる" style="cursor: pointer;">
-            <i class="fas fa-times"></i>
-        </div>
-        <form action="{{ $action }}" method="GET" class="row g-3">
-            <div class="col-md-3">
-                <label for="project_id" class="form-label">衣装案件</label>
-                <select class="form-select" id="project_id" name="project_id">
+<div class="bg-gray-50 dark:bg-gray-700 p-4 md:p-6 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm">
+    <div class="flex justify-between items-center mb-4">
+        <h6 class="text-md font-semibold text-gray-700 dark:text-gray-200">フィルターオプション</h6>
+        <button type="button" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" aria-label="フィルターを閉じる"
+            x-on:click="filtersOpen = false"> <i class="fas fa-times"></i>
+        </button>
+    </div>
+    <form action="{{ $action }}" method="GET">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
+                <label for="project_id_filter"
+                    class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">衣装案件</label>
+                <select id="project_id_filter" name="project_id"
+                    class="form-select mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 dark:focus:border-indigo-500">
                     <option value="">すべて</option>
                     @foreach($allProjects as $project)
                         <option value="{{ $project->id }}" @if(isset($filters['project_id']) && $filters['project_id'] == $project->id) selected @endif>
@@ -16,15 +20,17 @@
                     @endforeach
                 </select>
             </div>
-            <div class="col-md-3">
-                <label for="character_id" class="form-label">キャラクター</label>
-                <select class="form-select" id="character_id" name="character_id" {{ !isset($filters['project_id']) && (!isset($allCharacters) || $allCharacters->isEmpty()) ? 'disabled' : '' }}>
+            <div>
+                <label for="character_id_filter"
+                    class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">キャラクター</label>
+                <select id="character_id_filter" name="character_id"
+                    class="form-select mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 dark:focus:border-indigo-500"
+                    {{ !isset($filters['project_id']) && $allCharacters->isEmpty() ? 'disabled' : '' }}>
                     <option value="">すべて</option>
-                    @if(isset($filters['project_id']) || (isset($allCharacters) && !$allCharacters->isEmpty())) {{-- ★
-                        $characters を $allCharacters に変更 --}}
+                    @if(isset($filters['project_id']) || !$allCharacters->isEmpty())
                         <option value="none" @if(isset($filters['character_id']) && $filters['character_id'] == 'none')
                         selected @endif>案件全体(キャラクター未所属)</option>
-                        @foreach($allCharacters as $character) {{-- ★ $characters を $allCharacters に変更 --}}
+                        @foreach($allCharacters as $character)
                             <option value="{{ $character->id }}" @if(isset($filters['character_id']) && $filters['character_id'] == $character->id) selected @endif>
                                 {{ $character->name }}
                             </option>
@@ -32,9 +38,11 @@
                     @endif
                 </select>
             </div>
-            <div class="col-md-3">
-                <label for="assignee" class="form-label">担当者</label>
-                <select class="form-select" id="assignee" name="assignee">
+            <div>
+                <label for="assignee_filter"
+                    class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">担当者</label>
+                <select id="assignee_filter" name="assignee"
+                    class="form-select mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 dark:focus:border-indigo-500">
                     <option value="">すべて</option>
                     @foreach($allAssignees as $assignee)
                         <option value="{{ $assignee }}" @if(isset($filters['assignee']) && $filters['assignee'] == $assignee)
@@ -44,9 +52,11 @@
                     @endforeach
                 </select>
             </div>
-            <div class="col-md-3">
-                <label for="status" class="form-label">ステータス</label>
-                <select class="form-select" id="status" name="status">
+            <div>
+                <label for="status_filter"
+                    class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ステータス</label>
+                <select id="status_filter" name="status"
+                    class="form-select mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 dark:focus:border-indigo-500">
                     <option value="">すべて</option>
                     @foreach($statusOptions as $value => $label)
                         <option value="{{ $value }}" @if(isset($filters['status']) && $filters['status'] == $value) selected
@@ -56,16 +66,20 @@
                     @endforeach
                 </select>
             </div>
-            <div class="col-md-3">
-                <label for="search" class="form-label">工程名検索</label>
-                <input type="text" class="form-control" id="search" name="search"
-                    value="{{ $filters['search'] ?? '' }}">
+            <div>
+                <label for="search_filter"
+                    class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">工程名検索</label>
+                <input type="text" id="search_filter" name="search" value="{{ $filters['search'] ?? '' }}"
+                    class="form-input mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 dark:focus:border-indigo-500"
+                    placeholder="キーワード入力">
             </div>
 
             @if($showDueDateFilter)
-                <div class="col-md-3">
-                    <label for="due_date" class="form-label">期限</label>
-                    <select class="form-select" id="due_date" name="due_date">
+                <div>
+                    <label for="due_date_filter"
+                        class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">期限</label>
+                    <select id="due_date_filter" name="due_date"
+                        class="form-select mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 dark:focus:border-indigo-500">
                         <option value="">すべて</option>
                         <option value="overdue" @if(isset($filters['due_date']) && $filters['due_date'] == 'overdue') selected
                         @endif>期限切れ</option>
@@ -82,22 +96,29 @@
             @endif
 
             @if($showDateRangeFilter)
-                <div class="col-md-3">
-                    <label for="start_date" class="form-label">表示開始日</label>
-                    <input type="date" class="form-control" id="start_date" name="start_date"
-                        value="{{ $filters['start_date'] ?? '' }}">
+                <div>
+                    <label for="start_date_filter"
+                        class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">表示開始日</label>
+                    <input type="date" id="start_date_filter" name="start_date" value="{{ $filters['start_date'] ?? '' }}"
+                        class="form-input mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 dark:focus:border-indigo-500">
                 </div>
-                <div class="col-md-3">
-                    <label for="end_date" class="form-label">表示終了日</label>
-                    <input type="date" class="form-control" id="end_date" name="end_date"
-                        value="{{ $filters['end_date'] ?? '' }}">
+                <div>
+                    <label for="end_date_filter"
+                        class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">表示終了日</label>
+                    <input type="date" id="end_date_filter" name="end_date" value="{{ $filters['end_date'] ?? '' }}"
+                        class="form-input mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 dark:focus:border-indigo-500">
                 </div>
             @endif
-
-            <div class="col-md-12 d-flex align-items-end">
-                <button type="submit" class="btn btn-primary me-2">フィルター適用</button>
-                <a href="{{ $action }}" class="btn btn-secondary">リセット</a>
-            </div>
-        </form>
-    </div>
+        </div>
+        <div class="mt-6 flex items-center justify-end space-x-3">
+            <a href="{{ $action }}"
+                class="inline-flex items-center px-4 py-2 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-md font-semibold text-xs text-gray-700 dark:text-gray-200 uppercase tracking-widest shadow-sm hover:bg-gray-50 dark:hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 disabled:opacity-25 transition ease-in-out duration-150">
+                リセット
+            </a>
+            <button type="submit"
+                class="inline-flex items-center px-4 py-2 bg-gray-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-500 active:bg-gray-800 focus:outline-none focus:border-blue-800 focus:ring ring-blue-300 disabled:opacity-25 transition ease-in-out duration-150">
+                フィルター適用
+            </button>
+        </div>
+    </form>
 </div>
