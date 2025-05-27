@@ -23,8 +23,12 @@ import "./features/file-deleter.js";
 
 document.addEventListener("DOMContentLoaded", () => {
     initializeTaskTooltips();
-    initializeImagePreviewModal(/* ...args... */);
-
+    initializeImagePreviewModal(
+        "imagePreviewModalGlobal",
+        "previewImageFullGlobal",
+        "closePreviewModalBtnGlobal",
+        "preview-image"
+    );
     // --- Page-specific JavaScript ---
     if (
         document.querySelector(".task-status-select, .editable-cell") &&

@@ -9,7 +9,7 @@
     "isEntry": true
   },
   "resources/js/app.js": {
-    "file": "assets/app-aRNe8DOv.js",
+    "file": "assets/app-BHqKxE5M.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
@@ -23,7 +23,7 @@
     ]
   },
   "resources/js/page-specific/gantt-chart.js": {
-    "file": "assets/gantt-chart-Do6oShLB.js",
+    "file": "assets/gantt-chart-C-WY2RYQ.js",
     "name": "gantt-chart",
     "src": "resources/js/page-specific/gantt-chart.js",
     "isDynamicEntry": true,
@@ -39,7 +39,7 @@
     "isDynamicEntry": true
   },
   "resources/js/page-specific/projects-show.js": {
-    "file": "assets/projects-show-Kj09wgGQ.js",
+    "file": "assets/projects-show-CB16M_-w.js",
     "name": "projects-show",
     "src": "resources/js/page-specific/projects-show.js",
     "isDynamicEntry": true,
@@ -63,7 +63,7 @@
     "isDynamicEntry": true
   },
   "resources/js/page-specific/tasks-index.js": {
-    "file": "assets/tasks-index-CtZCuO7r.js",
+    "file": "assets/tasks-index-gS0nbDgF.js",
     "name": "tasks-index",
     "src": "resources/js/page-specific/tasks-index.js",
     "isDynamicEntry": true,
