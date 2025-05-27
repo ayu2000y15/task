@@ -119,7 +119,7 @@ class GanttChartController extends Controller
 
         $holidays = Holiday::whereBetween('date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
             ->get()
-            ->keyBy('date');
+            ->keyBy(fn($holiday) => $holiday->date->format('Y-m-d'));
 
         $allAssignees = Task::whereNotNull('assignee')
             ->distinct()

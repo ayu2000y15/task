@@ -46,8 +46,8 @@
         class="project-{{ $project->id }}-tasks {{ $task->parent_id ? 'task-parent-' . $task->parent_id : ($taskCharacterId ? 'task-parent-char-' . $taskCharacterId : '') }} {{ $rowClass }} task-level-{{$level}}"
         data-project-id-for-toggle="{{ $project->id }}" {{ $taskCharacterId ? 'data-character-id-for-toggle=' . $taskCharacterId : '' }}>
         <td class="gantt-sticky-col">
-            <div class="d-flex justify-content-between align-items-center">
-                <div class="task-name-column d-flex align-items-center" style="padding-left: calc(15px + {{ $level * 20 }}px + {{ $taskCharacterId && $level > 0 ? '20px' : '0px' }});">
+            <div class="d-flex justify-content-between align-items-center h-100">
+                <div class="task-name-column d-flex align-items-center" style="--level: {{ $level }}; --char-level: {{ $taskCharacterId && $level > 0 ? 1 : 0 }};">
                     <span style="width:20px; text-align:center;" class="me-1 task-primary-icon">
                     @if(!$task->is_folder && !$task->is_milestone)
                         @switch($task->status)

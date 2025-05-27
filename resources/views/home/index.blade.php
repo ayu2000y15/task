@@ -48,6 +48,26 @@
     .todo-header.not_started { background-color: #6c757d; color: white; }
     .todo-header.in_progress { background-color: #0d6efd; color: white; }
     .todo-header.on_hold { background-color: #ffc107; color: black; }
+
+    /* モバイル用表示制御のためのクラス */
+    @media (max-width: 768px) {
+        .hide-on-mobile {
+            display: none !important;
+        }
+        .show-on-mobile-flex { /* display:flex など特定の値が必要な場合 */
+            display: flex !important;
+        }
+        .show-on-mobile-block {
+            display: block !important;
+        }
+        .show-on-mobile-inline-block {
+            display: inline-block !important;
+        }
+    }
+    .assignee-mobile-show { /* デフォルトは非表示 */
+        display: none;
+    }
+
 </style>
 @endsection
 
@@ -76,11 +96,11 @@
                             <tr>
                                 <th></th>
                                 <th>工程名</th>
-                                <th>キャラクター</th>
+                                <th class="hide-on-mobile">キャラクター</th>
                                 <th>担当者</th>
-                                <th>期限</th>
-                                <th>ステータス</th>
-                                <th>操作</th>
+                                <th class="hide-on-mobile">期限</th>
+                                <th class="hide-on-mobile">ステータス</th>
+                                <th class="hide-on-mobile">操作</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -100,8 +120,6 @@
                                         } elseif($daysUntilDue !== null && $daysUntilDue >= 0 && $daysUntilDue <= 2 && $task->status !== 'completed' && $task->status !== 'cancelled') {
                                             $rowClass = 'task-due-soon';
                                         }
-
-                                        // メモがある場合はホバー可能クラスを追加
                                         $hoverClass = !empty($task->description) ? 'task-row-hoverable' : '';
                                     @endphp
                                     <tr class="{{ $rowClass }} {{ $hoverClass }}"
@@ -147,19 +165,11 @@
                                                    class="{{ !empty($task->description) ? 'task-name-with-description' : '' }}">
                                                     {{ $task->name }}
                                                 </a>
-
-                                                @if($task->end_date && $task->end_date < $now && $task->status !== 'completed' && $task->status !== 'cancelled')
-                                                    <span class="ms-2 badge bg-danger">期限切れ</span>
-                                                @elseif($daysUntilDue !== null && $daysUntilDue >= 0 && $daysUntilDue <= 2 && $task->status !== 'completed' && $task->status !== 'cancelled')
-                                                    <span class="ms-2 badge bg-warning text-dark">あと{{ ceil($daysUntilDue) }}日</span>
-                                                @endif
                                             </div>
                                         </td>
-                                        <td>
-                                            {{ $task->character->name ?? '-' }}
-                                        </td>
+                                        <td class="hide-on-mobile">{{ $task->character->name ?? '-' }}</td>
                                         <td>{{ $task->assignee ?? '-' }}</td>
-                                        <td>
+                                        <td class="hide-on-mobile">
                                             @if($task->end_date && $task->end_date < $now && $task->status !== 'completed' && $task->status !== 'cancelled')
                                                 <span class="text-danger">
                                                     <i class="fas fa-exclamation-circle"></i>
@@ -174,7 +184,7 @@
                                                 {{ optional($task->end_date)->format('Y/m/d') }}
                                             @endif
                                         </td>
-                                        <td>
+                                        <td class="hide-on-mobile">
                                             @if(!$task->is_folder)
                                             <select class="form-select form-select-sm task-status-select"
                                                     data-task-id="{{ $task->id }}"
@@ -189,7 +199,7 @@
                                             -
                                             @endif
                                         </td>
-                                        <td>
+                                        <td class="hide-on-mobile">
                                             <div class="btn-group">
                                                 <a href="{{ route('projects.tasks.edit', [$task->project, $task]) }}" class="btn btn-sm btn-outline-primary">
                                                     <i class="fas fa-edit"></i>
@@ -232,7 +242,7 @@
                 <h5 class="mb-0">期限間近の工程</h5>
             </div>
             <div class="card-body p-0">
-                <ul class="list-group list-group-flush">
+                <ul class="list-group list-group-flush upcoming-tasks-list">
                     @if($upcomingTasks->isEmpty())
                         <li class="list-group-item text-center py-4">表示する工程がありません</li>
                     @else
@@ -247,8 +257,6 @@
                                 } elseif($daysUntilDue !== null && $daysUntilDue >= 0 && $daysUntilDue <= 2 && $task->status !== 'completed' && $task->status !== 'cancelled') {
                                     $itemClass = 'task-due-soon';
                                 }
-
-                                // メモがある場合はホバー可能クラスを追加
                                 $hoverClass = !empty($task->description) ? 'task-row-hoverable' : '';
                             @endphp
                             <li class="list-group-item {{ $itemClass }} {{ $hoverClass }}"
@@ -258,42 +266,45 @@
                                 <div class="d-flex justify-content-between align-items-center">
                                     <div>
                                         <a href="{{ route('projects.tasks.edit', [$task->project, $task]) }}"
-                                           class="{{ !empty($task->description) ? 'task-name-with-description' : '' }}">
+                                           class="{{ !empty($task->description) ? 'task-name-with-description' : '' }} mb-1">
                                             {{ $task->name }}
                                         </a>
-                                        <span class="ms-2 small text-muted">
-                                            {{ $task->character->name ?? '' }}
-                                        </span>
+                                        <span class="ms-2 small text-muted character-name-mobile-hide">{{ $task->character->name ?? '' }}</span>
                                         <div class="small">
-                                            @if($task->end_date && $task->end_date < $now && $task->status !== 'completed' && $task->status !== 'cancelled')
-                                                <span class="text-danger">
-                                                    <i class="fas fa-exclamation-circle"></i>
-                                                    {{ $task->end_date->format('Y/m/d') }} ({{ $task->end_date->diffForHumans() }})
-                                                </span>
-                                            @elseif($daysUntilDue !== null && $daysUntilDue >= 0 && $daysUntilDue <= 2 && $task->status !== 'completed' && $task->status !== 'cancelled')
-                                                <span class="text-warning">
-                                                    <i class="fas fa-exclamation-triangle"></i>
-                                                    {{ $task->end_date->format('Y/m/d') }} ({{ $task->end_date->diffForHumans() }})
-                                                </span>
-                                            @else
-                                                <span class="text-muted">
-                                                    {{ optional($task->end_date)->format('Y/m/d') }} {{ $task->end_date ? '(' . $task->end_date->diffForHumans() . ')' : '' }}
-                                                </span>
-                                            @endif
+                                            <span class="assignee-mobile-show small text-muted">担当: {{ $task->assignee ?? '-' }}</span>
+                                            <span class="due-date-mobile-hide">
+                                                @if($task->end_date && $task->end_date < $now && $task->status !== 'completed' && $task->status !== 'cancelled')
+                                                    <span class="text-danger">
+                                                        <i class="fas fa-exclamation-circle"></i>
+                                                        {{ $task->end_date->format('Y/m/d') }} ({{ $task->end_date->diffForHumans() }})
+                                                    </span>
+                                                @elseif($daysUntilDue !== null && $daysUntilDue >= 0 && $daysUntilDue <= 2 && $task->status !== 'completed' && $task->status !== 'cancelled')
+                                                    <span class="text-warning">
+                                                        <i class="fas fa-exclamation-triangle"></i>
+                                                        {{ $task->end_date->format('Y/m/d') }} ({{ $task->end_date->diffForHumans() }})
+                                                    </span>
+                                                @else
+                                                    <span class="text-muted">
+                                                        {{ optional($task->end_date)->format('Y/m/d') }} {{ $task->end_date ? '(' . $task->end_date->diffForHumans() . ')' : '' }}
+                                                    </span>
+                                                @endif
+                                            </span>
                                         </div>
                                     </div>
-                                    @if(!$task->is_folder)
-                                    <select class="form-select form-select-sm task-status-select"
-                                            style="width: auto;"
-                                            data-task-id="{{ $task->id }}"
-                                            data-project-id="{{ $task->project->id }}">
-                                        <option value="not_started" {{ $task->status === 'not_started' ? 'selected' : '' }}>未着手</option>
-                                        <option value="in_progress" {{ $task->status === 'in_progress' ? 'selected' : '' }}>進行中</option>
-                                        <option value="completed" {{ $task->status === 'completed' ? 'selected' : '' }}>完了</option>
-                                        <option value="on_hold" {{ $task->status === 'on_hold' ? 'selected' : '' }}>保留中</option>
-                                        <option value="cancelled" {{ $task->status === 'cancelled' ? 'selected' : '' }}>キャンセル</option>
-                                    </select>
-                                    @endif
+                                    <div class="status-select-mobile-hide">
+                                         @if(!$task->is_folder)
+                                        <select class="form-select form-select-sm task-status-select"
+                                                style="width: auto;"
+                                                data-task-id="{{ $task->id }}"
+                                                data-project-id="{{ $task->project->id }}">
+                                            <option value="not_started" {{ $task->status === 'not_started' ? 'selected' : '' }}>未着手</option>
+                                            <option value="in_progress" {{ $task->status === 'in_progress' ? 'selected' : '' }}>進行中</option>
+                                            <option value="completed" {{ $task->status === 'completed' ? 'selected' : '' }}>完了</option>
+                                            <option value="on_hold" {{ $task->status === 'on_hold' ? 'selected' : '' }}>保留中</option>
+                                            <option value="cancelled" {{ $task->status === 'cancelled' ? 'selected' : '' }}>キャンセル</option>
+                                        </select>
+                                        @endif
+                                    </div>
                                 </div>
                             </li>
                         @endforeach
@@ -332,20 +343,9 @@
                             @else
                                 @foreach($tasksInStatus as $task)
                                     @php
-                                        $itemClass = '';
-                                        $now = \Carbon\Carbon::now()->startOfDay();
-                                        $daysUntilDue = $task->end_date ? $now->diffInDays($task->end_date, false) : null;
-
-                                        if($task->end_date && $task->end_date < $now && !in_array($task->status, ['completed', 'cancelled'])) {
-                                            $itemClass = 'task-overdue';
-                                        } elseif($daysUntilDue !== null && $daysUntilDue >= 0 && $daysUntilDue <= 2 && !in_array($task->status, ['completed', 'cancelled'])) {
-                                            $itemClass = 'task-due-soon';
-                                        }
-
-                                        // メモがある場合はホバー可能クラスを追加
                                         $hoverClass = !empty($task->description) ? 'task-row-hoverable' : '';
                                     @endphp
-                                    <div class="todo-item {{ $itemClass }} {{ $hoverClass }} d-flex align-items-center"
+                                    <div class="todo-item {{ $hoverClass }} d-flex align-items-center"
                                          @if(!empty($task->description))
                                              data-task-description="{{ htmlspecialchars($task->description) }}"
                                          @endif>
@@ -357,19 +357,15 @@
                                                class="{{ !empty($task->description) ? 'task-name-with-description' : '' }}">
                                                 {{ $task->name }}
                                             </a>
-                                            <small class="text-muted d-block">
+                                            <small class="text-muted d-block character-name-mobile-hide">
                                                 {{ $task->character->name ?? '案件全体' }}
-                                                @if($task->assignee)
-                                                <span class="ms-1 text-truncate" style="max-width: 100px;">({{ $task->assignee }})</span>
-                                                @endif
                                             </small>
                                             <div class="todo-project">
-                                                @if($task->created_at)
-                                                    <small class="text-muted">作成日: {{ $task->created_at->format('Y/m/d') }}</small>
-                                                @endif
+                                                <small class="text-muted">担当: {{ $task->assignee ?? '-' }}</small>
+                                                <small class="text-muted created-at-mobile-hide ms-2">作成日: {{ $task->created_at ? $task->created_at->format('Y/m/d') : '-'}}</small>
                                             </div>
                                         </div>
-                                        <div class="todo-actions">
+                                        <div class="todo-actions status-select-mobile-hide">
                                             @if(!$task->is_folder)
                                             <select class="form-select form-select-sm task-status-select"
                                                     data-task-id="{{ $task->id }}"
@@ -393,7 +389,6 @@
     </div>
 </div>
 
-<!-- ツールチップ要素 -->
 <div id="taskDescriptionTooltip" class="task-description-tooltip"></div>
 @endsection
 
@@ -416,8 +411,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 progress = 0;
             } else if (status === 'in_progress') {
                 progress = (taskItem && taskItem.dataset.progress) ? parseInt(taskItem.dataset.progress) : 10;
-                if (progress === 100) progress = 10;
-                if (progress === 0 && status === 'in_progress') progress = 10;
+                if (progress === 100) progress = 10; // 完了から進行中に戻したら10%
+                if (progress === 0 && status === 'in_progress') progress = 10; // 未着手から進行中にしたら10%
             }
 
             fetch(`/projects/${projectId}/tasks/${taskId}/progress`, {
@@ -431,7 +426,7 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    location.reload();
+                    location.reload(); // ページをリロードして表示を更新
                 } else {
                     alert('ステータスの更新に失敗しました。\n' + (data.message || ''));
                 }

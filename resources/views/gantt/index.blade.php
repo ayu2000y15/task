@@ -51,7 +51,7 @@
                 <table class="table table-bordered" id="ganttTable">
                     <thead class="gantt-header">
                         <tr>
-                            <th rowspan="2" class="gantt-sticky-col" style="min-width: 400px; vertical-align: top;">工程</th>
+                            <th rowspan="2" class="gantt-sticky-col" style="vertical-align: top;">工程</th>
                             <th rowspan="2" class="detail-column" style="min-width: 100px; vertical-align: top;">担当者</th>
                             <th rowspan="2" class="detail-column" style="min-width: 80px; vertical-align: top;">工数</th>
                             <th rowspan="2" class="detail-column" style="min-width: 120px; vertical-align: top;">開始日</th>
@@ -574,6 +574,48 @@
         }
 
         /* ▲ Dropzoneカスタムスタイル ▲ */
+
+        /* --- ガントチャート 工程名折り返し対応 --- */
+        .gantt-sticky-col .task-name a,
+        /* 案件ヘッダー行の案件名リンク */
+        .gantt-sticky-col .task-name-column a,
+        /* 通常工程の工程名リンク */
+        .gantt-sticky-col .task-name-column>span:not([class*="icon"]):not(.badge):not(.toggle-children)
+
+        /* フォルダ名やマイルストーン名など、リンクではないテキスト */
+            {
+            white-space: normal;
+            /* テキストの折り返しを許可 */
+            word-break: break-word;
+            /* 必要に応じて単語の途中でも改行 */
+            overflow: visible;
+            /* overflow:hiddenによる切り捨てを解除 */
+            text-overflow: clip;
+            /* ellipsis(...)表示を解除 */
+            max-width: none;
+            /* max-widthによる制限を解除 */
+            display: inline;
+            /* アイコン等と自然に並ぶように */
+        }
+
+        /* 工程名全体のコンテナも折り返しに対応させる */
+        .gantt-sticky-col .task-name,
+        .gantt-sticky-col .task-name-column {
+            white-space: normal;
+            /* 親要素も折り返しを許可 */
+            overflow: visible;
+        }
+
+        /* 折り返しによる高さ変更時の垂直アラインメント調整 */
+        .gantt-sticky-col>.d-flex.justify-content-between,
+        /* td直下のflexコンテナ */
+        .gantt-sticky-col .task-name-column.d-flex
+
+        /* 工程名とアイコンのflexコンテナ */
+            {
+            align-items: flex-start;
+            /* 上揃えにする */
+        }
     </style>
 @endsection
 

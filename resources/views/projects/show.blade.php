@@ -468,6 +468,21 @@
                 flex-wrap: wrap;
                 gap: 10px;
             }
+
+            .mobile-hide {
+                display: none !important;
+            }
+            /* 担当者名は残すため、特別に表示する */
+            .mobile-show-assignee {
+                display: table-cell !important; /* テーブルセルの場合 */
+            }
+            /* ホーム画面のリストアイテム用 */
+            .list-item-mobile-hide {
+                display: none !important;
+            }
+            .list-item-assignee-mobile {
+                display: inline-block !important; /* または block, inline など適切に */
+            }
         }
 
         @media (max-width: 576px) {
@@ -904,8 +919,8 @@
                                                                         <th width="30"></th>
                                                                         <th>工程名</th>
                                                                         <th>担当者</th>
-                                                                        <th>期間</th>
-                                                                        <th>工数</th>
+                                                                        <th class="mobile-hide">期間</th>
+                                                                        <th class="mobile-hide">工数</th>
                                                                         <th><i class="fas fa-edit"></i></th>
                                                                     </tr>
                                                                 </thead>
@@ -946,12 +961,12 @@
                                                                         <td>
                                                                             <span class="text-muted">{{ $task->assignee ?? '-' }}</span>
                                                                         </td>
-                                                                        <td class="small">
+                                                                        <td class="mobile-hide small">
                                                                             {{ $task->start_date ? $task->start_date->format('m/d') : '-' }}
                                                                             ~
                                                                             {{ $task->end_date ? $task->end_date->format('m/d') : '-' }}
                                                                         </td>
-                                                                        <td>
+                                                                        <td class="mobile-hide">
                                                                             <span class="text-muted">{{ $task->is_folder ? '-' : ($task->duration ? $task->duration . '日' : '-') }}</span>
                                                                         </td>
                                                                         <td><a href="{{ route('projects.tasks.edit', [$project, $task]) }}" class="btn btn-xs btn-outline-primary"><i class="fas fa-edit"></i></a></td>

@@ -23,6 +23,23 @@
     .table th.col-task-name, .table td.col-task-name {
         width: 30%;
     }
+    @media(max-width: 768px) {
+        .mobile-hide {
+            display: none !important;
+        }
+        /* 担当者名は残すため、特別に表示する */
+        .mobile-show-assignee {
+            display: table-cell !important; /* テーブルセルの場合 */
+        }
+        /* ホーム画面のリストアイテム用 */
+        .list-item-mobile-hide {
+            display: none !important;
+        }
+        .list-item-assignee-mobile {
+            display: inline-block !important; /* または block, inline など適切に */
+        }
+    }
+
 </style>
 @endsection
 
@@ -96,10 +113,10 @@
                                     <th class="col-task-name">工程名</th>
                                     <th>キャラクター</th>
                                     <th>担当者</th>
-                                    <th>開始日</th>
-                                    <th>終了日</th>
-                                    <th>工数</th>
-                                    <th>ステータス</th>
+                                    <th class="mobile-hide">開始日</th>
+                                    <th class="mobile-hide">終了日</th>
+                                    <th class="mobile-hide">工数</th>
+                                    <th class="mobile-hide">ステータス</th>
                                     <th>操作</th>
                                 </tr>
                             </thead>
@@ -182,7 +199,7 @@
                                                             class="text-decoration-none {{ !empty($task->description) ? 'task-name-with-description' : '' }}">{{ $task->name }}</a>
                                                         @if($task->end_date && $task->end_date < $now && !in_array($task->status, ['completed', 'cancelled']))
                                                             <span class="ms-2 badge bg-danger">期限切れ</span>
-                                                        @elseif($daysUntilDue !== null && $daysUntilDue >= 0 && $daysUntilDue <= 2 && !in_array($task->status, ['completed', 'cancelled']))
+                                                        @elseif(!$task->is_folder && !$task->is_milestone && $daysUntilDue !== null && $daysUntilDue >=0 && $daysUntilDue <= 2 && !in_array($task->status, ['completed', 'cancelled']))
                                                             <span class="ms-2 badge bg-warning text-dark">あと{{ $daysUntilDue }}日</span>
                                                         @endif
                                                     </div>
@@ -202,8 +219,8 @@
                                                         data-project-id="{{ $task->project->id }}">
                                                 </div>
                                             </td>
-                                            <td>{{ optional($task->start_date)->format('Y/m/d') }}</td>
-                                            <td>
+                                            <td class="mobile-hide">{{ optional($task->start_date)->format('Y/m/d') }}</td>
+                                            <td class="mobile-hide">
                                                 @if($task->end_date && $task->end_date < $now && !in_array($task->status, ['completed', 'cancelled']))
                                                     <span class="text-danger">
                                                         <i class="fas fa-exclamation-circle"></i>
@@ -218,8 +235,8 @@
                                                     {{ optional($task->end_date)->format('Y/m/d') }}
                                                 @endif
                                             </td>
-                                            <td>{{ $task->duration }}日</td>
-                                            <td>
+                                            <td class="mobile-hide">{{ $task->duration }}日</td>
+                                            <td class="mobile-hide">
                                                 <select class="form-select form-select-sm task-status-select"
                                                     data-task-id="{{ $task->id }}" data-project-id="{{ $task->project->id }}">
                                                     <option value="not_started" {{ $task->status === 'not_started' ? 'selected' : '' }}>未着手</option>
@@ -271,8 +288,8 @@
                                     <th class="col-project"></th>
                                     <th class="col-task-name">重要納期名</th>
                                     <th>キャラクター</th>
-                                    <th>日付</th>
-                                    <th>ステータス</th>
+                                    <th class="mobile-hide">日付</th>
+                                    <th class="mobile-hide">ステータス</th>
                                     <th>操作</th>
                                 </tr>
                             </thead>
@@ -326,7 +343,7 @@
                                             <td>
                                                 {{ $milestone->character->name ?? '-' }}
                                             </td>
-                                            <td>
+                                            <td class="mobile-hide">
                                                 @if($milestone->end_date && $milestone->end_date < $now && $milestone->status !== 'completed' && $milestone->status !== 'cancelled')
                                                     <span class="text-danger">
                                                         <i class="fas fa-exclamation-circle"></i>
@@ -341,7 +358,7 @@
                                                     {{ optional($milestone->end_date)->format('Y/m/d') }}
                                                 @endif
                                             </td>
-                                            <td>
+                                            <td class="mobile-hide">
                                                 <select class="form-select form-select-sm task-status-select"
                                                     data-task-id="{{ $milestone->id }}"
                                                     data-project-id="{{ $milestone->project->id }}">

@@ -7,17 +7,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>衣装案件管理 - @yield('title')</title>
-    <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
         integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw=="
         crossorigin="anonymous" referrerpolicy="no-referrer" />
-    <!-- カラーピッカー -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/themes/classic.min.css">
-    <!-- jQuery UI CSS -->
     <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
-    <!-- FullCalendar CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css">
     <style>
         :root {
@@ -753,6 +748,58 @@
             height: 12px;
         }
 
+        /* --- ガントチャートのレスポンシブ対応 --- */
+        .gantt-sticky-col {
+            width: 350px;
+            min-width: 350px;
+            transition: width 0.3s ease, min-width 0.3s ease;
+        }
+
+        .task-name-column {
+            /* CSS変数を使用してインデントを制御 */
+            --base-padding: 15px;
+            --indent-size: 20px;
+            --char-indent-size: 20px;
+            padding-left: calc(var(--base-padding) + (var(--level, 0) * var(--indent-size)) + (var(--char-level, 0) * var(--char-indent-size)));
+        }
+
+        .gantt-sticky-col .task-name-column,
+        .gantt-sticky-col .task-name {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* 768px以下のスクリーンサイズに適用 */
+        @media (max-width: 768px) {
+            .gantt-sticky-col {
+                position: static;
+                /* 固定を解除 */
+                width: auto;
+                min-width: auto;
+                border-right: none;
+                /* 右側の境界線を削除 */
+            }
+
+            .gantt-header th {
+                z-index: auto;
+                /* z-indexをリセット */
+            }
+
+            .task-name-column {
+                /* モバイルでのインデントを詰める */
+                --base-padding: 5px;
+                --indent-size: 15px;
+                --char-indent-size: 10px;
+            }
+
+            /* 横スクロール可能であることを示唆する影 */
+            .gantt-container {
+                -webkit-box-shadow: inset -10px 0px 8px -8px rgba(0, 0, 0, 0.1);
+                box-shadow: inset -10px 0px 8px -8px rgba(0, 0, 0, 0.1);
+            }
+        }
+
         /* ステータスカラーバーのスタイル */
         .status-color-bar {
             display: inline-block;
@@ -785,12 +832,10 @@
 </head>
 
 <body>
-    <!-- モバイル用サイドバートグルボタン -->
     <button class="toggle-sidebar" id="toggleSidebar">
         <i class="fas fa-bars"></i>
     </button>
 
-    <!-- サイドバー -->
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <h5 class="mb-0">衣装案件管理</h5>
@@ -836,9 +881,7 @@
         </div>
     </div>
 
-    <!-- メインコンテンツ -->
     <div class="main-content">
-        <!-- メインナビゲーション -->
         <div class="d-flex justify-content-between">
             <ul class="nav nav-tabs main-nav">
                 @can('viewAny', App\Models\Project::class)
@@ -927,7 +970,7 @@
                             </a>
                             <a class="dropdown-item" href="{{ route('logout') }}"
                                 onclick="event.preventDefault();
-                                                                                                                                                                                                                                     document.getElementById('logout-form').submit();">
+                                                                                                                                                                                                                                                                             document.getElementById('logout-form').submit();">
                                 ログアウト
                             </a>
 
@@ -939,7 +982,6 @@
                 @endguest
             </ul>
         </div>
-        <!-- フラッシュメッセージ -->
         @if(session('success'))
             <div class="alert alert-success alert-dismissible fade show" role="alert">
                 {{ session('success') }}
@@ -954,19 +996,13 @@
             </div>
         @endif
 
-        <!-- メインコンテンツ -->
         @yield('content')
     </div>
 
-    <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <!-- jQuery UI -->
     <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
-    <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- カラーピッカー -->
     <script src="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/pickr.min.js"></script>
-    <!-- FullCalendar -->
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/locales-all.min.js"></script>
 
@@ -995,6 +1031,8 @@
                 sidebar.classList.remove('show');
             }
         });
+
+
     </script>
 
     @yield('scripts')
