@@ -3,34 +3,63 @@
     "file": "assets/dropzone-DnLKvtV7.js",
     "name": "dropzone"
   },
+  "_sortable.esm-C83syoBY.js": {
+    "file": "assets/sortable.esm-C83syoBY.js",
+    "name": "sortable.esm"
+  },
   "resources/css/app.css": {
-    "file": "assets/app-pCT-x9m5.css",
+    "file": "assets/app-CuFvF7fE.css",
     "src": "resources/css/app.css",
     "isEntry": true
   },
+  "resources/js/admin/feedback-categories-sortable.js": {
+    "file": "assets/feedback-categories-sortable-DR_p7jmC.js",
+    "name": "feedback-categories-sortable",
+    "src": "resources/js/admin/feedback-categories-sortable.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "_sortable.esm-C83syoBY.js",
+      "resources/js/app.js"
+    ]
+  },
   "resources/js/admin/form-definitions-sortable.js": {
-    "file": "assets/form-definitions-sortable-bUTn1scU.js",
+    "file": "assets/form-definitions-sortable-CwrRYlZp.js",
     "name": "form-definitions-sortable",
     "src": "resources/js/admin/form-definitions-sortable.js",
-    "isDynamicEntry": true
+    "isDynamicEntry": true,
+    "imports": [
+      "_sortable.esm-C83syoBY.js"
+    ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-C99uIeTS.js",
+    "file": "assets/app-D0orqVx1.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
     "dynamicImports": [
+      "resources/js/page-specific/admin-feedbacks-index.js",
       "resources/js/page-specific/tasks-index.js",
       "resources/js/page-specific/projects-show.js",
       "resources/js/page-specific/projects-form.js",
       "resources/js/page-specific/tasks-form.js",
       "resources/js/page-specific/tasks-edit-dropzone.js",
+      "resources/js/page-specific/admin-feedbacks-index.js",
+      "resources/js/admin/feedback-categories-sortable.js",
       "resources/js/page-specific/gantt-chart.js",
       "resources/js/admin/form-definitions-sortable.js"
     ]
   },
+  "resources/js/page-specific/admin-feedbacks-index.js": {
+    "file": "assets/admin-feedbacks-index-zNcHnDyn.js",
+    "name": "admin-feedbacks-index",
+    "src": "resources/js/page-specific/admin-feedbacks-index.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/app.js"
+    ]
+  },
   "resources/js/page-specific/gantt-chart.js": {
-    "file": "assets/gantt-chart-Dn-gs2iv.js",
+    "file": "assets/gantt-chart-oPqVjc2y.js",
     "name": "gantt-chart",
     "src": "resources/js/page-specific/gantt-chart.js",
     "isDynamicEntry": true,
@@ -46,7 +75,7 @@
     "isDynamicEntry": true
   },
   "resources/js/page-specific/projects-show.js": {
-    "file": "assets/projects-show-1gfs38TW.js",
+    "file": "assets/projects-show-6daHJ_53.js",
     "name": "projects-show",
     "src": "resources/js/page-specific/projects-show.js",
     "isDynamicEntry": true,
@@ -70,7 +99,7 @@
     "isDynamicEntry": true
   },
   "resources/js/page-specific/tasks-index.js": {
-    "file": "assets/tasks-index-DfbqO92_.js",
+    "file": "assets/tasks-index-BtVYNi2H.js",
     "name": "tasks-index",
     "src": "resources/js/page-specific/tasks-index.js",
     "isDynamicEntry": true,
