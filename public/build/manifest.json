@@ -4,12 +4,18 @@
     "name": "dropzone"
   },
   "resources/css/app.css": {
-    "file": "assets/app-1sEevLA4.css",
+    "file": "assets/app-pCT-x9m5.css",
     "src": "resources/css/app.css",
     "isEntry": true
   },
+  "resources/js/admin/form-definitions-sortable.js": {
+    "file": "assets/form-definitions-sortable-bUTn1scU.js",
+    "name": "form-definitions-sortable",
+    "src": "resources/js/admin/form-definitions-sortable.js",
+    "isDynamicEntry": true
+  },
   "resources/js/app.js": {
-    "file": "assets/app-BHqKxE5M.js",
+    "file": "assets/app-C99uIeTS.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
@@ -19,11 +25,12 @@
       "resources/js/page-specific/projects-form.js",
       "resources/js/page-specific/tasks-form.js",
       "resources/js/page-specific/tasks-edit-dropzone.js",
-      "resources/js/page-specific/gantt-chart.js"
+      "resources/js/page-specific/gantt-chart.js",
+      "resources/js/admin/form-definitions-sortable.js"
     ]
   },
   "resources/js/page-specific/gantt-chart.js": {
-    "file": "assets/gantt-chart-C-WY2RYQ.js",
+    "file": "assets/gantt-chart-Dn-gs2iv.js",
     "name": "gantt-chart",
     "src": "resources/js/page-specific/gantt-chart.js",
     "isDynamicEntry": true,
@@ -39,7 +46,7 @@
     "isDynamicEntry": true
   },
   "resources/js/page-specific/projects-show.js": {
-    "file": "assets/projects-show-CB16M_-w.js",
+    "file": "assets/projects-show-1gfs38TW.js",
     "name": "projects-show",
     "src": "resources/js/page-specific/projects-show.js",
     "isDynamicEntry": true,
@@ -63,7 +70,7 @@
     "isDynamicEntry": true
   },
   "resources/js/page-specific/tasks-index.js": {
-    "file": "assets/tasks-index-gS0nbDgF.js",
+    "file": "assets/tasks-index-DfbqO92_.js",
     "name": "tasks-index",
     "src": "resources/js/page-specific/tasks-index.js",
     "isDynamicEntry": true,
