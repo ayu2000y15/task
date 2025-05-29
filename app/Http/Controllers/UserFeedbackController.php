@@ -17,7 +17,7 @@ class UserFeedbackController extends Controller
     {
         $this->authorize('create', Feedback::class);
 
-        $activeCategories = FeedbackCategory::where('is_active', true)->orderBy('display_order')->pluck('name', 'id');
+        $activeCategories = FeedbackCategory::where('is_active', true)->orderBy('name')->pluck('name', 'id');
         $categoryOptions = ['' => '選択してください'] + $activeCategories->all();
 
         return view('user_feedbacks.create', ['categories' => $categoryOptions]);
@@ -28,18 +28,18 @@ class UserFeedbackController extends Controller
         $this->authorize('create', Feedback::class);
 
         $validator = Validator::make($request->all(), [
-            'submitter_name' => 'required|string|max:255', // ★ お名前フィールドを必須に変更
+            // 'submitter_name' のバリデーションを削除
             'title' => 'required|string|max:255',
-            'feedback_category_id' => 'required|exists:feedback_categories,id', // ★ カテゴリを必須に変更
+            'feedback_category_id' => 'required|exists:feedback_categories,id',
             'email' => 'nullable|email|max:255',
             'phone' => 'nullable|string|max:20',
             'content' => 'required|string|max:5000',
             'images' => 'nullable|array|max:5',
             'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:5120',
         ], [
-            'submitter_name.required' => 'お名前は必須です。', // ★ お名前のバリデーションメッセージ
+            // 'submitter_name.required' のメッセージを削除
             'title.required' => 'タイトルは必須です。',
-            'feedback_category_id.required' => 'カテゴリを選択してください。', // ★ カテゴリのバリデーションメッセージ
+            'feedback_category_id.required' => 'カテゴリを選択してください。',
             'content.required' => '内容は必須です。',
             'images.max' => 'アップロードできる画像は5枚までです。',
             'images.*.image' => '画像ファイルを選択してください。',
@@ -53,13 +53,13 @@ class UserFeedbackController extends Controller
                 ->withInput();
         }
 
-        $validatedData = $validator->validated();
+        $validatedData = $validator->validated(); // ここには submitter_name は含まれない
 
         $feedback = new Feedback();
         $feedback->user_id = Auth::id();
-        $feedback->user_name = $validatedData['submitter_name']; // ★ フォームからのお名前に変更
+        $feedback->user_name = Auth::user()->name; // ★ 常にログインユーザーの名前に戻す
         $feedback->title = $validatedData['title'];
-        $feedback->feedback_category_id = $validatedData['feedback_category_id']; // 必須なので空チェックは不要
+        $feedback->feedback_category_id = $validatedData['feedback_category_id'];
         $feedback->email = $validatedData['email'] ?? null;
         $feedback->phone = $validatedData['phone'] ?? null;
         $feedback->content = $validatedData['content'];
