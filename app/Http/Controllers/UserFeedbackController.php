@@ -17,7 +17,7 @@ class UserFeedbackController extends Controller
     {
         $this->authorize('create', Feedback::class);
 
-        $activeCategories = FeedbackCategory::where('is_active', true)->orderBy('name')->pluck('name', 'id');
+        $activeCategories = FeedbackCategory::where('is_active', true)->orderBy('display_order')->pluck('name', 'id');
         $categoryOptions = ['' => '選択してください'] + $activeCategories->all();
 
         return view('user_feedbacks.create', ['categories' => $categoryOptions]);
