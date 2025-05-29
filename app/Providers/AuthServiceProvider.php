@@ -14,6 +14,10 @@ use App\Policies\ProcessTemplatePolicy; // 追加
 use App\Policies\RolePolicy; // 追加
 use App\Models\FormFieldDefinition; // 追加
 use App\Policies\FormFieldDefinitionPolicy; // 追加
+use App\Models\Feedback; // 追加
+use App\Policies\FeedbackPolicy; // 追加
+use App\Models\FeedbackCategory; // 追加
+use App\Policies\FeedbackCategoryPolicy; // 追加
 
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
@@ -31,7 +35,9 @@ class AuthServiceProvider extends ServiceProvider
         User::class => UserPolicy::class, // 追加
         ProcessTemplate::class => ProcessTemplatePolicy::class, // 追加
         Role::class => RolePolicy::class, // 追加
-        FormFieldDefinition::class => FormFieldDefinitionPolicy::class
+        FormFieldDefinition::class => FormFieldDefinitionPolicy::class,
+        Feedback::class => FeedbackPolicy::class, // ★ 追加
+        FeedbackCategory::class => FeedbackCategoryPolicy::class, // ★ 追加
     ];
 
 

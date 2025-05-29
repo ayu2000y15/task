@@ -5,6 +5,7 @@ namespace App\Providers;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\View; // Viewファサードをuse
 use App\View\Composers\SidebarComposer;
+use App\View\Composers\UnreadFeedbackComposer;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -23,5 +24,6 @@ class AppServiceProvider extends ServiceProvider
     {
         //
         View::composer('layouts.app', SidebarComposer::class);
+        View::composer(['layouts.app', 'admin.*'], UnreadFeedbackComposer::class);
     }
 }

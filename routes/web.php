@@ -14,6 +14,10 @@ use App\Http\Controllers\ProcessTemplateController;
 use App\Http\Controllers\CharacterController;
 use App\Http\Controllers\Admin\FormFieldDefinitionController;
 use App\Http\Controllers\ExternalFormController;
+// フィードバック機能で追加するコントローラー
+use App\Http\Controllers\UserFeedbackController;
+use App\Http\Controllers\Admin\FeedbackController as AdminFeedbackController;
+use App\Http\Controllers\Admin\FeedbackCategoryController as AdminFeedbackCategoryController;
 
 Route::middleware('auth')->group(function () {
     // ホーム
@@ -25,10 +29,10 @@ Route::middleware('auth')->group(function () {
     // 担当者更新用のルート
     Route::post('/projects/{project}/tasks/{task}/assignee', [TaskController::class, 'updateAssignee'])->name('projects.tasks.assignee');
     // プロジェクトフラグ更新用ルート
-    Route::patch('/projects/{project}/delivery-flag', [App\Http\Controllers\ProjectController::class, 'updateDeliveryFlag'])->name('projects.updateDeliveryFlag');
-    Route::patch('/projects/{project}/payment-flag', [App\Http\Controllers\ProjectController::class, 'updatePaymentFlag'])->name('projects.updatePaymentFlag');
+    Route::patch('/projects/{project}/delivery-flag', [ProjectController::class, 'updateDeliveryFlag'])->name('projects.updateDeliveryFlag');
+    Route::patch('/projects/{project}/payment-flag', [ProjectController::class, 'updatePaymentFlag'])->name('projects.updatePaymentFlag');
     // プロジェクトステータス更新用ルート (必要であれば、手動更新用)
-    Route::patch('/projects/{project}/status', [App\Http\Controllers\ProjectController::class, 'updateStatus'])->name('projects.updateStatus');
+    Route::patch('/projects/{project}/status', [ProjectController::class, 'updateStatus'])->name('projects.updateStatus');
 
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -37,16 +41,12 @@ Route::middleware('auth')->group(function () {
 
     // 工程
     Route::get('tasks', [TaskController::class, 'index'])->name('tasks.index');
-    // Route::get('tasks/export', [TaskController::class, 'export'])->name('tasks.export'); // exportメソッドが見当たらないためコメントアウト
     Route::resource('projects.tasks', TaskController::class)->except(['index']);
     Route::post('/projects/{project}/tasks/from-template', [TaskController::class, 'storeFromTemplate'])->name('projects.tasks.fromTemplate');
     Route::post('projects/{project}/tasks/{task}/progress', [TaskController::class, 'updateProgress'])->name('tasks.update_progress');
     Route::post('tasks/update-position', [TaskController::class, 'updatePosition'])->name('tasks.update_position');
     Route::post('tasks/update-parent', [TaskController::class, 'updateParent'])->name('tasks.update_parent');
-
     Route::post('/projects/{project}/tasks/{task}/assignee', [TaskController::class, 'updateAssignee'])->name('tasks.assignee');
-
-    // 工程のメモ更新用ルート
     Route::patch('projects/{project}/tasks/{task}/description', [TaskController::class, 'updateDescription'])->name('projects.tasks.description.update');
 
     // ファイル関連のルート
@@ -61,7 +61,7 @@ Route::middleware('auth')->group(function () {
 
     // カレンダー
     Route::get('calendar', [CalendarController::class, 'index'])->name('calendar.index');
-    // Breezeが生成したプロファイルルート
+
     Route::get('/profile', [\App\Http\Controllers\ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [\App\Http\Controllers\ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [\App\Http\Controllers\ProfileController::class, 'destroy'])->name('profile.destroy');
@@ -82,31 +82,49 @@ Route::middleware('auth')->group(function () {
     // 工程テンプレート管理
     Route::resource('process-templates', ProcessTemplateController::class);
     Route::post('process-templates/{processTemplate}/items', [ProcessTemplateController::class, 'storeItem'])->name('process-templates.items.store');
-    // Route::put('process-templates/{processTemplate}/items/{item}', [ProcessTemplateController::class, 'updateItem'])->name('process-templates.items.update'); // 今回はシンプルにするため更新は省略
     Route::delete('process-templates/{processTemplate}/items/{item}', [ProcessTemplateController::class, 'destroyItem'])->name('process-templates.items.destroy');
 
     // キャラクター管理 (案件詳細ページ内で処理の起点、編集は別ページ)
-    Route::resource('projects.characters', CharacterController::class)->except(['index', 'show', 'create'])->shallow();;
+    Route::resource('projects.characters', CharacterController::class)->except(['index', 'show', 'create'])->shallow();
     Route::get('/projects/{project}/characters/{character}/costs-partial', [CharacterController::class, 'getCharacterCostsPartial'])->name('projects.characters.costs.partial');
 
-    // 管理機能
+    // ユーザー管理・権限設定 (既存のルート)
     Route::get('/users', [\App\Http\Controllers\UserController::class, 'index'])->name('users.index');
     Route::get('/users/{user}/edit', [\App\Http\Controllers\UserController::class, 'edit'])->name('users.edit');
     Route::put('/users/{user}', [\App\Http\Controllers\UserController::class, 'update'])->name('users.update');
     Route::get('/roles', [\App\Http\Controllers\RolePermissionController::class, 'index'])->name('roles.index');
     Route::put('/roles/{role}', [\App\Http\Controllers\RolePermissionController::class, 'update'])->name('roles.update');
 
+    // --- ユーザー向けフィードバック機能 ---
+    Route::get('/feedback/create', [UserFeedbackController::class, 'create'])->name('user_feedbacks.create');
+    Route::post('/feedback', [UserFeedbackController::class, 'store'])->name('user_feedbacks.store');
+    // --- ここまでユーザー向けフィードバック機能 ---
+
     Route::prefix('admin')->name('admin.')->middleware(['can:viewAny,App\Models\FormFieldDefinition'])->group(function () { // 管理者用などのミドルウェアを想定
         Route::resource('form-definitions', FormFieldDefinitionController::class)
-            ->parameters(['form-definitions' => 'formFieldDefinition']) // ★ この行を追加
+            ->parameters(['form-definitions' => 'formFieldDefinition'])
             ->except(['show']);
         Route::post('/form-definitions/reorder', [FormFieldDefinitionController::class, 'reorder'])->name('form-definitions.reorder');
-    });
 
-    // 外部向け申請フォーム
-    Route::get('/costume-request', [ExternalFormController::class, 'create'])->name('external-form.create');
-    Route::post('/costume-request', [ExternalFormController::class, 'store'])->name('external-form.store');
-    Route::get('/costume-request/thanks', [ExternalFormController::class, 'thanks'])->name('external-form.thanks');
+        // --- 管理者向けフィードバック機能 ---
+        Route::get('/feedbacks', [AdminFeedbackController::class, 'index'])->name('feedbacks.index');
+        // AJAX用ルート
+        Route::patch('/feedbacks/{feedback}/status', [AdminFeedbackController::class, 'updateStatus'])->name('feedbacks.updateStatus');
+        Route::patch('/feedbacks/{feedback}/memo', [AdminFeedbackController::class, 'updateMemo'])->name('feedbacks.updateMemo');
+        Route::patch('/feedbacks/{feedback}/assignee', [AdminFeedbackController::class, 'updateAssignee'])->name('feedbacks.updateAssignee'); // ★ 担当者更新ルート追加
+
+        // フィードバックカテゴリ管理
+        Route::resource('feedback-categories', AdminFeedbackCategoryController::class)->except(['show']);
+        Route::resource('feedback-categories', AdminFeedbackCategoryController::class)->except(['show']);
+        Route::post('feedback-categories/reorder', [AdminFeedbackCategoryController::class, 'reorder'])->name('feedback-categories.reorder'); // ★ 並び替え用ルート追加
+        // --- ここまで管理者向けフィードバック機能 ---
+    });
 });
+
+// 外部向け申請フォーム (認証外)
+Route::get('/costume-request', [ExternalFormController::class, 'create'])->name('external-form.create');
+Route::post('/costume-request', [ExternalFormController::class, 'store'])->name('external-form.store');
+Route::get('/costume-request/thanks', [ExternalFormController::class, 'thanks'])->name('external-form.thanks');
+
 
 require __DIR__ . '/auth.php';

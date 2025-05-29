@@ -26,7 +26,17 @@ import {
     initializeImagePreviewModal,
 } from "./features/global-tooltips.js"; //
 import "./features/file-deleter.js"; //
-
+if (document.getElementById("feedback-table")) {
+    // feedback-table IDを持つ要素が存在するか
+    console.log("Attempting to load admin-feedbacks-index.js"); // このログが出るか
+    import("./page-specific/admin-feedbacks-index.js")
+        .then((module) => {
+            console.log("admin-feedbacks-index.js loaded successfully."); // このログが出るか
+        })
+        .catch((error) =>
+            console.error("Error loading admin-feedbacks-index.js:", error)
+        );
+}
 document.addEventListener("DOMContentLoaded", () => {
     // console.log('[APP.JS] DOMContentLoaded event fired.');
 
@@ -85,6 +95,29 @@ document.addEventListener("DOMContentLoaded", () => {
                     )
             );
         }
+
+        // Admin Feedbacks Index Page
+        if (document.getElementById("feedback-table")) {
+            import("./page-specific/admin-feedbacks-index.js").catch(
+                (
+                    error //
+                ) =>
+                    console.error(
+                        "Error loading admin-feedbacks-index.js:",
+                        error
+                    )
+            );
+        }
+    }
+
+    // Admin Feedback Categories Sortable
+    if (document.getElementById("sortable-feedback-categories")) {
+        import("./admin/feedback-categories-sortable.js").catch((error) =>
+            console.error(
+                "Error loading feedback-categories-sortable.js:",
+                error
+            )
+        );
     }
 
     if (document.getElementById("ganttTable")) {

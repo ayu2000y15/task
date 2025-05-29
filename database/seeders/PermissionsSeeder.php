@@ -56,9 +56,18 @@ class PermissionsSeeder extends Seeder
             ['name' => 'process_templates.update', 'display_name' => '工程テンプレート（登録、更新）'],
             ['name' => 'process_templates.delete', 'display_name' => '工程テンプレート（削除）'],
 
-            ['name' => 'form-definition.viewAny', 'display_name' => 'フォーム情報（閲覧）'],
-            ['name' => 'form-definition.update', 'display_name' => 'フォーム情報（登録、更新）'],
-            ['name' => 'form-definition.delete', 'display_name' => 'フォーム情報（削除）'],
+            ['name' => 'form-definition.viewAny', 'display_name' => 'カスタム項目（閲覧）'],
+            ['name' => 'form-definition.update', 'display_name' => 'カスタム項目（登録、更新）'],
+            ['name' => 'form-definition.delete', 'display_name' => 'カスタム項目（削除）'],
+
+            ['name' => 'feedback.viewAny', 'display_name' => 'フィードバック（閲覧）'],
+            ['name' => 'feedback.create', 'display_name' => 'フィードバック（登録）'],
+            ['name' => 'feedback.update', 'display_name' => 'フィードバック（更新）'],
+            ['name' => 'feedback.delete', 'display_name' => 'フィードバック（削除）'],
+
+            ['name' => 'feedback-category.viewAny', 'display_name' => 'フィードバックカテゴリ（閲覧）'],
+            ['name' => 'feedback-category.update', 'display_name' => 'フィードバックカテゴリ（更新）'],
+            ['name' => 'feedback-category.delete', 'display_name' => 'フィードバックカテゴリ（削除）'],
 
         ];
 

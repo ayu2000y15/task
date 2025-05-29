@@ -234,6 +234,11 @@
                             @can('viewAny', App\Models\FormFieldDefinition::class) {{-- ポリシーに合わせる --}}
                                 <a href="{{ route('admin.form-definitions.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">カスタム項目定義</a>
                             @endcan
+                            @can('viewAny', App\Models\Feedback::class)
+                            <a href="{{ route('admin.feedbacks.index') }}" class="flex justify-between items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
+                                フィードバック管理 @if(isset($unreadFeedbackCountGlobal) && $unreadFeedbackCountGlobal > 0)<span class="ml-auto inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-red-100 bg-red-600 rounded-full">{{ $unreadFeedbackCountGlobal }}</span>@endif
+                            </a>
+                            @endcan
                             @can('viewAny', App\Models\User::class)
                                 <a href="javascript:void(0)" onclick="copyToClipboard()" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">新規ユーザー登録リンク</a>
                                 <input type="text" value="{{ url('/register') }}" id="copyTarget" class="sr-only" aria-hidden="true">
@@ -253,6 +258,9 @@
                              class="absolute right-0 mt-2 w-48 py-1 bg-white rounded-md shadow-lg dark:bg-gray-700 ring-1 ring-black ring-opacity-5 z-50"
                              style="display: none;">
                             <a href="{{ route('profile.edit') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">プロフィール</a>
+                            @can('create', App\Models\Feedback::class)
+                            <a href="{{ route('user_feedbacks.create') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">フィードバックを送信</a>
+                            @endcan
                             <form method="POST" action="{{ route('logout') }}">
                                 @csrf
                                 <a href="{{ route('logout') }}"
