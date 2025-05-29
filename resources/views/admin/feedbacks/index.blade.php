@@ -99,7 +99,7 @@
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">{{ $feedback->id }}</td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300" title="{{ $feedback->user_name }} ({{ $feedback->user->email }})">{{ Str::limit($feedback->user_name, 15) }}</td>
-                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{{ $feedback->category->name ?? '-' }}</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 font-medium truncate" style="max-width:150px;">{{ $feedback->category->name ?? '-' }}</td>
                             <td class="px-4 py-3 text-sm text-gray-900 dark:text-gray-100 font-medium truncate" style="max-width: 200px;" title="{{ $feedback->title }}">{{ Str::limit($feedback->title, 30) }}</td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm status-cell" data-feedback-id="{{ $feedback->id }}" @click.stop>
                                 <div class="flex items-center space-x-2">
