@@ -152,7 +152,7 @@
                     </div>
 
                     {{-- プロジェクト固有の form_definitions に基づく追加情報 (カスタム項目) --}}
-                    @can('view', $project)
+                    @can('viewAny', App\Models\FormFieldDefinition::class)
                     @if(!empty($customFormFields) && count($customFormFields) > 0)
                         @if(collect($customFormFields)->isNotEmpty())
                             <hr class="dark:border-gray-600 my-3">

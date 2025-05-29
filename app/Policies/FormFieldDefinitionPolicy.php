@@ -13,7 +13,7 @@ class FormFieldDefinitionPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->hasPermissionTo('form-definition.view');
+        return $user->hasPermissionTo('form-definition.viewAny');
     }
 
     /**
@@ -22,7 +22,7 @@ class FormFieldDefinitionPolicy
      */
     public function view(User $user, FormFieldDefinition $formFieldDefinition): bool
     {
-        return $user->hasPermissionTo('form-definition.view');
+        return $user->hasPermissionTo('form-definition.viewAny');
     }
 
     /**
