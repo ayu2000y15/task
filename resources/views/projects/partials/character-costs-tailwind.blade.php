@@ -31,7 +31,7 @@
                         </td>
                         <td class="px-4 py-2 whitespace-nowrap text-gray-700 dark:text-gray-200">{{ number_format($cost->amount) }}円</td>
                         <td class="px-3 py-2 whitespace-nowrap text-right">
-                            @can('manageCosts', $project)
+                            @can('deleteCosts', $project)
                             <form action="{{ route('projects.characters.costs.destroy', [$project, $character, $cost]) }}"
                                   method="POST" onsubmit="return false;" class="delete-cost-form" data-cost-id="{{ $cost->id }}"> {{-- onsubmit="return false;" を追加 --}}
                                 @csrf @method('DELETE')

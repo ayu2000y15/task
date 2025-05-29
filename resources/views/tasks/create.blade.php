@@ -73,9 +73,11 @@
                                     <x-radio-input name="is_milestone_or_folder" id="is_task_type_milestone"
                                         value="milestone" :label="'<i class=\'fas fa-flag mr-1\'></i>重要納期'"
                                         :checked="old('is_milestone_or_folder') == 'milestone'" />
-                                    <x-radio-input name="is_milestone_or_folder" id="is_task_type_folder" value="folder"
-                                        :label="'<i class=\'fas fa-folder mr-1\'></i>フォルダ'"
-                                        :checked="old('is_milestone_or_folder') == 'folder'" />
+                                    @can('canCreateFoldersForFileUpload', App\Models\Task::class)
+                                        <x-radio-input name="is_milestone_or_folder" id="is_task_type_folder" value="folder"
+                                            :label="'<i class=\'fas fa-folder mr-1\'></i>フォルダ'"
+                                            :checked="old('is_milestone_or_folder') == 'folder'" />
+                                    @endcan
                             </div>
                         </div>
 

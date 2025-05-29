@@ -15,6 +15,36 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @yield('styles')
     @stack('styles')
+    <style>
+        /* サイドバーのプロジェクト名とアイコンのレイアウト調整用 */
+        .project-link-content {
+            display: flex;
+            justify-content: space-between; /* タイトルグループとアイコン群を両端揃え */
+            align-items: flex-start; /* 上揃え */
+            width: 100%;
+        }
+        .project-title-group {
+            display: flex;
+            align-items: center; /* アイコン(頭文字)とタイトルを縦中央揃え */
+            min-width: 0; /* トランケートが効くように */
+            flex-grow: 1; /* タイトル部分が伸びるように */
+            margin-right: 8px; /* アイコン群との間にスペース */
+        }
+        .project-title-text {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .project-status-icons-sidebar {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            flex-shrink: 0;
+        }
+        .header-main-nav a {
+            flex-shrink: 0;
+        }
+    </style>
 </head>
 <body class="font-sans antialiased text-gray-900 bg-gray-100 dark:text-gray-100 dark:bg-gray-900">
     <div x-data="{ sidebarOpen: false }">
@@ -37,13 +67,47 @@
                     </h3>
                     <div class="space-y-1">
                         @foreach($favoriteProjects as $project)
+                        @php
+                            $_projectStatusOptionsSb = ['' => '未設定'] + (\App\Models\Project::PROJECT_STATUS_OPTIONS ?? []);
+                            $_projectStatusIconsSb = [
+                                'not_started' => 'fa-minus-circle text-gray-400 dark:text-gray-500', 'in_progress' => 'fa-play-circle text-blue-400 dark:text-blue-500',
+                                'completed'   => 'fa-check-circle text-green-400 dark:text-green-500', 'on_hold'     => 'fa-pause-circle text-yellow-400 dark:text-yellow-500',
+                                'cancelled'   => 'fa-times-circle text-red-400 dark:text-red-500', '' => 'fa-question-circle text-gray-400 dark:text-gray-500',
+                            ];
+                            $_currentProjectStatusSb = $project->status ?? '';
+                            $_projectStatusTooltipSb = $_projectStatusOptionsSb[$_currentProjectStatusSb] ?? $_currentProjectStatusSb;
+                            $_projectStatusIconClassSb = $_projectStatusIconsSb[$_currentProjectStatusSb] ?? $_projectStatusIconsSb[''];
+                            $_deliveryFlagValueSb = $project->delivery_flag ?? '0';
+                            $_deliveryIconSb = $_deliveryFlagValueSb == '1' ? 'fa-check-circle text-green-400 dark:text-green-500' : 'fa-truck text-yellow-400 dark:text-yellow-500';
+                            $_deliveryTooltipSb = $_deliveryFlagValueSb == '1' ? '納品済み' : '未納品';
+                            $_paymentFlagOptionsSb = ['' => '未設定'] + (\App\Models\Project::PAYMENT_FLAG_OPTIONS ?? []);
+                            $_paymentFlagIconsSb = [
+                                'Pending'        => 'fa-clock text-yellow-400 dark:text-yellow-500', 'Processing'     => 'fa-spinner fa-spin text-blue-400 dark:text-blue-500',
+                                'Completed'      => 'fa-check-circle text-green-400 dark:text-green-500', 'Partially Paid' => 'fa-adjust text-orange-400 dark:text-orange-500',
+                                'Overdue'        => 'fa-exclamation-triangle text-red-400 dark:text-red-500', 'Cancelled'      => 'fa-ban text-gray-400 dark:text-gray-500',
+                                'Refunded'       => 'fa-undo text-purple-400 dark:text-purple-500', 'On Hold'        => 'fa-pause-circle text-indigo-400 dark:text-indigo-500',
+                                ''               => 'fa-question-circle text-gray-400 dark:text-gray-500',
+                            ];
+                            $_currentPaymentFlagSb = $project->payment_flag ?? '';
+                            $_paymentFlagTooltipSb = $_paymentFlagOptionsSb[$_currentPaymentFlagSb] ?? $_currentPaymentFlagSb;
+                            $_paymentFlagIconClassSb = $_paymentFlagIconsSb[$_currentPaymentFlagSb] ?? $_paymentFlagIconsSb[''];
+                        @endphp
                         <a href="{{ route('projects.show', $project) }}"
-                           class="flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 {{ (request()->is('projects/'.$project->id) || (isset($currentProject) && $currentProject->id == $project->id)) ? 'bg-blue-500 text-white dark:bg-blue-600' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700' }}">
-                            <span class="flex items-center justify-center w-5 h-5 mr-2 text-xs font-bold text-white rounded" style="background-color: {{ $project->color }};">
-                                {{ mb_substr($project->title, 0, 1) }}
-                            </span>
-                            <span class="truncate">{{ $project->title }}</span>
-                            <i class="fas fa-star text-yellow-400 ml-auto"></i>
+                           class="block px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 {{ (request()->is('projects/'.$project->id.'*') || (isset($currentProject) && $currentProject->id == $project->id)) ? 'bg-blue-500 text-white dark:bg-blue-600' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700' }}">
+                            <div class="project-link-content">
+                                <div class="project-title-group">
+                                    <span class="flex items-center justify-center w-5 h-5 mr-2 text-xs font-bold text-white rounded flex-shrink-0" style="background-color: {{ $project->color ?? '#6c757d' }};">
+                                        {{ mb_substr($project->title, 0, 1) }}
+                                    </span>
+                                    <span class="project-title-text" title="{{ $project->title }}">{{ $project->title }}</span>
+                                </div>
+                                <div class="project-status-icons-sidebar text-xs">
+                                    @if($project->status)<span title="ステータス: {{ $_projectStatusTooltipSb }}"><i class="fas {{ $_projectStatusIconClassSb }}"></i></span>@endif
+                                    <span title="納品: {{ $_deliveryTooltipSb }}"><i class="fas {{ $_deliveryIconSb }}"></i></span>
+                                    @if($project->payment_flag)<span title="支払い: {{ $_paymentFlagTooltipSb }}"><i class="fas {{ $_paymentFlagIconClassSb }}"></i></span>@endif
+                                    <i class="fas fa-star text-yellow-400"></i>
+                                </div>
+                            </div>
                         </a>
                         @endforeach
                     </div>
@@ -54,12 +118,46 @@
                     </h3>
                     <div class="space-y-1">
                         @foreach($normalProjects as $project)
+                        @php
+                            $_projectStatusOptionsSb = ['' => '未設定'] + (\App\Models\Project::PROJECT_STATUS_OPTIONS ?? []);
+                            $_projectStatusIconsSb = [
+                                'not_started' => 'fa-minus-circle text-gray-400 dark:text-gray-500', 'in_progress' => 'fa-play-circle text-blue-400 dark:text-blue-500',
+                                'completed'   => 'fa-check-circle text-green-400 dark:text-green-500', 'on_hold'     => 'fa-pause-circle text-yellow-400 dark:text-yellow-500',
+                                'cancelled'   => 'fa-times-circle text-red-400 dark:text-red-500', '' => 'fa-question-circle text-gray-400 dark:text-gray-500',
+                            ];
+                            $_currentProjectStatusSb = $project->status ?? '';
+                            $_projectStatusTooltipSb = $_projectStatusOptionsSb[$_currentProjectStatusSb] ?? $_currentProjectStatusSb;
+                            $_projectStatusIconClassSb = $_projectStatusIconsSb[$_currentProjectStatusSb] ?? $_projectStatusIconsSb[''];
+                            $_deliveryFlagValueSb = $project->delivery_flag ?? '0';
+                            $_deliveryIconSb = $_deliveryFlagValueSb == '1' ? 'fa-check-circle text-green-400 dark:text-green-500' : 'fa-truck text-yellow-400 dark:text-yellow-500';
+                            $_deliveryTooltipSb = $_deliveryFlagValueSb == '1' ? '納品済み' : '未納品';
+                            $_paymentFlagOptionsSb = ['' => '未設定'] + (\App\Models\Project::PAYMENT_FLAG_OPTIONS ?? []);
+                            $_paymentFlagIconsSb = [
+                                'Pending'        => 'fa-clock text-yellow-400 dark:text-yellow-500', 'Processing'     => 'fa-spinner fa-spin text-blue-400 dark:text-blue-500',
+                                'Completed'      => 'fa-check-circle text-green-400 dark:text-green-500', 'Partially Paid' => 'fa-adjust text-orange-400 dark:text-orange-500',
+                                'Overdue'        => 'fa-exclamation-triangle text-red-400 dark:text-red-500', 'Cancelled'      => 'fa-ban text-gray-400 dark:text-gray-500',
+                                'Refunded'       => 'fa-undo text-purple-400 dark:text-purple-500', 'On Hold'        => 'fa-pause-circle text-indigo-400 dark:text-indigo-500',
+                                ''               => 'fa-question-circle text-gray-400 dark:text-gray-500',
+                            ];
+                            $_currentPaymentFlagSb = $project->payment_flag ?? '';
+                            $_paymentFlagTooltipSb = $_paymentFlagOptionsSb[$_currentPaymentFlagSb] ?? $_currentPaymentFlagSb;
+                            $_paymentFlagIconClassSb = $_paymentFlagIconsSb[$_currentPaymentFlagSb] ?? $_paymentFlagIconsSb[''];
+                        @endphp
                         <a href="{{ route('projects.show', $project) }}"
-                           class="flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 {{ (request()->is('projects/'.$project->id) || (isset($currentProject) && $currentProject->id == $project->id)) ? 'bg-blue-500 text-white dark:bg-blue-600' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700' }}">
-                            <span class="flex items-center justify-center w-5 h-5 mr-2 text-xs font-bold text-white rounded" style="background-color: {{ $project->color }};">
-                                {{ mb_substr($project->title, 0, 1) }}
-                            </span>
-                            <span class="truncate">{{ $project->title }}</span>
+                           class="block px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 {{ (request()->is('projects/'.$project->id.'*') || (isset($currentProject) && $currentProject->id == $project->id)) ? 'bg-blue-500 text-white dark:bg-blue-600' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700' }}">
+                            <div class="project-link-content">
+                                <div class="project-title-group">
+                                    <span class="flex items-center justify-center w-5 h-5 mr-2 text-xs font-bold text-white rounded flex-shrink-0" style="background-color: {{ $project->color ?? '#6c757d' }};">
+                                        {{ mb_substr($project->title, 0, 1) }}
+                                    </span>
+                                    <span class="project-title-text" title="{{ $project->title }}">{{ $project->title }}</span>
+                                </div>
+                                <div class="project-status-icons-sidebar text-xs">
+                                     @if($project->status)<span title="案件ステータス: {{ $_projectStatusTooltipSb }}"><i class="fas {{ $_projectStatusIconClassSb }}"></i></span>@endif
+                                    <span title="納品状況: {{ $_deliveryTooltipSb }}"><i class="fas {{ $_deliveryIconSb }}"></i></span>
+                                    @if($project->payment_flag)<span title="支払い状況: {{ $_paymentFlagTooltipSb }}"><i class="fas {{ $_paymentFlagIconClassSb }}"></i></span>@endif
+                                </div>
+                            </div>
                         </a>
                         @endforeach
                     </div>
@@ -68,63 +166,77 @@
         </aside>
 
         <div class="flex flex-col flex-1 md:ml-64">
-            <header class="flex items-center justify-between h-16 px-4 bg-white border-b dark:bg-gray-800 dark:border-gray-700 sticky top-0 z-50"> <div class="md:hidden">
-                    <button @click="sidebarOpen = !sidebarOpen" class="text-gray-500 dark:text-gray-300 focus:outline-none">
-                        <i class="fas fa-bars w-6 h-6"></i>
-                    </button>
-                </div>
+            <header class="flex items-center justify-between h-16 px-2 sm:px-4 bg-white border-b dark:bg-gray-800 dark:border-gray-700 sticky top-0 z-50">
+                 <div class="flex items-center"> {{-- 左側グループ: ハンバーガーメニュー(モバイルのみ) --}}
+                    <div class="md:hidden">
+                        <button @click="sidebarOpen = !sidebarOpen" class="text-gray-500 dark:text-gray-300 focus:outline-none p-2">
+                            <i class="fas fa-bars w-6 h-6"></i>
+                        </button>
+                    </div>
+                 </div>
 
-                <nav class="hidden md:flex flex-grow justify-start items-center space-x-1">
+                {{-- 中央グループ: メインナビゲーションリンク --}}
+                <nav class="header-main-nav flex items-center overflow-x-auto space-x-1 md:space-x-2 md:flex-grow md:justify-start">
                     @can('viewAny', App\Models\Project::class)
-                    <a class="px-3 py-2 text-sm font-medium rounded-md {{ request()->routeIs('home.*') ? 'text-blue-600 bg-blue-100 dark:text-blue-300 dark:bg-gray-700' : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700' }}"
-                        href="{{ route('home.index') }}">
-                        <i class="fas fa-home mr-1"></i> ホーム
+                    <a class="inline-flex items-center p-2 text-sm font-medium rounded-md {{ request()->routeIs('home.*') ? 'text-blue-600 bg-blue-100 dark:text-blue-300 dark:bg-gray-700' : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700' }}"
+                        href="{{ route('home.index') }}" title="ホーム">
+                        <i class="fas fa-home"></i><span class="hidden md:inline ml-2">ホーム</span>
+                    </a>
+                    @endcan
+                    @can('viewAny', App\Models\Task::class)
+                    <a class="inline-flex items-center p-2 text-sm font-medium rounded-md {{ request()->routeIs('tasks.*') ? 'text-blue-600 bg-blue-100 dark:text-blue-300 dark:bg-gray-700' : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700' }}"
+                        href="{{ route('tasks.index') }}" title="工程">
+                        <i class="fas fa-tasks"></i><span class="hidden md:inline ml-2">工程</span>
                     </a>
                     @endcan
                     @can('viewAny', App\Models\Project::class)
-                    <a class="px-3 py-2 text-sm font-medium rounded-md {{ request()->routeIs('tasks.*') ? 'text-blue-600 bg-blue-100 dark:text-blue-300 dark:bg-gray-700' : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700' }}"
-                        href="{{ route('tasks.index') }}">
-                        <i class="fas fa-tasks mr-1"></i> 工程
+                    <a class="inline-flex items-center p-2 text-sm font-medium rounded-md {{ request()->routeIs('gantt.*') ? 'text-blue-600 bg-blue-100 dark:text-blue-300 dark:bg-gray-700' : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700' }}"
+                        href="{{ route('gantt.index') }}" title="ガントチャート">
+                        <i class="fas fa-chart-gantt"></i><span class="hidden md:inline ml-2">ガント</span>
                     </a>
                     @endcan
                     @can('viewAny', App\Models\Project::class)
-                    <a class="px-3 py-2 text-sm font-medium rounded-md {{ request()->routeIs('gantt.*') ? 'text-blue-600 bg-blue-100 dark:text-blue-300 dark:bg-gray-700' : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700' }}"
-                        href="{{ route('gantt.index') }}">
-                        <i class="fas fa-chart-gantt mr-1"></i> ガント
+                    <a class="inline-flex items-center p-2 text-sm font-medium rounded-md {{ request()->routeIs('calendar.*') ? 'text-blue-600 bg-blue-100 dark:text-blue-300 dark:bg-gray-700' : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700' }}"
+                        href="{{ route('calendar.index') }}" title="カレンダー">
+                        <i class="fas fa-calendar-alt"></i><span class="hidden md:inline ml-2">カレンダー</span>
                     </a>
                     @endcan
                     @can('viewAny', App\Models\Project::class)
-                    <a class="px-3 py-2 text-sm font-medium rounded-md {{ request()->routeIs('calendar.*') ? 'text-blue-600 bg-blue-100 dark:text-blue-300 dark:bg-gray-700' : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700' }}"
-                        href="{{ route('calendar.index') }}">
-                        <i class="fas fa-calendar-alt mr-1"></i> カレンダー
-                    </a>
-                    @endcan
-                    @can('viewAny', App\Models\Project::class)
-                    <a class="px-3 py-2 text-sm font-medium rounded-md {{ request()->routeIs('projects.*') && !request()->routeIs('projects.*.tasks.*') ? 'text-blue-600 bg-blue-100 dark:text-blue-300 dark:bg-gray-700' : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700' }}"
-                        href="{{ route('projects.index') }}">
-                        <i class="fas fa-tshirt mr-1"></i> 衣装案件
+                    <a class="inline-flex items-center p-2 text-sm font-medium rounded-md {{ (request()->routeIs('projects.*') || (isset($currentProject) && request()->is('projects/*'))) && !request()->routeIs('projects.*.tasks.*') ? 'text-blue-600 bg-blue-100 dark:text-blue-300 dark:bg-gray-700' : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700' }}"
+                        href="{{ route('projects.index') }}" title="衣装案件">
+                        <i class="fas fa-tshirt"></i><span class="hidden md:inline ml-2">衣装案件</span>
                     </a>
                     @endcan
                 </nav>
 
-                <div class="flex items-center space-x-4 pl-2">
-                    @can('viewAny', App\Models\ProcessTemplate::class)
-                    <div x-data="{ adminMenuOpen: false }" class="relative">
-                        <button @click="adminMenuOpen = !adminMenuOpen" class="flex items-center px-3 py-2 text-sm font-medium text-gray-700 rounded-md dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none">
-                            <i class="fas fa-cog mr-1"></i> 管理 <i class="fas fa-chevron-down fa-xs ml-1"></i>
+                {{-- 右側グループ: 管理・ユーザーメニュー --}}
+                <div class="flex items-center space-x-1 sm:space-x-2 pl-1 sm:pl-2">
+                    @can('viewAny', App\Models\User::class)
+                    <div x-data="{ adminMenuOpenOnHeader: false }" class="relative">
+                        <button @click="adminMenuOpenOnHeader = !adminMenuOpenOnHeader" class="flex items-center px-2 sm:px-3 py-2 text-sm font-medium text-gray-700 rounded-md dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none">
+                            <i class="fas fa-cog"></i>
+                            <span class="hidden sm:inline ml-1">管理</span>
+                            <i class="fas fa-chevron-down fa-xs ml-1"></i>
                         </button>
-                        <div x-show="adminMenuOpen" @click.away="adminMenuOpen = false"
+                        <div x-show="adminMenuOpenOnHeader" @click.away="adminMenuOpenOnHeader = false"
                              x-transition
                              class="absolute right-0 mt-2 w-48 py-1 bg-white rounded-md shadow-lg dark:bg-gray-700 ring-1 ring-black ring-opacity-5 z-50"
                              style="display: none;">
                             @can('viewAny', App\Models\User::class)
-                            <a href="{{ route('users.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">ユーザー管理</a>
+                                <a href="{{ route('users.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">ユーザー管理</a>
                             @endcan
                             @can('viewAny', App\Models\Role::class)
-                            <a href="{{ route('roles.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">権限設定</a>
+                                <a href="{{ route('roles.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">権限設定</a>
                             @endcan
                             @can('viewAny', App\Models\ProcessTemplate::class)
-                            <a href="{{ route('process-templates.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">工程テンプレート</a>
+                                <a href="{{ route('process-templates.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">工程テンプレート</a>
+                            @endcan
+                            @can('viewAny', App\Models\FormFieldDefinition::class) {{-- ポリシーに合わせる --}}
+                                <a href="{{ route('admin.form-definitions.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">カスタム項目定義</a>
+                            @endcan
+                            @can('viewAny', App\Models\User::class)
+                                <a href="javascript:void(0)" onclick="copyToClipboard()" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">新規ユーザー登録リンク</a>
+                                <input type="text" value="{{ url('/register') }}" id="copyTarget" class="sr-only" aria-hidden="true">
                             @endcan
                         </div>
                     </div>
@@ -132,7 +244,8 @@
                     @auth
                     <div x-data="{ userMenuOpen: false }" class="relative">
                         <button @click="userMenuOpen = !userMenuOpen" class="flex items-center text-sm font-medium text-gray-700 rounded-md dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none p-2">
-                            <span>{{ Auth::user()->name }}</span>
+                            <span class="hidden sm:inline">{{ Auth::user()->name }}</span>
+                            <i class="fas fa-user sm:hidden" title="{{ Auth::user()->name }}"></i>
                             <i class="fas fa-chevron-down fa-xs ml-1"></i>
                         </button>
                         <div x-show="userMenuOpen" @click.away="userMenuOpen = false"
@@ -170,6 +283,7 @@
         </div>
     </div>
 
+    {{-- Global Modals and Tooltips --}}
     <div id="taskDescriptionTooltip"
          class="fixed z-[100] hidden rounded-md bg-gray-900 px-3 py-1.5 text-xs font-medium text-white shadow-lg whitespace-pre-wrap dark:bg-gray-700 max-w-xs"
          role="tooltip">
@@ -187,5 +301,26 @@
 
     @yield('scripts')
     @stack('scripts')
+
+    <script>
+        function copyToClipboard() {
+            const copyTarget = document.getElementById("copyTarget");
+            if (!copyTarget) return;
+            navigator.clipboard.writeText(copyTarget.value).then(() => {
+                alert("招待リンクをコピーしました : \n" + copyTarget.value);
+            }).catch(err => {
+                console.error('クリップボードへのコピーに失敗しました: ', err);
+                try {
+                    copyTarget.style.display = 'block';
+                    copyTarget.select();
+                    document.execCommand("Copy");
+                    copyTarget.style.display = 'none';
+                    alert("招待リンクをコピーしました (fallback): \n" + copyTarget.value);
+                } catch (e) {
+                     alert("コピーに失敗しました。手動でコピーしてください。");
+                }
+            });
+        }
+    </script>
 </body>
 </html>

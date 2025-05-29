@@ -45,16 +45,20 @@
                                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                     <div class="flex justify-end space-x-2">
                                         @can('update', App\Models\ProcessTemplate::class)
-                                            <x-secondary-button
-                                                onclick="location.href='{{ route('process-templates.show', $template) }}'"
-                                                class="py-1 px-3">
-                                                編集
-                                            </x-secondary-button>
+                                            <x-icon-button
+                                                :href="route('process-templates.show', $template)"
+                                                icon="fas fa-edit"
+                                                title="編集"
+                                                color="blue" />
+                                        @endcan
+                                        @can('delete', $template)
                                             <form action="{{ route('process-templates.destroy', $template) }}" method="POST"
                                                 class="d-inline" onsubmit="return confirm('本当に削除しますか？');">
-                                                @csrf
-                                                @method('DELETE')
-                                                <x-danger-button class="py-1 px-3">削除</x-danger-button>
+                                                <x-icon-button
+                                                        icon="fas fa-trash"
+                                                        title="削除"
+                                                        color="red"
+                                                        type="submit" />
                                             </form>
                                         @endcan
                                     </div>

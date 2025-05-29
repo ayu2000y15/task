@@ -182,7 +182,7 @@
     </div>
 
     <div class="mt-8">
-        <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4">ToDoリスト (期限なし工程)</h2>
+        <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4">ToDoリスト (期限なしタスク)</h2>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             @php
                 $todoColumns = [

@@ -27,7 +27,7 @@
                         <td class="px-4 py-2 whitespace-nowrap text-gray-700 dark:text-gray-200">{{ $measurement->unit }}
                         </td>
                         <td class="px-3 py-2 whitespace-nowrap text-right">
-                            @can('manageMeasurements', $project)
+                            @can('deleteMeasurements', $project)
                                 <form
                                     action="{{ route('projects.characters.measurements.destroy', [$project, $character, $measurement]) }}"
                                     method="POST" onsubmit="return confirm('この採寸データを削除しますか？');">

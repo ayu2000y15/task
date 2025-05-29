@@ -49,12 +49,14 @@
                     x-on:click="activeTab = 'milestones'">
                     <i class="fas fa-flag mr-1"></i> 重要納期 ({{ $tasks->where('is_milestone', true)->count() }})
                 </button>
+                @can('viewAnyFileFolders', App\Models\Task::class)
                 <button
                     class="tab-button py-4 px-1 inline-flex items-center gap-x-2 border-b-2 text-sm whitespace-nowrap focus:outline-none disabled:opacity-50 disabled:pointer-events-none"
                     :class="{ 'font-semibold border-blue-600 text-blue-600 dark:text-blue-500': activeTab === 'folders', 'border-transparent text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-500': activeTab !== 'folders' }"
                     x-on:click="activeTab = 'folders'">
                     <i class="fas fa-folder mr-1"></i> フォルダ ({{ $tasks->where('is_folder', true)->count() }})
                 </button>
+                @endcan
             </nav>
         </div>
 
@@ -100,7 +102,9 @@
                     <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
                         <h5 class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-0">フォルダ一覧</h5>
                     </div>
-                    <div class="overflow-x-auto"> @include('tasks.partials.task-table', ['tasksToList' => $tasks->where('is_folder', true)->sortBy('name'), 'tableId' => 'folders-list-table', 'isFolderView' => true])
+                    <div class="overflow-x-auto">
+                        {{-- projects.partials.projects-task-table を使用していることを想定して修正 --}}
+                        @include('tasks.partials.task-table', ['tasksToList' => $tasks->where('is_folder', true)->sortBy('name'), 'tableId' => 'folders-list-table', 'isFolderView' => true])
                     </div>
                 </div>
             </div>

@@ -40,11 +40,13 @@
                         </td>
                         <td class="px-4 py-2 whitespace-nowrap text-gray-700 dark:text-gray-200">{{ $material->name }}</td>
                         <td class="px-4 py-2 whitespace-nowrap text-gray-700 dark:text-gray-200">
-                            {{ !is_null($material->price) ? number_format($material->price) . '円' : '-' }}</td>
+                            {{ !is_null($material->price) ? number_format($material->price) . '円' : '-' }}
+                        </td>
                         <td class="px-4 py-2 whitespace-nowrap text-gray-700 dark:text-gray-200">
-                            {{ $material->quantity_needed }}</td>
+                            {{ $material->quantity_needed }}
+                        </td>
                         <td class="px-3 py-2 whitespace-nowrap text-right">
-                            @can('manageMaterials', $project)
+                            @can('deleteMaterials', $project)
                                 <form
                                     action="{{ route('projects.characters.materials.destroy', [$project, $character, $material]) }}"
                                     method="POST" onsubmit="return confirm('この材料を削除しますか？');">

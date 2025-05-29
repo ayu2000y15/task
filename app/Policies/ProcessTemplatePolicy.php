@@ -48,6 +48,6 @@ class ProcessTemplatePolicy
      */
     public function delete(User $user): bool
     {
-        return $user->hasPermissionTo('process_templates.update'); // 作成・更新・削除は 'update' 権限で統一
+        return $user->hasPermissionTo('process_templates.delete'); // 作成・更新・削除は 'update' 権限で統一
     }
 }

@@ -132,14 +132,18 @@
                                     <label class="ml-2 text-sm text-gray-700 dark:text-gray-300"
                                         for="is_task_type_milestone_edit"><i class="fas fa-flag mr-1"></i>重要納期</label>
                                 </div>
-                                <div class="flex items-center">
-                                    <input
-                                        class="form-radio h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:checked:bg-indigo-500 disabled:cursor-not-allowed"
-                                        type="radio" id="is_task_type_folder_edit" name="is_milestone_or_folder"
-                                        value="folder" disabled {{ $taskType == 'folder' ? 'checked' : '' }}>
-                                    <label class="ml-2 text-sm text-gray-700 dark:text-gray-300"
-                                        for="is_task_type_folder_edit"><i class="fas fa-folder mr-1"></i>フォルダ</label>
-                                </div>
+                                @can('canCreateFoldersForFileUpload', App\Models\Task::class) {{-- This check seems for
+                                    general capability,
+                                    might need adjustment if per-task --}}
+                                    <div class="flex items-center">
+                                        <input
+                                            class="form-radio h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:checked:bg-indigo-500 disabled:cursor-not-allowed"
+                                            type="radio" id="is_task_type_folder_edit" name="is_milestone_or_folder"
+                                            value="folder" disabled {{ $taskType == 'folder' ? 'checked' : '' }}>
+                                        <label class="ml-2 text-sm text-gray-700 dark:text-gray-300"
+                                            for="is_task_type_folder_edit"><i class="fas fa-folder mr-1"></i>フォルダ</label>
+                                    </div>
+                                @endcan
                             </div>
                         </div>
 
@@ -168,26 +172,31 @@
                             @error('character_id')<p class="mt-1 text-xs text-red-500">{{ $message }}</p>@enderror
                         </div>
 
-                        @if($task->is_folder)
-                            <div id="file-management-section" class="mb-3">
-                                <hr class="my-4 dark:border-gray-600">
-                                <h3 class="text-md font-semibold text-gray-700 dark:text-gray-200 mb-2"><i
-                                        class="fas fa-file-alt mr-2"></i>ファイル管理</h3>
-                                <div class="dropzone dropzone-custom-style mb-3" id="file-upload-dropzone-edit">
-                                    <div class="dz-message text-center" data-dz-message>
-                                        <p class="mb-2">ここにファイルをドラッグ＆ドロップ</p>
-                                        <p class="mb-3 text-xs text-gray-500 dark:text-gray-400">または</p>
-                                        <button type="button" class="dz-button-bootstrap">
-                                            <i class="fas fa-folder-open mr-1"></i>ファイルを選択
-                                        </button>
-                                    </div>
+                        @if($task->is_folder) {{-- タスクがフォルダの場合のみ表示 --}}
+                            @can('fileView', $task) {{-- ファイル閲覧権限がある場合のみセクション表示 --}}
+                                <div id="file-management-section" class="mb-3">
+                                    <hr class="my-4 dark:border-gray-600">
+                                    <h3 class="text-md font-semibold text-gray-700 dark:text-gray-200 mb-2"><i
+                                            class="fas fa-file-alt mr-2"></i>ファイル管理</h3>
+                                    @can('fileUpload', $task) {{-- ファイルアップロード権限がある場合のみDropzone表示 --}}
+                                        <div class="dropzone dropzone-custom-style mb-3" id="file-upload-dropzone-edit">
+                                            <div class="dz-message text-center" data-dz-message>
+                                                <p class="mb-2">ここにファイルをドラッグ＆ドロップ</p>
+                                                <p class="mb-3 text-xs text-gray-500 dark:text-gray-400">または</p>
+                                                <button type="button" class="dz-button-bootstrap">
+                                                    <i class="fas fa-folder-open mr-1"></i>ファイルを選択
+                                                </button>
+                                            </div>
+                                        </div>
+                                    @endcan
+                                    <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1">アップロード済みファイル</h4>
+                                    <ul class="space-y-2 text-sm" id="file-list-edit">
+                                        {{-- file-list-tailwind の中で各ファイルの操作権限をチェック --}}
+                                        @include('tasks.partials.file-list-tailwind', ['files' => $files, 'project' => $project, 'task' => $task])
+                                    </ul>
+                                    <hr class="mt-4 dark:border-gray-600">
                                 </div>
-                                <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1">アップロード済みファイル</h4>
-                                <ul class="space-y-2 text-sm" id="file-list-edit">
-                                    @include('tasks.partials.file-list-tailwind', ['files' => $files, 'project' => $project, 'task' => $task])
-                                </ul>
-                                <hr class="mt-4 dark:border-gray-600">
-                            </div>
+                            @endcan
                         @endif
 
                         <div>
@@ -198,14 +207,15 @@
                             @error('description')<p class="mt-1 text-xs text-red-500">{{ $message }}</p>@enderror
                         </div>
 
-                        <div id="task-fields-individual" class="space-y-4">
+                        <div id="task-fields-individual" class="space-y-4" {{ $task->is_folder ? 'style="display:none;"' : '' }}>
                             <div class="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-4">
                                 <div>
                                     <label for="start_date_individual"
                                         class="block text-sm font-medium text-gray-700 dark:text-gray-300">開始日</label>
                                     <input type="date" id="start_date_individual" name="start_date"
                                         value="{{ old('start_date', optional($task->start_date)->format('Y-m-d')) }}"
-                                        class="form-input mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 disabled:bg-gray-100 dark:disabled:bg-gray-700/50 disabled:cursor-not-allowed dark:disabled:text-gray-400 @error('start_date') border-red-500 @enderror">
+                                        class="form-input mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 disabled:bg-gray-100 dark:disabled:bg-gray-700/50 disabled:cursor-not-allowed dark:disabled:text-gray-400 @error('start_date') border-red-500 @enderror"
+                                        {{ $taskType == 'milestone' || $taskType == 'todo_task' || $task->is_folder ? 'disabled' : '' }}>
                                     @error('start_date')<p class="mt-1 text-xs text-red-500">{{ $message }}</p>@enderror
                                 </div>
                                 <div>
@@ -213,7 +223,8 @@
                                         class="block text-sm font-medium text-gray-700 dark:text-gray-300">工数(日)</label>
                                     <input type="number" id="duration_individual" name="duration"
                                         value="{{ old('duration', $task->duration) }}" min="1"
-                                        class="form-input mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 disabled:bg-gray-100 dark:disabled:bg-gray-700/50 disabled:cursor-not-allowed dark:disabled:text-gray-400 @error('duration') border-red-500 @enderror">
+                                        class="form-input mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 disabled:bg-gray-100 dark:disabled:bg-gray-700/50 disabled:cursor-not-allowed dark:disabled:text-gray-400 @error('duration') border-red-500 @enderror"
+                                        {{ $taskType == 'milestone' || $taskType == 'todo_task' || $task->is_folder ? 'disabled' : '' }}>
                                     @error('duration')<p class="mt-1 text-xs text-red-500">{{ $message }}</p>@enderror
                                 </div>
                                 <div>
@@ -221,13 +232,14 @@
                                         class="block text-sm font-medium text-gray-700 dark:text-gray-300">終了日</label>
                                     <input type="date" id="end_date_individual" name="end_date"
                                         value="{{ old('end_date', optional($task->end_date)->format('Y-m-d')) }}"
-                                        class="form-input mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 disabled:bg-gray-100 dark:disabled:bg-gray-700/50 disabled:cursor-not-allowed dark:disabled:text-gray-400 @error('end_date') border-red-500 @enderror">
+                                        class="form-input mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 disabled:bg-gray-100 dark:disabled:bg-gray-700/50 disabled:cursor-not-allowed dark:disabled:text-gray-400 @error('end_date') border-red-500 @enderror"
+                                        {{ $taskType == 'milestone' || $taskType == 'todo_task' || $task->is_folder ? 'disabled' : '' }}>
                                     @error('end_date')<p class="mt-1 text-xs text-red-500">{{ $message }}</p>@enderror
                                 </div>
                             </div>
                         </div>
 
-                        <div>
+                        <div {{ $task->is_folder ? 'style="display:none;"' : '' }}>
                             <label for="assignee_individual"
                                 class="block text-sm font-medium text-gray-700 dark:text-gray-300">担当者</label>
                             <input type="text" id="assignee_individual" name="assignee"
@@ -236,7 +248,7 @@
                             @error('assignee')<p class="mt-1 text-xs text-red-500">{{ $message }}</p>@enderror
                         </div>
 
-                        <div>
+                        <div {{ $task->is_folder ? 'style="display:none;"' : '' }}>
                             <label for="parent_id_individual"
                                 class="block text-sm font-medium text-gray-700 dark:text-gray-300">親工程 (フォルダのみ)</label>
                             <select id="parent_id_individual" name="parent_id"
@@ -253,7 +265,7 @@
                             @error('parent_id')<p class="mt-1 text-xs text-red-500">{{ $message }}</p>@enderror
                         </div>
 
-                        <div id="status-field-individual">
+                        <div id="status-field-individual" {{ $task->is_folder ? 'style="display:none;"' : '' }}>
                             <label for="status_individual"
                                 class="block text-sm font-medium text-gray-700 dark:text-gray-300">ステータス</label>
                             <select id="status_individual" name="status"
@@ -272,11 +284,13 @@
                     </div>
 
                     <div class="mt-8 pt-5 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
-                        <button type="button"
-                            class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 text-sm font-medium"
-                            onclick="document.getElementById('delete-task-form').submit();">
-                            <i class="fas fa-trash mr-1"></i> この工程を削除
-                        </button>
+                        @can('delete', $task)
+                            <button type="button"
+                                class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 text-sm font-medium"
+                                onclick="document.getElementById('delete-task-form').submit();">
+                                <i class="fas fa-trash mr-1"></i> この工程を削除
+                            </button>
+                        @endcan
                         <div>
                             <a href="{{ url()->previous(route('projects.show', $project)) }}"
                                 class="inline-flex items-center px-4 py-2 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-md font-semibold text-xs text-gray-700 dark:text-gray-200 uppercase tracking-widest shadow-sm hover:bg-gray-50 dark:hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 disabled:opacity-25 transition ease-in-out duration-150 mr-3">

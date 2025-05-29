@@ -1,11 +1,11 @@
 @extends('layouts.app')
 
-@section('title', '衣装案件一覧')
+@section('title', '案件一覧')
 
 @section('content')
     <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-            <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-200">衣装案件一覧</h1>
+            <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-200">案件一覧</h1>
             @can('create', App\Models\Project::class)
                 <x-primary-button class="ml-2" onclick="location.href='{{ route('projects.create') }}'"><i
                         class="fas fa-plus mr-1"></i>新規衣装案件</x-primary-button>
@@ -23,17 +23,18 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 @foreach($projects as $project)
                     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden flex flex-col">
-                        <div class="p-5 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center"
-                            style="background-color: {{ $project->color }}; color: white;">
+                        <div class="p-5 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center text-white"
+                            style="background-color: {{ $project->color ?? '#6c757d' }};">
                             <h5 class="text-lg font-semibold truncate" title="{{ $project->title }}">{{ $project->title }}</h5>
                             @if($project->is_favorite)
                                 <i class="fas fa-star text-yellow-400"></i>
                             @endif
                         </div>
                         <div class="p-5 flex-grow">
-                            <p class="text-gray-600 dark:text-gray-400 text-sm mb-4 h-20 overflow-hidden">
-                                {{ Str::limit($project->description, 120) ?: '説明はありません' }}
-                            </p>
+                            {{-- <p class="text-gray-600 dark:text-gray-400 text-sm mb-4 h-20 overflow-hidden">
+                                {{ Str::limit($project->description ?: ($project->getAttributeValue('description', '説明はありません')),
+                                120) }}
+                            </p> --}}
 
                             <div class="mb-3">
                                 <small class="text-gray-500 dark:text-gray-400">期間:</small>
@@ -54,7 +55,7 @@
                                 @endphp
                                 <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 mt-1">
                                     <div class="h-2.5 rounded-full"
-                                        style="width: {{ $progress }}%; background-color: {{ $project->color }};"
+                                        style="width: {{ $progress }}%; background-color: {{ $project->color ?? '#6c757d' }};"
                                         title="{{ $progress }}%"></div>
                                 </div>
                             </div>

@@ -2,89 +2,124 @@
 import "./bootstrap";
 
 import Alpine from "alpinejs";
-import collapse from "@alpinejs/collapse"; // x-collapseのため
+import collapse from "@alpinejs/collapse";
+
 // 他のAlpine.jsプラグインやカスタムストアがあればここに
 
-import { Calendar } from "@fullcalendar/core";
-import dayGridPlugin from "@fullcalendar/daygrid";
-import listPlugin from "@fullcalendar/list";
-import interactionPlugin from "@fullcalendar/interaction";
+// ★ Sortable.jsのような外部ライブラリをここでグローバルにインポートするか、
+// ★ または各専用モジュール（下記参照）で個別にインポートします。
+// import Sortable from 'sortablejs'; // もしグローバルに使いたい場合
+// window.Sortable = Sortable; // 更にグローバルにする場合
+
+import { Calendar } from "@fullcalendar/core"; //
+import dayGridPlugin from "@fullcalendar/daygrid"; //
+import listPlugin from "@fullcalendar/list"; //
+import interactionPlugin from "@fullcalendar/interaction"; //
 
 window.Alpine = Alpine;
-Alpine.plugin(collapse); // x-collapseのため
+Alpine.plugin(collapse);
 Alpine.start();
 
 // Global features (例)
 import {
     initializeTaskTooltips,
     initializeImagePreviewModal,
-} from "./features/global-tooltips.js";
-import "./features/file-deleter.js";
+} from "./features/global-tooltips.js"; //
+import "./features/file-deleter.js"; //
 
 document.addEventListener("DOMContentLoaded", () => {
-    initializeTaskTooltips();
+    // console.log('[APP.JS] DOMContentLoaded event fired.');
+
+    initializeTaskTooltips(); //
     initializeImagePreviewModal(
+        //
         "imagePreviewModalGlobal",
         "previewImageFullGlobal",
         "closePreviewModalBtnGlobal",
         "preview-image"
     );
+
     // --- Page-specific JavaScript ---
     if (
         document.querySelector(".task-status-select, .editable-cell") &&
         !document.getElementById("ganttTable")
     ) {
-        // ガントページではtasks-indexをロードしないように調整
-        import("./page-specific/tasks-index.js").catch((error) =>
-            console.error("Error loading tasks-index.js:", error)
+        import("./page-specific/tasks-index.js").catch(
+            (
+                error //
+            ) => console.error("Error loading tasks-index.js:", error)
         );
     }
     if (document.getElementById("project-show-main-container")) {
-        import("./page-specific/projects-show.js").catch((error) =>
-            console.error("Error loading projects-show.js:", error)
+        import("./page-specific/projects-show.js").catch(
+            (
+                error //
+            ) => console.error("Error loading projects-show.js:", error)
         );
     }
     if (document.getElementById("project-form-page")) {
-        import("./page-specific/projects-form.js").catch((error) =>
-            console.error("Error loading projects-form.js:", error)
+        import("./page-specific/projects-form.js").catch(
+            (
+                error //
+            ) => console.error("Error loading projects-form.js:", error)
         );
     }
-    // 編集済み: 工程作成・編集ページ用の tasks-form.js を修正
-    const taskFormPageElement = document.getElementById("task-form-page");
+    const taskFormPageElement = document.getElementById("task-form-page"); //
     if (taskFormPageElement) {
-        import("./page-specific/tasks-form.js")
-            .then((module) => {
-                // tasks-form.js がエクスポートする初期化関数がある場合 (例: initializeTaskFormEventListeners)
-                // module.default.initializeTaskFormEventListeners(); // または module.initializeTaskFormEventListeners();
-            })
+        import("./page-specific/tasks-form.js") //
             .catch((error) =>
                 console.error("Error loading tasks-form.js:", error)
             );
 
-        // 工程編集ページで、かつファイルアップロード要素が存在する場合のみDropzoneのJSを読み込む
         if (
             taskFormPageElement.dataset.taskId &&
             document.getElementById("file-upload-dropzone-edit")
         ) {
-            // data-task-id があるかで編集ページかを判定
-            import("./page-specific/tasks-edit-dropzone.js").catch((error) =>
-                console.error("Error loading tasks-edit-dropzone.js:", error)
+            import("./page-specific/tasks-edit-dropzone.js").catch(
+                (
+                    error //
+                ) =>
+                    console.error(
+                        "Error loading tasks-edit-dropzone.js:",
+                        error
+                    )
             );
         }
     }
 
-    // ★★★ ガントチャート専用JSの読み込みを追加 ★★★
     if (document.getElementById("ganttTable")) {
-        // ガントチャートテーブルのIDをトリガーにする
-        import("./page-specific/gantt-chart.js").catch((error) =>
-            console.error("Error loading gantt-chart.js:", error)
+        //
+        import("./page-specific/gantt-chart.js").catch(
+            (
+                error //
+            ) => console.error("Error loading gantt-chart.js:", error)
         );
     }
 
-    // カレンダー機能の初期化
-    // 1. イベントリスナーが動作しているか確認
+    // ★★★ カスタム項目定義の並び替え機能の初期化 ★★★
+    if (document.getElementById("sortable-definitions")) {
+        // console.log('[APP.JS] Found sortable-definitions element, attempting to load module.');
+        import("./admin/form-definitions-sortable.js")
+            .then((module) => {
+                if (module.initFormDefinitionSortable) {
+                    // console.log('[APP.JS] form-definitions-sortable.js module loaded, calling initFormDefinitionSortable.');
+                    module.initFormDefinitionSortable();
+                } else {
+                    console.error(
+                        "[APP.JS] initFormDefinitionSortable function not found in form-definitions-sortable.js module."
+                    );
+                }
+            })
+            .catch((error) =>
+                console.error(
+                    "Error loading form-definitions-sortable.js:",
+                    error
+                )
+            );
+    }
+    // ★★★ ここまで追加 ★★★
 
-    const calendarEl = document.getElementById("calendar");
+    const calendarEl = document.getElementById("calendar"); //
 
     if (calendarEl) {
         let events = [];
@@ -103,22 +138,19 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         const calendar = new Calendar(calendarEl, {
-            plugins: [dayGridPlugin, listPlugin, interactionPlugin],
-
-            locale: "ja", // 1. 表示を日本語化
-            dayMaxEvents: 2, // 2. １日に表示するイベント数を2件に制限（それ以上は「+他n件」と表示）
-
+            //
+            plugins: [dayGridPlugin, listPlugin, interactionPlugin], //
+            locale: "ja",
+            dayMaxEvents: 2,
             moreLinkContent: function (args) {
                 return "+ 他" + args.num + "件";
             },
-
             headerToolbar: {
                 left: "prev,next today",
                 center: "title",
                 right: "dayGridMonth,listMonth",
             },
             buttonText: {
-                // ボタンのテキストも明示的に日本語に設定
                 today: "今日",
                 month: "月",
                 list: "リスト",
@@ -131,6 +163,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 hour12: false,
             },
             eventClick: function (info) {
+                //
                 info.jsEvent.preventDefault();
                 if (window.Livewire) {
                     Livewire.dispatch("open-modal", {
@@ -149,6 +182,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             },
             dayCellClassNames: function (arg) {
+                //
                 if (arg.date.getDay() === 6) {
                     return ["fc-day-sat"];
                 }
@@ -158,7 +192,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 return [];
             },
         });
-
         calendar.render();
     }
 });

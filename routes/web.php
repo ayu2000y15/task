@@ -12,6 +12,8 @@ use App\Http\Controllers\MaterialController;
 use App\Http\Controllers\CostController;
 use App\Http\Controllers\ProcessTemplateController;
 use App\Http\Controllers\CharacterController;
+use App\Http\Controllers\Admin\FormFieldDefinitionController;
+use App\Http\Controllers\ExternalFormController;
 
 Route::middleware('auth')->group(function () {
     // ホーム
@@ -22,6 +24,11 @@ Route::middleware('auth')->group(function () {
     Route::resource('projects', ProjectController::class);
     // 担当者更新用のルート
     Route::post('/projects/{project}/tasks/{task}/assignee', [TaskController::class, 'updateAssignee'])->name('projects.tasks.assignee');
+    // プロジェクトフラグ更新用ルート
+    Route::patch('/projects/{project}/delivery-flag', [App\Http\Controllers\ProjectController::class, 'updateDeliveryFlag'])->name('projects.updateDeliveryFlag');
+    Route::patch('/projects/{project}/payment-flag', [App\Http\Controllers\ProjectController::class, 'updatePaymentFlag'])->name('projects.updatePaymentFlag');
+    // プロジェクトステータス更新用ルート (必要であれば、手動更新用)
+    Route::patch('/projects/{project}/status', [App\Http\Controllers\ProjectController::class, 'updateStatus'])->name('projects.updateStatus');
 
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -88,6 +95,18 @@ Route::middleware('auth')->group(function () {
     Route::put('/users/{user}', [\App\Http\Controllers\UserController::class, 'update'])->name('users.update');
     Route::get('/roles', [\App\Http\Controllers\RolePermissionController::class, 'index'])->name('roles.index');
     Route::put('/roles/{role}', [\App\Http\Controllers\RolePermissionController::class, 'update'])->name('roles.update');
+
+    Route::prefix('admin')->name('admin.')->middleware(['can:viewAny,App\Models\FormFieldDefinition'])->group(function () { // 管理者用などのミドルウェアを想定
+        Route::resource('form-definitions', FormFieldDefinitionController::class)
+            ->parameters(['form-definitions' => 'formFieldDefinition']) // ★ この行を追加
+            ->except(['show']);
+        Route::post('/form-definitions/reorder', [FormFieldDefinitionController::class, 'reorder'])->name('form-definitions.reorder');
+    });
+
+    // 外部向け申請フォーム
+    Route::get('/costume-request', [ExternalFormController::class, 'create'])->name('external-form.create');
+    Route::post('/costume-request', [ExternalFormController::class, 'store'])->name('external-form.store');
+    Route::get('/costume-request/thanks', [ExternalFormController::class, 'thanks'])->name('external-form.thanks');
 });
 
 require __DIR__ . '/auth.php';
