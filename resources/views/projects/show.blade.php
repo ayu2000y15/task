@@ -152,6 +152,7 @@
                     </div>
 
                     {{-- プロジェクト固有の form_definitions に基づく追加情報 (カスタム項目) --}}
+                    @can('view', $project)
                     @if(!empty($customFormFields) && count($customFormFields) > 0)
                         @if(collect($customFormFields)->isNotEmpty())
                             <hr class="dark:border-gray-600 my-3">
@@ -194,7 +195,7 @@
                                                             @if(is_array($fileInfo) && isset($fileInfo['path']) && isset($fileInfo['original_name']))
                                                                 {{-- 標準的な file_multiple の各ファイル情報 --}}
                                                                 <li>
-                                                                    <a href="{{ Storage::url($fileInfo['path']) }}" target="_blank" class="text-blue-600 hover:underline" title="ダウンロード: {{ $fileInfo['original_name'] }}">
+                                                                    <a href="{{ Storage::url($fileInfo['path']) }}" target="_blank" class="text-blue-600 hover:underline dark:text-blue-400 dark:hover:text-blue-300" title="ダウンロード: {{ $fileInfo['original_name'] }}">
                                                                         <i class="fas fa-file-download mr-1"></i>{{ Str::limit($fileInfo['original_name'], 25) }}
                                                                     </a>
                                                                     <span class="text-gray-400 text-xs">({{ \Illuminate\Support\Number::fileSize($fileInfo['size'] ?? 0) }})</span>
@@ -202,7 +203,7 @@
                                                             @elseif(is_string($fileInfo))
                                                                 {{-- 古い形式などで、ファイルパス文字列が直接配列に含まれる場合 --}}
                                                                 <li>
-                                                                    <a href="{{ Storage::url($fileInfo) }}" target="_blank" class="text-blue-600 hover:underline">{{ Str::limit(basename($fileInfo), 25) }}</a>
+                                                                    <a href="{{ Storage::url($fileInfo) }}" target="_blank" class="text-blue-600 hover:underline dark:text-blue-400 dark:hover:text-blue-300">{{ Str::limit(basename($fileInfo), 25) }}</a>
                                                                 </li>
                                                             @endif
                                                         @endforeach
@@ -214,6 +215,20 @@
                                                 <span class="text-sm text-gray-700 dark:text-gray-300 text-right">-</span>
                                             @endif
                                             @break
+                                        @case('url')
+                                            <div class="text-sm text-gray-700 dark:text-gray-300 text-right flex-1">
+                                                @if($value && filter_var($value, FILTER_VALIDATE_URL))
+                                                    <a href="{{ $value }}" target="_blank" rel="noopener noreferrer"
+                                                       class="text-blue-600 hover:underline dark:text-blue-400 dark:hover:text-blue-300 break-all whitespace-normal">
+                                                        {{ $value }}
+                                                    </a>
+                                                @elseif($value)
+                                                    <p class="break-words whitespace-normal">{{ $value }}</p>
+                                                @else
+                                                    <span>-</span>
+                                                @endif
+                                            </div>
+                                            @break
                                         @default
                                             <p class="text-sm text-gray-700 dark:text-gray-300 text-right whitespace-pre-wrap break-words flex-1 max-h-40 overflow-y-auto">{{ $value ?? '-' }}</p>
                                     @endswitch
@@ -221,6 +236,7 @@
                             @endforeach
                         @endif
                     @endif
+                    @endcan
 
                     <hr class="dark:border-gray-700 my-3">
                     {{-- 進捗バー --}}

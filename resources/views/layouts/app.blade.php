@@ -211,7 +211,7 @@
 
                 {{-- 右側グループ: 管理・ユーザーメニュー --}}
                 <div class="flex items-center space-x-1 sm:space-x-2 pl-1 sm:pl-2">
-                    @can('viewAny', App\Models\User::class)
+                    @can('viewAny', App\Models\ProcessTemplate::class)
                     <div x-data="{ adminMenuOpenOnHeader: false }" class="relative">
                         <button @click="adminMenuOpenOnHeader = !adminMenuOpenOnHeader" class="flex items-center px-2 sm:px-3 py-2 text-sm font-medium text-gray-700 rounded-md dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none">
                             <i class="fas fa-cog"></i>
