@@ -13,6 +13,16 @@ class Feedback extends Model
 
     protected $table = 'feedbacks';
 
+    public const PRIORITY_HIGH = 1;
+    public const PRIORITY_MEDIUM = 2;
+    public const PRIORITY_LOW = 3;
+
+    public const PRIORITY_OPTIONS = [
+        self::PRIORITY_HIGH => '高',
+        self::PRIORITY_MEDIUM => '中',
+        self::PRIORITY_LOW => '低',
+    ];
+
     protected $fillable = [
         'user_id',
         'user_name',
@@ -21,6 +31,7 @@ class Feedback extends Model
         'feedback_category_id',
         'title',
         'content',
+        'priority',
         'status',
         'assignee_text',
         'completed_at',
@@ -31,6 +42,7 @@ class Feedback extends Model
         'completed_at' => 'datetime',
         'user_id' => 'integer',
         'feedback_category_id' => 'integer',
+        'priority' => 'integer',
     ];
 
     public const STATUS_UNREAD = 'unread';
@@ -49,6 +61,7 @@ class Feedback extends Model
         self::STATUS_ON_HOLD => '保留',
     ];
 
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
@@ -64,13 +77,6 @@ class Feedback extends Model
         return $this->hasMany(FeedbackFile::class);
     }
 
-    /**
-     * Get the Tailwind CSS class string for the status badge.
-     *
-     * @param string $status
-     * @param string $type ('badge' or 'text')
-     * @return string
-     */
     public static function getStatusColorClass(string $status, string $type = 'text'): string
     {
         switch ($status) {
@@ -87,6 +93,32 @@ class Feedback extends Model
             case self::STATUS_ON_HOLD:
                 return $type === 'badge' ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-700 dark:text-indigo-100' : 'text-indigo-500 dark:text-indigo-400';
             default:
+                return $type === 'badge' ? 'bg-gray-100 text-gray-700 dark:bg-gray-500 dark:text-gray-300' : 'text-gray-500 dark:text-gray-400';
+        }
+    }
+
+    /**
+     * Get the Tailwind CSS class string for the priority badge.
+     *
+     * @param int|null $priority  // ★★★ 型を ?int に変更 ★★★
+     * @param string $type ('badge' or 'text')
+     * @return string
+     */
+    public static function getPriorityColorClass(?int $priority, string $type = 'text'): string // ★★★ 型を ?int に変更 ★★★
+    {
+        // ★★★ nullの場合の処理を追加 ★★★
+        if ($priority === null) {
+            return $type === 'badge' ? 'bg-gray-100 text-gray-700 dark:bg-gray-500 dark:text-gray-300' : 'text-gray-500 dark:text-gray-400';
+        }
+
+        switch ($priority) {
+            case self::PRIORITY_HIGH:
+                return $type === 'badge' ? 'bg-red-100 text-red-800 dark:bg-red-700 dark:text-red-200' : 'text-red-500 dark:text-red-400';
+            case self::PRIORITY_MEDIUM:
+                return $type === 'badge' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-700 dark:text-yellow-200' : 'text-yellow-500 dark:text-yellow-400';
+            case self::PRIORITY_LOW:
+                return $type === 'badge' ? 'bg-green-100 text-green-800 dark:bg-green-700 dark:text-green-200' : 'text-green-500 dark:text-green-400';
+            default: // null以外の未定義の数値の場合もデフォルトスタイルを適用
                 return $type === 'badge' ? 'bg-gray-100 text-gray-700 dark:bg-gray-500 dark:text-gray-300' : 'text-gray-500 dark:text-gray-400';
         }
     }

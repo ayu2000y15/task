@@ -9,8 +9,8 @@
     .editable-display:hover { background-color: #f9f9f9; cursor: pointer; }
     .dark .editable-display:hover { background-color: #3a3a3a; }
     .editing-input-area textarea, .editing-input-area input[type="text"] { min-height: 60px; width: 100%; }
-    /* .details-content-grid は削除または調整される可能性があります */
-    .feedback-main-row { cursor: pointer; }
+    .details-content-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; }
+    .feedback-main-row { cursor: pointer; } /* 行クリックのカーソル指示 */
 </style>
 @endpush
 
@@ -47,6 +47,7 @@
             :filters="$filters"
             :feedback-categories="$feedbackCategories"
             :status-options="$statusOptions"
+            :priority-options="$priorityOptions"
         />
     </div>
 
@@ -54,9 +55,8 @@
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700" id="feedback-table">
                 <thead class="bg-gray-50 dark:bg-gray-700">
-                    {{-- Thead (変更なし) --}}
                     <tr>
-                        <th scope="col" class="w-12 px-2 py-3"></th>
+                        <th scope="col" class="w-12 px-2 py-3"></th> {{-- 展開ボタン用 --}}
                         <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                             <a href="{{ route('admin.feedbacks.index', array_merge($filters, ['sort_field' => 'id', 'sort_direction' => ($filters['sort_field'] == 'id' && $filters['sort_direction'] == 'asc') ? 'desc' : 'asc'])) }}">
                                 ID {!! $filters['sort_field'] == 'id' ? ($filters['sort_direction'] == 'asc' ? '<i class="fas fa-sort-up"></i>' : '<i class="fas fa-sort-down"></i>') : '<i class="fas fa-sort"></i>' !!}
@@ -74,6 +74,11 @@
                             </a>
                         </th>
                         <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                             <a href="{{ route('admin.feedbacks.index', array_merge($filters, ['sort_field' => 'priority', 'sort_direction' => ($filters['sort_field'] == 'priority' && $filters['sort_direction'] == 'asc') ? 'desc' : 'asc'])) }}">
+                                優先度 {!! $filters['sort_field'] == 'priority' ? ($filters['sort_direction'] == 'asc' ? '<i class="fas fa-sort-up"></i>' : '<i class="fas fa-sort-down"></i>') : '<i class="fas fa-sort"></i>' !!}
+                            </a>
+                        </th>
+                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                              <a href="{{ route('admin.feedbacks.index', array_merge($filters, ['sort_field' => 'status', 'sort_direction' => ($filters['sort_field'] == 'status' && $filters['sort_direction'] == 'asc') ? 'desc' : 'asc'])) }}">
                                 ステータス {!! $filters['sort_field'] == 'status' ? ($filters['sort_direction'] == 'asc' ? '<i class="fas fa-sort-up"></i>' : '<i class="fas fa-sort-down"></i>') : '<i class="fas fa-sort"></i>' !!}
                             </a>
@@ -83,6 +88,7 @@
                                 送信日時 {!! $filters['sort_field'] == 'created_at' ? ($filters['sort_direction'] == 'asc' ? '<i class="fas fa-sort-up"></i>' : '<i class="fas fa-sort-down"></i>') : '<i class="fas fa-sort"></i>' !!}
                             </a>
                         </th>
+                        <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">操作</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -90,7 +96,6 @@
                         <tr id="feedback-row-{{ $feedback->id }}" data-feedback-id="{{ $feedback->id }}"
                             class="feedback-main-row hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer"
                             @click="expandedRows[{{ $feedback->id }}] = !expandedRows[{{ $feedback->id }}]">
-                            {{-- メイン行の表示内容は変更なし --}}
                             <td class="px-2 py-3 text-center" @click.stop>
                                 <button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                                         @click="expandedRows[{{ $feedback->id }}] = !expandedRows[{{ $feedback->id }}]">
@@ -99,8 +104,13 @@
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">{{ $feedback->id }}</td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300" title="{{ $feedback->user_name }} ({{ $feedback->user->email }})">{{ Str::limit($feedback->user_name, 15) }}</td>
-                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 font-medium truncate" style="max-width:150px;">{{ $feedback->category->name ?? '-' }}</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 font-medium truncate" style="max-width: 150px;">{{ $feedback->category->name ?? '-' }}</td>
                             <td class="px-4 py-3 text-sm text-gray-900 dark:text-gray-100 font-medium truncate" style="max-width: 200px;" title="{{ $feedback->title }}">{{ Str::limit($feedback->title, 30) }}</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {{ \App\Models\Feedback::getPriorityColorClass($feedback->priority, 'badge') }}">
+                                    {{ \App\Models\Feedback::PRIORITY_OPTIONS[$feedback->priority] ?? '未設定' }}
+                                </span>
+                            </td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm status-cell" data-feedback-id="{{ $feedback->id }}" @click.stop>
                                 <div class="flex items-center space-x-2">
                                     <select name="status" class="feedback-status-select form-select form-select-sm text-xs dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 rounded-md shadow-sm w-32" data-url="{{ route('admin.feedbacks.updateStatus', $feedback) }}" data-original-status="{{ $feedback->status }}">
@@ -115,18 +125,26 @@
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400" title="{{ $feedback->created_at ? $feedback->created_at->format('Y/m/d H:i:s') : '' }}">
                                 @if($feedback->created_at)
-                                    {{ $feedback->created_at->diffForHumans() }}
+                                    {{ $feedback->created_at->diffForHumans() }} {{-- intlが有効な環境を想定 --}}
                                     <span class="block text-xs text-gray-400 dark:text-gray-500"> ({{ $feedback->created_at->format('Y/m/d H:i') }})</span>
                                 @else
                                     -
                                 @endif
                             </td>
+                            <td class="px-4 py-3 whitespace-nowrap text-right text-sm font-medium" @click.stop>
+                                @can('update', $feedback)
+                                <x-icon-button
+                                    :href="route('admin.feedbacks.edit', $feedback)"
+                                    icon="fas fa-edit"
+                                    title="編集"
+                                    color="blue"
+                                    size="sm" />
+                                @endcan
+                            </td>
                         </tr>
-                        {{-- ★★★ 詳細行のレイアウト変更 ★★★ --}}
                         <tr class="details-row bg-gray-50 dark:bg-gray-700/30" :class="{ 'expanded': expandedRows[{{ $feedback->id }}] }">
-                            <td colspan="7" class="px-4 py-3">
-                                <div class="p-2 space-y-4"> {{-- space-y-3 から space-y-4 に変更 --}}
-                                    {{-- 1. 送信者Email、送信者Tel --}}
+                            <td colspan="9" class="px-4 py-3"> {{-- colspan を9に変更 (展開ボタン + 8カラム) --}}
+                                <div class="p-2 space-y-4">
                                     <div class="flex flex-wrap gap-x-6 gap-y-2">
                                         <div>
                                             <strong class="block text-xs text-gray-500 dark:text-gray-400">送信者 Email:</strong>
@@ -138,7 +156,6 @@
                                         </div>
                                     </div>
 
-                                    {{-- 2. 担当者、管理者メモ --}}
                                     <div class="grid sm:grid-cols-2 gap-x-6 gap-y-4">
                                         <div>
                                             <strong class="block text-xs text-gray-500 dark:text-gray-400">担当者:</strong>
@@ -154,10 +171,9 @@
                                             </div>
                                         </div>
                                     </div>
-
                                     <div>
                                         <div>
-                                            <strong class="block text-xs text-gray-500 dark:text-gray-400">メモ:</strong>
+                                            <strong class="block text-xs text-gray-500 dark:text-gray-400">管理者メモ:</strong>
                                             <div class="text-sm text-gray-700 dark:text-gray-300 mt-1 memo-cell" data-feedback-id="{{ $feedback->id }}" data-memo-url="{{ route('admin.feedbacks.updateMemo', $feedback) }}">
                                                 <div class="memo-display editable-display whitespace-pre-wrap break-words p-1 border border-transparent hover:border-gray-300 dark:hover:border-gray-600 rounded min-h-[20px]" title="クリックして編集" data-full-memo="{{ $feedback->admin_memo ?? '' }}">{{ $feedback->admin_memo ?: '-' }}</div>
                                                 <div class="memo-editing editing-input-area" style="display:none;">
@@ -169,15 +185,11 @@
                                                 </div>
                                             </div>
                                         </div>
-
                                     </div>
-                                    {{-- 3. フィードバック内容 --}}
                                     <div>
                                         <strong class="block text-xs text-gray-500 dark:text-gray-400">フィードバック内容:</strong>
                                         <p class="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap break-words p-1 bg-white dark:bg-gray-700 rounded border dark:border-gray-600">{{ $feedback->content }}</p>
                                     </div>
-
-                                    {{-- 添付ファイル (変更なし) --}}
                                     @if($feedback->files->isNotEmpty())
                                     <div>
                                         <strong class="block text-xs text-gray-500 dark:text-gray-400 mb-1">添付ファイル:</strong>
@@ -204,8 +216,6 @@
                                         </div>
                                     </div>
                                     @endif
-
-                                    {{-- 4. 最終更新日時、完了日 --}}
                                     <div class="flex flex-wrap gap-x-6 gap-y-2 border-t dark:border-gray-600 pt-3 mt-3">
                                         <div>
                                             <strong class="block text-xs text-gray-500 dark:text-gray-400">最終更新日時:</strong>
@@ -221,7 +231,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="px-6 py-10 whitespace-nowrap text-sm text-center text-gray-500 dark:text-gray-400">
+                            <td colspan="9" class="px-6 py-10 whitespace-nowrap text-sm text-center text-gray-500 dark:text-gray-400">
                                 <div class="flex flex-col items-center">
                                     <i class="fas fa-inbox fa-3x text-gray-400 dark:text-gray-500 mb-3"></i>
                                     <span>該当するフィードバックはありません。</span>

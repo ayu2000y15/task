@@ -108,6 +108,9 @@ Route::middleware('auth')->group(function () {
 
         // --- 管理者向けフィードバック機能 ---
         Route::get('/feedbacks', [AdminFeedbackController::class, 'index'])->name('feedbacks.index');
+        Route::get('/feedbacks/{feedback}/edit', [AdminFeedbackController::class, 'edit'])->name('feedbacks.edit'); // ★ 編集画面表示
+        Route::put('/feedbacks/{feedback}', [AdminFeedbackController::class, 'update'])->name('feedbacks.update'); // ★ 更新処理
+
         // AJAX用ルート
         Route::patch('/feedbacks/{feedback}/status', [AdminFeedbackController::class, 'updateStatus'])->name('feedbacks.updateStatus');
         Route::patch('/feedbacks/{feedback}/memo', [AdminFeedbackController::class, 'updateMemo'])->name('feedbacks.updateMemo');

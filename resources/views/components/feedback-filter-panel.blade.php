@@ -6,7 +6,7 @@
         </button>
     </div>
     <form action="{{ $action }}" method="GET">
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"> {{-- xlを追加して4列に --}}
             <div>
                 <label for="submitter_name_filter"
                     class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">送信者</label>
@@ -46,6 +46,23 @@
                 </select>
             </div>
 
+            {{-- ★★★ 優先度フィルターを追加 ★★★ --}}
+            <div>
+                <label for="priority_filter"
+                    class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">優先度</label>
+                <select id="priority_filter" name="priority"
+                    class="form-select mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 dark:focus:border-indigo-500">
+                    <option value="">すべて</option>
+                    @foreach($priorityOptions as $value => $label)
+                        <option value="{{ $value }}" @if(isset($filters['priority']) && $filters['priority'] == $value)
+                        selected @endif>
+                            {{ $label }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+            {{-- ★★★ ここまで ★★★ --}}
+
             <div>
                 <label for="assignee_text_filter"
                     class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">担当者</label>
@@ -55,7 +72,7 @@
                     placeholder="担当者名で検索">
             </div>
 
-            <div class="sm:col-span-2 lg:col-span-1"> {{-- キーワードは少し幅広にすることも --}}
+            <div class="lg:col-span-1">
                 <label for="keyword_filter"
                     class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">キーワード検索</label>
                 <input type="text" id="keyword_filter" name="keyword" value="{{ $filters['keyword'] ?? '' }}"
