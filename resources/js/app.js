@@ -6,43 +6,31 @@ import collapse from "@alpinejs/collapse";
 
 // 他のAlpine.jsプラグインやカスタムストアがあればここに
 
-// ★ Sortable.jsのような外部ライブラリをここでグローバルにインポートするか、
-// ★ または各専用モジュール（下記参照）で個別にインポートします。
-// import Sortable from 'sortablejs'; // もしグローバルに使いたい場合
-// window.Sortable = Sortable; // 更にグローバルにする場合
-
-import { Calendar } from "@fullcalendar/core"; //
-import dayGridPlugin from "@fullcalendar/daygrid"; //
-import listPlugin from "@fullcalendar/list"; //
-import interactionPlugin from "@fullcalendar/interaction"; //
+import { Calendar } from "@fullcalendar/core";
+import dayGridPlugin from "@fullcalendar/daygrid";
+import listPlugin from "@fullcalendar/list";
+import interactionPlugin from "@fullcalendar/interaction";
 
 window.Alpine = Alpine;
 Alpine.plugin(collapse);
 Alpine.start();
 
-// Global features (例)
+// Global features
 import {
     initializeTaskTooltips,
     initializeImagePreviewModal,
-} from "./features/global-tooltips.js"; //
-import "./features/file-deleter.js"; //
-if (document.getElementById("feedback-table")) {
-    // feedback-table IDを持つ要素が存在するか
-    console.log("Attempting to load admin-feedbacks-index.js"); // このログが出るか
-    import("./page-specific/admin-feedbacks-index.js")
-        .then((module) => {
-            console.log("admin-feedbacks-index.js loaded successfully."); // このログが出るか
-        })
-        .catch((error) =>
-            console.error("Error loading admin-feedbacks-index.js:", error)
-        );
-}
-document.addEventListener("DOMContentLoaded", () => {
-    // console.log('[APP.JS] DOMContentLoaded event fired.');
+} from "./features/global-tooltips.js";
+import "./features/file-deleter.js";
 
-    initializeTaskTooltips(); //
+if (document.getElementById("feedback-table")) {
+    import("./page-specific/admin-feedbacks-index.js").catch((error) =>
+        console.error("Error loading admin-feedbacks-index.js:", error)
+    );
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    initializeTaskTooltips();
     initializeImagePreviewModal(
-        //
         "imagePreviewModalGlobal",
         "previewImageFullGlobal",
         "closePreviewModalBtnGlobal",
@@ -54,63 +42,43 @@ document.addEventListener("DOMContentLoaded", () => {
         document.querySelector(".task-status-select, .editable-cell") &&
         !document.getElementById("ganttTable")
     ) {
-        import("./page-specific/tasks-index.js").catch(
-            (
-                error //
-            ) => console.error("Error loading tasks-index.js:", error)
+        import("./page-specific/tasks-index.js").catch((error) =>
+            console.error("Error loading tasks-index.js:", error)
         );
     }
     if (document.getElementById("project-show-main-container")) {
-        import("./page-specific/projects-show.js").catch(
-            (
-                error //
-            ) => console.error("Error loading projects-show.js:", error)
+        import("./page-specific/project-show-main.js").catch((error) =>
+            console.error("Error loading project-show-main.js:", error)
         );
     }
     if (document.getElementById("project-form-page")) {
-        import("./page-specific/projects-form.js").catch(
-            (
-                error //
-            ) => console.error("Error loading projects-form.js:", error)
+        import("./page-specific/projects-form.js").catch((error) =>
+            console.error("Error loading projects-form.js:", error)
         );
     }
-    const taskFormPageElement = document.getElementById("task-form-page"); //
+    const taskFormPageElement = document.getElementById("task-form-page");
     if (taskFormPageElement) {
-        import("./page-specific/tasks-form.js") //
-            .catch((error) =>
-                console.error("Error loading tasks-form.js:", error)
-            );
+        import("./page-specific/tasks-form.js").catch((error) =>
+            console.error("Error loading tasks-form.js:", error)
+        );
 
         if (
             taskFormPageElement.dataset.taskId &&
             document.getElementById("file-upload-dropzone-edit")
         ) {
-            import("./page-specific/tasks-edit-dropzone.js").catch(
-                (
-                    error //
-                ) =>
-                    console.error(
-                        "Error loading tasks-edit-dropzone.js:",
-                        error
-                    )
+            import("./page-specific/tasks-edit-dropzone.js").catch((error) =>
+                console.error("Error loading tasks-edit-dropzone.js:", error)
             );
         }
 
-        // Admin Feedbacks Index Page
         if (document.getElementById("feedback-table")) {
-            import("./page-specific/admin-feedbacks-index.js").catch(
-                (
-                    error //
-                ) =>
-                    console.error(
-                        "Error loading admin-feedbacks-index.js:",
-                        error
-                    )
+            // Re-check, seems redundant from above
+            import("./page-specific/admin-feedbacks-index.js").catch((error) =>
+                console.error("Error loading admin-feedbacks-index.js:", error)
             );
         }
     }
 
-    // Admin Feedback Categories Sortable
     if (document.getElementById("sortable-feedback-categories")) {
         import("./admin/feedback-categories-sortable.js").catch((error) =>
             console.error(
@@ -121,25 +89,19 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (document.getElementById("ganttTable")) {
-        //
-        import("./page-specific/gantt-chart.js").catch(
-            (
-                error //
-            ) => console.error("Error loading gantt-chart.js:", error)
+        import("./page-specific/gantt-chart.js").catch((error) =>
+            console.error("Error loading gantt-chart.js:", error)
         );
     }
 
-    // ★★★ カスタム項目定義の並び替え機能の初期化 ★★★
     if (document.getElementById("sortable-definitions")) {
-        // console.log('[APP.JS] Found sortable-definitions element, attempting to load module.');
         import("./admin/form-definitions-sortable.js")
             .then((module) => {
                 if (module.initFormDefinitionSortable) {
-                    // console.log('[APP.JS] form-definitions-sortable.js module loaded, calling initFormDefinitionSortable.');
                     module.initFormDefinitionSortable();
                 } else {
                     console.error(
-                        "[APP.JS] initFormDefinitionSortable function not found in form-definitions-sortable.js module."
+                        "initFormDefinitionSortable function not found in form-definitions-sortable.js module."
                     );
                 }
             })
@@ -150,9 +112,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 )
             );
     }
-    // ★★★ ここまで追加 ★★★
 
-    const calendarEl = document.getElementById("calendar"); //
+    const calendarEl = document.getElementById("calendar");
 
     if (calendarEl) {
         let events = [];
@@ -171,8 +132,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         const calendar = new Calendar(calendarEl, {
-            //
-            plugins: [dayGridPlugin, listPlugin, interactionPlugin], //
+            plugins: [dayGridPlugin, listPlugin, interactionPlugin],
             locale: "ja",
             dayMaxEvents: 2,
             moreLinkContent: function (args) {
@@ -196,7 +156,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 hour12: false,
             },
             eventClick: function (info) {
-                //
                 info.jsEvent.preventDefault();
                 if (window.Livewire) {
                     Livewire.dispatch("open-modal", {
@@ -215,7 +174,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             },
             dayCellClassNames: function (arg) {
-                //
                 if (arg.date.getDay() === 6) {
                     return ["fc-day-sat"];
                 }

@@ -82,7 +82,7 @@
                             $_deliveryTooltipSb = $_deliveryFlagValueSb == '1' ? '納品済み' : '未納品';
                             $_paymentFlagOptionsSb = ['' => '未設定'] + (\App\Models\Project::PAYMENT_FLAG_OPTIONS ?? []);
                             $_paymentFlagIconsSb = [
-                                'Pending'        => 'fa-clock text-yellow-400 dark:text-yellow-500', 'Processing'     => 'fa-spinner fa-spin text-blue-400 dark:text-blue-500',
+                                'Pending'        => 'fa-clock text-yellow-400 dark:text-yellow-500', 'Processing'     => 'fa-hourglass-half text-blue-400 dark:text-blue-500',
                                 'Completed'      => 'fa-check-circle text-green-400 dark:text-green-500', 'Partially Paid' => 'fa-adjust text-orange-400 dark:text-orange-500',
                                 'Overdue'        => 'fa-exclamation-triangle text-red-400 dark:text-red-500', 'Cancelled'      => 'fa-ban text-gray-400 dark:text-gray-500',
                                 'Refunded'       => 'fa-undo text-purple-400 dark:text-purple-500', 'On Hold'        => 'fa-pause-circle text-indigo-400 dark:text-indigo-500',
@@ -133,7 +133,7 @@
                             $_deliveryTooltipSb = $_deliveryFlagValueSb == '1' ? '納品済み' : '未納品';
                             $_paymentFlagOptionsSb = ['' => '未設定'] + (\App\Models\Project::PAYMENT_FLAG_OPTIONS ?? []);
                             $_paymentFlagIconsSb = [
-                                'Pending'        => 'fa-clock text-yellow-400 dark:text-yellow-500', 'Processing'     => 'fa-spinner fa-spin text-blue-400 dark:text-blue-500',
+                                'Pending'        => 'fa-clock text-yellow-400 dark:text-yellow-500', 'Processing'     => 'fa-hourglass-half text-blue-400 dark:text-blue-500',
                                 'Completed'      => 'fa-check-circle text-green-400 dark:text-green-500', 'Partially Paid' => 'fa-adjust text-orange-400 dark:text-orange-500',
                                 'Overdue'        => 'fa-exclamation-triangle text-red-400 dark:text-red-500', 'Cancelled'      => 'fa-ban text-gray-400 dark:text-gray-500',
                                 'Refunded'       => 'fa-undo text-purple-400 dark:text-purple-500', 'On Hold'        => 'fa-pause-circle text-indigo-400 dark:text-indigo-500',
@@ -306,7 +306,7 @@
     <div id="upload-loading-overlay"
         class="fixed inset-0 z-[10050] flex items-center justify-center flex-col text-white bg-black bg-opacity-75"
         style="display:none;">
-        <i class="fas fa-spinner fa-spin fa-3x mb-3"></i>
+        <i class="fas fa-hourglass-half fa-3x mb-3"></i>
         <p>アップロード中です...</p>
     </div>
 

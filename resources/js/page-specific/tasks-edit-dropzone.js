@@ -47,7 +47,8 @@ function initializeEditDropzone() {
         addRemoveLinks: true,
         dictDefaultMessage:
             "ここにファイルをドラッグ＆ドロップ<br>またはクリックしてファイルを選択",
-        dictRemoveFile: "削除",
+        dictRemoveFile: "×",
+        dictCancelUpload: "-",
         dictFileTooBig:
             "ファイルが大きすぎます ({{filesize}}MB)。最大サイズ: {{maxFilesize}}MB。",
         dictInvalidFileType: "このファイル形式はアップロードできません。",

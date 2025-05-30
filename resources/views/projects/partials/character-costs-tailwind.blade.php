@@ -1,4 +1,10 @@
 <div class="space-y-4 text-sm">
+    <div
+        class="p-2 text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded-md dark:bg-blue-700/30 dark:text-blue-200 dark:border-blue-500">
+        <i class="fas fa-info-circle mr-1"></i>
+        材料を「購入済」にすると価格が登録されていれば同名の「材料費」としてコストに自動追加されます。<br>
+        対応する「材料費」コストを手動で削除した場合、材料のステータスが「未購入」に戻ることがあります。
+    </div>
     <div class="p-3 rounded-md {{ $character->costs->sum('amount') > 0 ? 'bg-green-100 text-green-700 dark:bg-green-700/30 dark:text-green-200' : 'bg-gray-100 text-gray-700 dark:bg-gray-700/30 dark:text-gray-300' }}">
         合計コスト: <span class="font-semibold">{{ number_format($character->costs->sum('amount')) }}円</span>
     </div>
@@ -8,18 +14,19 @@
             <thead class="bg-gray-50 dark:bg-gray-700">
                 <tr>
                     <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">日付</th>
-                    <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">内容</th>
                     <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">種別</th>
                     <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">金額</th>
-                    <th scope="col" class="relative px-3 py-2 w-10"><span class="sr-only">削除</span></th>
+                    <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">内容</th>
+                    <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">備考</th>
+                    <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-20"> {{-- ★ 幅調整 --}}
+                        操作</th>
                 </tr>
             </thead>
             <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700 character-costs-list" data-character-id="{{ $character->id }}">
-                @forelse($character->costs()->orderBy('cost_date', 'desc')->get() as $cost)
+                @forelse($character->costs()->orderBy('cost_date', 'desc')->orderBy('id', 'desc')->get() as $cost)
                     <tr id="cost-row-{{ $cost->id }}">
-                        <td class="px-4 py-2 whitespace-nowrap text-gray-700 dark:text-gray-200">{{ $cost->cost_date->format('Y/m/d') }}</td>
-                        <td class="px-4 py-2 whitespace-normal break-words text-gray-700 dark:text-gray-200">{{ $cost->item_description }}</td>
-                        <td class="px-4 py-2 whitespace-nowrap">
+                        <td class="px-4 py-1.5 whitespace-nowrap text-gray-700 dark:text-gray-200 cost-cost_date">{{ $cost->cost_date->format('Y/m/d') }}</td>
+                        <td class="px-4 py-1.5 whitespace-nowrap cost-type">
                             <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full
                                 @switch($cost->type)
                                     @case('材料費') bg-blue-100 text-blue-800 dark:bg-blue-700 dark:text-blue-100 @break
@@ -29,21 +36,39 @@
                                 {{ $cost->type }}
                             </span>
                         </td>
-                        <td class="px-4 py-2 whitespace-nowrap text-gray-700 dark:text-gray-200">{{ number_format($cost->amount) }}円</td>
-                        <td class="px-3 py-2 whitespace-nowrap text-right">
-                            @can('deleteCosts', $project)
-                            <form action="{{ route('projects.characters.costs.destroy', [$project, $character, $cost]) }}"
-                                  method="POST" onsubmit="return false;" class="delete-cost-form" data-cost-id="{{ $cost->id }}"> {{-- onsubmit="return false;" を追加 --}}
-                                @csrf @method('DELETE')
-                                <button type="submit" class="p-1 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300" title="削除">
-                                    <i class="fas fa-trash fa-sm"></i>
-                                </button>
-                            </form>
-                            @endcan
+                        <td class="px-4 py-1.5 whitespace-nowrap text-gray-700 dark:text-gray-200 cost-amount">{{ number_format($cost->amount) }}円</td>
+                        <td class="px-4 py-1.5 whitespace-normal break-words text-gray-700 dark:text-gray-200 cost-item_description">{{ $cost->item_description }}</td>
+                        <td class="px-4 py-1.5 text-gray-700 dark:text-gray-200 break-words text-left leading-tight cost-notes" style="min-width: 150px;">
+                            {!! nl2br(e($cost->notes)) ?: '-' !!}
+                        </td>
+                        <td class="px-3 py-1.5 whitespace-nowrap text-right">
+                            <div class="flex items-center justify-end space-x-1">
+                                @can('updateCosts', $project) {{-- ★ 適切な更新権限 --}}
+                                    <button type="button" class="p-1 text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 edit-cost-btn"
+                                            title="編集"
+                                            data-id="{{ $cost->id }}"
+                                            data-cost_date="{{ $cost->cost_date->format('Y-m-d') }}"
+                                            data-type="{{ $cost->type }}"
+                                            data-amount="{{ $cost->amount }}"
+                                            data-item_description="{{ $cost->item_description }}"
+                                            data-notes="{{ $cost->notes }}">
+                                        <i class="fas fa-edit fa-sm"></i>
+                                    </button>
+                                @endcan
+                                @can('deleteCosts', $project)
+                                <form action="{{ route('projects.characters.costs.destroy', [$project, $character, $cost]) }}"
+                                      method="POST" onsubmit="return false;" class="delete-cost-form" data-id="{{ $cost->id }}">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" class="p-1 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300" title="削除">
+                                        <i class="fas fa-trash fa-sm"></i>
+                                    </button>
+                                </form>
+                                @endcan
+                            </div>
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="5" class="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">登録されているコストはありません。</td></tr>
+                    <tr><td colspan="6" class="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">登録されているコストはありません。</td></tr>
                 @endforelse
             </tbody>
         </table>
@@ -51,34 +76,56 @@
 
     @can('manageCosts', $project)
     <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-        <h6 class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">コストを追加</h6>
-        <form action="{{ route('projects.characters.costs.store', [$project, $character]) }}" method="POST" class="grid grid-cols-1 sm:grid-cols-9 gap-x-3 gap-y-2 items-end add-cost-form" data-character-id="{{ $character->id }}">
+        <h6 class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2" id="cost-form-title-{{ $character->id }}">コストを追加</h6>
+        <form id="cost-form-{{ $character->id }}"
+              action="{{ route('projects.characters.costs.store', [$project, $character]) }}" method="POST"
+              data-store-url="{{ route('projects.characters.costs.store', [$project, $character]) }}"
+              data-character-id="{{ $character->id }}"
+              class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 items-start add-cost-form">
             @csrf
-            <div class="sm:col-span-3">
-                <label for="cost_item_description_{{ $character->id }}" class="block text-xs font-medium text-gray-700 dark:text-gray-300">内容</label>
-                <input type="text" name="item_description" id="cost_item_description_{{ $character->id }}" class="form-input mt-1 block w-full text-sm rounded-md border-gray-300 shadow-sm dark:bg-gray-900 dark:border-gray-600 dark:text-gray-200 focus:border-indigo-500 focus:ring-indigo-500" required>
+            <input type="hidden" name="_method" id="cost-form-method-{{ $character->id }}" value="POST">
+            <input type="hidden" name="cost_id" id="cost-form-id-{{ $character->id }}" value="">
+
+            <div>
+                <x-input-label for="cost_cost_date_input-{{ $character->id }}" value="日付" :required="true"/>
+                <x-text-input type="date" name="cost_date" id="cost_cost_date_input-{{ $character->id }}" class="form-input mt-1 block w-full text-sm rounded-md border-gray-300 shadow-sm dark:bg-gray-900 dark:border-gray-600 dark:text-gray-200 focus:border-indigo-500 focus:ring-indigo-500" value="{{ today()->format('Y-m-d') }}" required/>
             </div>
+            <div>
+                <x-input-label for="cost_type_input-{{ $character->id }}" value="種別" :required="true"/>
+                @php
+                    $costTypes = ['材料費' => '材料費', '作業費' => '作業費', 'その他' => 'その他'];
+                @endphp
+                <x-select-input name="type" id="cost_type_input-{{ $character->id }}" class="form-select mt-1 block w-full text-sm rounded-md border-gray-300 shadow-sm dark:bg-gray-900 dark:border-gray-600 dark:text-gray-200 focus:border-indigo-500 focus:ring-indigo-500" :options="$costTypes" :selected="old('type', '材料費')" required />
+            </div>
+
+            {{-- 金額と内容を横並びにするための親div --}}
+            <div class="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
+                <div>
+                    <x-input-label for="cost_amount_input-{{ $character->id }}" value="金額(円)" :required="true"/>
+                    <x-text-input type="number" name="amount" id="cost_amount_input-{{ $character->id }}" class="form-input mt-1 block w-full text-sm rounded-md border-gray-300 shadow-sm dark:bg-gray-900 dark:border-gray-600 dark:text-gray-200 focus:border-indigo-500 focus:ring-indigo-500" required min="0"/>
+                </div>
+                <div>
+                    <x-input-label for="cost_item_description_input-{{ $character->id }}" value="内容" :required="true"/>
+                    <x-textarea-input name="item_description" id="cost_item_description_input-{{ $character->id }}" class="form-input mt-1 block w-full text-sm rounded-md border-gray-300 shadow-sm dark:bg-gray-900 dark:border-gray-600 dark:text-gray-200 leading-tight" rows="1" required></x-textarea-input>
+                </div>
+            </div>
+
             <div class="sm:col-span-2">
-                <label for="cost_amount_{{ $character->id }}" class="block text-xs font-medium text-gray-700 dark:text-gray-300">金額(円)</label>
-                <input type="number" name="amount" id="cost_amount_{{ $character->id }}" class="form-input mt-1 block w-full text-sm rounded-md border-gray-300 shadow-sm dark:bg-gray-900 dark:border-gray-600 dark:text-gray-200 focus:border-indigo-500 focus:ring-indigo-500" required min="0">
+                <x-input-label for="cost_notes_input-{{ $character->id }}" value="備考" />
+                <x-textarea-input name="notes" id="cost_notes_input-{{ $character->id }}"
+                    class="form-input mt-1 block w-full text-sm rounded-md border-gray-300 shadow-sm dark:bg-gray-900 dark:border-gray-600 dark:text-gray-200 leading-tight"
+                    rows="2"></x-textarea-input>
             </div>
-            <div class="sm:col-span-2">
-                <label for="cost_cost_date_{{ $character->id }}" class="block text-xs font-medium text-gray-700 dark:text-gray-300">日付</label>
-                <input type="date" name="cost_date" id="cost_cost_date_{{ $character->id }}" class="form-input mt-1 block w-full text-sm rounded-md border-gray-300 shadow-sm dark:bg-gray-900 dark:border-gray-600 dark:text-gray-200 focus:border-indigo-500 focus:ring-indigo-500" value="{{ today()->format('Y-m-d') }}" required>
-            </div>
-            <div class="sm:col-span-2">
-                <label for="cost_type_{{ $character->id }}" class="block text-xs font-medium text-gray-700 dark:text-gray-300">種別</label>
-                <select name="type" id="cost_type_{{ $character->id }}" class="form-select mt-1 block w-full text-sm rounded-md border-gray-300 shadow-sm dark:bg-gray-900 dark:border-gray-600 dark:text-gray-200 focus:border-indigo-500 focus:ring-indigo-500">
-                    <option value="材料費">材料費</option>
-                    <option value="作業費">作業費</option>
-                    <option value="その他">その他</option>
-                </select>
-            </div>
-            <div class="sm:col-span-9 mt-2 sm:mt-0 sm:col-span-2 sm:col-start-8">
-                 <button type="submit" class="w-full inline-flex items-center justify-center px-3 py-2 bg-green-500 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-green-600 active:bg-green-700 focus:outline-none focus:border-green-700 focus:ring ring-green-300 disabled:opacity-25 transition ease-in-out duration-150 text-xs">
-                    <i class="fas fa-plus"></i> <span class="hidden sm:inline ml-1">追加</span>
+            <div class="sm:col-span-2 flex justify-end items-center space-x-2">
+                <x-secondary-button type="button" id="cost-form-cancel-btn-{{ $character->id }}" style="display: none;">
+                    キャンセル
+                </x-secondary-button>
+                <button type="submit" id="cost-form-submit-btn-{{ $character->id }}"
+                    class="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 bg-green-500 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-green-600 active:bg-green-700 focus:outline-none focus:border-green-700 focus:ring ring-green-300 disabled:opacity-25 transition ease-in-out duration-150 text-xs">
+                    <i class="fas fa-plus"></i> <span class="ml-2" id="cost-form-submit-btn-text-{{ $character->id }}">追加</span>
                 </button>
             </div>
+            <div id="cost-form-errors-{{ $character->id }}" class="sm:col-span-2 text-sm text-red-600 space-y-1 mt-1"></div>
         </form>
     </div>
     @endcan

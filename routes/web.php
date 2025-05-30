@@ -69,15 +69,18 @@ Route::middleware('auth')->group(function () {
 
     // 採寸データ (案件詳細ページ内で処理)
     Route::post('/projects/{project}/characters/{character}/measurements', [MeasurementController::class, 'store'])->name('projects.characters.measurements.store');
+    Route::put('/projects/{project}/characters/{character}/measurements/{measurement}', [MeasurementController::class, 'update'])->name('projects.characters.measurements.update');
     Route::delete('/projects/{project}/characters/{character}/measurements/{measurement}', [MeasurementController::class, 'destroy'])->name('projects.characters.measurements.destroy');
 
     // 材料データ (案件詳細ページ内で処理)
     Route::post('/projects/{project}/characters/{character}/materials', [MaterialController::class, 'store'])->name('projects.characters.materials.store');
-    Route::patch('/projects/{project}/characters/{character}/materials/{material}', [MaterialController::class, 'update'])->name('projects.characters.materials.update');
+    Route::put('/projects/{project}/characters/{character}/materials/{material}', [MaterialController::class, 'update'])->name('projects.characters.materials.update');
     Route::delete('/projects/{project}/characters/{character}/materials/{material}', [MaterialController::class, 'destroy'])->name('projects.characters.materials.destroy');
+
 
     // コストデータ (案件詳細ページ内で処理)
     Route::post('/projects/{project}/characters/{character}/costs', [CostController::class, 'store'])->name('projects.characters.costs.store');
+    Route::put('/projects/{project}/characters/{character}/costs/{cost}', [CostController::class, 'update'])->name('projects.characters.costs.update');
     Route::delete('/projects/{project}/characters/{character}/costs/{cost}', [CostController::class, 'destroy'])->name('projects.characters.costs.destroy');
 
     // 工程テンプレート管理

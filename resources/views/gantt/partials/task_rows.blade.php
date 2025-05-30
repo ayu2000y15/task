@@ -123,6 +123,8 @@
                     @can('delete', $task)
                         <form action="{{ route('projects.tasks.destroy', [$project, $task]) }}" method="POST" class="d-inline"
                             onsubmit="return confirm('本当に削除しますか？');">
+                            @csrf
+                            @method('DELETE')
                             <x-icon-button icon="fas fa-trash" title="削除" color="red" size="sm" type="submit" method="DELETE" />
                         </form>
                     @endcan
@@ -306,6 +308,8 @@
                     @can('delete', $task)
                         <form action="{{ route('projects.tasks.destroy', [$project, $task]) }}" method="POST" class="d-inline"
                             onsubmit="return confirm('本当に削除しますか？');">
+                            @csrf
+                            @method('DELETE')
                             <x-icon-button icon="fas fa-trash" title="削除" color="red" size="sm" type="submit" method="DELETE" />
                         </form>
                     @endcan

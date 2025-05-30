@@ -3,7 +3,7 @@
 @section('title', '案件詳細 - ' . $project->title)
 
 @section('content')
-<div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8" id="project-show-main-container" data-project-id="{{ $project->id }}">
+<div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8" id="project-show-main-container" data-project-id="{{ $project->id }}" data-project='@json($project->only(['id']))'>
 
     {{-- ヘッダーセクション --}}
     <div class="mb-6 p-4 sm:p-6 rounded-lg shadow-lg text-white" style="background: linear-gradient(135deg, {{ $project->color ?? '#6c757d' }}DD, {{ $project->color ?? '#6c757d' }}FF); border-left: 4px solid {{ $project->color ?? '#6c757d' }};">
@@ -88,7 +88,7 @@
                          @php
                             $paymentFlagOptions = ['' => '未設定'] + (\App\Models\Project::PAYMENT_FLAG_OPTIONS ?? []);
                             $paymentFlagIcons = [
-                                'Pending'        => 'fa-clock text-yellow-500 dark:text-yellow-400', 'Processing'     => 'fa-spinner fa-spin text-blue-500 dark:text-blue-400',
+                                'Pending'        => 'fa-clock text-yellow-500 dark:text-yellow-400', 'Processing'     => 'fa-hourglass-half text-blue-500 dark:text-blue-400',
                                 'Completed'      => 'fa-check-circle text-green-500 dark:text-green-400', 'Partially Paid' => 'fa-adjust text-orange-500 dark:text-orange-400',
                                 'Overdue'        => 'fa-exclamation-triangle text-red-500 dark:text-red-400', 'Cancelled'      => 'fa-ban text-gray-500 dark:text-gray-400',
                                 'Refunded'       => 'fa-undo text-purple-500 dark:text-purple-400', 'On Hold'        => 'fa-pause-circle text-indigo-500 dark:text-indigo-400',
@@ -303,7 +303,9 @@
                  class="bg-white dark:bg-gray-800 shadow-md rounded-lg">
                 <div class="px-5 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center cursor-pointer" @click="expanded = !expanded">
                     <div class="flex items-center"> <i class="fas fa-users mr-2 text-gray-600 dark:text-gray-300"></i> <h5 class="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-0">登場キャラクター</h5> </div>
+                    @can('manageCosts', $project)
                     <div class="text-sm text-gray-500 dark:text-gray-400 flex items-center"> <span class="mr-2">{{ $project->characters->count() }}体</span> @if($project->characters->count() > 0) <span class="mr-2 hidden sm:inline">合計コスト: {{ number_format($project->characters->sum(function ($char) { return $char->costs->sum('amount'); })) }}円</span> @endif <i class="fas" :class="expanded ? 'fa-chevron-up' : 'fa-chevron-down'"></i> </div>
+                    @endcan
                 </div>
                 <div x-show="expanded" x-collapse class="p-1 sm:p-3 md:p-5 border-t border-gray-200 dark:border-gray-700">
                     @can('update', $project)
@@ -336,13 +338,20 @@
                     @else
                         <div class="space-y-6">
                             @foreach($project->characters as $character)
-                                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden" >
+                                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden js-character-card" >
                                     <div class="px-5 py-3 flex justify-between items-center border-b dark:border-gray-700" style="background: linear-gradient(135deg, {{ $project->color ?? '#6c757d' }}1A, {{ $project->color ?? '#6c757d' }}0A); border-left: 3px solid {{ $project->color ?? '#6c757d' }};">
                                         <h6 class="text-md font-semibold text-gray-800 dark:text-gray-100 truncate" title="{{ $character->name }}"> <i class="fas fa-user mr-2" style="color: {{ $project->color ?? '#6c757d' }};"></i> {{ $character->name }} </h6>
                                         @can('update', $project)
                                         <div class="flex space-x-1 flex-shrink-0">
                                             <x-icon-button :href="route('characters.edit', $character)" icon="fas fa-edit" title="編集" color="blue" size="sm" />
-                                            <form action="{{ route('characters.destroy', $character) }}" method="POST" class="inline-block"> <x-icon-button icon="fas fa-trash" title="削除" color="red" size="sm" type="submit" method="DELETE" :confirm="'このキャラクターを削除しますか？関連データも全て削除されます。'" /> </form>
+                                            {{-- 削除ボタンをフォームでラップ --}}
+                                            <form action="{{ route('characters.destroy', $character->id) }}" method="POST" onsubmit="return confirm('このキャラクターを削除しますか？関連データも全て削除されます。');" class="inline-block">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="p-1.5 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800" title="削除">
+                                                    <i class="fas fa-trash fa-sm"></i>
+                                                </button>
+                                            </form>
                                         </div>
                                         @endcan
                                     </div>

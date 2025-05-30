@@ -13,7 +13,7 @@ class PruneOldActivityLogsCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'activitylog:prune-old {--days=365 : Delete records older than this number of days. Defaults to 365 days (1 year).}';
+    protected $signature = 'activitylog:prune-old {--days=30 : Delete records older than this number of days. Defaults to 30 days.}';
 
     /**
      * The console command description.

@@ -5,12 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Spatie\Activitylog\Traits\LogsActivity; // ★ 追加
-use Spatie\Activitylog\LogOptions;          // ★ 追加
+use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\Activitylog\LogOptions;
 
 class Cost extends Model
 {
-    use HasFactory, LogsActivity; // ★ LogsActivity トレイトを追加
+    use HasFactory, LogsActivity;
 
     protected $fillable = [
         'character_id',
@@ -18,13 +18,13 @@ class Cost extends Model
         'amount',
         'type',
         'cost_date',
+        'notes', // ★ 追加
     ];
 
     protected $casts = [
         'cost_date' => 'date',
     ];
 
-    // ★ アクティビティログのオプション設定
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
@@ -34,7 +34,6 @@ class Cost extends Model
             ->setDescriptionForEvent(fn(string $eventName) => "コスト「{$this->item_description}」(ID:{$this->id}) が{$this->getEventDescription($eventName)}されました");
     }
 
-    // ★ イベント名を日本語に変換するヘルパーメソッド (任意)
     protected function getEventDescription(string $eventName): string
     {
         switch ($eventName) {

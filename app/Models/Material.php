@@ -5,12 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Spatie\Activitylog\Traits\LogsActivity; // ★ 追加
-use Spatie\Activitylog\LogOptions;          // ★ 追加
+use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\Activitylog\LogOptions;
 
 class Material extends Model
 {
-    use HasFactory, LogsActivity; // ★ LogsActivity トレイトを追加
+    use HasFactory, LogsActivity;
 
     protected $fillable = [
         'character_id',
@@ -19,9 +19,9 @@ class Material extends Model
         'price',
         'quantity_needed',
         'status',
+        'notes', // ★ 追加
     ];
 
-    // ★ アクティビティログのオプション設定
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
@@ -31,7 +31,6 @@ class Material extends Model
             ->setDescriptionForEvent(fn(string $eventName) => "材料「{$this->name}」(ID:{$this->id}) が{$this->getEventDescription($eventName)}されました");
     }
 
-    // ★ イベント名を日本語に変換するヘルパーメソッド (任意)
     protected function getEventDescription(string $eventName): string
     {
         switch ($eventName) {

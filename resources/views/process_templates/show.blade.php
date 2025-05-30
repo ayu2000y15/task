@@ -80,12 +80,13 @@
                                         @can('delete', arguments: App\Models\ProcessTemplate::class)
                                             <form action="{{ route('process-templates.items.destroy', [$processTemplate, $item]) }}"
                                                 method="POST">
+                                                @csrf
+                                                @method('DELETE')
                                                 <x-icon-button
                                                     icon="fas fa-trash"
                                                     title="削除"
                                                     color="red"
                                                     type="submit"
-                                                    method="DELETE"
                                                     :confirm="'本当に削除しますか？'"
                                                 />
                                             </form>
