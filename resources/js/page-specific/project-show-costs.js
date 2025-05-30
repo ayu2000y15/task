@@ -13,9 +13,7 @@ function updateCharacterTotalCostDisplay(characterId) {
         `costs-content-${characterId}`
     );
     if (!costsTabContainer) {
-        console.warn(
-            `Costs tab container not found for total update: costs-content-${characterId}`
-        );
+        // console.warn(`Costs tab container not found for total update: costs-content-${characterId}`);
         return;
     }
     const tbody = costsTabContainer.querySelector("table tbody");
@@ -74,7 +72,7 @@ function updateCharacterTotalCostDisplay(characterId) {
 export function resetCostForm(characterId, storeUrl) {
     const form = document.getElementById(`cost-form-${characterId}`);
     if (!form) {
-        console.warn(`Cost form not found for reset: cost-form-${characterId}`);
+        // console.warn(`Cost form not found for reset: cost-form-${characterId}`);
         return;
     }
     form.reset();
@@ -128,7 +126,7 @@ export function resetCostForm(characterId, storeUrl) {
     );
     const dateInput =
         form.querySelector(`#cost_cost_date_input-${characterId}`) ||
-        form.querySelector(`[id^="cost_cost_date_input"]`); // Ensure ID is unique if directly targeted
+        form.querySelector('[id^="cost_cost_date_input"]');
     if (dateInput && !(idField && idField.value)) {
         const today = new Date();
         const year = today.getFullYear();
@@ -143,7 +141,7 @@ export function redrawCostRow(characterId, costData, isUpdate, projectData) {
         `#costs-content-${characterId} table tbody`
     );
     if (!tbody) {
-        console.warn(`Cost table body not found for character ${characterId}`);
+        // console.warn(`Cost table body not found for character ${characterId}`);
         return;
     }
 
@@ -152,17 +150,26 @@ export function redrawCostRow(characterId, costData, isUpdate, projectData) {
         ? nl2br(escapeHtml(costData.notes))
         : "-";
     const amountDisplay = Number(costData.amount).toLocaleString() + "円";
-    const dateDisplay = costData.cost_date
-        ? new Date(costData.cost_date + "T00:00:00Z").toLocaleDateString(
-              "ja-JP",
-              {
-                  year: "numeric",
-                  month: "2-digit",
-                  day: "2-digit",
-                  timeZone: "UTC",
-              }
-          )
-        : "-";
+
+    let dateDisplay = "-";
+    if (costData.cost_date && typeof costData.cost_date === "string") {
+        const dateObj = new Date(costData.cost_date);
+        if (!isNaN(dateObj.getTime())) {
+            dateDisplay = dateObj.toLocaleDateString("ja-JP", {
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit",
+                timeZone: "Asia/Tokyo", // または 'UTC' など、表示したいタイムゾーン
+            });
+        } else {
+            // console.warn(`[project-show-costs.js] redrawCostRow - Invalid Date object created from cost_date: "${costData.cost_date}"`);
+            dateDisplay = "日付エラー";
+        }
+    } else {
+        // console.warn(`[project-show-costs.js] redrawCostRow - cost_date is missing or not a string:`, costData.cost_date);
+        dateDisplay = "日付なし";
+    }
+
     const csrfToken = getCsrfToken();
 
     let typeBadgeHtml = "";
@@ -213,7 +220,9 @@ export function redrawCostRow(characterId, costData, isUpdate, projectData) {
     actionsHtml += "</div>";
 
     const newRowCellsHtml = `
-        <td class="px-4 py-1.5 whitespace-nowrap text-gray-700 dark:text-gray-200 cost-cost_date">${dateDisplay}</td>
+        <td class="px-4 py-1.5 whitespace-nowrap text-gray-700 dark:text-gray-200 cost-cost_date">${escapeHtml(
+            dateDisplay
+        )}</td>
         <td class="px-4 py-1.5 whitespace-nowrap cost-type">${typeBadgeHtml}</td>
         <td class="px-4 py-1.5 whitespace-nowrap text-gray-700 dark:text-gray-200 cost-amount">${amountDisplay}</td>
         <td class="px-4 py-1.5 whitespace-normal break-words text-gray-700 dark:text-gray-200 cost-item_description">${escapeHtml(
@@ -249,7 +258,7 @@ export function initializeCostInteractions(
 ) {
     const costForm = document.getElementById(`cost-form-${characterId}`);
     if (!costForm) {
-        console.warn(`Cost form not found for character ${characterId}`);
+        // console.warn(`Cost form not found for character ${characterId}`);
         return;
     }
 
@@ -366,14 +375,12 @@ export function initializeCostInteractions(
         event.preventDefault();
         const errorDiv = document.getElementById(errorDivId);
         if (errorDiv) errorDiv.innerHTML = "";
+
         const formData = new FormData(costForm);
         const actionUrl = costForm.getAttribute("action");
         let httpMethod = "post";
 
-        if (
-            document.getElementById(`cost-form-method-${characterId}`).value ===
-            "PUT"
-        ) {
+        if (methodField && methodField.value === "PUT") {
             formData.append("_method", "PUT");
         }
 
@@ -381,21 +388,21 @@ export function initializeCostInteractions(
             method: httpMethod,
             url: actionUrl,
             data: formData,
-            headers: { "X-CSRF-TOKEN": csrfToken, Accept: "application/json" },
+            headers: {
+                "X-CSRF-TOKEN": csrfToken,
+                Accept: "application/json",
+            },
         })
             .then((response) => {
                 if (response.data.success && response.data.cost) {
-                    const isUpdate =
-                        document.getElementById(
-                            `cost-form-method-${characterId}`
-                        ).value === "PUT";
+                    const isUpdate = methodField && methodField.value === "PUT";
                     redrawCostRow(
                         characterId,
                         response.data.cost,
                         isUpdate,
                         projectData
                     );
-                    resetCostForm(characterId, storeUrl);
+                    resetCostForm(characterId, costForm.dataset.storeUrl);
                     if (response.data.material_status_updated) {
                         // if (typeof refreshCharacterMaterials === "function") {
                         //    refreshCharacterMaterials(projectData.id, characterId);
