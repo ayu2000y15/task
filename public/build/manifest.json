@@ -8,12 +8,12 @@
     "name": "sortable.esm"
   },
   "resources/css/app.css": {
-    "file": "assets/app-BwegUVlz.css",
+    "file": "assets/app-4h98lwh5.css",
     "src": "resources/css/app.css",
     "isEntry": true
   },
   "resources/js/admin/feedback-categories-sortable.js": {
-    "file": "assets/feedback-categories-sortable-DR_p7jmC.js",
+    "file": "assets/feedback-categories-sortable-CtITXQmQ.js",
     "name": "feedback-categories-sortable",
     "src": "resources/js/admin/feedback-categories-sortable.js",
     "isDynamicEntry": true,
@@ -32,14 +32,14 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-D0orqVx1.js",
+    "file": "assets/app-ChqURTr7.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
     "dynamicImports": [
       "resources/js/page-specific/admin-feedbacks-index.js",
       "resources/js/page-specific/tasks-index.js",
-      "resources/js/page-specific/projects-show.js",
+      "resources/js/page-specific/project-show-main.js",
       "resources/js/page-specific/projects-form.js",
       "resources/js/page-specific/tasks-form.js",
       "resources/js/page-specific/tasks-edit-dropzone.js",
@@ -50,7 +50,7 @@
     ]
   },
   "resources/js/page-specific/admin-feedbacks-index.js": {
-    "file": "assets/admin-feedbacks-index-zNcHnDyn.js",
+    "file": "assets/admin-feedbacks-index-BK-_Kekp.js",
     "name": "admin-feedbacks-index",
     "src": "resources/js/page-specific/admin-feedbacks-index.js",
     "isDynamicEntry": true,
@@ -59,12 +59,21 @@
     ]
   },
   "resources/js/page-specific/gantt-chart.js": {
-    "file": "assets/gantt-chart-oPqVjc2y.js",
+    "file": "assets/gantt-chart-VzCq3YCU.js",
     "name": "gantt-chart",
     "src": "resources/js/page-specific/gantt-chart.js",
     "isDynamicEntry": true,
     "imports": [
       "_dropzone-DnLKvtV7.js",
+      "resources/js/app.js"
+    ]
+  },
+  "resources/js/page-specific/project-show-main.js": {
+    "file": "assets/project-show-main-CXvyg8c5.js",
+    "name": "project-show-main",
+    "src": "resources/js/page-specific/project-show-main.js",
+    "isDynamicEntry": true,
+    "imports": [
       "resources/js/app.js"
     ]
   },
@@ -74,17 +83,8 @@
     "src": "resources/js/page-specific/projects-form.js",
     "isDynamicEntry": true
   },
-  "resources/js/page-specific/projects-show.js": {
-    "file": "assets/projects-show-6daHJ_53.js",
-    "name": "projects-show",
-    "src": "resources/js/page-specific/projects-show.js",
-    "isDynamicEntry": true,
-    "imports": [
-      "resources/js/app.js"
-    ]
-  },
   "resources/js/page-specific/tasks-edit-dropzone.js": {
-    "file": "assets/tasks-edit-dropzone-CYo10_52.js",
+    "file": "assets/tasks-edit-dropzone-D_3aalaZ.js",
     "name": "tasks-edit-dropzone",
     "src": "resources/js/page-specific/tasks-edit-dropzone.js",
     "isDynamicEntry": true,
@@ -99,7 +99,7 @@
     "isDynamicEntry": true
   },
   "resources/js/page-specific/tasks-index.js": {
-    "file": "assets/tasks-index-BtVYNi2H.js",
+    "file": "assets/tasks-index-BsXdmZE6.js",
     "name": "tasks-index",
     "src": "resources/js/page-specific/tasks-index.js",
     "isDynamicEntry": true,
