@@ -21,18 +21,18 @@ class EventServiceProvider extends ServiceProvider
      *
      * @var array<class-string, array<int, class-string>>
      */
-    protected $listen = [
-        Registered::class => [
-            SendEmailVerificationNotification::class,
-            LogUserRegistered::class, // ★ 追加
-        ],
-        Login::class => [ // ★ 追加
-            LogSuccessfulLogin::class,
-        ],
-        Logout::class => [ // ★ 追加
-            LogSuccessfulLogout::class,
-        ],
-    ];
+    // protected $listen = [
+    //     Registered::class => [
+    //         SendEmailVerificationNotification::class,
+    //         LogUserRegistered::class, // ★ 追加
+    //     ],
+    //     Login::class => [ // ★ 追加
+    //         LogSuccessfulLogin::class,
+    //     ],
+    //     Logout::class => [ // ★ 追加
+    //         LogSuccessfulLogout::class,
+    //     ],
+    // ];
 
     /**
      * The model observers for your application.
