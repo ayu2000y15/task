@@ -2,12 +2,17 @@
 
 namespace App\Providers;
 
-use App\Models\Project; // Projectモデルをuse
-use App\Observers\ProjectObserver; // 作成したProjectObserverをuse
+use App\Models\Project;
+use App\Observers\ProjectObserver;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Auth\Events\Login;      // ★ 追加
+use Illuminate\Auth\Events\Logout;     // ★ 追加
+use App\Listeners\LogSuccessfulLogin;  // ★ 追加
+use App\Listeners\LogSuccessfulLogout; // ★ 追加
+use App\Listeners\LogUserRegistered;   // ★ 追加
 
 class EventServiceProvider extends ServiceProvider
 {
@@ -19,6 +24,13 @@ class EventServiceProvider extends ServiceProvider
     protected $listen = [
         Registered::class => [
             SendEmailVerificationNotification::class,
+            LogUserRegistered::class, // ★ 追加
+        ],
+        Login::class => [ // ★ 追加
+            LogSuccessfulLogin::class,
+        ],
+        Logout::class => [ // ★ 追加
+            LogSuccessfulLogout::class,
         ],
     ];
 
@@ -27,7 +39,7 @@ class EventServiceProvider extends ServiceProvider
      *
      * @var array
      */
-    protected $observers = [ // ここに追記または作成
+    protected $observers = [
         Project::class => [ProjectObserver::class],
     ];
 
@@ -37,7 +49,7 @@ class EventServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Project::observe(ProjectObserver::class); // $observersプロパティを使う場合はこちらは不要
+        //
     }
 
     /**

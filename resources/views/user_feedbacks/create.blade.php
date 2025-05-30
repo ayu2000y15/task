@@ -71,7 +71,7 @@
 
                     <div>
                         <x-input-label for="content" value="内容" :required="true" />
-                        <x-textarea-input id="content" name="content" class="mt-1 block w-full" rows="8" :hasError="$errors->has('content')" placeholder="具体的な内容をご記入ください。&#10;例:&#10;・どのような操作をした時に問題が発生しましたか？&#10;・どのような状態になることを期待しますか？">{{ old('content') }}</x-textarea-input>
+                        <x-textarea-input id="content" name="content" class="mt-1 block w-full" rows="8" :hasError="$errors->has('content')" placeholder="具体的な内容をご記入ください。&#10;例:&#10;・どのような操作をした時に問題が発生しましたか？&#10;・どのような状態になることを期待しますか？&#10;・スクリーンショットが添付されていると、特定が容易になります。">{{ old('content') }}</x-textarea-input>
                         <x-input-error :messages="$errors->get('content')" class="mt-2" />
                     </div>
 

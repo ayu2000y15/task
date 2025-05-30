@@ -11,9 +11,12 @@ use Carbon\Carbon;
 use App\Services\TaskService;
 use App\Models\ProcessTemplate;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Http\JsonResponse; // ★ JsonResponse を use
 
 class TaskController extends Controller
 {
+    // ... (index, create, store, edit, update, destroy, deleteTaskAndChildren, updateProgress, updatePosition, updateParent, updateAssignee は変更なし) ...
+
     /**
      * 工程一覧を表示
      */
@@ -93,9 +96,9 @@ class TaskController extends Controller
             'assignee' => 'nullable|string|max:255',
             'parent_id' => 'nullable|exists:tasks,id',
             'duration' => 'nullable|integer|min:1|required_if:is_milestone_or_folder,task|prohibited_if:is_milestone_or_folder,milestone',
-            'is_milestone_or_folder' => 'required|in:milestone,folder,task,todo_task', // todo_task を追加
+            'is_milestone_or_folder' => 'required|in:milestone,folder,task,todo_task',
             'status' => 'required_unless:is_milestone_or_folder,folder|nullable|in:not_started,in_progress,completed,on_hold,cancelled',
-            'end_date' => 'nullable|date|after_or_equal:start_date|prohibited_if:is_milestone_or_folder,milestone', // バリデーションとしては残すが、基本的には自動計算 or null
+            'end_date' => 'nullable|date|after_or_equal:start_date|prohibited_if:is_milestone_or_folder,milestone',
         ]);
 
         $isFolder = $request->input('is_milestone_or_folder') === 'folder';
@@ -108,8 +111,8 @@ class TaskController extends Controller
             'character_id' => (array_key_exists('character_id', $validated) && $validated['character_id'] !== '') ? $validated['character_id'] : null,
             'assignee' => $validated['assignee'] ?? null,
             'parent_id' => $request->input('parent_id'),
-            'is_milestone' => $isMilestone, // マイルストーンフラグを設定
-            'is_folder' => $isFolder,   // フォルダフラグを設定
+            'is_milestone' => $isMilestone,
+            'is_folder' => $isFolder,
             'progress' => 0,
         ];
 
@@ -124,21 +127,19 @@ class TaskController extends Controller
                 $taskData['start_date'] = $startDate;
                 $taskData['end_date'] = $startDate->copy();
             } else {
-                // バリデーションでstart_dateは必須のはずだが念のため
                 $taskData['start_date'] = null;
                 $taskData['end_date'] = null;
             }
             $taskData['duration'] = 1;
             $taskData['status'] = $validated['status'] ?? 'not_started';
-        } elseif ($isTodoTask) { // 工程（期限なし）
+        } elseif ($isTodoTask) {
             $taskData['start_date'] = null;
             $taskData['end_date'] = null;
             $taskData['duration'] = null;
-            $taskData['is_milestone'] = false; // 明示的にfalse
-            $taskData['is_folder'] = false;    // 明示的にfalse
+            $taskData['is_milestone'] = false;
+            $taskData['is_folder'] = false;
             $taskData['status'] = $validated['status'] ?? 'not_started';
-        } else { // 通常工程 (is_milestone_or_folder === 'task') - 日付あり
-            // 'task' が選択された場合、start_date と duration はバリデーションで必須になっている
+        } else {
             $startDate = Carbon::parse($validated['start_date']);
             $duration = $validated['duration'];
             $endDate = $startDate->copy()->addDays($duration - 1);
@@ -148,11 +149,9 @@ class TaskController extends Controller
             $taskData['duration'] = $duration;
             $taskData['status'] = $validated['status'] ?? 'not_started';
         }
-        // フォルダの場合、ステータスは常にnull
         if ($isFolder) {
             $taskData['status'] = null;
         }
-
 
         $task = new Task($taskData);
         $project->tasks()->save($task);
@@ -183,15 +182,15 @@ class TaskController extends Controller
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'character_id' => 'nullable|exists:characters,id',
-            'start_date' => 'required_if:is_milestone_or_folder,milestone|nullable|date', // マイルストーンの場合は必須
-            'duration' => 'nullable|integer|min:1|required_with:start_date|prohibited_if:is_milestone_or_folder,milestone', // 開始日があれば工数も必須(マイルストーン除く)
+            'start_date' => 'required_if:is_milestone_or_folder,milestone|nullable|date',
+            'duration' => 'nullable|integer|min:1|required_with:start_date|prohibited_if:is_milestone_or_folder,milestone',
             'assignee' => 'nullable|string|max:255',
             'parent_id' => 'nullable|exists:tasks,id',
             'status' => 'required_unless:is_milestone_or_folder,folder|nullable|in:not_started,in_progress,completed,on_hold,cancelled',
-            'end_date' => 'nullable|date|after_or_equal:start_date|prohibited_if:is_milestone_or_folder,milestone', // 更新時は直接指定されることは少ないが念のため
+            'end_date' => 'nullable|date|after_or_equal:start_date|prohibited_if:is_milestone_or_folder,milestone',
         ]);
 
-        $isFolder = $task->is_folder; // 編集画面ではタスクタイプは変更不可とする想定
+        $isFolder = $task->is_folder;
         $isMilestone = $task->is_milestone;
 
         $taskData = [
@@ -206,35 +205,32 @@ class TaskController extends Controller
             $taskData['start_date'] = null;
             $taskData['end_date'] = null;
             $taskData['duration'] = null;
-            $taskData['progress'] = null; // フォルダは進捗なし
+            $taskData['progress'] = null;
         } elseif ($isMilestone) {
-            // マイルストーンは開始日のみ更新可能（バリデーションで必須）
             if ($request->filled('start_date')) {
                 $startDate = Carbon::parse($validated['start_date']);
                 $taskData['start_date'] = $startDate;
-                $taskData['end_date'] = $startDate->copy(); // 終了日も同じ日に
+                $taskData['end_date'] = $startDate->copy();
             }
-            $taskData['duration'] = 1; // マイルストーンの工数は常に1
+            $taskData['duration'] = 1;
             $taskData['status'] = $validated['status'] ?? $task->status;
-        } else { // 通常工程
+        } else {
             if ($request->filled('start_date') && $request->filled('duration')) {
                 $startDate = Carbon::parse($validated['start_date']);
-                $duration = $validated['duration']; // バリデーションで必須
+                $duration = $validated['duration'];
                 $endDate = $startDate->copy()->addDays($duration - 1);
 
                 $taskData['start_date'] = $startDate;
                 $taskData['end_date'] = $endDate;
                 $taskData['duration'] = $duration;
-            } elseif (!$request->filled('start_date')) { // 開始日がクリアされた場合 = 期限なしタスクへ変更
+            } elseif (!$request->filled('start_date')) {
                 $taskData['start_date'] = null;
                 $taskData['end_date'] = null;
                 $taskData['duration'] = null;
             }
-            // それ以外（開始日のみ、または工数のみ）の場合は、既存の値を維持するか、エラーとするかはバリデーション次第
-            // 現状のバリデーションでは、開始日があれば工数も必須なので、片方だけ入力されることはない想定
             $taskData['status'] = $validated['status'] ?? $task->status;
         }
-        if ($isFolder) { // フォルダの場合はステータスは常にnull
+        if ($isFolder) {
             $taskData['status'] = null;
         }
         $task->fill($taskData);
@@ -261,15 +257,20 @@ class TaskController extends Controller
     {
         if ($task->is_folder) {
             foreach ($task->files as $file) {
-                Storage::disk('local')->delete($file->path);
-                $file->delete();
+                Storage::disk('local')->delete($file->path); // ★ ログ記録の対象（deleteFileメソッドを呼ぶか、ここで手動ログ）
+                // activity()
+                //    ->causedBy(auth()->user())
+                //    ->performedOn($file) // TaskFileモデルインスタンス
+                //    ->event('deleted') // spatie/laravel-activitylog v4以降ではevent()は推奨されない場合がある
+                //    ->log("ファイル「{$file->original_name}」が工程フォルダ「{$task->name}」から削除されました (親工程削除による)");
+                $file->delete(); // これによりTaskFileモデルのLogsActivityが発火するはず
             }
         }
         foreach ($task->children as $child) {
             $this->deleteTaskAndChildren($child);
         }
 
-        $task->delete();
+        $task->delete(); // これによりTaskモデルのLogsActivityが発火
     }
 
     /**
@@ -292,7 +293,7 @@ class TaskController extends Controller
         } elseif (in_array($validated['status'], ['not_started', 'cancelled'])) {
             $updateData['progress'] = 0;
         }
-        $task->update($updateData);
+        $task->update($updateData); // これによりTaskモデルのLogsActivityが発火
 
         return response()->json([
             'success' => true,
@@ -318,7 +319,7 @@ class TaskController extends Controller
         $endDate = Carbon::parse($validated['end_date']);
         $duration = $endDate->diffInDays($startDate) + 1;
 
-        $task->update([
+        $task->update([ // これによりTaskモデルのLogsActivityが発火
             'start_date' => $startDate,
             'end_date' => $endDate,
             'duration' => $duration,
@@ -359,7 +360,7 @@ class TaskController extends Controller
             }
         }
 
-        $task->update([
+        $task->update([ // これによりTaskモデルのLogsActivityが発火
             'parent_id' => $validated['parent_id'],
         ]);
 
@@ -383,7 +384,7 @@ class TaskController extends Controller
         ]);
 
         $task->assignee = $validated['assignee'];
-        $task->save();
+        $task->save(); // これによりTaskモデルのLogsActivityが発火
 
         return response()->json([
             'success' => true,
@@ -402,29 +403,32 @@ class TaskController extends Controller
         }
 
         $request->validate([
-            'file' => 'required|file|max:102400',
+            'file' => 'required|file|max:102400', // 100MB
         ]);
 
         $file = $request->file('file');
         $path = 'task_files/' . $task->id;
-        $storedName = $file->hashName();
+        $storedName = $file->hashName(); // store() or storeAs() will generate a unique name
         $fullPath = Storage::disk('local')->putFileAs($path, $file, $storedName);
 
         $taskFile = $task->files()->create([
             'original_name' => $file->getClientOriginalName(),
-            'stored_name' => $storedName,
+            'stored_name' => $storedName, // or $file->hashName() if stored directly
             'path' => $fullPath,
             'mime_type' => $file->getMimeType() ?? 'application/octet-stream',
             'size' => $file->getSize(),
         ]);
 
-        // データベースから最新のファイルリストを再取得
-        $files = $task->fresh()->files()->orderBy('original_name')->get();
+        // ★ ログ記録: ファイルアップロード
+        activity()
+            ->causedBy(auth()->user())
+            ->performedOn($taskFile) // TaskFileモデルを対象とする
+            ->withProperties(['task_name' => $task->name, 'project_name' => $project->title])
+            ->log("ファイル「{$taskFile->original_name}」が工程フォルダ「{$task->name}」(ID:{$task->id}) にアップロードされました。");
 
-        // 更新されたファイルリストのHTMLを生成
+        $files = $task->fresh()->files()->orderBy('original_name')->get();
         $updatedHtml = view('tasks.partials.file-list-tailwind', compact('files', 'project', 'task'))->render();
 
-        // フロントエンドが期待する形式でJSONレスポンスを返す
         return response()->json([
             'success' => true,
             'html' => $updatedHtml
@@ -432,11 +436,11 @@ class TaskController extends Controller
     }
 
     /**
-     * ファイル一覧を取得する
+     * ファイル一覧を取得する (ログ対象外)
      */
     public function getFiles(Project $project, Task $task)
     {
-        $this->authorize('update', $task);
+        $this->authorize('update', $task); // ファイル一覧表示も更新権限で制御（または専用の閲覧権限）
         $files = $task->files()->orderBy('original_name')->get();
         return view('tasks.partials.file-list-tailwind', ['files' => $files, 'project' => $project, 'task' => $task])->render();
     }
@@ -446,29 +450,38 @@ class TaskController extends Controller
      */
     public function downloadFile(Project $project, Task $task, TaskFile $file)
     {
-        $this->authorize('update', $task);
+        $this->authorize('update', $task); // ダウンロード権限は更新権限で代用（または専用権限 tasks.file-download）
         if ($file->task_id !== $task->id) {
             abort(404);
         }
         if (!Storage::disk('local')->exists($file->path)) {
             abort(404, 'ファイルが見つかりません。');
         }
+
+        // ★ ログ記録: ファイルダウンロード
+        activity()
+            ->causedBy(auth()->user())
+            ->performedOn($file) // TaskFileモデルを対象とする
+            ->withProperties(['task_name' => $task->name, 'project_name' => $project->title])
+            ->log("ファイル「{$file->original_name}」が工程フォルダ「{$task->name}」(ID:{$task->id}) からダウンロードされました。");
 
         return Storage::disk('local')->download($file->path, $file->original_name);
     }
 
     /**
-     * ファイルをブラウザで表示する (画像プレビュー用)
+     * ファイルをブラウザで表示する (画像プレビュー用) (ログ対象外とするか、必要なら追加)
      */
     public function showFile(Project $project, Task $task, TaskFile $file)
     {
-        $this->authorize('update', $task);
+        $this->authorize('update', $task); // 閲覧権限は更新権限で代用（または専用権限 tasks.file-view）
         if ($file->task_id !== $task->id) {
             abort(404);
         }
         if (!Storage::disk('local')->exists($file->path)) {
             abort(404, 'ファイルが見つかりません。');
         }
+        // ファイル表示自体はログの主要な関心事から外れる場合もあるため、ここではログを記録しない。
+        // 必要であれば downloadFile と同様にログを追加可能。
 
         return response()->file(Storage::disk('local')->path($file->path));
     }
@@ -478,13 +491,23 @@ class TaskController extends Controller
      */
     public function deleteFile(Project $project, Task $task, TaskFile $file)
     {
-        $this->authorize('update', $task);
+        $this->authorize('update', $task); // 削除権限は更新権限で代用（または専用権限 tasks.file-delete）
         if ($file->task_id !== $task->id) {
             abort(404);
         }
 
+        $originalFileName = $file->original_name; // 削除前にファイル名を取得
+
         Storage::disk('local')->delete($file->path);
-        $file->delete();
+        $file->delete(); // これによりTaskFileモデルにLogsActivityがあれば発火するが、今回は手動ログで詳細を記録
+
+        // ★ ログ記録: ファイル削除
+        activity()
+            ->causedBy(auth()->user())
+            ->performedOn($task) // 親であるTaskモデルを対象とする (TaskFileは既に削除されているため)
+            ->withProperties(['deleted_file_name' => $originalFileName, 'task_name' => $task->name, 'project_name' => $project->title])
+            ->log("ファイル「{$originalFileName}」が工程フォルダ「{$task->name}」(ID:{$task->id}) から削除されました。");
+
 
         return response()->json(['success' => true, 'message' => 'ファイルを削除しました。']);
     }
@@ -507,6 +530,7 @@ class TaskController extends Controller
         $currentStartDate = Carbon::parse($validated['template_start_date']);
         $parentTaskIdForTemplate = $validated['parent_id_for_template'] ?? null;
         $characterIdForTemplate = $validated['character_id_for_template'] ?? null;
+        $createdTaskNames = []; // ★ ログ用に作成されたタスク名を収集
 
         foreach ($template->items as $item) {
             $taskData = [
@@ -524,43 +548,46 @@ class TaskController extends Controller
             ];
             $taskData['end_date'] = $currentStartDate->copy()->addDays(($item->default_duration ?? 1) - 1);
 
-            $project->tasks()->create($taskData);
+            $createdTask = $project->tasks()->create($taskData); // これによりTaskモデルのLogsActivityが発火
+            $createdTaskNames[] = $createdTask->name; // ★ 作成されたタスク名を収集
             $currentStartDate = $taskData['end_date']->addDay();
         }
+
+        // ★ ログ記録: テンプレートからの工程一括作成
+        if (count($createdTaskNames) > 0) {
+            activity()
+                ->causedBy(auth()->user())
+                ->performedOn($project) // プロジェクトを操作対象とする
+                ->withProperties([
+                    'template_name' => $template->name,
+                    'created_tasks_count' => count($createdTaskNames),
+                    'first_task_name' => $createdTaskNames[0] ?? null // 例として最初のタスク名
+                ])
+                ->log("工程テンプレート「{$template->name}」から {$project->title} に " . count($createdTaskNames) . " 件の工程が一括作成されました。");
+        }
+
         return redirect()->route('gantt.index', ['project_id' => $project->id])->with('success', 'テンプレートから工程を一括作成しました。');
     }
 
-    /**
-     * 工程のメモ（description）を更新
-     */
-    /**
-     * 工程のメモ（description）を更新
-     */
     public function updateDescription(Request $request, Project $project, Task $task): JsonResponse
     {
         try {
-            // バリデーション
             $validated = $request->validate([
                 'description' => 'nullable|string|max:2000',
             ]);
 
-            // 工程が指定されたプロジェクトに属しているかチェック
             if ($task->project_id !== $project->id) {
                 return response()->json([
                     'success' => false,
                     'message' => '指定された工程が見つかりません',
                 ], 404);
             }
+            // $this->authorize('update', $task); // ポリシーでの権限チェック
 
-            // 権限チェック（簡単な実装）
-            // より詳細な権限チェックが必要な場合は、Policyを使用してください
-            // $this->authorize('update', $task);
-
-            // メモを更新
             $task->description = $validated['description'] ?? '';
-            $task->save();
+            $task->save(); // これによりTaskモデルのLogsActivityが発火 (descriptionが$fillableに含まれていれば)
 
-            Log::info('Task description updated', [
+            Log::info('Task description updated', [ // これはLaravelの標準ログ
                 'task_id' => $task->id,
                 'project_id' => $project->id,
                 'user_id' => auth()->id(),

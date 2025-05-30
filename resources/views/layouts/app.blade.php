@@ -239,6 +239,9 @@
                                 フィードバック管理 @if(isset($unreadFeedbackCountGlobal) && $unreadFeedbackCountGlobal > 0)<span class="ml-auto inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-red-100 bg-red-600 rounded-full">{{ $unreadFeedbackCountGlobal }}</span>@endif
                             </a>
                             @endcan
+                            @can('viewAny', Spatie\Activitylog\Models\Activity::class) {{-- LogPolicy@viewAny の権限チェック --}}
+                                <a href="{{ route('admin.logs.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">操作ログ閲覧</a>
+                            @endcan
                             @can('viewAny', App\Models\User::class)
                                 <a href="javascript:void(0)" onclick="copyToClipboard()" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">新規ユーザー登録リンク</a>
                                 <input type="text" value="{{ url('/register') }}" id="copyTarget" class="sr-only" aria-hidden="true">

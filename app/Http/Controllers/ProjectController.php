@@ -68,7 +68,7 @@ class ProjectController extends Controller
         $customMessages = [];
         $attributeNames = [];
 
-        // 専用カラムの基本バリデーション
+        // 専用カラムの基本バリデーション (変更なし)
         $dedicatedRules = [
             'title'         => ($isUpdate ? 'sometimes|' : '') . 'required|string|max:255',
             'description'   => 'nullable|string',
@@ -109,29 +109,56 @@ class ProjectController extends Controller
         foreach ($customFieldDefinitions as $field) {
             $fieldRules = [];
             $fieldName = $field['name'];
-            $validationKey = 'attributes.' . $fieldName;
-            $arrayValidationKey = $validationKey . '.*';
+            $validationKey = 'attributes.' . $fieldName; // attributes.custom_field_name
+            $arrayValidationKey = $validationKey . '.*'; // attributes.custom_field_name.*
 
+            // 更新時は sometimes を基本とする (file_multiple以外)
             if ($isUpdate && $field['type'] !== 'file_multiple') {
                 $fieldRules[] = 'sometimes';
             }
 
             if ($field['required'] ?? false) {
                 if ($field['type'] === 'file_multiple') {
-                    $hasExistingFiles = $project && isset($project->attributes[$fieldName]) && !empty($project->attributes[$fieldName]);
-                    if (!($isUpdate && $hasExistingFiles && !$request->hasFile($validationKey) && !$request->input($validationKey . "_delete"))) {
+                    // file_multiple の必須チェックは少し複雑
+                    // 新規作成時: 必須なら 'required', 'array', 'min:1'
+                    // 更新時:
+                    //   - 新しいファイルがアップロードされる場合: OK
+                    //   - 新しいファイルがなく、既存ファイルがあり、削除指定もない場合: OK
+                    //   - 新しいファイルがなく、既存ファイルもない(or 全て削除指定)場合: NG (エラー)
+                    $fieldRules[] = 'array'; // 常に配列であることを期待
+                    if (!$isUpdate) { // 新規作成時
                         $fieldRules[] = 'required';
+                        $fieldRules[] = 'min:1'; // 少なくとも1つのファイルが必要
+                        $customMessages[$validationKey . '.required'] = $field['label'] . 'は必須です。';
+                        $customMessages[$validationKey . '.min'] = $field['label'] . 'には少なくとも1つのファイルをアップロードしてください。';
+                    } else { // 更新時
+                        // $request->hasFile($validationKey) は個々のファイルではなく、配列の存在を見る
+                        $hasNewFiles = $request->hasFile($validationKey) && count((array)$request->file($validationKey)) > 0;
+                        $existingFiles = $project->attributes[$fieldName] ?? [];
+                        $filesToDelete = $request->input("delete_existing_files.{$fieldName}", []);
+                        $remainingExistingFiles = array_udiff($existingFiles, $filesToDelete, function ($a, $b) {
+                            // $a, $b はファイル情報配列またはパス文字列の可能性がある
+                            $pathA = is_array($a) ? ($a['path'] ?? null) : $a;
+                            $pathB = is_array($b) ? ($b['path'] ?? null) : $b;
+                            return strcmp((string)$pathA, (string)$pathB);
+                        });
+
+                        if (!$hasNewFiles && empty($remainingExistingFiles)) {
+                            $fieldRules[] = 'required'; // 新規ファイルも残存ファイルもなければ必須エラー
+                            $fieldRules[] = 'min:1';
+                            $customMessages[$validationKey . '.required'] = $field['label'] . 'は必須です。';
+                            $customMessages[$validationKey . '.min'] = $field['label'] . 'には少なくとも1つのファイルを指定または保持してください。';
+                        }
                     }
-                    $fieldRules[] = 'array';
                 } elseif ($field['type'] === 'checkbox') {
-                    $fieldRules[] = 'accepted';
+                    $fieldRules[] = 'accepted'; // チェックボックスが必須の場合
                 } else {
                     $fieldRules[] = 'required';
                 }
             } else {
                 $fieldRules[] = 'nullable';
                 if ($field['type'] === 'file_multiple') {
-                    $fieldRules[] = 'array';
+                    $fieldRules[] = 'array'; // nullableでも配列形式を期待
                 }
             }
 
@@ -151,7 +178,7 @@ class ProjectController extends Controller
                     $fieldRules[] = 'numeric';
                     break;
                 case 'tel':
-                    $fieldRules[] = 'string';
+                    $fieldRules[] = 'string'; // より厳密なバリデーションも可能だが、今回はstring
                     if (isset($field['maxlength'])) $fieldRules[] = 'max:' . $field['maxlength'];
                     break;
                 case 'email':
@@ -163,14 +190,13 @@ class ProjectController extends Controller
                     if (isset($field['maxlength'])) $fieldRules[] = 'max:' . $field['maxlength'];
                     break;
                 case 'select':
-                    if (($field['required'] ?? false) && $request->input($validationKey) === '') {
+                    // 必須の場合、かつ選択肢が定義されている場合、その選択肢内であることを検証
+                    if (in_array('required', $fieldRules) && !empty($field['options'])) {
                         $validOptions = [];
-                        if (!empty($field['options'])) {
-                            $pairs = explode(',', $field['options']);
-                            foreach ($pairs as $pair) {
-                                $parts = explode(':', trim($pair), 2);
-                                $validOptions[] = trim($parts[0]);
-                            }
+                        $optionsArray = explode(',', $field['options']);
+                        foreach ($optionsArray as $option) {
+                            $parts = explode(':', trim($option), 2);
+                            $validOptions[] = trim($parts[0]);
                         }
                         if (!empty($validOptions)) {
                             $fieldRules[] = Rule::in($validOptions);
@@ -178,26 +204,25 @@ class ProjectController extends Controller
                     }
                     break;
                 case 'checkbox':
+                    // 'accepted' または 'nullable' で処理済み
                     break;
                 case 'file_multiple':
-                    if ($request->hasFile($validationKey)) {
-                        $rules[$arrayValidationKey] = 'file|mimes:jpg,jpeg,png,gif,pdf,doc,docx,xls,xlsx,zip,txt|max:10240'; // 例: 各10MBまで
-                    } elseif ($isUpdate && ($field['required'] ?? false) && !$request->hasFile($validationKey) && !($project && isset($project->attributes[$fieldName]) && !empty($project->attributes[$fieldName])) && !$request->input($validationKey . "_delete")) {
-                        // 更新時、必須で、新しいファイルがなく既存ファイルもない（または全削除指定がない）場合はエラー
-                        $rules[$validationKey] = 'required|array|min:1';
-                        $customMessages[$validationKey . '.min'] = $field['label'] . 'は少なくとも1つのファイルを指定してください。';
+                    // 各ファイルに対するバリデーションルール
+                    // $request->file($validationKey) は UploadedFile の配列または null
+                    if ($request->hasFile($validationKey) && is_array($request->file($validationKey))) {
+                        $rules[$arrayValidationKey] = 'file|mimes:jpg,jpeg,png,gif,pdf,doc,docx,xls,xlsx,zip,txt|max:10240'; // 各10MB
                     }
                     $attributeNames[$arrayValidationKey] = $field['label'] . 'の各ファイル';
-                    // fieldRules は file_multiple の配列自体に使用
-                    $rules[$validationKey] = implode('|', $fieldRules);
-                    continue 2; // switch を抜けて次の foreach へ
+                    $rules[$validationKey] = implode('|', array_unique($fieldRules)); // 配列自体のルール
+                    continue 2; // switchを抜けて次のforeachへ
             }
 
             if (!empty($fieldRules)) {
-                if ($isUpdate && ($fieldRules[0] ?? '') !== 'sometimes' && $field['type'] !== 'file_multiple') {
+                // 更新時で、既に 'sometimes' が先頭にない場合に追加
+                if ($isUpdate && ($fieldRules[0] ?? '') !== 'sometimes' && $field['type'] !== 'file_multiple' && $field['type'] !== 'checkbox') {
                     array_unshift($fieldRules, 'sometimes');
                 }
-                $rules[$validationKey] = implode('|', $fieldRules);
+                $rules[$validationKey] = implode('|', array_unique($fieldRules));
             }
             $attributeNames[$validationKey] = $field['label'];
         }
@@ -265,12 +290,9 @@ class ProjectController extends Controller
             'payment',
             'status'
         ]);
-        // title は required なので、バリデーション通過時点で存在するはず
-        if (empty($dedicatedData['title'])) { // 万が一のためのフォールバック (通常は不要)
+        if (empty($dedicatedData['title'])) {
             $dedicatedData['title'] = '名称未設定案件 - ' . now()->format('YmdHis');
         }
-
-
         $dedicatedData['is_favorite'] = $request->boolean('is_favorite');
         if (!empty($dedicatedData['start_date'])) {
             $dedicatedData['start_date'] = Carbon::parse($dedicatedData['start_date'])->format('Y-m-d');
@@ -282,32 +304,42 @@ class ProjectController extends Controller
             $dedicatedData['color'] = '#0d6efd';
         }
 
-        // プロジェクトモデルを先に作成してIDを取得
         $project = new Project();
         $project->fill($dedicatedData);
-        $project->form_definitions = $activeGlobalFieldDefinitions; // 先に定義をセット
-        // attributes はファイル処理後にセットするため、ここではまだ保存しない
-        $project->save(); // これで $project->id が利用可能
+        $project->form_definitions = $activeGlobalFieldDefinitions; // プロジェクト作成時の定義を保存
+        // $project->attributes はファイル処理後に設定するため、ここではまだ保存しない
+        $project->save(); // ProjectモデルのLogsActivityが発火 (createdイベント)
 
         $customAttributesValues = [];
         $submittedAttributes = $request->input('attributes', []);
+        $uploadedFileLogDetails = []; // ★ ログ用のファイル詳細情報を格納する配列
 
         foreach ($activeGlobalFieldDefinitions as $field) {
             $fieldName = $field['name'];
             if ($field['type'] === 'checkbox') {
                 $customAttributesValues[$fieldName] = isset($submittedAttributes[$fieldName]) && filter_var($submittedAttributes[$fieldName], FILTER_VALIDATE_BOOLEAN);
             } elseif ($field['type'] === 'file_multiple') {
-                if ($request->hasFile('attributes.' . $fieldName)) {
-                    $uploadedFiles = $request->file('attributes.' . $fieldName);
+                $fileInputKey = 'attributes.' . $fieldName; // ★ 正しいキー名
+                if ($request->hasFile($fileInputKey)) {
+                    $uploadedFiles = $request->file($fileInputKey);
                     $storedFilePaths = [];
                     foreach ($uploadedFiles as $file) {
                         $directory = "project_files/{$project->id}/{$fieldName}";
-                        $path = $file->store($directory, 'public'); // publicディスクに保存
-                        $storedFilePaths[] = [
+                        $path = $file->store($directory, 'public');
+                        $fileMetaData = [
                             'path' => $path,
                             'original_name' => $file->getClientOriginalName(),
                             'mime_type' => $file->getClientMimeType(),
                             'size' => $file->getSize(),
+                        ];
+                        $storedFilePaths[] = $fileMetaData;
+                        // ★ ログ用の情報を収集
+                        $uploadedFileLogDetails[] = [
+                            'field_label' => $field['label'],
+                            'field_name' => $fieldName,
+                            'original_name' => $fileMetaData['original_name'],
+                            'path' => $fileMetaData['path'],
+                            'size' => $fileMetaData['size'],
                         ];
                     }
                     $customAttributesValues[$fieldName] = $storedFilePaths;
@@ -317,12 +349,31 @@ class ProjectController extends Controller
             } elseif (isset($submittedAttributes[$fieldName])) {
                 $customAttributesValues[$fieldName] = $submittedAttributes[$fieldName];
             } else {
-                $customAttributesValues[$fieldName] = null;
+                $customAttributesValues[$fieldName] = null; // 値がない場合はnullを設定
             }
         }
 
-        $project->attributes = $customAttributesValues; // 属性をセット
-        $project->save(); // 再度保存して属性を永続化
+        $project->attributes = $customAttributesValues;
+        // ★ プロジェクトの attributes が更新されるため、再度保存イベントがトリガーされる可能性がある。
+        // ★ これにより Project モデルの LogsActivity が再度発火する。
+        // ★ これを避けたい場合は、イベントを発火させずに更新する $project->updateQuietly(['attributes' => $customAttributesValues]); を使うか、
+        // ★ attributes の更新を最初の save() に含める（ファイル処理を先に行う）必要がある。
+        // ★ 今回は、ファイル処理後に attributes を設定し、再度 save() する。
+        // ★ これにより、最初の作成ログと、attributes（ファイル情報含む）の更新ログが記録される。
+        $project->save();
+
+
+        // ★ ファイルアップロード操作のログを手動で記録
+        if (!empty($uploadedFileLogDetails)) {
+            foreach ($uploadedFileLogDetails as $logDetail) {
+                activity()
+                    ->causedBy(auth()->user())
+                    ->performedOn($project) // 操作対象はプロジェクト
+                    ->withProperties($logDetail) // ファイルごとの詳細情報をプロパティに
+                    ->log("プロジェクト「{$project->title}」のカスタム項目「{$logDetail['field_label']}」にファイル「{$logDetail['original_name']}」がアップロードされました。");
+            }
+        }
+
 
         if ($request->filled('external_submission_id_on_creation')) {
             $externalSubmission = ExternalProjectSubmission::find($request->input('external_submission_id_on_creation'));
@@ -330,7 +381,12 @@ class ProjectController extends Controller
                 $externalSubmission->status = 'processed';
                 $externalSubmission->processed_by_user_id = auth()->id();
                 $externalSubmission->processed_at = now();
-                $externalSubmission->save();
+                $externalSubmission->save(); // ExternalProjectSubmissionモデルにもLogsActivityがあれば発火
+                // ★ 外部申請処理のログ
+                activity()
+                    ->causedBy(auth()->user())
+                    ->performedOn($externalSubmission)
+                    ->log("外部申請 ID:{$externalSubmission->id} が処理されました。");
             }
         }
 
@@ -364,7 +420,7 @@ class ProjectController extends Controller
     public function update(Request $request, Project $project)
     {
         $this->authorize('update', $project);
-        $currentCustomFieldDefinitions = $this->getProjectCustomFieldDefinitions($project);
+        $currentCustomFieldDefinitions = $this->getProjectCustomFieldDefinitions($project); // ★ プロジェクト固有の定義を取得
         $validationConfig = $this->buildValidationRulesAndNames($currentCustomFieldDefinitions, $request, true, $project);
         $validatedData = Validator::make($request->all(), $validationConfig['rules'], $validationConfig['messages'], $validationConfig['names'])->validate();
 
@@ -391,53 +447,107 @@ class ProjectController extends Controller
             $dedicatedDataToUpdate['end_date'] = !empty($dedicatedDataToUpdate['end_date']) ? Carbon::parse($dedicatedDataToUpdate['end_date'])->format('Y-m-d') : null;
         }
 
-        $customAttributesValues = $project->attributes ?? [];
+        // カスタム属性の処理
+        $customAttributesValues = $project->attributes ?? []; // 既存のattributesを取得
         $submittedAttributes = $request->input('attributes', []);
-        $filesToDeletePaths = $request->input('delete_existing_files', []); // ビュー側で削除指定された既存ファイルのパス配列
+        $uploadedFileLogDetails = []; // ★ ログ用の新規アップロードファイル詳細
+        $deletedFileLogDetails = [];  // ★ ログ用の削除ファイル詳細
 
         foreach ($currentCustomFieldDefinitions as $field) {
             $fieldName = $field['name'];
+            $fieldLabel = $field['label']; // ★ ログ用にラベルを取得
+
             if ($field['type'] === 'checkbox') {
+                // チェックボックスは常に値を送信するため、存在すればtrue、なければfalse
                 $customAttributesValues[$fieldName] = isset($submittedAttributes[$fieldName]) && filter_var($submittedAttributes[$fieldName], FILTER_VALIDATE_BOOLEAN);
             } elseif ($field['type'] === 'file_multiple') {
+                $fileInputKey = 'attributes.' . $fieldName;
                 $newlyUploadedFileMeta = [];
-                if ($request->hasFile('attributes.' . $fieldName)) {
-                    $uploadedFiles = $request->file('attributes.' . $fieldName);
+
+                // 新規ファイルのアップロード処理
+                if ($request->hasFile($fileInputKey)) {
+                    $uploadedFiles = $request->file($fileInputKey);
                     foreach ($uploadedFiles as $file) {
                         $directory = "project_files/{$project->id}/{$fieldName}";
                         $path = $file->store($directory, 'public');
-                        $newlyUploadedFileMeta[] = [
+                        $fileMetaData = [
                             'path' => $path,
                             'original_name' => $file->getClientOriginalName(),
                             'mime_type' => $file->getClientMimeType(),
                             'size' => $file->getSize(),
                         ];
+                        $newlyUploadedFileMeta[] = $fileMetaData;
+                        // ★ ログ用の情報を収集 (新規アップロード)
+                        $uploadedFileLogDetails[] = [
+                            'field_label' => $fieldLabel,
+                            'field_name' => $fieldName,
+                            'original_name' => $fileMetaData['original_name'],
+                            'path' => $fileMetaData['path'],
+                            'size' => $fileMetaData['size'],
+                        ];
                     }
                 }
 
+                // 既存ファイルの削除処理
                 $existingFilesMeta = $customAttributesValues[$fieldName] ?? [];
                 $keptFilesMeta = [];
+                // "delete_existing_files[カスタムフィールド名][]" の形式で削除対象のパスが送信される想定
+                $filesToDeletePathsForField = $request->input("delete_existing_files.{$fieldName}", []);
+
                 if (is_array($existingFilesMeta)) {
                     foreach ($existingFilesMeta as $fileMeta) {
-                        if (is_array($fileMeta) && isset($fileMeta['path']) && in_array($fileMeta['path'], $filesToDeletePaths[$fieldName] ?? [])) {
-                            Storage::disk('public')->delete($fileMeta['path']); // ストレージから削除
+                        $existingFilePath = is_array($fileMeta) ? ($fileMeta['path'] ?? null) : $fileMeta;
+                        $existingOriginalName = is_array($fileMeta) ? ($fileMeta['original_name'] ?? basename((string)$existingFilePath)) : basename((string)$existingFilePath);
+
+                        if ($existingFilePath && in_array($existingFilePath, $filesToDeletePathsForField)) {
+                            Storage::disk('public')->delete($existingFilePath);
+                            // ★ ログ用の情報を収集 (削除)
+                            $deletedFileLogDetails[] = [
+                                'field_label' => $fieldLabel,
+                                'field_name' => $fieldName,
+                                'original_name' => $existingOriginalName,
+                                'path' => $existingFilePath,
+                            ];
                         } else {
                             $keptFilesMeta[] = $fileMeta; // 保持するファイル
                         }
                     }
                 }
+                // 保持するファイルと新規アップロードファイルをマージ
                 $customAttributesValues[$fieldName] = array_merge($keptFilesMeta, $newlyUploadedFileMeta);
-            } elseif (array_key_exists($fieldName, $submittedAttributes)) {
-                $customAttributesValues[$fieldName] = $submittedAttributes[$fieldName];
-            } elseif ($isUpdate && !array_key_exists($fieldName, $submittedAttributes) && $field['type'] !== 'checkbox' && $field['type'] !== 'file_multiple' && $request->has('attributes')) {
-                // フォームに存在したが値が送信されなかったフィールド（空のテキスト入力など）はnullにするか、既存値を維持するか
-                // $customAttributesValues[$fieldName] = null;
+            } elseif (Arr::has($submittedAttributes, $fieldName)) { // inputにキーが存在する場合のみ更新 (nullも含む)
+                $customAttributesValues[$fieldName] = Arr::get($submittedAttributes, $fieldName);
             }
+            // ★ Arr::has でチェックしない場合、フォームに存在しないフィールドは更新対象外となる。
+            // ★ もし、フォームに項目がなくても常に全ての定義済みフィールドを attributes に含めたい場合は、
+            // ★ old() や $project->attributes から値を取得し、 $customAttributesValues[$fieldName] = ...; のように
+            // ★ 常に値を設定する必要がある。現状は送信された値のみを更新する形。
         }
 
         $project->fill($dedicatedDataToUpdate);
-        $project->attributes = $customAttributesValues;
-        $project->save();
+        $project->attributes = $customAttributesValues; // ここで更新された属性をセット
+        $project->save(); // これによりProjectモデルのLogsActivityが発火 (updatedイベント)
+
+        // ★ 新規ファイルアップロード操作のログを手動で記録
+        if (!empty($uploadedFileLogDetails)) {
+            foreach ($uploadedFileLogDetails as $logDetail) {
+                activity()
+                    ->causedBy(auth()->user())
+                    ->performedOn($project)
+                    ->withProperties($logDetail)
+                    ->log("プロジェクト「{$project->title}」のカスタム項目「{$logDetail['field_label']}」にファイル「{$logDetail['original_name']}」がアップロードされました。");
+            }
+        }
+        // ★ 既存ファイル削除操作のログを手動で記録
+        if (!empty($deletedFileLogDetails)) {
+            foreach ($deletedFileLogDetails as $logDetail) {
+                activity()
+                    ->causedBy(auth()->user())
+                    ->performedOn($project)
+                    ->withProperties($logDetail)
+                    ->log("プロジェクト「{$project->title}」のカスタム項目「{$logDetail['field_label']}」からファイル「{$logDetail['original_name']}」が削除されました。");
+            }
+        }
 
         return redirect()->route('projects.show', $project)->with('success', '衣装案件が更新されました。');
     }
@@ -446,39 +556,77 @@ class ProjectController extends Controller
     {
         $this->authorize('delete', $project);
 
-        if (isset($project->attributes) && is_array($project->attributes)) {
-            if (is_array($project->form_definitions)) { // form_definitions が配列であることを確認
-                foreach ($project->form_definitions as $field) {
-                    if (is_array($field) && isset($field['type']) && $field['type'] === 'file_multiple' && isset($field['name']) && !empty($project->attributes[$field['name']])) {
-                        $filesData = $project->attributes[$field['name']];
-                        if (is_array($filesData)) {
-                            foreach ($filesData as $fileInfo) {
-                                if (is_array($fileInfo) && isset($fileInfo['path'])) {
-                                    Storage::disk('public')->delete($fileInfo['path']);
-                                } elseif (is_string($fileInfo)) {
-                                    Storage::disk('public')->delete($fileInfo);
-                                }
+        $deletedFileLogDetails = []; // ★ ログ用の削除ファイル詳細を格納する配列
+
+        // プロジェクトに紐づくカスタムフィールドのファイルを削除
+        if (isset($project->attributes) && is_array($project->attributes) && is_array($project->form_definitions)) {
+            foreach ($project->form_definitions as $field) {
+                if (is_array($field) && isset($field['type']) && $field['type'] === 'file_multiple' && isset($field['name']) && !empty($project->attributes[$field['name']])) {
+                    $filesData = $project->attributes[$field['name']];
+                    if (is_array($filesData)) {
+                        foreach ($filesData as $fileInfo) {
+                            $filePath = null;
+                            $originalName = '不明なファイル';
+                            if (is_array($fileInfo) && isset($fileInfo['path'])) {
+                                $filePath = $fileInfo['path'];
+                                $originalName = $fileInfo['original_name'] ?? basename($filePath);
+                            } elseif (is_string($fileInfo)) { // 古い形式（ファイルパス文字列の配列）の場合
+                                $filePath = $fileInfo;
+                                $originalName = basename($filePath);
+                            }
+
+                            if ($filePath && Storage::disk('public')->exists($filePath)) {
+                                Storage::disk('public')->delete($filePath);
+                                // ★ ログ用の情報を収集 (削除)
+                                $deletedFileLogDetails[] = [
+                                    'field_label' => $field['label'] ?? $field['name'],
+                                    'field_name' => $field['name'],
+                                    'original_name' => $originalName,
+                                    'path' => $filePath,
+                                ];
                             }
                         }
-                        // ディレクトリごと削除
-                        $directory = "project_files/{$project->id}/{$field['name']}";
-                        Storage::disk('public')->deleteDirectory($directory);
                     }
+                    // カスタムフィールドごとのディレクトリも削除 (任意、ファイルが全て削除された場合)
+                    // $directory = "project_files/{$project->id}/{$field['name']}";
+                    // if (empty(Storage::disk('public')->allFiles($directory)) && empty(Storage::disk('public')->allDirectories($directory))) {
+                    //     Storage::disk('public')->deleteDirectory($directory);
+                    // }
                 }
             }
-            // ルートのプロジェクトファイルディレクトリも削除 (念のため)
-            Storage::disk('public')->deleteDirectory("project_files/{$project->id}");
+            // プロジェクトIDごとのルートディレクトリを削除 (関連ファイルが全て削除された後)
+            // $projectFileDirectory = "project_files/{$project->id}";
+            // if (empty(Storage::disk('public')->allFiles($projectFileDirectory)) && empty(Storage::disk('public')->allDirectories($projectFileDirectory))) {
+            //     Storage::disk('public')->deleteDirectory($projectFileDirectory);
+            // }
         }
 
-        $project->tasks()->delete();
+        // 関連データの削除 (Task, Character など)
+        // これらは各モデルの deleted イベントや Observer でログが記録される想定
+        $project->tasks()->delete(); // TaskモデルのLogsActivityが発火
         foreach ($project->characters as $character) {
-            $character->measurements()->delete();
-            $character->materials()->delete();
-            $character->costs()->delete();
-            $character->tasks()->delete();
-            $character->delete();
+            $character->measurements()->delete(); // MeasurementモデルのLogsActivityが発火
+            $character->materials()->delete();  // MaterialモデルのLogsActivityが発火
+            $character->costs()->delete();      // CostモデルのLogsActivityが発火
+            $character->tasks()->delete();      // TaskモデルのLogsActivityが発火 (キャラクター紐付きタスク)
+            $character->delete();               // CharacterモデルのLogsActivityが発火
         }
-        $project->delete();
+
+        // ★ プロジェクト削除自体のログは Project モデルの LogsActivity によって 'deleted' イベントとして記録される
+
+        // ★ カスタムフィールドのファイル削除操作のログを手動で記録
+        if (!empty($deletedFileLogDetails)) {
+            foreach ($deletedFileLogDetails as $logDetail) {
+                activity()
+                    ->causedBy(auth()->user())
+                    ->performedOn($project) // 操作対象は削除されるプロジェクト
+                    ->withProperties(array_merge($logDetail, ['action' => 'file_deleted_during_project_deletion']))
+                    ->log("プロジェクト「{$project->title}」削除に伴い、カスタム項目「{$logDetail['field_label']}」からファイル「{$logDetail['original_name']}」が削除されました。");
+            }
+        }
+
+        $project->delete(); // プロジェクトを削除
+
         return redirect()->route('projects.index')
             ->with('success', '衣装案件が削除されました。');
     }

@@ -18,6 +18,7 @@ use App\Http\Controllers\ExternalFormController;
 use App\Http\Controllers\UserFeedbackController;
 use App\Http\Controllers\Admin\FeedbackController as AdminFeedbackController;
 use App\Http\Controllers\Admin\FeedbackCategoryController as AdminFeedbackCategoryController;
+use App\Http\Controllers\Admin\LogController as AdminLogController;
 
 Route::middleware('auth')->group(function () {
     // ホーム
@@ -121,6 +122,9 @@ Route::middleware('auth')->group(function () {
         Route::resource('feedback-categories', AdminFeedbackCategoryController::class)->except(['show']);
         Route::post('feedback-categories/reorder', [AdminFeedbackCategoryController::class, 'reorder'])->name('feedback-categories.reorder'); // ★ 並び替え用ルート追加
         // --- ここまで管理者向けフィードバック機能 ---
+
+        // ★ 操作ログ閲覧ルートを追加
+        Route::get('/logs', [AdminLogController::class, 'index'])->name('logs.index');
     });
 });
 

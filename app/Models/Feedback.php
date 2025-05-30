@@ -6,10 +6,12 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Spatie\Activitylog\Traits\LogsActivity; // ★ 追加
+use Spatie\Activitylog\LogOptions;          // ★ 追加
 
 class Feedback extends Model
 {
-    use HasFactory;
+    use HasFactory, LogsActivity; // ★ LogsActivity トレイトを追加
 
     protected $table = 'feedbacks';
 
@@ -44,6 +46,31 @@ class Feedback extends Model
         'feedback_category_id' => 'integer',
         'priority' => 'integer',
     ];
+
+    // ★ アクティビティログのオプション設定
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logFillable()
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->setDescriptionForEvent(fn(string $eventName) => "フィードバック「{$this->title}」(ID:{$this->id}) が{$this->getEventDescription($eventName)}されました");
+    }
+
+    // ★ イベント名を日本語に変換するヘルパーメソッド (任意)
+    protected function getEventDescription(string $eventName): string
+    {
+        switch ($eventName) {
+            case 'created':
+                return '作成';
+            case 'updated':
+                return '更新';
+            case 'deleted':
+                return '削除';
+            default:
+                return $eventName;
+        }
+    }
 
     public const STATUS_UNREAD = 'unread';
     public const STATUS_NOT_STARTED = 'not_started';
@@ -97,16 +124,8 @@ class Feedback extends Model
         }
     }
 
-    /**
-     * Get the Tailwind CSS class string for the priority badge.
-     *
-     * @param int|null $priority  // ★★★ 型を ?int に変更 ★★★
-     * @param string $type ('badge' or 'text')
-     * @return string
-     */
-    public static function getPriorityColorClass(?int $priority, string $type = 'text'): string // ★★★ 型を ?int に変更 ★★★
+    public static function getPriorityColorClass(?int $priority, string $type = 'text'): string
     {
-        // ★★★ nullの場合の処理を追加 ★★★
         if ($priority === null) {
             return $type === 'badge' ? 'bg-gray-100 text-gray-700 dark:bg-gray-500 dark:text-gray-300' : 'text-gray-500 dark:text-gray-400';
         }
@@ -118,7 +137,7 @@ class Feedback extends Model
                 return $type === 'badge' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-700 dark:text-yellow-200' : 'text-yellow-500 dark:text-yellow-400';
             case self::PRIORITY_LOW:
                 return $type === 'badge' ? 'bg-green-100 text-green-800 dark:bg-green-700 dark:text-green-200' : 'text-green-500 dark:text-green-400';
-            default: // null以外の未定義の数値の場合もデフォルトスタイルを適用
+            default:
                 return $type === 'badge' ? 'bg-gray-100 text-gray-700 dark:bg-gray-500 dark:text-gray-300' : 'text-gray-500 dark:text-gray-400';
         }
     }

@@ -7,10 +7,12 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 use Illuminate\Support\Arr;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Spatie\Activitylog\Traits\LogsActivity; // ★ 追加
+use Spatie\Activitylog\LogOptions;          // ★ 追加
 
 class Project extends Model
 {
-    use HasFactory;
+    use HasFactory, LogsActivity; // ★ LogsActivity トレイトを追加
 
     protected $fillable = [
         'title',
@@ -36,6 +38,31 @@ class Project extends Model
         'form_definitions'  => 'array',
         'attributes'        => 'array',
     ];
+
+    // ★ アクティビティログのオプション設定
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logFillable() // $fillable属性の変更をログに記録
+            ->logOnlyDirty() // 変更があった属性のみをログに記録
+            ->dontSubmitEmptyLogs() // 空のログを送信しない
+            ->setDescriptionForEvent(fn(string $eventName) => "衣装案件「{$this->title}」が{$this->getEventDescription($eventName)}されました");
+    }
+
+    // ★ イベント名を日本語に変換するヘルパーメソッド (任意)
+    protected function getEventDescription(string $eventName): string
+    {
+        switch ($eventName) {
+            case 'created':
+                return '作成';
+            case 'updated':
+                return '更新';
+            case 'deleted':
+                return '削除';
+            default:
+                return $eventName;
+        }
+    }
 
     public const PAYMENT_FLAG_OPTIONS = [
         'Pending'        => '未払い',
@@ -73,21 +100,17 @@ class Project extends Model
 
     public function getCustomAttributeValue(string $key, $default = null)
     {
-        // getAttribute() を使って、キャストが適用された 'attributes' カラムの値を取得
         $customAttributes = $this->getAttribute('attributes');
-
-        // $customAttributes が null や配列でない場合（例: DBカラムがNULL）のフォールバック
         if (!is_array($customAttributes)) {
             $customAttributes = [];
         }
-
         return Arr::get($customAttributes, $key, $default);
     }
 
     public function __get($key)
     {
         if (
-            array_key_exists($key, $this->original) ||
+            array_key_exists($key, $this->attributes) || // self::originalだと初回アクセスでエラーになることがあるためattributesに変更
             array_key_exists($key, $this->casts) ||
             method_exists($this, $key) ||
             method_exists($this, 'get' . Str::studly($key) . 'Attribute') ||
@@ -96,28 +119,10 @@ class Project extends Model
             return parent::__get($key);
         }
 
-        // __get 内でも getAttributeValue を経由するか、同様のロジックでキャスト済みの値を取得
-        // ここでは getCustomAttributeValue に処理を委任する形も考えられるが、
-        // パフォーマンスや直接的な属性アクセスとの兼ね合いで、現状の __get のロジックが
-        // 意図した動作をしているか確認が必要。
-        // 今回の直接的な問題は getCustomAttributeValue のため、そちらを優先して修正。
-        // ただし、__get もキャストされた配列を期待しているはずなので、
-        // $this->attributes['attributes'] が常にキャスト済み配列を返すか、
-        // あるいは $this->getAttribute('attributes') を使うべきか、という点は同様。
-        // 今回は getCustomAttributeValue の修正に絞り、__get は元のロジックを維持しつつ、
-        // getCustomAttributeValue が正しく動けば __get も間接的に恩恵を受けるか、
-        // 別途 __get も getAttribute('attributes') ベースに修正する必要があるかもしれない。
-
-        $customAttributesArrayFromGetter = $this->getAttribute('attributes'); // キャストされた値を取得
+        $customAttributesArrayFromGetter = $this->getAttribute('attributes');
         if (is_array($customAttributesArrayFromGetter) && array_key_exists($key, $customAttributesArrayFromGetter)) {
             return $customAttributesArrayFromGetter[$key];
         }
-        // 元の __get のロ_ジックも残す（ただし、上記でreturnされればここは通らない）
-        // $customAttributesArray = $this->attributes['attributes'] ?? null;
-        // if (is_array($customAttributesArray) && array_key_exists($key, $customAttributesArray)) {
-        // return $customAttributesArray[$key];
-        // }
-
 
         return parent::__get($key);
     }
