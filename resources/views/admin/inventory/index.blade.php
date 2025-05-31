@@ -5,21 +5,33 @@
 @push('styles')
     <style>
         .supplier-cell a {
-            /* ★ 既存の underline に加えて文字色を指定 */
             @apply text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 underline;
         }
 
         .supplier-cell p {
-            /* 複数行表示のために p タグでラップする場合 */
             margin-bottom: 0.25rem;
-            /* theme('spacing.1') */
         }
 
         .supplier-cell p:last-child {
             margin-bottom: 0;
         }
 
-        /* 既存の他のスタイルがあればそのまま */
+        .inventory-table-text {
+            @apply text-gray-700 dark:text-gray-300;
+        }
+
+        .inventory-table-subtext {
+            @apply text-gray-500 dark:text-gray-400;
+        }
+
+        /* 警告アイコン用のスタイル */
+        .warning-icon-low {
+            @apply text-yellow-500 dark:text-yellow-400;
+        }
+
+        .warning-icon-out {
+            @apply text-red-500 dark:text-red-400;
+        }
     </style>
 @endpush
 
@@ -42,20 +54,6 @@
             </div>
         </div>
 
-        @if(session('success'))
-            <div class="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded-md dark:bg-green-700 dark:text-green-100 dark:border-green-600"
-                role="alert">
-                {{ session('success') }}
-            </div>
-        @endif
-        @if(session('error'))
-            <div class="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-md dark:bg-red-700 dark:text-red-100 dark:border-red-600"
-                role="alert">
-                {{ session('error') }}
-            </div>
-        @endif
-
-        {{-- フィルターセクション --}}
         <div x-show="filtersOpen" x-collapse class="mb-6 bg-white dark:bg-gray-800 shadow-md rounded-lg p-4 sm:p-6">
             <form action="{{ route('admin.inventory.index') }}" method="GET">
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -91,10 +89,9 @@
             </form>
         </div>
 
-
         <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
             <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 inventory-table">
                     <thead class="bg-gray-50 dark:bg-gray-700">
                         <tr>
                             <th scope="col"
@@ -125,28 +122,44 @@
                     </thead>
                     <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                         @forelse ($inventoryItems as $item)
-                            <tr
-                                class="hover:bg-gray-50 dark:hover:bg-gray-700/50 @if($item->quantity <= 0 && $item->minimum_stock_level > 0) bg-red-100 dark:bg-red-800/40 @elseif($item->quantity < $item->minimum_stock_level && $item->minimum_stock_level > 0) bg-yellow-50 dark:bg-yellow-700/30 @endif">
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{{ $item->id }}
-                                </td>
+                            @php
+                                $isLowStock = $item->quantity < $item->minimum_stock_level && $item->minimum_stock_level > 0;
+                                $isOutOfStock = $item->quantity <= 0 && $item->minimum_stock_level > 0;
+                                $rowHighlightClass = '';
+                                if ($isOutOfStock) {
+                                    $rowHighlightClass = 'bg-red-100 dark:bg-red-800/40';
+                                } elseif ($isLowStock) {
+                                    $rowHighlightClass = 'bg-yellow-50 dark:bg-yellow-700/30';
+                                }
+                            @endphp
+                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 {{ $rowHighlightClass }}">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm inventory-table-subtext">{{ $item->id }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                                    {{-- ★ 警告アイコンの追加 --}}
+                                    @if($isOutOfStock)
+                                        <i class="fas fa-exclamation-circle warning-icon-out mr-1"
+                                            title="在庫切れ (発注点 {{ $item->minimum_stock_level }}{{ $item->unit }})"></i>
+                                    @elseif($isLowStock)
+                                        <i class="fas fa-exclamation-triangle warning-icon-low mr-1"
+                                            title="在庫僅少 (発注点 {{ $item->minimum_stock_level }}{{ $item->unit }})"></i>
+                                    @endif
                                     {{ $item->name }}
                                     @if($item->description)
-                                        <p class="text-xs text-gray-500 dark:text-gray-400 truncate"
-                                            title="{{ $item->description }}">{{ Str::limit($item->description, 30) }}</p>
+                                        <p class="text-xs inventory-table-subtext truncate" title="{{ $item->description }}">
+                                            {{ Str::limit($item->description, 30) }}</p>
                                     @endif
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300 text-right">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm inventory-table-text text-right">
                                     @php $decimals = ($item->unit === 'm' || $item->unit === 'M') ? 1 : 0; @endphp
                                     {{ number_format($item->quantity, $decimals) }}
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm inventory-table-subtext">
                                     {{ $item->unit }}
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-right">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm inventory-table-subtext text-right">
                                     {{ number_format($item->minimum_stock_level, $decimals) }}
                                 </td>
-                                <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 supplier-cell">
+                                <td class="px-6 py-4 text-sm supplier-cell inventory-table-subtext">
                                     @if($item->supplier)
                                         @php
                                             $supplierLines = explode("\n", e($item->supplier));
@@ -167,7 +180,7 @@
                                         -
                                     @endif
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-right">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm inventory-table-subtext text-right">
                                     {{ $item->quantity > 0 ? number_format($item->average_unit_price, 2) . ' 円' : '-' }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">

@@ -92,17 +92,112 @@ class InventoryController extends Controller
         if (!Gate::allows('update', $inventoryItem)) {
             abort(403);
         }
+
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:inventory_items,name,' . $inventoryItem->id,
             'description' => 'nullable|string|max:1000',
             'unit' => 'required|string|max:50',
+            'total_cost' => 'nullable|numeric|min:0', // ★ total_cost をバリデーション
             'minimum_stock_level' => 'required|numeric|min:0',
             'supplier' => 'nullable|string|max:255',
             'last_stocked_at' => 'nullable|date',
         ]);
-        // 'quantity' はこのフォームでは直接更新しない
-        $inventoryItem->update($validated);
-        return redirect()->route('admin.inventory.edit', $inventoryItem)->with('success', '在庫品目を更新しました。');
+
+        DB::beginTransaction();
+        try {
+            $oldTotalCost = $inventoryItem->total_cost;
+            $newTotalCostFromRequest = $request->filled('total_cost') ? floatval($validated['total_cost']) : null;
+
+            // total_cost 以外の品目情報をまず更新
+            $inventoryItem->fill(array_filter($validated, function ($key) {
+                return $key !== 'total_cost'; // total_cost は後で特別に処理
+            }, ARRAY_FILTER_USE_KEY));
+
+            $logProperties = [
+                'action' => 'item_info_update',
+                'old_values' => [],
+                'new_values' => [],
+            ];
+
+            // 変更があったフィールドをログ用に収集 (total_cost以外)
+            foreach ($inventoryItem->getDirty() as $attribute => $newValue) {
+                $logProperties['old_values'][$attribute] = $inventoryItem->getOriginal($attribute);
+                $logProperties['new_values'][$attribute] = $newValue;
+            }
+
+            // total_cost がリクエストに含まれており、かつ既存の値と異なる場合のみ更新・ログ記録
+            if ($newTotalCostFromRequest !== null && (string)$newTotalCostFromRequest !== (string)$oldTotalCost) {
+                $inventoryItem->total_cost = $newTotalCostFromRequest;
+
+                // ログプロパティに総コストの変更も追加
+                $logProperties['old_values']['total_cost'] = $oldTotalCost;
+                $logProperties['new_values']['total_cost'] = $newTotalCostFromRequest;
+                $logProperties['action'] = 'item_info_and_total_cost_manual_update'; // アクション名を変更
+
+                // 在庫変動ログにも記録 (在庫数は変動しないが、コストが変わった記録として)
+                InventoryLog::create([
+                    'inventory_item_id' => $inventoryItem->id,
+                    'user_id' => Auth::id(),
+                    'change_type' => 'cost_adjusted_manual', // 新しい種別
+                    'quantity_change' => 0, // 在庫数変動なし
+                    'quantity_before_change' => $inventoryItem->quantity,
+                    'quantity_after_change' => $inventoryItem->quantity,
+                    'unit_price_at_change' => $inventoryItem->quantity > 0 ? ($newTotalCostFromRequest / $inventoryItem->quantity) : null, // 新しい平均単価の目安
+                    'total_price_at_change' => $newTotalCostFromRequest - $oldTotalCost, // コストの変動額
+                    'notes' => '品目情報編集画面から在庫総コストを手動修正。旧: ' . $oldTotalCost . ' 新: ' . $newTotalCostFromRequest,
+                ]);
+            } elseif ($newTotalCostFromRequest === null && $request->has('total_cost')) {
+                // 明示的に空で送信された場合（例えば値を0にしたい場合など）
+                // このケースを許可するかは要件による。ここでは0に設定する例。
+                if ($oldTotalCost != 0) { // 既に0でなければ変更とみなす
+                    $inventoryItem->total_cost = 0;
+                    $logProperties['old_values']['total_cost'] = $oldTotalCost;
+                    $logProperties['new_values']['total_cost'] = 0;
+                    $logProperties['action'] = 'item_info_and_total_cost_manual_update';
+                    InventoryLog::create([
+                        'inventory_item_id' => $inventoryItem->id,
+                        'user_id' => Auth::id(),
+                        'change_type' => 'cost_adjusted_manual', // 新しい種別
+                        'quantity_change' => 0, // 在庫数変動なし
+                        'quantity_before_change' => $inventoryItem->quantity,
+                        'quantity_after_change' => $inventoryItem->quantity,
+                        'unit_price_at_change' => $inventoryItem->quantity > 0 ? ($newTotalCostFromRequest / $inventoryItem->quantity) : null, // 新しい平均単価の目安
+                        'total_price_at_change' => $newTotalCostFromRequest - $oldTotalCost, // コストの変動額
+                        'notes' => '品目情報編集画面から在庫総コストを手動修正。旧: ' . $oldTotalCost . ' 新: ' . $newTotalCostFromRequest,
+                    ]);
+                }
+            }
+            // total_cost がリクエストに含まれていない場合は、既存の値を維持する (fillで上書きされない)
+
+            $inventoryItem->save(); // 全ての変更を保存
+
+            // Spatie Activity Log (変更があった場合のみ)
+            if (!empty($logProperties['old_values']) || !empty($logProperties['new_values'])) {
+                // action を元にログメッセージを生成
+                $logMessage = "在庫品目「{$inventoryItem->name}」の情報が更新されました。";
+                if ($logProperties['action'] === 'item_info_and_total_cost_manual_update') {
+                    $logMessage = "在庫品目「{$inventoryItem->name}」の情報及び総コストが手動で更新されました。";
+                }
+
+                activity()
+                    ->performedOn($inventoryItem)
+                    ->causedBy(Auth::user())
+                    ->withProperties($logProperties)
+                    ->log($logMessage);
+            }
+
+
+            DB::commit();
+            return redirect()->route('admin.inventory.index', $inventoryItem)->with('success', '在庫品目を更新しました。');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('InventoryItem update failed: ' . $e->getMessage(), [
+                'inventory_item_id' => $inventoryItem->id,
+                'request_data' => $request->all(),
+                'exception' => $e
+            ]);
+            return back()->with('error', '在庫品目の更新中にエラーが発生しました。詳細はサーバーログを確認してください。')->withInput();
+        }
     }
 
     public function destroy(InventoryItem $inventoryItem)

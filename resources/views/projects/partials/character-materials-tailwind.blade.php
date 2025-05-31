@@ -55,7 +55,14 @@
                             {{ $material->unit ?? optional($material->inventoryItem)->unit }}
                         </td>
                         <td class="px-4 py-1.5 whitespace-nowrap text-gray-700 dark:text-gray-200 material-quantity_needed">
-                            {{ $material->quantity_needed }}
+                            @php
+                                $qtyNeeded = $material->quantity_needed;
+                                // 単位が 'm' または 'M' で、かつ小数点以下が .00 でない場合は小数点1桁まで表示、それ以外は整数表示
+                                $decimalsQty = (in_array(strtolower($material->unit ?? optional($material->inventoryItem)->unit), ['m']))
+                                            ? (fmod($qtyNeeded, 1) !== 0.00 ? 1 : 0)
+                                            : 0;
+                            @endphp
+                            {{ number_format($qtyNeeded, $decimalsQty) }}
                         </td>
                         <td class="px-4 py-1.5 whitespace-nowrap text-gray-700 dark:text-gray-200 material-price">
                             {{ !is_null($material->price) ? number_format($material->price) . '円' : '-' }}

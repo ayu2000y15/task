@@ -231,7 +231,12 @@
                             </a>
                             @endcan
                             @can('viewAny', App\Models\InventoryItem::class)
-                                <a href="{{ route('admin.inventory.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">在庫管理</a>
+                                <a href="{{ route('admin.inventory.index') }}" class="flex justify-between items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
+                                    在庫管理
+                                    @if(isset($hasInventoryAlertsGlobal) && $hasInventoryAlertsGlobal)
+                                        <i class="fas fa-exclamation-triangle text-lg text-yellow-500 dark:text-yellow-400" title="在庫僅少または在庫切れの品目あり"></i>
+                                    @endif
+                                </a>
                             @endcan
                             @can('viewAny', App\Models\User::class)
                                 <a href="{{ route('users.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">ユーザー管理</a>

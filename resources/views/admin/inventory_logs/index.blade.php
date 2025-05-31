@@ -135,7 +135,7 @@
                             <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400"
                                     title="{{ $log->created_at->format('Y-m-d H:i:s') }}">
-                                    {{ $log->created_at->setTimezone('Asia/Tokyo')->format('Y/m/d H:i') }}
+                                    {{ $log->created_at->setTimezone('Asia/Tokyo')->format('m/d H:i') }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
                                     @if($log->inventoryItem)
@@ -182,7 +182,8 @@
                                             {{ $log->related_stock_order_id }}</a>
                                     @endif
                                 </td>
-                                <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 whitespace-normal notes-cell">
+                                <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 whitespace-normal notes-cell"
+                                    style="min-width: 200px;">
                                     {{ $log->notes }}
                                 </td>
                             </tr>
