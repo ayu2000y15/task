@@ -26,17 +26,6 @@
         </x-secondary-button>
     </div>
 
-    @if(session('success'))
-        <div class="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded-md dark:bg-green-700 dark:text-green-100 dark:border-green-600" role="alert">
-            {{ session('success') }}
-        </div>
-    @endif
-    @if(session('error'))
-        <div class="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-md dark:bg-red-700 dark:text-red-100 dark:border-red-600" role="alert">
-            {{ session('error') }}
-        </div>
-    @endif
-
     <div class="max-w-2xl mx-auto bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
         <form action="{{ route('admin.stock-orders.update', $stockOrder) }}" method="POST">
             @csrf

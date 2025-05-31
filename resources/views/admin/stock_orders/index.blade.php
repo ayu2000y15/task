@@ -21,20 +21,6 @@
             </div>
         </div>
 
-        {{-- ... (success/errorメッセージ、フィルターフォームは変更なし) ... --}}
-        @if(session('success'))
-            <div class="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded-md dark:bg-green-700 dark:text-green-100 dark:border-green-600"
-                role="alert">
-                {{ session('success') }}
-            </div>
-        @endif
-        @if(session('error'))
-            <div class="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-md dark:bg-red-700 dark:text-red-100 dark:border-red-600"
-                role="alert">
-                {{ session('error') }}
-            </div>
-        @endif
-
         <div x-show="filtersOpen" x-collapse class="mb-6 bg-white dark:bg-gray-800 shadow-md rounded-lg p-4 sm:p-6">
             <form action="{{ route('admin.stock-orders.index') }}" method="GET">
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
