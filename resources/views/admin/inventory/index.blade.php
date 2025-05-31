@@ -146,7 +146,7 @@
                                     {{ $item->name }}
                                     @if($item->description)
                                         <p class="text-xs inventory-table-subtext truncate" title="{{ $item->description }}">
-                                            {{ Str::limit($item->description, 30) }}</p>
+                                            {!! Str::limit(nl2br($item->description), 30) !!}</p>
                                     @endif
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm inventory-table-text text-right">
