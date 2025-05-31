@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\InventoryItem;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth; // Authファサードを追加
 use App\Models\InventoryLog;      // InventoryLogモデルを追加
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
@@ -13,7 +14,6 @@ class InventoryController extends Controller
 {
     public function index()
     {
-        $this->authorize('viewAny', InventoryItem::class);
 
         $inventoryItems = InventoryItem::orderBy('name')->paginate(20);
         return view('admin.inventory.index', compact('inventoryItems'));
@@ -21,14 +21,12 @@ class InventoryController extends Controller
 
     public function create()
     {
-        $this->authorize('create', InventoryItem::class);
 
         return view('admin.inventory.create');
     }
 
     public function store(Request $request)
     {
-        $this->authorize('create', InventoryItem::class);
 
 
         $validated = $request->validate([
@@ -68,14 +66,12 @@ class InventoryController extends Controller
 
     public function show(InventoryItem $inventoryItem)
     {
-        $this->authorize('viewAny', InventoryItem::class);
 
         return redirect()->route('admin.inventory.edit', $inventoryItem);
     }
 
     public function edit(InventoryItem $inventoryItem)
     {
-        $this->authorize('update', InventoryItem::class);
 
         return view('admin.inventory.edit', compact('inventoryItem'));
     }
@@ -100,7 +96,6 @@ class InventoryController extends Controller
         try {
             $oldTotalCost = $inventoryItem->total_cost;
             $newTotalCostFromRequest = $request->filled('total_cost') ? floatval($validated['total_cost']) : null;
-            $this->authorize('update', InventoryItem::class);
 
             // total_cost 以外の品目情報をまず更新
             $inventoryItem->fill(array_filter($validated, function ($key) {
@@ -196,7 +191,6 @@ class InventoryController extends Controller
 
     public function destroy(InventoryItem $inventoryItem)
     {
-        $this->authorize('delete', InventoryItem::class);
 
         // TODO: 関連する StockOrder がある場合の処理（削除を許可しない、または関連を解除するなど）
         $inventoryItem->delete();
@@ -208,7 +202,6 @@ class InventoryController extends Controller
      */
     public function stockIn(Request $request, InventoryItem $inventoryItem)
     {
-        $this->authorize('stockIn', InventoryItem::class);
 
         // 入荷数量と、入荷単価または入荷総額のどちらかを受け取る
         $validated = $request->validateWithBag('stockIn', [
@@ -291,7 +284,6 @@ class InventoryController extends Controller
      */
     public function adjustStock(Request $request, InventoryItem $inventoryItem)
     {
-        $this->authorize('adjustStock', InventoryItem::class);
 
 
         $validated = $request->validateWithBag('adjustStock', [ // エラーバッグ名を指定
