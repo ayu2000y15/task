@@ -5,8 +5,6 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\InventoryItem;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Auth; // Authファサードを追加
 use App\Models\InventoryLog;      // InventoryLogモデルを追加
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;

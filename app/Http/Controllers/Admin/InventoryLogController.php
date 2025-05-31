@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\InventoryLog;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Gate; // 権限管理用
 use App\Models\InventoryItem;
 use App\Models\User;
 
