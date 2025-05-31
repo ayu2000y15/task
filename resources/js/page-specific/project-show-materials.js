@@ -7,90 +7,239 @@ import {
     refreshCharacterCosts,
 } from "./project-show-utils.js";
 
-function calculateAndDisplayMaterialPrice(characterId) {
-    const inventorySelect = document.getElementById(
-        `inventory_item_id_input-${characterId}`
-    );
-    const quantityInput = document.getElementById(
-        `material_quantity_input-${characterId}`
-    );
-    const priceDisplay = document.getElementById(
-        `material_price_display-${characterId}`
-    );
-    const priceHidden = document.getElementById(
-        `material_price_hidden_input-${characterId}`
-    );
-    const unitPriceHidden = document.getElementById(
-        `material_unit_price_hidden_input-${characterId}`
-    );
+// DOM要素を取得するヘルパー
+function getMaterialFormElements(characterId) {
+    const form = document.getElementById(`material-form-${characterId}`);
+    if (!form) return null;
 
-    if (
-        inventorySelect &&
-        quantityInput &&
-        priceDisplay &&
-        priceHidden &&
-        unitPriceHidden
-    ) {
-        const selectedOption =
-            inventorySelect.options[inventorySelect.selectedIndex];
+    return {
+        form,
+        inventorySelect: document.getElementById(
+            `inventory_item_id_input-${characterId}`
+        ),
+        manualNameField: document.getElementById(
+            `manual_material_name_field-${characterId}`
+        ),
+        manualNameInput: document.getElementById(
+            `manual_material_name_input-${characterId}`
+        ),
+        unitDisplay: document.getElementById(
+            `material_unit_display-${characterId}`
+        ),
+        quantityInput: document.getElementById(
+            `material_quantity_input-${characterId}`
+        ),
+        priceDisplay: document.getElementById(
+            `material_price_display-${characterId}`
+        ),
+        notesInput: document.getElementById(
+            `material_notes_input-${characterId}`
+        ),
+        statusCheckbox: document.getElementById(
+            `material_status_checkbox_for_form-${characterId}`
+        ),
+        // Hidden inputs
+        methodField: document.getElementById(
+            `material-form-method-${characterId}`
+        ),
+        idField: document.getElementById(`material-form-id-${characterId}`),
+        nameHiddenInput: document.getElementById(
+            `material_name_hidden_input-${characterId}`
+        ),
+        unitHiddenInput: document.getElementById(
+            `material_unit_hidden_input-${characterId}`
+        ),
+        priceHiddenInput: document.getElementById(
+            `material_price_hidden_input-${characterId}`
+        ),
+        unitPriceHiddenInput: document.getElementById(
+            `material_unit_price_hidden_input-${characterId}`
+        ),
+        statusHiddenInput: document.getElementById(
+            `material_status_hidden_input-${characterId}`
+        ),
+        // Form UI elements
+        formTitle: document.getElementById(
+            `material-form-title-${characterId}`
+        ),
+        submitBtn: document.getElementById(
+            `material-form-submit-btn-${characterId}`
+        ),
+        submitBtnText: document.getElementById(
+            `material-form-submit-btn-text-${characterId}`
+        ),
+        cancelBtn: document.getElementById(
+            `material-form-cancel-btn-${characterId}`
+        ),
+        errorDiv: document.getElementById(
+            `material-form-errors-${characterId}`
+        ),
+        storeUrl: form.dataset.storeUrl,
+    };
+}
+
+function calculateAndSetPrice(characterId) {
+    const els = getMaterialFormElements(characterId);
+    if (!els) return;
+
+    const selectedOption =
+        els.inventorySelect.options[els.inventorySelect.selectedIndex];
+    const quantity = parseFloat(els.quantityInput.value);
+
+    if (selectedOption.value && selectedOption.value !== "manual_input") {
+        // 在庫品目選択時
         const avgPrice = parseFloat(selectedOption.dataset.avg_price);
-        const quantity = parseFloat(quantityInput.value);
-
-        if (
-            selectedOption.value &&
-            !isNaN(avgPrice) &&
-            !isNaN(quantity) &&
-            quantity > 0
-        ) {
+        if (!isNaN(avgPrice) && !isNaN(quantity) && quantity > 0) {
             const totalPrice = avgPrice * quantity;
-            priceDisplay.value = Math.round(totalPrice).toLocaleString() + "円";
-            priceHidden.value = Math.round(totalPrice);
-            unitPriceHidden.value = avgPrice;
+            els.priceDisplay.value =
+                Math.round(totalPrice).toLocaleString() + "円";
+            els.priceHiddenInput.value = Math.round(totalPrice);
+            els.unitPriceHiddenInput.value = avgPrice;
         } else {
-            priceDisplay.value = "";
-            priceHidden.value = "";
-            unitPriceHidden.value = "";
+            els.priceDisplay.value = "";
+            els.priceHiddenInput.value = "";
+            els.unitPriceHiddenInput.value = "";
         }
+    } else if (selectedOption.value === "manual_input") {
+        // 手入力時
+        const priceString = els.priceDisplay.value.replace(/[円,]/g, "");
+        const manualPrice = parseFloat(priceString);
+
+        if (!isNaN(manualPrice)) {
+            els.priceHiddenInput.value = manualPrice;
+            if (!isNaN(quantity) && quantity > 0) {
+                els.unitPriceHiddenInput.value = manualPrice / quantity;
+            } else {
+                els.unitPriceHiddenInput.value = "";
+            }
+        } else {
+            els.priceHiddenInput.value = "";
+            els.unitPriceHiddenInput.value = "";
+        }
+    } else {
+        // 未選択時
+        els.priceDisplay.value = "";
+        els.priceHiddenInput.value = "";
+        els.unitPriceHiddenInput.value = "";
     }
 }
 
-export function resetMaterialForm(characterId, storeUrl) {
-    const form = document.getElementById(`material-form-${characterId}`);
-    if (!form) {
-        // console.warn(`Material form not found for reset: material-form-${characterId}`);
-        return;
+function updateFormUIBasedOnSelection(characterId) {
+    const els = getMaterialFormElements(characterId);
+    if (!els) return;
+
+    const selectedValue = els.inventorySelect.value;
+    const selectedOption =
+        els.inventorySelect.options[els.inventorySelect.selectedIndex];
+
+    if (selectedValue === "manual_input") {
+        els.manualNameField.classList.remove("hidden");
+        els.manualNameInput.required = true;
+
+        els.unitDisplay.readOnly = false;
+        els.unitDisplay.placeholder = "単位を入力 (例: 個, m)";
+        els.unitDisplay.classList.remove(
+            "bg-gray-100",
+            "dark:bg-gray-800",
+            "dark:text-gray-400"
+        );
+
+        els.priceDisplay.readOnly = false;
+        els.priceDisplay.placeholder = "合計価格を入力 (例: 1000)";
+        els.priceDisplay.classList.remove(
+            "bg-gray-100",
+            "dark:bg-gray-800",
+            "dark:text-gray-400"
+        );
+
+        els.statusCheckbox.checked = false;
+        els.statusCheckbox.disabled = false;
+        els.statusHiddenInput.value = "未購入";
+    } else if (selectedValue) {
+        els.manualNameField.classList.add("hidden");
+        els.manualNameInput.required = false;
+        els.manualNameInput.value = "";
+
+        els.unitDisplay.readOnly = true;
+        els.unitDisplay.placeholder = "品目選択で自動表示";
+        els.unitDisplay.classList.add(
+            "bg-gray-100",
+            "dark:bg-gray-800",
+            "dark:text-gray-400"
+        );
+        els.unitDisplay.value = selectedOption.dataset.unit || "";
+
+        els.priceDisplay.readOnly = true;
+        els.priceDisplay.placeholder = "自動計算";
+        els.priceDisplay.classList.add(
+            "bg-gray-100",
+            "dark:bg-gray-800",
+            "dark:text-gray-400"
+        );
+
+        els.statusCheckbox.checked = true;
+        els.statusCheckbox.disabled = true;
+        els.statusHiddenInput.value = "購入済";
+
+        els.nameHiddenInput.value = selectedOption.dataset.name || "";
+        els.unitHiddenInput.value = selectedOption.dataset.unit || "";
+    } else {
+        // 未選択状態
+        els.manualNameField.classList.add("hidden");
+        els.manualNameInput.required = false;
+        els.manualNameInput.value = "";
+
+        els.unitDisplay.readOnly = true;
+        els.unitDisplay.placeholder = "品目選択で自動表示";
+        els.unitDisplay.classList.add(
+            "bg-gray-100",
+            "dark:bg-gray-800",
+            "dark:text-gray-400"
+        );
+        els.unitDisplay.value = "";
+
+        els.priceDisplay.readOnly = true;
+        els.priceDisplay.placeholder = "自動計算";
+        els.priceDisplay.classList.add(
+            "bg-gray-100",
+            "dark:bg-gray-800",
+            "dark:text-gray-400"
+        );
+        els.priceDisplay.value = "";
+
+        els.statusCheckbox.checked = false;
+        els.statusCheckbox.disabled = false;
+        els.statusHiddenInput.value = "未購入";
+
+        els.nameHiddenInput.value = "";
+        els.unitHiddenInput.value = "";
     }
-    form.reset();
-    form.setAttribute("action", storeUrl);
-    const methodField = document.getElementById(
-        `material-form-method-${characterId}`
-    );
-    if (methodField) methodField.value = "POST";
-    const idField = document.getElementById(`material-form-id-${characterId}`);
-    if (idField) idField.value = "";
+    calculateAndSetPrice(characterId);
+}
 
-    const titleEl = document.getElementById(
-        `material-form-title-${characterId}`
-    );
-    if (titleEl) titleEl.textContent = "材料を追加";
+export function resetMaterialForm(characterId, storeUrlFromFunc) {
+    const els = getMaterialFormElements(characterId);
+    if (!els) return;
 
-    const submitBtnTextEl = document.getElementById(
-        `material-form-submit-btn-text-${characterId}`
-    );
-    if (submitBtnTextEl) submitBtnTextEl.textContent = "追加";
+    const storeUrlToUse = storeUrlFromFunc || els.storeUrl;
 
-    const submitBtnEl = document.getElementById(
-        `material-form-submit-btn-${characterId}`
-    );
-    if (submitBtnEl) {
-        submitBtnEl.classList.remove(
+    els.form.reset();
+    els.form.setAttribute("action", storeUrlToUse);
+    if (els.methodField) els.methodField.value = "POST";
+    if (els.idField) els.idField.value = "";
+
+    if (els.formTitle) els.formTitle.textContent = "材料を追加";
+    if (els.submitBtnText) els.submitBtnText.textContent = "追加";
+
+    if (els.submitBtn) {
+        els.submitBtn.classList.remove(
             "bg-yellow-500",
             "hover:bg-yellow-600",
             "active:bg-yellow-700",
             "focus:border-yellow-700",
             "focus:ring-yellow-300"
         );
-        submitBtnEl.classList.add(
+        els.submitBtn.classList.add(
             "bg-green-500",
             "hover:bg-green-600",
             "active:bg-green-700",
@@ -98,59 +247,69 @@ export function resetMaterialForm(characterId, storeUrl) {
             "focus:ring-green-300"
         );
     }
-    const cancelBtn = document.getElementById(
-        `material-form-cancel-btn-${characterId}`
-    );
-    if (cancelBtn) cancelBtn.style.display = "none";
+    if (els.cancelBtn) els.cancelBtn.style.display = "none";
+    if (els.errorDiv) els.errorDiv.innerHTML = "";
 
-    const errorDiv = document.getElementById(
-        `material-form-errors-${characterId}`
-    );
-    if (errorDiv) errorDiv.innerHTML = "";
-
-    form.querySelectorAll(".form-input, .form-select, .form-textarea").forEach(
-        (input) => {
+    els.form
+        .querySelectorAll(".form-input, .form-select, .form-textarea")
+        .forEach((input) => {
             input.classList.remove("border-red-500", "dark:border-red-600");
-        }
-    );
+        });
 
-    const unitDisplay = document.getElementById(
-        `material_unit_display-${characterId}`
-    );
-    if (unitDisplay) unitDisplay.value = "";
-    const priceDisplay = document.getElementById(
-        `material_price_display-${characterId}`
-    );
-    if (priceDisplay) priceDisplay.value = "";
-    const nameHiddenInput = document.getElementById(
-        `material_name_hidden_input-${characterId}`
-    );
-    if (nameHiddenInput) nameHiddenInput.value = "";
-    const unitHiddenInput = document.getElementById(
-        `material_unit_hidden_input-${characterId}`
-    );
-    if (unitHiddenInput) unitHiddenInput.value = "";
-    const priceHidden = document.getElementById(
-        `material_price_hidden_input-${characterId}`
-    );
-    if (priceHidden) priceHidden.value = "";
-    const unitPriceHidden = document.getElementById(
-        `material_unit_price_hidden_input-${characterId}`
-    );
-    if (unitPriceHidden) unitPriceHidden.value = "";
+    if (els.inventorySelect) els.inventorySelect.value = "";
+
+    if (els.manualNameField) els.manualNameField.classList.add("hidden");
+    if (els.manualNameInput) {
+        els.manualNameInput.value = "";
+        els.manualNameInput.required = false;
+    }
+
+    if (els.unitDisplay) {
+        els.unitDisplay.value = "";
+        els.unitDisplay.readOnly = true;
+        els.unitDisplay.placeholder = "品目選択で自動表示";
+        els.unitDisplay.classList.add(
+            "bg-gray-100",
+            "dark:bg-gray-800",
+            "dark:text-gray-400"
+        );
+    }
+    if (els.priceDisplay) {
+        els.priceDisplay.value = "";
+        els.priceDisplay.readOnly = true;
+        els.priceDisplay.placeholder = "自動計算";
+        els.priceDisplay.classList.add(
+            "bg-gray-100",
+            "dark:bg-gray-800",
+            "dark:text-gray-400"
+        );
+    }
+
+    if (els.statusCheckbox) {
+        els.statusCheckbox.checked = false;
+        els.statusCheckbox.disabled = false;
+    }
+    if (els.statusHiddenInput) els.statusHiddenInput.value = "未購入";
+
+    if (els.nameHiddenInput) els.nameHiddenInput.value = "";
+    if (els.unitHiddenInput) els.unitHiddenInput.value = "";
+    if (els.priceHiddenInput) els.priceHiddenInput.value = "";
+    if (els.unitPriceHiddenInput) els.unitPriceHiddenInput.value = "";
+
+    updateFormUIBasedOnSelection(characterId);
 }
 
 export function redrawMaterialRow(
     characterId,
     materialData,
     isUpdate,
-    projectData
+    projectData // projectData should contain: id, can_manage_materials, can_update_materials, can_delete_materials
 ) {
+    console.log(projectData);
     const tbody = document.querySelector(
         `#materials-content-${characterId} table tbody`
     );
     if (!tbody) {
-        // console.warn(`Material table body not found for character ${characterId}`);
         return;
     }
 
@@ -168,45 +327,58 @@ export function redrawMaterialRow(
     const updateUrlForCheckbox = `/projects/${projectData.id}/characters/${characterId}/materials/${materialData.id}`;
 
     let actionsHtml = '<div class="flex items-center justify-end space-x-1">';
+    // Check specific permission for editing
     actionsHtml += `
-        <button type="button" class="p-1 text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 edit-material-btn"
-                title="編集"
-                data-id="${materialData.id}"
-                data-inventory_item_id="${materialData.inventory_item_id || ""}"
-                data-name="${escapeHtml(materialData.name || "")}"
-                data-price="${materialData.price || ""}"
-                data-unit="${escapeHtml(materialData.unit || "")}"
-                data-unit_price_at_creation="${
-                    materialData.unit_price_at_creation || ""
-                }"
-                data-quantity_needed="${escapeHtml(
-                    materialData.quantity_needed || ""
-                )}"
-                data-notes="${escapeHtml(materialData.notes || "")}">
-            <i class="fas fa-edit fa-sm"></i>
-        </button>`;
+            <button type="button" class="p-1 text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 edit-material-btn"
+                    title="編集"
+                    data-id="${materialData.id}"
+                    data-inventory_item_id="${
+                        materialData.inventory_item_id || ""
+                    }"
+                    data-name="${escapeHtml(materialData.name || "")}"
+                    data-price="${materialData.price || ""}"
+                    data-unit="${escapeHtml(materialData.unit || "")}"
+                    data-unit_price_at_creation="${
+                        materialData.unit_price_at_creation || ""
+                    }"
+                    data-quantity_needed="${escapeHtml(
+                        materialData.quantity_needed || ""
+                    )}"
+                    data-status="${escapeHtml(materialData.status || "未購入")}"
+                    data-notes="${escapeHtml(materialData.notes || "")}">
+                <i class="fas fa-edit fa-sm"></i>
+            </button>`;
+    // Check specific permission for deleting
     actionsHtml += `
-        <form action="/projects/${projectData.id}/characters/${characterId}/materials/${materialData.id}"
-              method="POST" class="delete-material-form"
-              data-id="${materialData.id}"
-              onsubmit="return false;">
-            <input type="hidden" name="_token" value="${csrfToken}">
-            <input type="hidden" name="_method" value="DELETE">
-            <button type="submit"
-                class="p-1 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
-                title="削除">
-                <i class="fas fa-trash fa-sm"></i>
-            </button>
-        </form>`;
+            <form action="/projects/${projectData.id}/characters/${characterId}/materials/${materialData.id}"
+                  method="POST" class="delete-material-form"
+                  data-id="${materialData.id}"
+                  onsubmit="return false;">
+                <input type="hidden" name="_token" value="${csrfToken}">
+                <input type="hidden" name="_method" value="DELETE">
+                <button type="submit"
+                    class="p-1 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                    title="削除">
+                    <i class="fas fa-trash fa-sm"></i>
+                </button>
+            </form>`;
     actionsHtml += "</div>";
 
-    let statusCheckboxHtml = `
-        <input type="checkbox"
-            id="material-status-checkbox-${materialData.id}"
-            class="form-checkbox h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:bg-gray-900 dark:border-gray-600 material-status-checkbox"
-            data-url="${updateUrlForCheckbox}"
-            data-id="${materialData.id}" data-character-id="${characterId}"
-            ${materialData.status === "購入済" ? "checked" : ""}>`;
+    let statusHtml;
+    // General permission to manage materials (for status changes)
+    if (materialData.inventory_item_id) {
+        statusHtml = `<span class="text-xs px-2 py-1 font-semibold leading-tight text-green-700 bg-green-100 rounded-full dark:bg-green-700 dark:text-green-100">購入済</span>`;
+    } else {
+        statusHtml = `
+                <input type="checkbox"
+                    id="material-status-checkbox-${materialData.id}"
+                    class="form-checkbox h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:bg-gray-900 dark:border-gray-600 material-status-checkbox"
+                    data-url="${updateUrlForCheckbox}"
+                    data-id="${
+                        materialData.id
+                    }" data-character-id="${characterId}"
+                    ${materialData.status === "購入済" ? "checked" : ""}>`;
+    }
 
     const itemNameDisplay = materialData.inventory_item
         ? materialData.inventory_item.name
@@ -215,9 +387,22 @@ export function redrawMaterialRow(
         materialData.unit ||
         (materialData.inventory_item ? materialData.inventory_item.unit : "");
 
+    let qtyNeededDisplay;
+    const qty = parseFloat(materialData.quantity_needed);
+    const unitLower = (itemUnitDisplay || "").toLowerCase();
+    if (unitLower === "m") {
+        qtyNeededDisplay = qty.toFixed(qty % 1 !== 0 ? 1 : 0);
+    } else {
+        if (qty % 1 === 0) {
+            qtyNeededDisplay = qty.toFixed(0);
+        } else {
+            qtyNeededDisplay = qty.toString(); // Or qty.toFixed(2) for a consistent 2 decimal places
+        }
+    }
+
     const newRowCellsHtml = `
         <td class="px-3 py-1.5 whitespace-nowrap">
-            ${statusCheckboxHtml}
+            ${statusHtml}
         </td>
         <td class="px-4 py-1.5 whitespace-nowrap text-gray-700 dark:text-gray-200 material-name">
             ${escapeHtml(itemNameDisplay)} ${
@@ -230,7 +415,7 @@ export function redrawMaterialRow(
             itemUnitDisplay
         )}</td>
         <td class="px-4 py-1.5 whitespace-nowrap text-gray-700 dark:text-gray-200 material-quantity_needed">${escapeHtml(
-            materialData.quantity_needed
+            qtyNeededDisplay
         )}</td>
         <td class="px-4 py-1.5 whitespace-nowrap text-gray-700 dark:text-gray-200 material-price">${totalPriceDisplay}</td>
         <td class="px-4 py-1.5 text-gray-700 dark:text-gray-200 break-words text-left leading-tight material-notes" style="min-width: 150px;">
@@ -258,144 +443,162 @@ export function initializeMaterialInteractions(
     materialsContentContainer,
     characterId,
     csrfToken,
-    projectData
+    projectData // projectData now expects: id, can_manage_materials, can_update_materials, can_delete_materials
 ) {
-    const materialForm = document.getElementById(
-        `material-form-${characterId}`
-    );
-    if (!materialForm) {
-        // console.warn(`Material form not found for character ${characterId}. Aborting init.`);
+    const els = getMaterialFormElements(characterId);
+    if (!els || !els.form) {
         return;
     }
+    const storeUrl = els.storeUrl;
 
-    const storeUrl = materialForm.dataset.storeUrl;
-    const formTitle = document.getElementById(
-        `material-form-title-${characterId}`
-    );
-    const submitBtn = document.getElementById(
-        `material-form-submit-btn-${characterId}`
-    );
-    const submitBtnText = document.getElementById(
-        `material-form-submit-btn-text-${characterId}`
-    );
-    const cancelBtn = document.getElementById(
-        `material-form-cancel-btn-${characterId}`
-    );
-    const methodField = document.getElementById(
-        `material-form-method-${characterId}`
-    );
-    const idField = document.getElementById(`material-form-id-${characterId}`);
-    const errorDivId = `material-form-errors-${characterId}`;
+    if (els.inventorySelect) {
+        els.inventorySelect.addEventListener("change", function () {
+            updateFormUIBasedOnSelection(characterId);
+        });
+    }
 
-    const inventorySelect = document.getElementById(
-        `inventory_item_id_input-${characterId}`
-    );
-    const unitDisplay = document.getElementById(
-        `material_unit_display-${characterId}`
-    );
-    const quantityInput = document.getElementById(
-        `material_quantity_input-${characterId}`
-    );
-    const nameHiddenInput = document.getElementById(
-        `material_name_hidden_input-${characterId}`
-    );
-    const unitHiddenInput = document.getElementById(
-        `material_unit_hidden_input-${characterId}`
-    );
-    const priceDisplay = document.getElementById(
-        `material_price_display-${characterId}`
-    );
-    const priceHidden = document.getElementById(
-        `material_price_hidden_input-${characterId}`
-    );
-    const unitPriceHidden = document.getElementById(
-        `material_unit_price_hidden_input-${characterId}`
-    );
+    if (els.quantityInput) {
+        els.quantityInput.addEventListener("input", function () {
+            calculateAndSetPrice(characterId);
+        });
+    }
 
-    if (inventorySelect) {
-        inventorySelect.addEventListener("change", function () {
-            const selectedOption = this.options[this.selectedIndex];
-            if (unitDisplay && nameHiddenInput && unitHiddenInput) {
-                if (selectedOption && selectedOption.value) {
-                    unitDisplay.value = selectedOption.dataset.unit || "";
-                    nameHiddenInput.value = selectedOption.dataset.name || "";
-                    unitHiddenInput.value = selectedOption.dataset.unit || "";
-                } else {
-                    unitDisplay.value = "";
-                    nameHiddenInput.value = "";
-                    unitHiddenInput.value = "";
-                }
+    if (els.priceDisplay) {
+        els.priceDisplay.addEventListener("input", function () {
+            if (!this.readOnly) {
+                calculateAndSetPrice(characterId);
             }
-            calculateAndDisplayMaterialPrice(characterId);
+        });
+        els.priceDisplay.addEventListener("blur", function () {
+            if (!this.readOnly) {
+                let value = this.value.replace(/[円,]/g, "");
+                if (!isNaN(parseFloat(value)) && isFinite(value)) {
+                    this.value = parseFloat(value).toLocaleString() + "円";
+                } else if (value.trim() !== "") {
+                    this.value = "";
+                } else {
+                    this.value = ""; // Also clear if just whitespace
+                }
+                calculateAndSetPrice(characterId);
+            }
         });
     }
 
-    if (quantityInput) {
-        quantityInput.addEventListener("input", function () {
-            calculateAndDisplayMaterialPrice(characterId);
+    if (els.unitDisplay) {
+        els.unitDisplay.addEventListener("input", function () {
+            if (!this.readOnly && els.unitHiddenInput) {
+                els.unitHiddenInput.value = this.value;
+            }
         });
     }
+
+    if (els.manualNameInput) {
+        els.manualNameInput.addEventListener("input", function () {
+            if (els.nameHiddenInput) {
+                els.nameHiddenInput.value = this.value;
+            }
+        });
+    }
+
+    if (els.statusCheckbox) {
+        els.statusCheckbox.addEventListener("change", function () {
+            if (els.statusHiddenInput) {
+                els.statusHiddenInput.value = this.checked
+                    ? "購入済"
+                    : "未購入";
+            }
+        });
+    }
+
+    updateFormUIBasedOnSelection(characterId);
 
     materialsContentContainer.addEventListener("click", function (event) {
         const editButton = event.target.closest(".edit-material-btn");
         if (editButton) {
             event.preventDefault();
-            if (formTitle) formTitle.textContent = "材料を編集";
-            materialForm.setAttribute(
+            resetMaterialForm(characterId, storeUrl);
+
+            if (els.formTitle) els.formTitle.textContent = "材料を編集";
+            els.form.setAttribute(
                 "action",
                 `/projects/${projectData.id}/characters/${characterId}/materials/${editButton.dataset.id}`
             );
-            if (methodField) methodField.value = "PUT";
-            if (idField) idField.value = editButton.dataset.id;
+            if (els.methodField) els.methodField.value = "PUT";
+            if (els.idField) els.idField.value = editButton.dataset.id;
 
             const inventoryItemId = editButton.dataset.inventory_item_id;
-            if (inventorySelect) {
-                inventorySelect.value = inventoryItemId || "";
-                const changeEvent = new Event("change"); // Ensure event dispatch works
-                inventorySelect.dispatchEvent(changeEvent); // Trigger change to update unit and potentially price
+            const materialStatus = editButton.dataset.status;
+
+            if (inventoryItemId) {
+                els.inventorySelect.value = inventoryItemId;
+            } else {
+                els.inventorySelect.value = "manual_input";
             }
 
-            if (nameHiddenInput && !inventoryItemId)
-                nameHiddenInput.value = editButton.dataset.name || ""; // Fallback if not inventory item
-            if (unitHiddenInput && !inventoryItemId)
-                unitHiddenInput.value = editButton.dataset.unit || ""; // Fallback
+            const changeEvent = new Event("change");
+            els.inventorySelect.dispatchEvent(changeEvent);
 
-            if (quantityInput)
-                quantityInput.value = editButton.dataset.quantity_needed;
-            materialForm.elements["notes"].value =
-                editButton.dataset.notes || "";
+            setTimeout(() => {
+                if (!inventoryItemId) {
+                    if (els.manualNameInput)
+                        els.manualNameInput.value =
+                            editButton.dataset.name || "";
+                    if (els.unitDisplay)
+                        els.unitDisplay.value = editButton.dataset.unit || "";
+                }
+                if (els.quantityInput)
+                    els.quantityInput.value =
+                        editButton.dataset.quantity_needed;
+                if (els.notesInput)
+                    els.notesInput.value = editButton.dataset.notes || "";
 
-            if (priceDisplay)
-                priceDisplay.value = editButton.dataset.price
-                    ? Number(editButton.dataset.price).toLocaleString() + "円"
-                    : "";
-            if (priceHidden) priceHidden.value = editButton.dataset.price || "";
-            if (unitPriceHidden)
-                unitPriceHidden.value =
-                    editButton.dataset.unit_price_at_creation || "";
+                if (els.priceDisplay) {
+                    const price = editButton.dataset.price;
+                    els.priceDisplay.value =
+                        price && !isNaN(parseFloat(price))
+                            ? Number(price).toLocaleString() + "円"
+                            : "";
+                }
+                if (els.priceHiddenInput)
+                    els.priceHiddenInput.value = editButton.dataset.price || "";
+                if (els.unitPriceHiddenInput)
+                    els.unitPriceHiddenInput.value =
+                        editButton.dataset.unit_price_at_creation || "";
 
-            // After setting quantity, recalculate if an inventory item is selected.
-            if (
-                inventorySelect &&
-                inventorySelect.value &&
-                quantityInput.value
-            ) {
-                calculateAndDisplayMaterialPrice(characterId);
-            }
+                if (els.statusCheckbox && els.statusHiddenInput) {
+                    const isPurchased = materialStatus === "購入済";
+                    els.statusCheckbox.checked = isPurchased;
+                    els.statusHiddenInput.value = materialStatus;
+                    // disabled state already handled by updateFormUIBasedOnSelection via inventorySelect change
+                }
+                calculateAndSetPrice(characterId);
+            }, 0);
 
-            if (submitBtnText) submitBtnText.textContent = "更新";
-            if (submitBtn) {
-                submitBtn.classList.remove(
+            if (els.submitBtnText) els.submitBtnText.textContent = "更新";
+            if (els.submitBtn) {
+                els.submitBtn.classList.remove(
                     "bg-green-500",
-                    "hover:bg-green-600"
+                    "hover:bg-green-600",
+                    "active:bg-green-700",
+                    "focus:border-green-700",
+                    "focus:ring-green-300"
                 );
-                submitBtn.classList.add("bg-yellow-500", "hover:bg-yellow-600");
+                els.submitBtn.classList.add(
+                    "bg-yellow-500",
+                    "hover:bg-yellow-600",
+                    "active:bg-yellow-700",
+                    "focus:border-yellow-700",
+                    "focus:ring-yellow-300"
+                );
             }
-            if (cancelBtn) cancelBtn.style.display = "inline-flex";
-            const errorDiv = document.getElementById(errorDivId);
-            if (errorDiv) errorDiv.innerHTML = "";
-            if (inventorySelect) inventorySelect.focus();
-            else materialForm.elements["name"]?.focus();
+            if (els.cancelBtn) els.cancelBtn.style.display = "inline-flex";
+            if (els.errorDiv) els.errorDiv.innerHTML = "";
+
+            if (inventoryItemId) {
+                if (els.quantityInput) els.quantityInput.focus();
+            } else {
+                if (els.manualNameInput) els.manualNameInput.focus();
+            }
         }
 
         const deleteFormElement = event.target.closest(".delete-material-form");
@@ -425,7 +628,7 @@ export function initializeMaterialInteractions(
                             handleFormError(
                                 response,
                                 "削除に失敗しました。",
-                                errorDivId
+                                `material-form-errors-${characterId}`
                             );
                         }
                     })
@@ -433,36 +636,49 @@ export function initializeMaterialInteractions(
                         handleFormError(
                             error.response,
                             "削除中にエラーが発生しました。",
-                            errorDivId
+                            `material-form-errors-${characterId}`
                         );
                     });
             }
         }
     });
 
-    if (cancelBtn) {
-        cancelBtn.addEventListener("click", function () {
+    if (els.cancelBtn) {
+        els.cancelBtn.addEventListener("click", function () {
             resetMaterialForm(characterId, storeUrl);
         });
     }
 
-    materialForm.addEventListener("submit", function (event) {
+    els.form.addEventListener("submit", function (event) {
         event.preventDefault();
-        const errorDiv = document.getElementById(errorDivId);
-        if (errorDiv) errorDiv.innerHTML = "";
-        const formData = new FormData(materialForm);
-        const actionUrl = materialForm.getAttribute("action");
-        let httpMethod = "post";
+        if (els.errorDiv) els.errorDiv.innerHTML = "";
 
-        if (
-            document.getElementById(`material-form-method-${characterId}`)
-                .value === "PUT"
-        ) {
-            formData.append("_method", "PUT");
+        if (els.inventorySelect.value === "manual_input") {
+            if (els.nameHiddenInput && els.manualNameInput)
+                els.nameHiddenInput.value = els.manualNameInput.value;
+            if (els.unitHiddenInput && els.unitDisplay)
+                els.unitHiddenInput.value = els.unitDisplay.value;
+        } else {
+            const selectedOption =
+                els.inventorySelect.options[els.inventorySelect.selectedIndex];
+            if (selectedOption && selectedOption.value) {
+                if (els.nameHiddenInput)
+                    els.nameHiddenInput.value =
+                        selectedOption.dataset.name || "";
+                if (els.unitHiddenInput)
+                    els.unitHiddenInput.value =
+                        selectedOption.dataset.unit || "";
+            } else {
+                if (els.nameHiddenInput) els.nameHiddenInput.value = "";
+                if (els.unitHiddenInput) els.unitHiddenInput.value = "";
+            }
         }
 
+        const formData = new FormData(els.form);
+        const actionUrl = els.form.getAttribute("action");
+
         axios({
-            method: httpMethod,
+            method: "post",
             url: actionUrl,
             data: formData,
             headers: { "X-CSRF-TOKEN": csrfToken, Accept: "application/json" },
@@ -470,9 +686,7 @@ export function initializeMaterialInteractions(
             .then((response) => {
                 if (response.data.success && response.data.material) {
                     const isUpdate =
-                        document.getElementById(
-                            `material-form-method-${characterId}`
-                        ).value === "PUT";
+                        els.methodField && els.methodField.value === "PUT";
                     redrawMaterialRow(
                         characterId,
                         response.data.material,
@@ -486,8 +700,9 @@ export function initializeMaterialInteractions(
                 } else {
                     handleFormError(
                         response,
-                        "処理に失敗しました。",
-                        errorDivId
+                        response.data.message || "処理に失敗しました。",
+                        `material-form-errors-${characterId}`,
+                        response.data.errors
                     );
                 }
             })
@@ -495,7 +710,8 @@ export function initializeMaterialInteractions(
                 handleFormError(
                     error.response,
                     "送信中にエラーが発生しました。",
-                    errorDivId
+                    `material-form-errors-${characterId}`,
+                    error.response?.data?.errors
                 );
             });
     });
@@ -524,9 +740,9 @@ export function initializeMaterialInteractions(
                         redrawMaterialRow(
                             characterId,
                             response.data.material,
-                            true,
+                            true, // isUpdate
                             projectData
-                        ); // true for isUpdate
+                        );
                         if (response.data.costs_updated) {
                             refreshCharacterCosts(projectData.id, characterId);
                         }
@@ -534,7 +750,7 @@ export function initializeMaterialInteractions(
                         handleFormError(
                             response,
                             "ステータス更新に失敗しました。",
-                            errorDivId
+                            `material-form-errors-${characterId}`
                         );
                         checkbox.checked = !checkbox.checked;
                     }
@@ -543,7 +759,7 @@ export function initializeMaterialInteractions(
                     handleFormError(
                         error.response,
                         "ステータス更新中にエラーが発生しました。",
-                        errorDivId
+                        `material-form-errors-${characterId}`
                     );
                     checkbox.checked = !checkbox.checked;
                 });

@@ -38,12 +38,19 @@
                     <tr id="material-row-{{ $material->id }}">
                         <td class="px-3 py-1.5 whitespace-nowrap">
                             @can('manageMaterials', $project)
-                                <input type="checkbox" id="material-status-checkbox-{{ $material->id }}"
-                                    class="form-checkbox h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:bg-gray-900 dark:border-gray-600 material-status-checkbox"
-                                    data-url="{{ route('projects.characters.materials.update', [$project, $character, $material]) }}"
-                                    data-id="{{ $material->id }}" data-character-id="{{ $character->id }}"
-                                    {{ $material->status === '購入済' ? 'checked' : '' }}>
+                                @if($material->inventory_item_id)
+                                    {{-- 在庫品の場合は「購入済」テキスト表示 (変更不可) --}}
+                                    <span class="text-xs px-2 py-1 font-semibold leading-tight text-green-700 bg-green-100 rounded-full dark:bg-green-700 dark:text-green-100">購入済</span>
+                                @else
+                                    {{-- 在庫品でない場合は編集可能なチェックボックス --}}
+                                    <input type="checkbox" id="material-status-checkbox-{{ $material->id }}"
+                                        class="form-checkbox h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:bg-gray-900 dark:border-gray-600 material-status-checkbox"
+                                        data-url="{{ route('projects.characters.materials.update', [$project, $character, $material]) }}"
+                                        data-id="{{ $material->id }}" data-character-id="{{ $character->id }}"
+                                        {{ $material->status === '購入済' ? 'checked' : '' }}>
+                                @endif
                             @else
+                                {{-- 権限がない場合は常にテキスト表示 --}}
                                 <span class="text-gray-700 dark:text-gray-200">{{ $material->status }}</span>
                             @endcan
                         </td>
@@ -57,10 +64,16 @@
                         <td class="px-4 py-1.5 whitespace-nowrap text-gray-700 dark:text-gray-200 material-quantity_needed">
                             @php
                                 $qtyNeeded = $material->quantity_needed;
-                                // 単位が 'm' または 'M' で、かつ小数点以下が .00 でない場合は小数点1桁まで表示、それ以外は整数表示
-                                $decimalsQty = (in_array(strtolower($material->unit ?? optional($material->inventoryItem)->unit), ['m']))
-                                            ? (fmod($qtyNeeded, 1) !== 0.00 ? 1 : 0)
-                                            : 0;
+                                // 単位が 'm' または 'M' で、かつ小数点以下が .00 でない場合は小数点1桁まで表示、それ以外は適切な桁数で表示
+                                $unitLower = strtolower($material->unit ?? optional($material->inventoryItem)->unit);
+                                if ($unitLower === 'm') {
+                                    $decimalsQty = (fmod($qtyNeeded, 1) !== 0.00 ? 1 : 0);
+                                } else {
+                                    // 他の単位の場合、小数点以下が .00 なら整数、それ以外はそのまま表示（または特定の桁数に丸める）
+                                    // ここでは、小数点以下がなければ整数、あればそのまま表示する例
+                                    $decimalsQty = (fmod($qtyNeeded, 1) !== 0.00 ? strlen(substr(strrchr((string)$qtyNeeded, "."), 1)) : 0);
+                                    if ($decimalsQty > 2) $decimalsQty = 2; // 例として最大小数点2桁
+                                }
                             @endphp
                             {{ number_format($qtyNeeded, $decimalsQty) }}
                         </td>
@@ -83,6 +96,7 @@
                                         data-unit="{{ $material->unit }}"
                                         data-unit_price_at_creation="{{ $material->unit_price_at_creation }}"
                                         data-quantity_needed="{{ $material->quantity_needed }}"
+                                        data-status="{{ $material->status }}"
                                         data-notes="{{ $material->notes }}">
                                         <i class="fas fa-edit fa-sm"></i>
                                     </button>
@@ -113,8 +127,6 @@
         </table>
     </div>
 
-{{-- ... (テーブル表示部分などは変更なし) ... --}}
-
 @can('manageMaterials', $project)
     <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
         <h6 class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2" id="material-form-title-{{ $character->id }}">材料を追加</h6>
@@ -122,46 +134,59 @@
             action="{{ route('projects.characters.materials.store', [$project, $character]) }}" method="POST"
             data-store-url="{{ route('projects.characters.materials.store', [$project, $character]) }}"
             data-character-id="{{ $character->id }}"
-            class="space-y-3"> {{-- ★ grid クラスを削除し、space-y を使用 --}}
+            class="space-y-3">
             @csrf
             <input type="hidden" name="_method" id="material-form-method-{{ $character->id }}" value="POST">
             <input type="hidden" name="material_id" id="material-form-id-{{ $character->id }}" value="">
+
+            {{-- これらの隠しフィールドはJSで適切に値が設定される --}}
             <input type="hidden" name="name" id="material_name_hidden_input-{{ $character->id }}" value="">
             <input type="hidden" name="unit" id="material_unit_hidden_input-{{ $character->id }}" value="">
             <input type="hidden" name="price" id="material_price_hidden_input-{{ $character->id }}">
             <input type="hidden" name="unit_price_at_creation" id="material_unit_price_hidden_input-{{ $character->id }}">
+            <input type="hidden" name="status" id="material_status_hidden_input-{{ $character->id }}" value="未購入"> {{-- デフォルト未購入 --}}
 
-            {{-- 1行目: 材料名 (在庫品目) と 単位 --}}
+            {{-- 1行目: 在庫品目選択 / 材料名手入力 --}}
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-x-4 gap-y-3 items-start">
                 <div class="sm:col-span-2">
-                    <x-input-label for="inventory_item_id_input-{{ $character->id }}" value="材料名 (在庫品目)" :required="true" />
+                    <x-input-label for="inventory_item_id_input-{{ $character->id }}" value="材料種別" :required="true" />
                     <select name="inventory_item_id" id="inventory_item_id_input-{{ $character->id }}"
                             class="form-select mt-1 block w-full text-sm rounded-md border-gray-300 shadow-sm dark:bg-gray-900 dark:border-gray-600 dark:text-gray-200 material-inventory-item-select"
                             data-character-id="{{ $character->id }}" required>
                         <option value="">在庫品目を選択...</option>
+                        <option value="manual_input">在庫品目以外 (手入力)</option>
                         @php
                             $availableInventoryItems = $availableInventoryItems ?? collect();
                         @endphp
                         @foreach($availableInventoryItems as $item)
                             <option value="{{ $item->id }}" data-unit="{{ $item->unit }}" data-name="{{ $item->name }}" data-avg_price="{{ $item->average_unit_price }}">
-                                {{ $item->name }} (単位: {{ $item->unit }}, 在庫: {{ number_format($item->quantity, ($item->unit === 'm' || $item->unit === 'M') ? 1 : 0) }})
+                                {{ $item->name }} (単位: {{ $item->unit }}, 在庫: {{ number_format($item->quantity, (in_array(strtolower($item->unit), ['m'])) ? (fmod($item->quantity, 1) !== 0.00 ? 1:0) : 0) }})
                             </option>
                         @endforeach
                     </select>
                     <x-input-error :messages="$errors->get('inventory_item_id')" class="mt-2" />
                 </div>
 
+                {{-- 材料名手入力フィールド (JSで表示制御) --}}
+                <div id="manual_material_name_field-{{ $character->id }}" class="sm:col-span-2 hidden">
+                    <x-input-label for="manual_material_name_input-{{ $character->id }}" value="材料名" :required="true" />
+                    <x-text-input type="text" id="manual_material_name_input-{{ $character->id }}"
+                        class="form-input mt-1 block w-full text-sm rounded-md border-gray-300 shadow-sm dark:bg-gray-900 dark:border-gray-600 dark:text-gray-200"
+                        placeholder="例: 赤色の布" />
+                </div>
+
                 <div>
                     <x-input-label for="material_unit_display-{{ $character->id }}" value="単位" />
+                    {{-- 在庫品選択時の単位表示用、または手入力用 --}}
                     <x-text-input type="text" id="material_unit_display-{{ $character->id }}"
                         class="form-input mt-1 block w-full text-sm rounded-md border-gray-300 shadow-sm bg-gray-100 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-400"
-                        readonly placeholder="品目選択で自動表示" />
+                        readonly placeholder="品目選択時自動表示/手入力" />
                 </div>
             </div>
 
             {{-- 2行目: 必要量 と 合計参考価格 --}}
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-x-4 gap-y-3 items-start">
-                <div class="sm:col-span-1"> {{-- 必要量の幅を調整 --}}
+                <div class="sm:col-span-1">
                     <x-input-label for="material_quantity_input-{{ $character->id }}" value="必要量" :required="true" />
                     <x-text-input type="number" step="0.01" name="quantity_needed" id="material_quantity_input-{{ $character->id }}"
                         class="form-input mt-1 block w-full text-sm rounded-md border-gray-300 shadow-sm dark:bg-gray-900 dark:border-gray-600 dark:text-gray-200 material-quantity-input"
@@ -169,11 +194,11 @@
                         placeholder="例: 2" required />
                     <x-input-error :messages="$errors->get('quantity_needed')" class="mt-2" />
                 </div>
-                <div class="sm:col-span-2"> {{-- 合計参考価格の幅を調整 --}}
+                <div class="sm:col-span-2">
                     <x-input-label for="material_price_display-{{ $character->id }}" value="合計参考価格(円)" />
-                    <x-text-input type="text" name="price_display" id="material_price_display-{{ $character->id }}"
+                    <x-text-input type="text" id="material_price_display-{{ $character->id }}"
                         class="form-input mt-1 block w-full text-sm rounded-md border-gray-300 shadow-sm bg-gray-100 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-400"
-                        placeholder="自動計算" readonly />
+                        placeholder="自動計算/手入力" readonly />
                     <x-input-error :messages="$errors->get('price')" class="mt-2" />
                 </div>
             </div>
@@ -184,6 +209,13 @@
                 <x-textarea-input name="notes" id="material_notes_input-{{ $character->id }}"
                     class="form-input mt-1 block w-full text-sm rounded-md border-gray-300 shadow-sm dark:bg-gray-900 dark:border-gray-600 dark:text-gray-200 leading-tight"
                     rows="2"></x-textarea-input>
+            </div>
+
+            {{-- 購入ステータス制御 --}}
+            <div class="flex items-center space-x-2">
+                <input type="checkbox" id="material_status_checkbox_for_form-{{ $character->id }}"
+                       class="form-checkbox h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:bg-gray-900 dark:border-gray-600">
+                <label for="material_status_checkbox_for_form-{{ $character->id }}" class="text-sm text-gray-700 dark:text-gray-300">購入済として処理する</label>
             </div>
 
             {{-- 4行目: ボタン (右寄せ) --}}
