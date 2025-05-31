@@ -15,9 +15,7 @@ class StockOrderController extends Controller
 {
     public function index(Request $request)
     {
-        if (!Gate::allows('viewAny', StockOrder::class)) {
-            abort(403);
-        }
+        $this->authorize('viewAny', StockOrder::class);
 
         $query = StockOrder::with(['inventoryItem', 'requestedByUser', 'managedByUser'])->latest();
 
@@ -51,9 +49,8 @@ class StockOrderController extends Controller
 
     public function create(Request $request)
     {
-        if (!Gate::allows('create', StockOrder::class)) {
-            abort(403);
-        }
+        $this->authorize('create', StockOrder::class);
+
         $inventoryItemId = $request->input('inventory_item_id');
         $inventoryItem = null;
         if ($inventoryItemId) {
@@ -66,9 +63,8 @@ class StockOrderController extends Controller
 
     public function store(Request $request)
     {
-        if (!Gate::allows('create', StockOrder::class)) {
-            abort(403);
-        }
+        $this->authorize('create', StockOrder::class);
+
 
         $validated = $request->validate([
             'inventory_item_id' => 'required|exists:inventory_items,id',
@@ -87,9 +83,8 @@ class StockOrderController extends Controller
 
     public function show(StockOrder $stockOrder)
     {
-        if (!Gate::allows('view', $stockOrder)) {
-            abort(403);
-        }
+        $this->authorize('viewAny', StockOrder::class);
+
         $stockOrder->load(['inventoryItem', 'requestedByUser', 'managedByUser']);
         $statusOptions = StockOrder::STATUS_OPTIONS;
         $users = User::orderBy('name')->get(); // 対応者選択用
@@ -99,11 +94,8 @@ class StockOrderController extends Controller
 
     public function edit(StockOrder $stockOrder)
     {
-        // 通常、申請内容の「編集」は限定的。ステータス変更が主。
-        // ここでは show にリダイレクトするか、管理者による備考編集などのUIを提供。
-        if (!Gate::allows('update', $stockOrder)) {
-            abort(403);
-        }
+        $this->authorize('update', StockOrder::class);
+
         // return redirect()->route('admin.stock-orders.show', $stockOrder);
         // もし編集画面を作るなら
         $inventoryItems = InventoryItem::orderBy('name')->get();
@@ -112,10 +104,7 @@ class StockOrderController extends Controller
 
     public function update(Request $request, StockOrder $stockOrder)
     {
-        // 申請内容自体の更新ロジック (限定的であるべき)
-        if (!Gate::allows('update', $stockOrder)) {
-            abort(403);
-        }
+        $this->authorize('update', StockOrder::class);
 
         $validated = $request->validate([
             // 'quantity_requested' => 'sometimes|required|numeric|min:0.01', // 数量変更を許可する場合
@@ -137,9 +126,8 @@ class StockOrderController extends Controller
 
     public function destroy(StockOrder $stockOrder)
     {
-        if (!Gate::allows('delete', $stockOrder)) {
-            abort(403);
-        }
+        $this->authorize('delete', StockOrder::class);
+
         // 削除条件（例：申請中のみ削除可能など）
         if (!in_array($stockOrder->status, ['pending', 'rejected', 'cancelled'])) {
             return back()->with('error', 'このステータスの申請は削除できません。');
@@ -151,9 +139,7 @@ class StockOrderController extends Controller
     // ステータス更新用の専用メソッド
     public function updateStatus(Request $request, StockOrder $stockOrder)
     {
-        if (!Gate::allows('updateStatus', $stockOrder)) { // StockOrderPolicy@updateStatus を使用
-            abort(403);
-        }
+        $this->authorize('updateStatus', StockOrder::class);
 
         $validated = $request->validate([
             'status' => ['required', 'string', Rule::in(array_keys(StockOrder::STATUS_OPTIONS))],

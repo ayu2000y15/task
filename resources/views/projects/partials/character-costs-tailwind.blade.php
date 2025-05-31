@@ -93,7 +93,7 @@
             <div>
                 <x-input-label for="cost_type_input-{{ $character->id }}" value="種別" :required="true"/>
                 @php
-                    $costTypes = ['材料費' => '材料費', '作業費' => '作業費', 'その他' => 'その他'];
+                    $costTypes = ['作業費' => '作業費', 'その他' => 'その他'];
                 @endphp
                 <x-select-input name="type" id="cost_type_input-{{ $character->id }}" class="form-select mt-1 block w-full text-sm rounded-md border-gray-300 shadow-sm dark:bg-gray-900 dark:border-gray-600 dark:text-gray-200 focus:border-indigo-500 focus:ring-indigo-500" :options="$costTypes" :selected="old('type', '材料費')" required />
             </div>

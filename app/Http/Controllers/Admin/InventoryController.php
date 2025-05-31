@@ -15,26 +15,23 @@ class InventoryController extends Controller
 {
     public function index()
     {
-        if (!Gate::allows('viewAny', InventoryItem::class)) {
-            abort(403);
-        }
+        $this->authorize('viewAny', InventoryItem::class);
+
         $inventoryItems = InventoryItem::orderBy('name')->paginate(20);
         return view('admin.inventory.index', compact('inventoryItems'));
     }
 
     public function create()
     {
-        if (!Gate::allows('create', InventoryItem::class)) {
-            abort(403);
-        }
+        $this->authorize('create', InventoryItem::class);
+
         return view('admin.inventory.create');
     }
 
     public function store(Request $request)
     {
-        if (!Gate::allows('create', InventoryItem::class)) {
-            abort(403);
-        }
+        $this->authorize('create', InventoryItem::class);
+
 
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:inventory_items,name',
@@ -73,17 +70,15 @@ class InventoryController extends Controller
 
     public function show(InventoryItem $inventoryItem)
     {
-        if (!Gate::allows('view', $inventoryItem)) {
-            abort(403);
-        }
+        $this->authorize('viewAny', InventoryItem::class);
+
         return redirect()->route('admin.inventory.edit', $inventoryItem);
     }
 
     public function edit(InventoryItem $inventoryItem)
     {
-        if (!Gate::allows('update', $inventoryItem)) {
-            abort(403);
-        }
+        $this->authorize('update', InventoryItem::class);
+
         return view('admin.inventory.edit', compact('inventoryItem'));
     }
 
@@ -107,6 +102,7 @@ class InventoryController extends Controller
         try {
             $oldTotalCost = $inventoryItem->total_cost;
             $newTotalCostFromRequest = $request->filled('total_cost') ? floatval($validated['total_cost']) : null;
+            $this->authorize('update', InventoryItem::class);
 
             // total_cost 以外の品目情報をまず更新
             $inventoryItem->fill(array_filter($validated, function ($key) {
@@ -202,9 +198,8 @@ class InventoryController extends Controller
 
     public function destroy(InventoryItem $inventoryItem)
     {
-        if (!Gate::allows('delete', $inventoryItem)) {
-            abort(403);
-        }
+        $this->authorize('delete', InventoryItem::class);
+
         // TODO: 関連する StockOrder がある場合の処理（削除を許可しない、または関連を解除するなど）
         $inventoryItem->delete();
         return redirect()->route('admin.inventory.index')->with('success', '在庫品目を削除しました。');
@@ -215,9 +210,7 @@ class InventoryController extends Controller
      */
     public function stockIn(Request $request, InventoryItem $inventoryItem)
     {
-        if (!Gate::allows('stockIn', $inventoryItem)) {
-            abort(403, 'この在庫品目の入荷処理を行う権限がありません。');
-        }
+        $this->authorize('stockIn', InventoryItem::class);
 
         // 入荷数量と、入荷単価または入荷総額のどちらかを受け取る
         $validated = $request->validateWithBag('stockIn', [
@@ -300,9 +293,8 @@ class InventoryController extends Controller
      */
     public function adjustStock(Request $request, InventoryItem $inventoryItem)
     {
-        if (!Gate::allows('adjustStock', $inventoryItem)) {
-            abort(403, 'この在庫品目の在庫調整を行う権限がありません。');
-        }
+        $this->authorize('adjustStock', InventoryItem::class);
+
 
         $validated = $request->validateWithBag('adjustStock', [ // エラーバッグ名を指定
             'adjustment_type' => ['required', Rule::in(['new_total', 'change_amount'])],
