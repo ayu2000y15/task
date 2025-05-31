@@ -219,9 +219,20 @@
                             <i class="fas fa-chevron-down fa-xs ml-1"></i>
                         </button>
                         <div x-show="adminMenuOpenOnHeader" @click.away="adminMenuOpenOnHeader = false"
-                             x-transition
-                             class="absolute right-0 mt-2 w-48 py-1 bg-white rounded-md shadow-lg dark:bg-gray-700 ring-1 ring-black ring-opacity-5 z-50"
-                             style="display: none;">
+                            x-transition
+                            class="absolute right-0 mt-2 w-48 py-1 bg-white rounded-md shadow-lg dark:bg-gray-700 ring-1 ring-black ring-opacity-5 z-50"
+                            style="display: none;">
+                            @can('viewAny', App\Models\StockOrder::class)
+                            <a href="{{ route('admin.stock-orders.index') }}" class="flex justify-between items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
+                                在庫発注申請
+                                @if(isset($pendingStockOrdersCountGlobal) && $pendingStockOrdersCountGlobal > 0)
+                                    <span class="ml-auto inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-orange-100 bg-orange-500 rounded-full">{{ $pendingStockOrdersCountGlobal }}</span>
+                                @endif
+                            </a>
+                            @endcan
+                            @can('viewAny', App\Models\InventoryItem::class)
+                                <a href="{{ route('admin.inventory.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">在庫管理</a>
+                            @endcan
                             @can('viewAny', App\Models\User::class)
                                 <a href="{{ route('users.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">ユーザー管理</a>
                             @endcan
@@ -260,7 +271,8 @@
                              x-transition
                              class="absolute right-0 mt-2 w-48 py-1 bg-white rounded-md shadow-lg dark:bg-gray-700 ring-1 ring-black ring-opacity-5 z-50"
                              style="display: none;">
-                            <a href="{{ route('profile.edit') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">プロフィール</a>
+                            {{-- <a href="{{ route('profile.edit') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">プロフィール</a> --}}
+
                             @can('create', App\Models\Feedback::class)
                             <a href="{{ route('user_feedbacks.create') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">フィードバックを送信</a>
                             @endcan

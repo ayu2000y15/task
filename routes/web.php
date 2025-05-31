@@ -12,13 +12,16 @@ use App\Http\Controllers\MaterialController;
 use App\Http\Controllers\CostController;
 use App\Http\Controllers\ProcessTemplateController;
 use App\Http\Controllers\CharacterController;
-use App\Http\Controllers\Admin\FormFieldDefinitionController;
 use App\Http\Controllers\ExternalFormController;
 // フィードバック機能で追加するコントローラー
 use App\Http\Controllers\UserFeedbackController;
 use App\Http\Controllers\Admin\FeedbackController as AdminFeedbackController;
 use App\Http\Controllers\Admin\FeedbackCategoryController as AdminFeedbackCategoryController;
 use App\Http\Controllers\Admin\LogController as AdminLogController;
+use App\Http\Controllers\Admin\FormFieldDefinitionController;
+use App\Http\Controllers\Admin\InventoryController;
+use App\Http\Controllers\Admin\StockOrderController;
+use App\Http\Controllers\Admin\InventoryLogController;
 
 Route::middleware('auth')->group(function () {
     // ホーム
@@ -77,7 +80,6 @@ Route::middleware('auth')->group(function () {
     Route::put('/projects/{project}/characters/{character}/materials/{material}', [MaterialController::class, 'update'])->name('projects.characters.materials.update');
     Route::delete('/projects/{project}/characters/{character}/materials/{material}', [MaterialController::class, 'destroy'])->name('projects.characters.materials.destroy');
 
-
     // コストデータ (案件詳細ページ内で処理)
     Route::post('/projects/{project}/characters/{character}/costs', [CostController::class, 'store'])->name('projects.characters.costs.store');
     Route::put('/projects/{project}/characters/{character}/costs/{cost}', [CostController::class, 'update'])->name('projects.characters.costs.update');
@@ -125,6 +127,18 @@ Route::middleware('auth')->group(function () {
         Route::resource('feedback-categories', AdminFeedbackCategoryController::class)->except(['show']);
         Route::post('feedback-categories/reorder', [AdminFeedbackCategoryController::class, 'reorder'])->name('feedback-categories.reorder'); // ★ 並び替え用ルート追加
         // --- ここまで管理者向けフィードバック機能 ---
+
+        // 在庫管理
+        Route::resource('inventory', InventoryController::class)->parameters(['inventory' => 'inventoryItem']);
+        Route::post('inventory/{inventoryItem}/stock-in', [InventoryController::class, 'stockIn'])->name('inventory.stockIn');
+        Route::post('inventory/{inventoryItem}/adjust', [InventoryController::class, 'adjustStock'])->name('inventory.adjustStock');
+
+        // 在庫発注申請
+        Route::resource('stock-orders', StockOrderController::class);
+        Route::patch('stock-orders/{stockOrder}/status', [StockOrderController::class, 'updateStatus'])->name('stock-orders.updateStatus');
+
+        Route::get('inventory-logs', [InventoryLogController::class, 'index'])->name('inventory-logs.index');
+
 
         // ★ 操作ログ閲覧ルートを追加
         Route::get('/logs', [AdminLogController::class, 'index'])->name('logs.index');

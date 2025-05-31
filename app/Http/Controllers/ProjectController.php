@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Arr;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Storage; // ファイル操作のために追加
+use App\Models\InventoryItem; // ★追加
 
 class ProjectController extends Controller
 {
@@ -406,7 +407,10 @@ class ProjectController extends Controller
             }
         ]);
 
-        return view('projects.show', compact('project', 'customFormFields'));
+        $availableInventoryItems = InventoryItem::where('quantity',  '>', 0)
+            ->orderBy('name')->get();
+
+        return view('projects.show', compact('project', 'customFormFields', 'availableInventoryItems'));
     }
 
     public function edit(Project $project)

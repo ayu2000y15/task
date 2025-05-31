@@ -14,12 +14,21 @@ class Material extends Model
 
     protected $fillable = [
         'character_id',
+        'inventory_item_id',
         'name',
         'supplier',
         'price',
+        'unit',
+        'unit_price_at_creation',
         'quantity_needed',
         'status',
         'notes', // ★ 追加
+    ];
+
+    protected $casts = [
+        'price' => 'decimal:0', // 合計費用は整数表示の例 (必要に応じて変更)
+        'unit_price_at_creation' => 'decimal:4', // ★追加
+        'quantity_needed' => 'decimal:2', // 必要量も小数点ありうるなら
     ];
 
     public function getActivitylogOptions(): LogOptions
@@ -48,5 +57,10 @@ class Material extends Model
     public function character(): BelongsTo
     {
         return $this->belongsTo(Character::class);
+    }
+
+    public function inventoryItem(): BelongsTo
+    {
+        return $this->belongsTo(InventoryItem::class);
     }
 }

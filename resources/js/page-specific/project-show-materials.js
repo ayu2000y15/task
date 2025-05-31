@@ -1,4 +1,3 @@
-// resources/js/page-specific/project-show-materials.js
 import axios from "axios";
 import {
     handleFormError,
@@ -8,12 +7,57 @@ import {
     refreshCharacterCosts,
 } from "./project-show-utils.js";
 
+function calculateAndDisplayMaterialPrice(characterId) {
+    const inventorySelect = document.getElementById(
+        `inventory_item_id_input-${characterId}`
+    );
+    const quantityInput = document.getElementById(
+        `material_quantity_input-${characterId}`
+    );
+    const priceDisplay = document.getElementById(
+        `material_price_display-${characterId}`
+    );
+    const priceHidden = document.getElementById(
+        `material_price_hidden_input-${characterId}`
+    );
+    const unitPriceHidden = document.getElementById(
+        `material_unit_price_hidden_input-${characterId}`
+    );
+
+    if (
+        inventorySelect &&
+        quantityInput &&
+        priceDisplay &&
+        priceHidden &&
+        unitPriceHidden
+    ) {
+        const selectedOption =
+            inventorySelect.options[inventorySelect.selectedIndex];
+        const avgPrice = parseFloat(selectedOption.dataset.avg_price);
+        const quantity = parseFloat(quantityInput.value);
+
+        if (
+            selectedOption.value &&
+            !isNaN(avgPrice) &&
+            !isNaN(quantity) &&
+            quantity > 0
+        ) {
+            const totalPrice = avgPrice * quantity;
+            priceDisplay.value = Math.round(totalPrice).toLocaleString() + "円";
+            priceHidden.value = Math.round(totalPrice);
+            unitPriceHidden.value = avgPrice;
+        } else {
+            priceDisplay.value = "";
+            priceHidden.value = "";
+            unitPriceHidden.value = "";
+        }
+    }
+}
+
 export function resetMaterialForm(characterId, storeUrl) {
     const form = document.getElementById(`material-form-${characterId}`);
     if (!form) {
-        console.warn(
-            `Material form not found for reset: material-form-${characterId}`
-        );
+        // console.warn(`Material form not found for reset: material-form-${characterId}`);
         return;
     }
     form.reset();
@@ -69,6 +113,31 @@ export function resetMaterialForm(characterId, storeUrl) {
             input.classList.remove("border-red-500", "dark:border-red-600");
         }
     );
+
+    const unitDisplay = document.getElementById(
+        `material_unit_display-${characterId}`
+    );
+    if (unitDisplay) unitDisplay.value = "";
+    const priceDisplay = document.getElementById(
+        `material_price_display-${characterId}`
+    );
+    if (priceDisplay) priceDisplay.value = "";
+    const nameHiddenInput = document.getElementById(
+        `material_name_hidden_input-${characterId}`
+    );
+    if (nameHiddenInput) nameHiddenInput.value = "";
+    const unitHiddenInput = document.getElementById(
+        `material_unit_hidden_input-${characterId}`
+    );
+    if (unitHiddenInput) unitHiddenInput.value = "";
+    const priceHidden = document.getElementById(
+        `material_price_hidden_input-${characterId}`
+    );
+    if (priceHidden) priceHidden.value = "";
+    const unitPriceHidden = document.getElementById(
+        `material_unit_price_hidden_input-${characterId}`
+    );
+    if (unitPriceHidden) unitPriceHidden.value = "";
 }
 
 export function redrawMaterialRow(
@@ -81,9 +150,7 @@ export function redrawMaterialRow(
         `#materials-content-${characterId} table tbody`
     );
     if (!tbody) {
-        console.warn(
-            `Material table body not found for character ${characterId}`
-        );
+        // console.warn(`Material table body not found for character ${characterId}`);
         return;
     }
 
@@ -93,7 +160,7 @@ export function redrawMaterialRow(
     const notesDisplay = materialData.notes
         ? nl2br(escapeHtml(materialData.notes))
         : "-";
-    const priceDisplay =
+    const totalPriceDisplay =
         materialData.price !== null
             ? Number(materialData.price).toLocaleString() + "円"
             : "-";
@@ -105,8 +172,13 @@ export function redrawMaterialRow(
         <button type="button" class="p-1 text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 edit-material-btn"
                 title="編集"
                 data-id="${materialData.id}"
+                data-inventory_item_id="${materialData.inventory_item_id || ""}"
                 data-name="${escapeHtml(materialData.name || "")}"
                 data-price="${materialData.price || ""}"
+                data-unit="${escapeHtml(materialData.unit || "")}"
+                data-unit_price_at_creation="${
+                    materialData.unit_price_at_creation || ""
+                }"
                 data-quantity_needed="${escapeHtml(
                     materialData.quantity_needed || ""
                 )}"
@@ -136,18 +208,32 @@ export function redrawMaterialRow(
             data-id="${materialData.id}" data-character-id="${characterId}"
             ${materialData.status === "購入済" ? "checked" : ""}>`;
 
+    const itemNameDisplay = materialData.inventory_item
+        ? materialData.inventory_item.name
+        : materialData.name;
+    const itemUnitDisplay =
+        materialData.unit ||
+        (materialData.inventory_item ? materialData.inventory_item.unit : "");
+
     const newRowCellsHtml = `
         <td class="px-3 py-1.5 whitespace-nowrap">
             ${statusCheckboxHtml}
         </td>
-        <td class="px-4 py-1.5 whitespace-nowrap text-gray-700 dark:text-gray-200 material-name">${escapeHtml(
-            materialData.name
+        <td class="px-4 py-1.5 whitespace-nowrap text-gray-700 dark:text-gray-200 material-name">
+            ${escapeHtml(itemNameDisplay)} ${
+        materialData.inventory_item_id
+            ? '<span class="text-xs text-gray-400">(在庫品)</span>'
+            : ""
+    }
+        </td>
+        <td class="px-4 py-1.5 whitespace-nowrap text-gray-700 dark:text-gray-200 material-unit">${escapeHtml(
+            itemUnitDisplay
         )}</td>
-        <td class="px-4 py-1.5 whitespace-nowrap text-gray-700 dark:text-gray-200 material-price">${priceDisplay}</td>
         <td class="px-4 py-1.5 whitespace-nowrap text-gray-700 dark:text-gray-200 material-quantity_needed">${escapeHtml(
             materialData.quantity_needed
         )}</td>
-        <td class="px-4 py-1.5 text-gray-700 dark:text-gray-200 whitespace-pre-wrap break-words text-left leading-tight material-notes" style="min-width: 150px;">
+        <td class="px-4 py-1.5 whitespace-nowrap text-gray-700 dark:text-gray-200 material-price">${totalPriceDisplay}</td>
+        <td class="px-4 py-1.5 text-gray-700 dark:text-gray-200 break-words text-left leading-tight material-notes" style="min-width: 150px;">
             ${notesDisplay}
         </td>
         <td class="px-3 py-1.5 whitespace-nowrap text-right">
@@ -162,7 +248,7 @@ export function redrawMaterialRow(
         newTr.id = `material-row-${materialData.id}`;
         newTr.classList.add("hover:bg-gray-50", "dark:hover:bg-gray-700/50");
         newTr.innerHTML = newRowCellsHtml;
-        const emptyRow = tbody.querySelector('td[colspan="6"]');
+        const emptyRow = tbody.querySelector('td[colspan="7"]');
         if (emptyRow) emptyRow.parentElement.remove();
         tbody.appendChild(newTr);
     }
@@ -178,9 +264,7 @@ export function initializeMaterialInteractions(
         `material-form-${characterId}`
     );
     if (!materialForm) {
-        console.warn(
-            `Material form not found for character ${characterId}. Aborting init for this character's materials.`
-        );
+        // console.warn(`Material form not found for character ${characterId}. Aborting init.`);
         return;
     }
 
@@ -203,6 +287,55 @@ export function initializeMaterialInteractions(
     const idField = document.getElementById(`material-form-id-${characterId}`);
     const errorDivId = `material-form-errors-${characterId}`;
 
+    const inventorySelect = document.getElementById(
+        `inventory_item_id_input-${characterId}`
+    );
+    const unitDisplay = document.getElementById(
+        `material_unit_display-${characterId}`
+    );
+    const quantityInput = document.getElementById(
+        `material_quantity_input-${characterId}`
+    );
+    const nameHiddenInput = document.getElementById(
+        `material_name_hidden_input-${characterId}`
+    );
+    const unitHiddenInput = document.getElementById(
+        `material_unit_hidden_input-${characterId}`
+    );
+    const priceDisplay = document.getElementById(
+        `material_price_display-${characterId}`
+    );
+    const priceHidden = document.getElementById(
+        `material_price_hidden_input-${characterId}`
+    );
+    const unitPriceHidden = document.getElementById(
+        `material_unit_price_hidden_input-${characterId}`
+    );
+
+    if (inventorySelect) {
+        inventorySelect.addEventListener("change", function () {
+            const selectedOption = this.options[this.selectedIndex];
+            if (unitDisplay && nameHiddenInput && unitHiddenInput) {
+                if (selectedOption && selectedOption.value) {
+                    unitDisplay.value = selectedOption.dataset.unit || "";
+                    nameHiddenInput.value = selectedOption.dataset.name || "";
+                    unitHiddenInput.value = selectedOption.dataset.unit || "";
+                } else {
+                    unitDisplay.value = "";
+                    nameHiddenInput.value = "";
+                    unitHiddenInput.value = "";
+                }
+            }
+            calculateAndDisplayMaterialPrice(characterId);
+        });
+    }
+
+    if (quantityInput) {
+        quantityInput.addEventListener("input", function () {
+            calculateAndDisplayMaterialPrice(characterId);
+        });
+    }
+
     materialsContentContainer.addEventListener("click", function (event) {
         const editButton = event.target.closest(".edit-material-btn");
         if (editButton) {
@@ -215,13 +348,40 @@ export function initializeMaterialInteractions(
             if (methodField) methodField.value = "PUT";
             if (idField) idField.value = editButton.dataset.id;
 
-            materialForm.elements["name"].value = editButton.dataset.name;
-            materialForm.elements["price"].value =
-                editButton.dataset.price || "";
-            materialForm.elements["quantity_needed"].value =
-                editButton.dataset.quantity_needed;
+            const inventoryItemId = editButton.dataset.inventory_item_id;
+            if (inventorySelect) {
+                inventorySelect.value = inventoryItemId || "";
+                const changeEvent = new Event("change"); // Ensure event dispatch works
+                inventorySelect.dispatchEvent(changeEvent); // Trigger change to update unit and potentially price
+            }
+
+            if (nameHiddenInput && !inventoryItemId)
+                nameHiddenInput.value = editButton.dataset.name || ""; // Fallback if not inventory item
+            if (unitHiddenInput && !inventoryItemId)
+                unitHiddenInput.value = editButton.dataset.unit || ""; // Fallback
+
+            if (quantityInput)
+                quantityInput.value = editButton.dataset.quantity_needed;
             materialForm.elements["notes"].value =
                 editButton.dataset.notes || "";
+
+            if (priceDisplay)
+                priceDisplay.value = editButton.dataset.price
+                    ? Number(editButton.dataset.price).toLocaleString() + "円"
+                    : "";
+            if (priceHidden) priceHidden.value = editButton.dataset.price || "";
+            if (unitPriceHidden)
+                unitPriceHidden.value =
+                    editButton.dataset.unit_price_at_creation || "";
+
+            // After setting quantity, recalculate if an inventory item is selected.
+            if (
+                inventorySelect &&
+                inventorySelect.value &&
+                quantityInput.value
+            ) {
+                calculateAndDisplayMaterialPrice(characterId);
+            }
 
             if (submitBtnText) submitBtnText.textContent = "更新";
             if (submitBtn) {
@@ -234,7 +394,8 @@ export function initializeMaterialInteractions(
             if (cancelBtn) cancelBtn.style.display = "inline-flex";
             const errorDiv = document.getElementById(errorDivId);
             if (errorDiv) errorDiv.innerHTML = "";
-            materialForm.elements["name"].focus();
+            if (inventorySelect) inventorySelect.focus();
+            else materialForm.elements["name"]?.focus();
         }
 
         const deleteFormElement = event.target.closest(".delete-material-form");
@@ -365,7 +526,7 @@ export function initializeMaterialInteractions(
                             response.data.material,
                             true,
                             projectData
-                        );
+                        ); // true for isUpdate
                         if (response.data.costs_updated) {
                             refreshCharacterCosts(projectData.id, characterId);
                         }

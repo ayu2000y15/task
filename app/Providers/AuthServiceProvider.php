@@ -20,6 +20,12 @@ use App\Models\FeedbackCategory;
 use App\Policies\FeedbackCategoryPolicy;
 use Spatie\Activitylog\Models\Activity; // ★ 追加: ActivityLogモデル
 use App\Policies\LogPolicy;               // ★ 追加: LogPolicy
+use App\Models\InventoryItem; // ★ 追加
+use App\Policies\InventoryItemPolicy; // ★ 追加
+use App\Models\StockOrder; // ★ 追加
+use App\Policies\StockOrderPolicy; // ★ 追加
+use App\Models\InventoryLog; // ★ 追加
+use App\Policies\InventoryLogPolicy; // ★ 追加
 
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
@@ -41,6 +47,9 @@ class AuthServiceProvider extends ServiceProvider
         Feedback::class => FeedbackPolicy::class,
         FeedbackCategory::class => FeedbackCategoryPolicy::class,
         Activity::class => LogPolicy::class, // ★ 追加: ActivityLogモデルとLogPolicyを紐付け
+        InventoryItem::class => InventoryItemPolicy::class, // ★ 追加
+        StockOrder::class => StockOrderPolicy::class,       // ★ 追加
+        InventoryLog::class => InventoryLogPolicy::class, // ★ 追加
     ];
 
 
