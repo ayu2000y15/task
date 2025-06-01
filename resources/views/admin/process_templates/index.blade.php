@@ -39,7 +39,7 @@
                                         class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">{{ $template->name }}</a>
                                 </td>
                                 <td class="px-6 py-4 whitespace-normal text-sm text-gray-500 dark:text-gray-400">
-                                    {{ Str::limit($template->description, 80) }}</td>
+                                    {!! nl2br(e(Str::limit($template->description, 80))) !!}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                                     {{ $template->items_count ?? $template->items->count() }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">

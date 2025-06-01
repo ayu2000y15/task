@@ -102,7 +102,6 @@ class MeasurementTemplateController extends Controller
     public function update(Request $request, MeasurementTemplate $measurementTemplate)
     {
         // $this->authorize('update', $measurementTemplate); // 必要に応じて認可
-
         // まず name と description をバリデーション
         $validatedTemplateData = $request->validate([
             'name' => ['required', 'string', 'max:255', Rule::unique('measurement_templates')->ignore($measurementTemplate->id)],
@@ -146,6 +145,7 @@ class MeasurementTemplateController extends Controller
                 ->withInput(); // これにより old('name'), old('description'), old('items') が使える
             // old('items') には元のJSON文字列が渡るようにする
         }
+
 
         $updateData = [
             'name' => $validatedTemplateData['name'],

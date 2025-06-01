@@ -13,6 +13,7 @@ class MeasurementTemplate extends Model
 
     protected $fillable = [
         'name',
+        'description',
         'items',
         // 'user_id', // 必要に応じて
         // 'project_id', // 必要に応じて
