@@ -3,7 +3,7 @@
         class="p-2 text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded-md dark:bg-blue-700/30 dark:text-blue-200 dark:border-blue-500">
         <i class="fas fa-info-circle mr-1"></i>
         材料は在庫品目から選択または入力が可能です。<br>
-        在庫品目を選択すると、在庫品目の単価が自動的に設定されます。<br>
+        　在庫品目を選択すると、在庫品目の単価が自動的に設定されます。<br>
     </div>
     <div class="overflow-x-auto">
         <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">

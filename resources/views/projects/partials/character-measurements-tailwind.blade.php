@@ -1,5 +1,11 @@
 <div class="space-y-4" id="character-measurements-section-{{ $character->id }}" data-character-id="{{ $character->id }}" data-project-id="{{ $project->id }}">
-    {{-- 既存の採寸テーブル --}}
+    <div
+        class="p-2 text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded-md dark:bg-blue-700/30 dark:text-blue-200 dark:border-blue-500">
+        <i class="fas fa-info-circle mr-1"></i>
+        採寸テンプレートを適用する場合は、まず採寸テンプレートを作成してください。<br>
+        　採寸テンプレートを作成すると、採寸テンプレートの項目が自動的に採寸データに適用されます。<br>
+        　※数値は0となっているので、適用後は数値を入力してください。<br>
+    </div>
     <div class="overflow-x-auto">
         <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
             <thead class="bg-gray-50 dark:bg-gray-700">

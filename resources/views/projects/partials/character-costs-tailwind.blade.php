@@ -3,7 +3,7 @@
         class="p-2 text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded-md dark:bg-blue-700/30 dark:text-blue-200 dark:border-blue-500">
         <i class="fas fa-info-circle mr-1"></i>
         材料を「購入済」にすると価格が登録されていれば同名の「材料費」としてコストに自動追加されます。<br>
-        対応する「材料費」コストを手動で削除した場合、材料のステータスが「未購入」に戻ることがあります。
+        　対応する「材料費」コストを手動で削除した場合、材料のステータスが「未購入」に戻ることがあります。
     </div>
     <div class="p-3 rounded-md {{ $character->costs->sum('amount') > 0 ? 'bg-green-100 text-green-700 dark:bg-green-700/30 dark:text-green-200' : 'bg-gray-100 text-gray-700 dark:bg-gray-700/30 dark:text-gray-300' }}">
         合計コスト: <span class="font-semibold">{{ number_format($character->costs->sum('amount')) }}円</span>
