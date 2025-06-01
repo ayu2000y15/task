@@ -13,6 +13,7 @@ use App\Http\Controllers\CostController;
 
 use App\Http\Controllers\CharacterController;
 use App\Http\Controllers\ExternalFormController;
+
 // フィードバック機能で追加するコントローラー
 use App\Http\Controllers\Admin\ProcessTemplateController;
 use App\Http\Controllers\Admin\UserController;
@@ -25,6 +26,7 @@ use App\Http\Controllers\Admin\FormFieldDefinitionController;
 use App\Http\Controllers\Admin\InventoryController;
 use App\Http\Controllers\Admin\StockOrderController;
 use App\Http\Controllers\Admin\InventoryLogController;
+use App\Http\Controllers\Admin\MeasurementTemplateController;
 
 Route::middleware('auth')->group(function () {
     // ホーム
@@ -78,6 +80,13 @@ Route::middleware('auth')->group(function () {
     Route::put('/projects/{project}/characters/{character}/measurements/{measurement}', [MeasurementController::class, 'update'])->name('projects.characters.measurements.update');
     Route::delete('/projects/{project}/characters/{character}/measurements/{measurement}', [MeasurementController::class, 'destroy'])->name('projects.characters.measurements.destroy');
 
+    // 採寸テンプレート (案件詳細ページ内で処理)
+    Route::get('/projects/{project}/characters/{character}/measurement-templates', [MeasurementTemplateController::class, 'indexForCharacter'])->name('projects.characters.measurement-templates.index');
+    Route::post('/projects/{project}/characters/{character}/measurement-templates', [MeasurementTemplateController::class, 'storeForCharacter'])->name('projects.characters.measurement-templates.store');
+    Route::get('/measurement-templates/{measurement_template}/load', [MeasurementTemplateController::class, 'load'])->name('measurement-templates.load');
+    Route::delete('/measurement-templates/{measurement_template}', [MeasurementTemplateController::class, 'destroy'])->name('measurement-templates.destroy');
+
+
     // 材料データ (案件詳細ページ内で処理)
     Route::post('/projects/{project}/characters/{character}/materials', [MaterialController::class, 'store'])->name('projects.characters.materials.store');
     Route::put('/projects/{project}/characters/{character}/materials/{material}', [MaterialController::class, 'update'])->name('projects.characters.materials.update');
@@ -107,6 +116,16 @@ Route::middleware('auth')->group(function () {
         Route::resource('process-templates', ProcessTemplateController::class);
         Route::post('process-templates/{processTemplate}/items', [ProcessTemplateController::class, 'storeItem'])->name('process-templates.items.store');
         Route::delete('process-templates/{processTemplate}/items/{item}', [ProcessTemplateController::class, 'destroyItem'])->name('process-templates.items.destroy');
+
+        // 採寸テンプレート管理
+        Route::resource('measurement-templates', MeasurementTemplateController::class)->except(['show']); // showはeditと統合する形で今回は作成
+        // MeasurementTemplateControllerにcreate, store, edit, update, destroy, indexメソッドが必要になる
+        // 既存のload, storeForCharacter, indexForCharacterは別用途
+        // もし項目編集を別画面やモーダルで行う場合は、それ用のルートも必要
+        // 今回はシンプルに、テンプレート名と説明を編集し、項目はJSONで直接管理されていると想定
+        // もしテンプレートの「項目」自体を編集するUIを設けるなら、show.blade.phpでそれを行う
+        Route::get('measurement-templates/{measurement_template}/edit', [MeasurementTemplateController::class, 'edit'])->name('measurement-templates.edit'); // editを明示的に定義
+        Route::get('measurement-templates/create', [MeasurementTemplateController::class, 'create'])->name('measurement-templates.create');
 
 
         // ユーザー管理・権限設定 (既存のルート)

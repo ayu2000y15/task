@@ -328,6 +328,9 @@
                                     @can('viewAny', App\Models\ProcessTemplate::class)
                                         <a href="{{ route('admin.process-templates.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">工程テンプレート</a>
                                     @endcan
+                                    @can('manageMeasurements', $project) {{-- 適切なモデル名とPolicyを確認 --}}
+                                        <a href="{{ route('admin.measurement-templates.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">採寸テンプレート</a>
+                                    @endcan
                                     @can('viewAny', App\Models\FormFieldDefinition::class)
                                         <a href="{{ route('admin.form-definitions.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">案件依頼項目定義</a>
                                     @endcan

@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Project;
 use App\Models\Character;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator; // ★ 追加
+use Illuminate\Validation\Rule;          // ★ 追加
 
 class CharacterController extends Controller
 {
@@ -13,12 +15,19 @@ class CharacterController extends Controller
         // プロジェクトを更新する権限があるかチェック (今回はprojects.updateで代用)
         $this->authorize('update', $project);
 
-        $validated = $request->validate([
+        $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
+            'gender' => ['nullable', 'string', Rule::in(['male', 'female'])], // ★ 追加
         ]);
 
-        $project->characters()->create($validated);
+        if ($validator->fails()) {
+            return back()
+                ->withErrors($validator, 'characterCreation') // ★ エラーバッグを指定
+                ->withInput();
+        }
+
+        $project->characters()->create($validator->validated());
 
         return back()->with('success', 'キャラクターを追加しました。');
     }
@@ -38,6 +47,7 @@ class CharacterController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
+            'gender' => ['nullable', 'string', Rule::in(['male', 'female'])], // ★ 追加
         ]);
 
         $character->update($validated);

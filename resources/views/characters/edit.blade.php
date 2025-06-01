@@ -25,6 +25,20 @@
                             <x-input-error :messages="$errors->get('name')" class="mt-2" />
                         </div>
 
+                        {{-- ★ 性別フィールド追加 --}}
+                        <div>
+                            <x-input-label for="gender" value="性別" />
+                            <select id="gender" name="gender"
+                                class="mt-1 block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow-sm">
+                                <option value="" @if(old('gender', $character->gender) == '') selected @endif>選択しない</option>
+                                <option value="male" @if(old('gender', $character->gender) == 'male') selected @endif>男性
+                                </option>
+                                <option value="female" @if(old('gender', $character->gender) == 'female') selected @endif>女性
+                                </option>
+                            </select>
+                            <x-input-error :messages="$errors->get('gender')" class="mt-2" />
+                        </div>
+
                         <div>
                             <x-input-label for="description" value="備考" />
                             <x-textarea-input id="description" name="description" class="mt-1 block w-full"

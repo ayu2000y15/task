@@ -37,7 +37,7 @@
                             </span>
                         </td>
                         <td class="px-4 py-1.5 whitespace-nowrap text-gray-700 dark:text-gray-200 cost-amount">{{ number_format($cost->amount) }}円</td>
-                        <td class="px-4 py-1.5 whitespace-normal break-words text-gray-700 dark:text-gray-200 cost-item_description">{{ $cost->item_description }}</td>
+                        <td class="px-4 py-1.5 whitespace-nowrap break-words text-gray-700 dark:text-gray-200 cost-item_description" style="min-width: 120px;">{{ $cost->item_description }}</td>
                         <td class="px-4 py-1.5 text-gray-700 dark:text-gray-200 break-words text-left leading-tight cost-notes" style="min-width: 150px;">
                             {!! nl2br(e($cost->notes)) ?: '-' !!}
                         </td>

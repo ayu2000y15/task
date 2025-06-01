@@ -37,12 +37,28 @@ class ProjectPolicy
         return $user->hasPermissionTo('measurements.manage');
     }
 
+    public function manageMeasurementTemplates(User $user): bool
+    {
+        return $user->hasPermissionTo('measurements.manage');
+    }
+
+
     public function updateMeasurements(User $user, Project $project): bool
     {
         return $user->hasPermissionTo('measurements.update');
     }
 
+    public function updateMeasurementTemplates(User $user): bool
+    {
+        return $user->hasPermissionTo('measurements.update');
+    }
+
     public function deleteMeasurements(User $user, Project $project): bool
+    {
+        return $user->hasPermissionTo('measurements.delete');
+    }
+
+    public function deleteMeasurementTemplates(User $user): bool
     {
         return $user->hasPermissionTo('measurements.delete');
     }

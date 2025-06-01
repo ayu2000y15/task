@@ -203,10 +203,10 @@
                                     </div>
                                 @endif
 
-                                <div>
+                                {{-- <div>
                                     <span class="text-muted">アカウントをお持ちでない方は </span>
                                     <a href="{{ route('register') }}" class="auth-link">新規登録</a>
-                                </div>
+                                </div> --}}
                             </div>
                         </form>
                     </div>
