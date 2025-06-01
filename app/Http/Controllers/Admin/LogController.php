@@ -91,7 +91,7 @@ class LogController extends Controller
             'deleted' => '削除',
             // 手動でログした場合の 'event' は spatie/laravel-activitylog v4 以降では description や log_name で
             // 区別することが多く、event カラムはモデルイベント（created, updated, deletedなど）が主に入ります。
-            // ログイン・ログアウトなどのカスタムイベントを event カラムに記録している場合は、ここに追加します。
+            // ログイン・ログアウトなどの案件依頼イベントを event カラムに記録している場合は、ここに追加します。
             // 今回はモデルイベントのみを主要な選択肢とします。
             // 例: 'login' => 'ログイン', 'logout' => 'ログアウト'
         ];

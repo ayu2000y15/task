@@ -36,7 +36,7 @@ class FormFieldDefinition extends Model
             ->logFillable()
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs()
-            ->setDescriptionForEvent(fn(string $eventName) => "カスタム項目定義「{$this->label}」(ID:{$this->id}) が{$this->getEventDescription($eventName)}されました");
+            ->setDescriptionForEvent(fn(string $eventName) => "案件依頼項目定義「{$this->label}」(ID:{$this->id}) が{$this->getEventDescription($eventName)}されました");
     }
 
     // ★ イベント名を日本語に変換するヘルパーメソッド (任意)

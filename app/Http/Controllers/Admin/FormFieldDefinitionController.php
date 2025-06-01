@@ -70,7 +70,7 @@ class FormFieldDefinitionController extends Controller
 
         FormFieldDefinition::create($validated);
 
-        return redirect()->route('admin.form-definitions.index')->with('success', 'カスタム項目定義が作成されました。');
+        return redirect()->route('admin.form-definitions.index')->with('success', '案件依頼項目定義が作成されました。');
     }
 
     public function edit(FormFieldDefinition $formFieldDefinition) // ★ ルートモデルバインディング
@@ -149,7 +149,7 @@ class FormFieldDefinitionController extends Controller
 
         $formFieldDefinition->update($validated);
 
-        return redirect()->route('admin.form-definitions.index')->with('success', 'カスタム項目定義が更新されました。');
+        return redirect()->route('admin.form-definitions.index')->with('success', '案件依頼項目定義が更新されました。');
     }
 
     public function destroy(FormFieldDefinition $formFieldDefinition)
@@ -159,7 +159,7 @@ class FormFieldDefinitionController extends Controller
         }
         $this->authorize('delete', $formFieldDefinition);
         $formFieldDefinition->delete();
-        return redirect()->route('admin.form-definitions.index')->with('success', 'カスタム項目定義が削除されました。');
+        return redirect()->route('admin.form-definitions.index')->with('success', '案件依頼項目定義が削除されました。');
     }
 
     public function reorder(Request $request)

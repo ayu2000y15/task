@@ -72,7 +72,7 @@ class ExternalFormController extends Controller
         ];
         $customMessages = [];
 
-        // 許可するMIMEタイプと言語ファイル用のカスタムメッセージ
+        // 許可するMIMEタイプと言語ファイル用の案件依頼メッセージ
         $allowedMimes = 'jpg,jpeg,png,gif,txt,pdf';
         $allowedMimesMessage = 'アップロードできるファイル形式は画像 (JPG, JPEG, PNG, GIF), テキスト (.txt), PDF (.pdf) のみです。';
 
@@ -253,7 +253,7 @@ class ExternalFormController extends Controller
         $this->authorize('view', $submission);
         $submission->load('processedBy');
 
-        // 全ての有効なカスタムフィールド定義を取得 (順序も考慮)
+        // 全ての有効な案件依頼フィールド定義を取得 (順序も考慮)
         $allFieldDefinitions = FormFieldDefinition::where('is_enabled', true)
             ->orderBy('order')
             ->orderBy('label')

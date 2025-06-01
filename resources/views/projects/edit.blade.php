@@ -116,10 +116,10 @@
 
                         @if(!empty($customFormFields) && count($customFormFields) > 0)
                             <div class="mt-6 mb-2 border-t pt-6 dark:border-gray-700"> {{-- 以前はmd:col-span-2だったが、1カラムなので不要 --}}
-                                <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">追加情報（カスタム項目）</h3>
+                                <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">追加情報（案件依頼項目）</h3>
                                 <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">これらの項目はこのプロジェクト固有のものです。</p>
                                 {{-- TODO: プロジェクト固有のフォーム定義（$project->form_definitions）を編集する画面へのリンク --}}
-                                {{-- <a href="{{ route('projects.form_definition.edit', $project) }}" class="text-sm text-blue-600 hover:underline">カスタム項目定義を編集</a> --}}
+                                {{-- <a href="{{ route('projects.form_definition.edit', $project) }}" class="text-sm text-blue-600 hover:underline">案件依頼項目定義を編集</a> --}}
                             </div>
                             @foreach ($customFormFields as $field)
                                 @include('projects.partials.form-fields', [
@@ -131,9 +131,9 @@
                             @endforeach
                         @else
                             <div class="mt-6 pt-4"> {{-- 以前はmd:col-span-2だったが、1カラムなので不要 --}}
-                                <p class="text-sm text-gray-500 dark:text-gray-400">このプロジェクトには追加のカスタム項目は定義されていません。</p>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">このプロジェクトには追加の案件依頼項目は定義されていません。</p>
                                  {{-- TODO: プロジェクト固有のフォーム定義（$project->form_definitions）を編集する画面へのリンク --}}
-                                {{-- <a href="{{ route('projects.form_definition.edit', $project) }}" class="text-sm text-blue-600 hover:underline">カスタム項目定義を作成・編集</a> --}}
+                                {{-- <a href="{{ route('projects.form_definition.edit', $project) }}" class="text-sm text-blue-600 hover:underline">案件依頼項目定義を作成・編集</a> --}}
                             </div>
                         @endif
                     </div>

@@ -114,7 +114,7 @@
                                     @if($externalSubmission)
                                         案件情報（フォームからコピーしたもの）
                                     @else
-                                        案件情報（カスタム項目）
+                                        案件情報（案件依頼項目）
                                     @endif
                                 </h3>
                             </div>

@@ -230,7 +230,7 @@
                             $canViewGroup3 = $currentUser->can('viewAny', App\Models\User::class) || // ユーザー管理
                                             $currentUser->can('viewAny', App\Models\Role::class) || // 権限設定
                                             $currentUser->can('viewAny', App\Models\ProcessTemplate::class) || // 工程テンプレート (この@canが外側の条件なので実質true)
-                                            $currentUser->can('viewAny', App\Models\FormFieldDefinition::class); // カスタム項目定義
+                                            $currentUser->can('viewAny', App\Models\FormFieldDefinition::class); // 案件依頼項目定義
 
                             $canViewGroup4 = $currentUser->can('viewAny', Spatie\Activitylog\Models\Activity::class); // 操作ログ閲覧
 
@@ -329,7 +329,7 @@
                                         <a href="{{ route('process-templates.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">工程テンプレート</a>
                                     @endcan
                                     @can('viewAny', App\Models\FormFieldDefinition::class)
-                                        <a href="{{ route('admin.form-definitions.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">カスタム項目定義</a>
+                                        <a href="{{ route('admin.form-definitions.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">案件依頼項目定義</a>
                                     @endcan
                                 </div>
                             </div>

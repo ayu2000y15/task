@@ -4,7 +4,7 @@ import "./bootstrap";
 import Alpine from "alpinejs";
 import collapse from "@alpinejs/collapse";
 
-// 他のAlpine.jsプラグインやカスタムストアがあればここに
+// 他のAlpine.jsプラグインや案件依頼ストアがあればここに
 
 import { Calendar } from "@fullcalendar/core";
 import dayGridPlugin from "@fullcalendar/daygrid";

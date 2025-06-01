@@ -13,7 +13,7 @@ return new class extends Migration
             $table->string('submitter_name')->nullable()->comment('申請者名');
             $table->string('submitter_email')->nullable()->comment('申請者メールアドレス');
             $table->text('submitter_notes')->nullable()->comment('申請者からの備考');
-            $table->json('submitted_data')->comment('カスタムフィールドの入力データ');
+            $table->json('submitted_data')->comment('案件依頼フィールドの入力データ');
             $table->string('status')->default('new')->comment('申請ステータス (new, processed, rejected)');
             $table->foreignId('processed_by_user_id')->nullable()->constrained('users')->onDelete('set null')->comment('処理担当者ID');
             $table->timestamp('processed_at')->nullable()->comment('処理日時');

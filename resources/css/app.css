@@ -40,7 +40,7 @@
     font-size: 0.8rem;
 }
 
-/* layouts/app.blade.php から移行するカスタムスタイル（Tailwindで代替できないもの） */
+/* layouts/app.blade.php から移行する案件依頼スタイル（Tailwindで代替できないもの） */
 /* 例：案件ごとの動的な色指定が難しい場合、ここでプレースホルダ的なクラスを用意するか、
    インラインスタイルを許容するかを検討。
    Tailwind JITなら bg-[{{ $project->color }}] のような書き方も可能だが、Bladeとの相性次第。
@@ -66,7 +66,7 @@
 /*
   注意: 以前の <style> タグ内の多くのスタイルは、
   - Tailwindユーティリティクラス (例: `bg-white`, `p-4`, `rounded-md`, `text-lg`)
-  - Tailwindコンポーネントクラス (`@apply` を使ったカスタムコンポーネント)
+  - Tailwindコンポーネントクラス (`@apply` を使った案件依頼コンポーネント)
   - どうしても必要な場合は、このような形で `app.css` に残す
   という方針でリファクタリングします。
   ここではすべてを記述せず、主要な構造と、Tailwindへの移行方針を示すに留めます。

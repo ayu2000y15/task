@@ -28,7 +28,7 @@ function initializeProjectForms() {
             !startDateInput.value ||
             !endDateInput.value
         ) {
-            // どちらかの日付が未入力の場合はカスタムバリデーションをクリア
+            // どちらかの日付が未入力の場合は案件依頼バリデーションをクリア
             if (endDateInput) endDateInput.setCustomValidity("");
             return;
         }

@@ -56,9 +56,9 @@ class PermissionsSeeder extends Seeder
             ['name' => 'process_templates.update', 'display_name' => '工程テンプレート（登録、更新）'],
             ['name' => 'process_templates.delete', 'display_name' => '工程テンプレート（削除）'],
 
-            ['name' => 'form-definition.viewAny', 'display_name' => 'カスタム項目（閲覧）'],
-            ['name' => 'form-definition.update', 'display_name' => 'カスタム項目（登録、更新）'],
-            ['name' => 'form-definition.delete', 'display_name' => 'カスタム項目（削除）'],
+            ['name' => 'form-definition.viewAny', 'display_name' => '案件依頼項目（閲覧）'],
+            ['name' => 'form-definition.update', 'display_name' => '案件依頼項目（登録、更新）'],
+            ['name' => 'form-definition.delete', 'display_name' => '案件依頼項目（削除）'],
 
             ['name' => 'feedback.viewAny', 'display_name' => 'フィードバック（閲覧）'],
             ['name' => 'feedback.create', 'display_name' => 'フィードバック（登録）'],

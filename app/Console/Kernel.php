@@ -15,7 +15,7 @@ class Kernel extends ConsoleKernel
      * @var array
      */
     protected $commands = [
-        // ここにカスタムコマンドクラスを追加することも可能ですが、
+        // ここに案件依頼コマンドクラスを追加することも可能ですが、
         // Laravel 10以降では通常、App\Console\Commandsディレクトリ内のコマンドは自動的に登録されます。
         // 明示的に登録する場合は以下のように記述します。
         // ExportActivityLogCommand::class,

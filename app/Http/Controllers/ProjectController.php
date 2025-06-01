@@ -106,7 +106,7 @@ class ProjectController extends Controller
             $customMessages['end_date.after_or_equal'] = $attributeNames['end_date'] . 'は、' . $attributeNames['start_date'] . '以降の日付にしてください。';
         }
 
-        // カスタムフィールドの動的バリデーション
+        // 案件依頼フィールドの動的バリデーション
         foreach ($customFieldDefinitions as $field) {
             $fieldRules = [];
             $fieldName = $field['name'];
@@ -376,7 +376,7 @@ class ProjectController extends Controller
                     ->causedBy(auth()->user())
                     ->performedOn($project) // 操作対象はプロジェクト
                     ->withProperties($logDetail) // ファイルごとの詳細情報をプロパティに
-                    ->log("プロジェクト「{$project->title}」のカスタム項目「{$logDetail['field_label']}」にファイル「{$logDetail['original_name']}」がアップロードされました。");
+                    ->log("プロジェクト「{$project->title}」の案件依頼項目「{$logDetail['field_label']}」にファイル「{$logDetail['original_name']}」がアップロードされました。");
             }
         }
 
@@ -476,7 +476,7 @@ class ProjectController extends Controller
             $dedicatedDataToUpdate['end_date'] = !empty($dedicatedDataToUpdate['end_date']) ? Carbon::parse($dedicatedDataToUpdate['end_date'])->format('Y-m-d') : null;
         }
 
-        // カスタム属性の処理
+        // 案件依頼属性の処理
         $customAttributesValues = $project->attributes ?? []; // 既存のattributesを取得
         $submittedAttributes = $request->input('attributes', []);
         $uploadedFileLogDetails = []; // ★ ログ用の新規アップロードファイル詳細
@@ -520,7 +520,7 @@ class ProjectController extends Controller
                 // 既存ファイルの削除処理
                 $existingFilesMeta = $customAttributesValues[$fieldName] ?? [];
                 $keptFilesMeta = [];
-                // "delete_existing_files[カスタムフィールド名][]" の形式で削除対象のパスが送信される想定
+                // "delete_existing_files[案件依頼フィールド名][]" の形式で削除対象のパスが送信される想定
                 $filesToDeletePathsForField = $request->input("delete_existing_files.{$fieldName}", []);
 
                 if (is_array($existingFilesMeta)) {
@@ -564,7 +564,7 @@ class ProjectController extends Controller
                     ->causedBy(auth()->user())
                     ->performedOn($project)
                     ->withProperties($logDetail)
-                    ->log("プロジェクト「{$project->title}」のカスタム項目「{$logDetail['field_label']}」にファイル「{$logDetail['original_name']}」がアップロードされました。");
+                    ->log("プロジェクト「{$project->title}」の案件依頼項目「{$logDetail['field_label']}」にファイル「{$logDetail['original_name']}」がアップロードされました。");
             }
         }
         // ★ 既存ファイル削除操作のログを手動で記録
@@ -574,7 +574,7 @@ class ProjectController extends Controller
                     ->causedBy(auth()->user())
                     ->performedOn($project)
                     ->withProperties($logDetail)
-                    ->log("プロジェクト「{$project->title}」のカスタム項目「{$logDetail['field_label']}」からファイル「{$logDetail['original_name']}」が削除されました。");
+                    ->log("プロジェクト「{$project->title}」の案件依頼項目「{$logDetail['field_label']}」からファイル「{$logDetail['original_name']}」が削除されました。");
             }
         }
 
@@ -587,7 +587,7 @@ class ProjectController extends Controller
 
         $deletedFileLogDetails = []; // ★ ログ用の削除ファイル詳細を格納する配列
 
-        // プロジェクトに紐づくカスタムフィールドのファイルを削除
+        // プロジェクトに紐づく案件依頼フィールドのファイルを削除
         if (isset($project->attributes) && is_array($project->attributes) && is_array($project->form_definitions)) {
             foreach ($project->form_definitions as $field) {
                 if (is_array($field) && isset($field['type']) && $field['type'] === 'file_multiple' && isset($field['name']) && !empty($project->attributes[$field['name']])) {
@@ -616,7 +616,7 @@ class ProjectController extends Controller
                             }
                         }
                     }
-                    // カスタムフィールドごとのディレクトリも削除 (任意、ファイルが全て削除された場合)
+                    // 案件依頼フィールドごとのディレクトリも削除 (任意、ファイルが全て削除された場合)
                     // $directory = "project_files/{$project->id}/{$field['name']}";
                     // if (empty(Storage::disk('public')->allFiles($directory)) && empty(Storage::disk('public')->allDirectories($directory))) {
                     //     Storage::disk('public')->deleteDirectory($directory);
@@ -643,14 +643,14 @@ class ProjectController extends Controller
 
         // ★ プロジェクト削除自体のログは Project モデルの LogsActivity によって 'deleted' イベントとして記録される
 
-        // ★ カスタムフィールドのファイル削除操作のログを手動で記録
+        // ★ 案件依頼フィールドのファイル削除操作のログを手動で記録
         if (!empty($deletedFileLogDetails)) {
             foreach ($deletedFileLogDetails as $logDetail) {
                 activity()
                     ->causedBy(auth()->user())
                     ->performedOn($project) // 操作対象は削除されるプロジェクト
                     ->withProperties(array_merge($logDetail, ['action' => 'file_deleted_during_project_deletion']))
-                    ->log("プロジェクト「{$project->title}」削除に伴い、カスタム項目「{$logDetail['field_label']}」からファイル「{$logDetail['original_name']}」が削除されました。");
+                    ->log("プロジェクト「{$project->title}」削除に伴い、案件依頼項目「{$logDetail['field_label']}」からファイル「{$logDetail['original_name']}」が削除されました。");
             }
         }
 

@@ -55,10 +55,10 @@
                 </div>
             </div>
 
-            {{-- カスタムフィールド入力内容カード --}}
+            {{-- 案件依頼フィールド入力内容カード --}}
             <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
                 <div class="p-6">
-                    <h3 class="text-lg font-semibold border-b border-gray-300 dark:border-gray-600 pb-2 mb-4">カスタムフィールド入力内容</h3>
+                    <h3 class="text-lg font-semibold border-b border-gray-300 dark:border-gray-600 pb-2 mb-4">案件依頼フィールド入力内容</h3>
                     <div class="space-y-0">
                         @forelse ($displayData as $data)
                             <div class="grid grid-cols-[theme(spacing.40)_1fr] gap-x-2 items-start py-3 @if(!$loop->last || count($fileFields) > 0) border-b border-gray-200 dark:border-gray-700 @endif">
@@ -150,7 +150,7 @@
                             </div>
                         @endforeach
                         @if(empty($displayData) && empty($fileFields))
-                            <p class="text-gray-500 dark:text-gray-400 py-3">カスタムフィールドの入力はありませんでした。</p>
+                            <p class="text-gray-500 dark:text-gray-400 py-3">案件依頼フィールドの入力はありませんでした。</p>
                         @endif
                     </div>
                 </div>
