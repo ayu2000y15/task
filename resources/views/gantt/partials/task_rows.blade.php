@@ -149,10 +149,10 @@
             }
         @endphp
         <td class="detail-column px-3 py-2.5 text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap {{ $startDateClass }}">
-            {{ $taskStartDate ? \Carbon\Carbon::parse($taskStartDate)->format('Y/m/d') : '-' }}
+            {{ $taskStartDate ? \Carbon\Carbon::parse($taskStartDate)->format('n/j') : '-' }}
         </td>
         <td class="detail-column px-3 py-2.5 text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap {{ $endDateClass }}">
-            {{ $taskEndDate ? \Carbon\Carbon::parse($taskEndDate)->format('Y/m/d') : '-' }}
+            {{ $taskEndDate ? \Carbon\Carbon::parse($taskEndDate)->format('n/j') : '-' }}
         </td>
         <td class="detail-column px-3 py-2.5 text-sm text-gray-500 dark:text-gray-400">
             @if($task->is_folder || $task->is_milestone)
@@ -204,7 +204,7 @@
                     <div class="gantt-tooltip" style="top: -50px; left: 50%; transform: translateX(-50%);">
                         <div class="gantt-tooltip-content">
                             {{ $task->name }} (重要納期)<br>
-                            {{ $taskStartDate ? \Carbon\Carbon::parse($taskStartDate)->format('Y/m/d') : '' }}
+                            {{ $taskStartDate ? \Carbon\Carbon::parse($taskStartDate)->format('n/j') : '' }}
                         </div>
                         <div class="gantt-tooltip-arrow"></div>
                     </div>
@@ -334,10 +334,10 @@
             }
         @endphp
         <td class="detail-column px-3 py-2.5 text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap {{ $startDateClass }}">
-            {{ $taskStartDate ? \Carbon\Carbon::parse($taskStartDate)->format('Y/m/d') : '-' }}
+            {{ $taskStartDate ? \Carbon\Carbon::parse($taskStartDate)->format('n/j') : '-' }}
         </td>
         <td class="detail-column px-3 py-2.5 text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap {{ $endDateClass }}">
-            {{ $taskEndDate ? \Carbon\Carbon::parse($taskEndDate)->format('Y/m/d') : '-' }}
+            {{ $taskEndDate ? \Carbon\Carbon::parse($taskEndDate)->format('n/j') : '-' }}
         </td>
         <td class="detail-column px-3 py-2.5 text-sm text-gray-500 dark:text-gray-400">
             @if($task->is_folder || $task->is_milestone)
@@ -389,7 +389,7 @@
                     <div class="gantt-tooltip" style="top: -50px; left: 50%; transform: translateX(-50%);">
                         <div class="gantt-tooltip-content">
                             {{ $task->name }} (重要納期)<br>
-                            {{ $taskStartDate ? \Carbon\Carbon::parse($taskStartDate)->format('Y/m/d') : '' }}
+                            {{ $taskStartDate ? \Carbon\Carbon::parse($taskStartDate)->format('n/j') : '' }}
                         </div>
                         <div class="gantt-tooltip-arrow"></div>
                     </div>

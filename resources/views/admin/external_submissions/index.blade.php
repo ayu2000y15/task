@@ -167,6 +167,7 @@
                                         class="py-1 px-3">
                                         詳細確認
                                     </x-secondary-button>
+                                    @can('create', App\Models\Project::class)
                                     @if($submission->status === 'new' || $submission->status === 'in_progress')
                                         <x-primary-button as="a"
                                             href="{{ route('projects.create', ['external_request_id' => $submission->id]) }}"
@@ -175,6 +176,7 @@
                                             <i class="fas fa-plus-circle mr-1"></i> 案件化
                                         </x-primary-button>
                                     @endif
+                                    @endcan
                                 </td>
                             </tr>
                         @empty

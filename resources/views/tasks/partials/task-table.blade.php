@@ -167,25 +167,25 @@
                     <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 align-top">
                         <div class="editable-cell" data-task-id="{{ $task->id }}" data-project-id="{{ $task->project_id }}" data-field="assignee" data-current-value="{{ $task->assignee }}">{{ $task->assignee ?? '-' }}</div>
                     </td>
-                    <td class="hidden sm:table-cell px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 align-top">{{ optional($task->start_date)->format('Y/m/d') }}</td>
+                    <td class="hidden sm:table-cell px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 align-top">{{ optional($task->start_date)->format('n/j') }}</td>
                     @endif
 
                     @if($isMilestoneView ?? false) {{-- 重要納期時 --}}
-                    <td class="hidden sm:table-cell px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 align-top">{{ optional($task->start_date)->format('Y/m/d') }}</td> {{-- 日付 --}}
+                    <td class="hidden sm:table-cell px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 align-top">{{ optional($task->start_date)->format('n/j') }}</td> {{-- 日付 --}}
                     @elseif(!($isFolderView ?? false)) {{-- 通常工程時 --}}
                     <td class="hidden sm:table-cell px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 align-top"> {{-- 終了日 --}}
                          @if($task->end_date && $task->end_date < $now && !in_array($task->status, ['completed', 'cancelled']))
                             <span class="text-red-600 dark:text-red-400">
                                 <i class="fas fa-exclamation-circle mr-1"></i>
-                                {{ $task->end_date->format('Y/m/d') }}
+                                {{ $task->end_date->format('n/j') }}
                             </span>
                         @elseif(!$task->is_milestone && $daysUntilDue !== null && $daysUntilDue >= 0 && $daysUntilDue <= 2 && !in_array($task->status, ['completed', 'cancelled']))
                             <span class="text-yellow-600 dark:text-yellow-400">
                                 <i class="fas fa-exclamation-triangle mr-1"></i>
-                                {{ $task->end_date->format('Y/m/d') }}
+                                {{ $task->end_date->format('n/j') }}
                             </span>
                         @else
-                            {{ optional($task->end_date)->format('Y/m/d') }}
+                            {{ optional($task->end_date)->format('n/j') }}
                         @endif
                     </td>
                     @endif

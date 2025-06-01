@@ -48,7 +48,7 @@
                                     </div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <x-secondary-button onclick="location.href='{{ route('users.edit', $user) }}'"
+                                    <x-secondary-button onclick="location.href='{{ route('admin.users.edit', $user) }}'"
                                         class="py-1 px-3">
                                         役割編集
                                     </x-secondary-button>

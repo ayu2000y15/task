@@ -184,8 +184,8 @@
                                                 <div class="gantt-tooltip" style="top: -50px; left: 50%; transform: translateX(-50%);">
                                                     <div class="gantt-tooltip-content">
                                                         {{ $project->title }}<br>
-                                                        期間: {{ $project->start_date->format('Y/m/d') }} 〜
-                                                        {{ $project->end_date->format('Y/m/d') }}
+                                                        期間: {{ $project->start_date->format('n/j') }} 〜
+                                                        {{ $project->end_date->format('n/j') }}
                                                     </div>
                                                     <div class="gantt-tooltip-arrow"></div>
                                                 </div>

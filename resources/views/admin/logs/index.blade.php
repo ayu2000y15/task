@@ -133,11 +133,11 @@
                     <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                         @forelse ($activities as $activity)
                             <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 sticky left-0 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/50"
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/50"
                                     title="{{ $activity->created_at->format('Y-m-d H:i:s') }}">
                                     {{ $activity->created_at->setTimezone('Asia/Tokyo')->diffForHumans() }}
                                     <span
-                                        class="block text-xs">{{ $activity->created_at->setTimezone('Asia/Tokyo')->format('m/d H:i:s') }}</span>
+                                        class="block text-xs">{{ $activity->created_at->setTimezone('Asia/Tokyo')->format('n/j H:i:s') }}</span>
                                 </td>
                                 <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
                                     {{ $activity->causer->name ?? ($activity->causer_type ? class_basename($activity->causer_type) : 'システム') }}

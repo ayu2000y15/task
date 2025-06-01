@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\Role;
@@ -15,7 +16,7 @@ class UserController extends Controller
     {
         $this->authorize('viewAny', User::class);
         $users = User::with('roles')->paginate(20);
-        return view('users.index', compact('users'));
+        return view('admin.users.index', compact('users'));
     }
 
     /**
@@ -25,7 +26,7 @@ class UserController extends Controller
     {
         $this->authorize('update', $user); // UserPolicy@update が呼び出される
         $roles = Role::all();
-        return view('users.edit', compact('user', 'roles'));
+        return view('admin.users.edit', compact('user', 'roles'));
     }
 
     /**
@@ -41,7 +42,7 @@ class UserController extends Controller
 
         $user->roles()->sync($request->roles);
 
-        return redirect()->route('users.index')->with('success', 'ユーザーの役割を更新しました。');
+        return redirect()->route('admin.users.index')->with('success', 'ユーザーの役割を更新しました。');
     }
 
     // 必要に応じて、UserPolicy に合わせて create, store, show, destroy メソッドも追加・修正できます。

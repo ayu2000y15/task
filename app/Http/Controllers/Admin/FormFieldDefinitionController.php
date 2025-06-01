@@ -18,21 +18,21 @@ class FormFieldDefinitionController extends Controller
 
     public function index()
     {
-        $this->authorize('viewAny', FormFieldDefinition::class);
+        //$this->authorize('viewAny', FormFieldDefinition::class);
         $fieldDefinitions = FormFieldDefinition::orderBy('order')->orderBy('label')->get();
         return view('admin.form_definitions.index', compact('fieldDefinitions'));
     }
 
     public function create()
     {
-        $this->authorize('create', FormFieldDefinition::class);
+        //$this->authorize('create', FormFieldDefinition::class);
         $fieldTypes = FormFieldDefinition::FIELD_TYPES;
         return view('admin.form_definitions.create', compact('fieldTypes'));
     }
 
     public function store(Request $request) // Request $request を追加
     {
-        $this->authorize('create', FormFieldDefinition::class);
+        //$this->authorize('create', FormFieldDefinition::class);
         // ... (storeメソッドのロジックは前回の回答を参照) ...
         $validated = $request->validate([
             'name' => 'required|string|max:100|regex:/^[a-z0-9_]+$/u|unique:form_field_definitions,name',
@@ -111,7 +111,7 @@ class FormFieldDefinitionController extends Controller
         if (!$formFieldDefinition->exists) {
             abort(404, '指定されたフォーム定義が見つかりません。');
         }
-        $this->authorize('update', $formFieldDefinition);
+        //$this->authorize('update', $formFieldDefinition);
         // ... (updateメソッドのロジックは前回の回答を参照) ...
         $validated = $request->validate([
             'name' => 'required|string|max:100|regex:/^[a-z0-9_]+$/u|unique:form_field_definitions,name,' . $formFieldDefinition->id,
@@ -157,14 +157,14 @@ class FormFieldDefinitionController extends Controller
         if (!$formFieldDefinition->exists) {
             abort(404, '指定されたフォーム定義が見つかりません。');
         }
-        $this->authorize('delete', $formFieldDefinition);
+        //$this->authorize('delete', $formFieldDefinition);
         $formFieldDefinition->delete();
         return redirect()->route('admin.form-definitions.index')->with('success', '案件依頼項目定義が削除されました。');
     }
 
     public function reorder(Request $request)
     {
-        $this->authorize('update', FormFieldDefinition::class); // 並び替えは更新権限が必要と仮定
+        //$this->authorize('update', FormFieldDefinition::class); // 並び替えは更新権限が必要と仮定
 
         $orderedIds = $request->input('orderedIds');
 

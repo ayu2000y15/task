@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+
 use App\Http\Controllers\Controller;
 use App\Models\InventoryItem;
 use Illuminate\Http\Request;
@@ -78,10 +79,6 @@ class InventoryController extends Controller
 
     public function update(Request $request, InventoryItem $inventoryItem)
     {
-        if (!Gate::allows('update', $inventoryItem)) {
-            abort(403);
-        }
-
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:inventory_items,name,' . $inventoryItem->id,
             'description' => 'nullable|string|max:1000',

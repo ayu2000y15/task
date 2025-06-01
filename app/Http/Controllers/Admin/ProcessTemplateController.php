@@ -1,10 +1,12 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Controller;
 use App\Models\ProcessTemplate;
 use App\Models\ProcessTemplateItem;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ProcessTemplateController extends Controller
 {
@@ -12,13 +14,13 @@ class ProcessTemplateController extends Controller
     {
         $this->authorize('viewAny', ProcessTemplate::class);
         $templates = ProcessTemplate::orderBy('name')->get();
-        return view('process_templates.index', compact('templates'));
+        return view('admin.process_templates.index', compact('templates'));
     }
 
     public function create()
     {
         $this->authorize('create', ProcessTemplate::class);
-        return view('process_templates.create');
+        return view('admin.process_templates.create');
     }
 
     public function store(Request $request)
@@ -29,14 +31,14 @@ class ProcessTemplateController extends Controller
             'description' => 'nullable|string',
         ]);
         $template = ProcessTemplate::create($validated);
-        return redirect()->route('process-templates.show', $template)->with('success', '工程テンプレートを作成しました。');
+        return redirect()->route('admin.process-templates.show', $template)->with('success', '工程テンプレートを作成しました。');
     }
 
     public function show(ProcessTemplate $processTemplate) // Route model binding
     {
         $this->authorize('view', $processTemplate);
         $processTemplate->load('items'); // Eager load items
-        return view('process_templates.show', compact('processTemplate'));
+        return view('admin.process_templates.show', compact('processTemplate'));
     }
 
     public function update(Request $request, ProcessTemplate $processTemplate)
@@ -47,14 +49,14 @@ class ProcessTemplateController extends Controller
             'description' => 'nullable|string',
         ]);
         $processTemplate->update($validated);
-        return redirect()->route('process-templates.show', $processTemplate)->with('success', '工程テンプレートを更新しました。');
+        return redirect()->route('admin.process-templates.show', $processTemplate)->with('success', '工程テンプレートを更新しました。');
     }
 
     public function destroy(ProcessTemplate $processTemplate)
     {
         $this->authorize('delete', $processTemplate);
         $processTemplate->delete(); // Items will be deleted by cascading delete in DB
-        return redirect()->route('process-templates.index')->with('success', '工程テンプレートを削除しました。');
+        return redirect()->route('admin.process-templates.index')->with('success', '工程テンプレートを削除しました。');
     }
 
     // Template Items

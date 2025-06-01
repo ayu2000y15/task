@@ -7,7 +7,7 @@
         <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
             <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-200">工程テンプレート編集: <span
                     class="font-normal">{{ $processTemplate->name }}</span></h1>
-            <x-secondary-button as="a" href="{{ route('process-templates.index') }}">
+            <x-secondary-button as="a" href="{{ route('admin.process-templates.index') }}">
                 <i class="fas fa-arrow-left mr-2"></i>
                 <span>一覧へ戻る</span>
             </x-secondary-button>
@@ -20,7 +20,7 @@
                 </div>
                 <div class="p-6">
                     @can('update', App\Models\ProcessTemplate::class)
-                        <form action="{{ route('process-templates.update', $processTemplate) }}" method="POST">
+                        <form action="{{ route('admin.process-templates.update', $processTemplate) }}" method="POST">
                             @csrf
                             @method('PUT')
                             <div class="space-y-4">
@@ -78,7 +78,7 @@
                                         {{ $item->default_duration ?? '-' }}</td>
                                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                         @can('delete', arguments: App\Models\ProcessTemplate::class)
-                                            <form action="{{ route('process-templates.items.destroy', [$processTemplate, $item]) }}"
+                                            <form action="{{ route('admin.process-templates.items.destroy', [$processTemplate, $item]) }}"
                                                 method="POST">
                                                 @csrf
                                                 @method('DELETE')
@@ -104,7 +104,7 @@
                 </div>
                 <div class="p-6 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700">
                     <h3 class="text-md font-medium text-gray-900 dark:text-gray-100 mb-4">工程項目を追加</h3>
-                    <form action="{{ route('process-templates.items.store', $processTemplate) }}" method="POST"> @csrf
+                    <form action="{{ route('admin.process-templates.items.store', $processTemplate) }}" method="POST"> @csrf
                         <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 items-start">
                             <div class="sm:col-span-2">
                                 <x-input-label for="item_name" value="工程名" required/>

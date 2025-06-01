@@ -40,7 +40,7 @@ class InventoryLogController extends Controller
             $query->where('related_stock_order_id', $request->input('related_stock_order_id'));
         }
 
-        $inventoryLogs = $query->paginate(50)->appends($request->except('page'));
+        $inventoryLogs = $query->orderBy('created_at', 'desc')->take(200)->paginate(50)->appends($request->except('page'));
 
         // フィルター用の変動種別の選択肢 (ビューで直接記述しているものをコントローラーで定義する例)
         $changeTypesForFilter = [

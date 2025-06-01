@@ -6,7 +6,7 @@
     <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
             <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-200">工程テンプレート管理</h1>
-            <x-primary-button onclick="location.href='{{ route('process-templates.create') }}'">
+            <x-primary-button onclick="location.href='{{ route('admin.process-templates.create') }}'">
                 <i class="fas fa-plus mr-2"></i>
                 <span>新規テンプレート作成</span>
             </x-primary-button>
@@ -35,7 +35,7 @@
                         @forelse($templates as $template)
                             <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                    <a href="{{ route('process-templates.show', $template) }}"
+                                    <a href="{{ route('admin.process-templates.show', $template) }}"
                                         class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">{{ $template->name }}</a>
                                 </td>
                                 <td class="px-6 py-4 whitespace-normal text-sm text-gray-500 dark:text-gray-400">
@@ -46,13 +46,13 @@
                                     <div class="flex justify-end space-x-2">
                                         @can('update', App\Models\ProcessTemplate::class)
                                             <x-icon-button
-                                                :href="route('process-templates.show', $template)"
+                                                :href="route('admin.process-templates.show', $template)"
                                                 icon="fas fa-edit"
                                                 title="編集"
                                                 color="blue" />
                                         @endcan
                                         @can('delete', $template)
-                                            <form action="{{ route('process-templates.destroy', $template) }}" method="POST"
+                                            <form action="{{ route('admin.process-templates.destroy', $template) }}" method="POST"
                                                 class="d-inline" onsubmit="return confirm('本当に削除しますか？');">
                                                 <x-icon-button
                                                         icon="fas fa-trash"

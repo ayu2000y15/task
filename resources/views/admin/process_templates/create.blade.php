@@ -6,7 +6,7 @@
     <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
             <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-200">新規工程テンプレート作成</h1>
-            <x-secondary-button onclick="location.href='{{ route('process-templates.index') }}'">
+            <x-secondary-button onclick="location.href='{{ route('admin.process-templates.index') }}'">
                 <i class="fas fa-arrow-left mr-2"></i>
                 <span>一覧へ戻る</span>
             </x-secondary-button>
@@ -14,7 +14,7 @@
 
         <div class="max-w-xl mx-auto bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
             <div class="p-6 sm:p-8">
-                <form action="{{ route('process-templates.store') }}" method="POST">
+                <form action="{{ route('admin.process-templates.store') }}" method="POST">
                     @csrf
                     <div class="space-y-6">
                         <div>

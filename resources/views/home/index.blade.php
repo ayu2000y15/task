@@ -79,7 +79,7 @@
                                         <td class="hidden sm:table-cell px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 align-top">{{ $task->character->name ?? '-' }}</td>
                                         <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 align-top">{{ $task->assignee ?? '-' }}</td>
                                         <td class="hidden sm:table-cell px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 align-top">
-                                            {{ optional($task->end_date)->format('Y/m/d') }}
+                                            {{ optional($task->end_date)->format('n/j') }}
                                         </td>
                                         <td class="hidden sm:table-cell px-4 py-3 whitespace-nowrap text-sm align-top">
                                             @if(!$task->is_folder && !$task->is_milestone)
@@ -157,7 +157,7 @@
                                     </div>
                                     <p class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ $task->character->name ?? '' }}</p>
                                     <p class="text-xs text-gray-500 dark:text-gray-400">
-                                        期限: {{ optional($task->end_date)->format('Y/m/d') }} ({{ $task->end_date ? $task->end_date->diffForHumans() : '' }})
+                                        期限: {{ optional($task->end_date)->format('n/j') }} ({{ $task->end_date ? $task->end_date->diffForHumans() : '' }})
                                     </p>
                                 </div>
                                 <div class="ml-2 flex-shrink-0">
@@ -227,7 +227,7 @@
                                         <span class="mx-1">&bull;</span>
                                         担当: {{ $task->assignee ?? '-' }}
                                         <span class="hidden sm:inline mx-1">&bull;</span>
-                                        <span class="hidden sm:inline">作成: {{ $task->created_at ? $task->created_at->format('Y/m/d') : '-'}}</span>
+                                        <span class="hidden sm:inline">作成: {{ $task->created_at ? $task->created_at->format('n/j') : '-'}}</span>
                                     </p>
                                 </div>
                                 <div class="ml-2 flex-shrink-0">

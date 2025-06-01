@@ -25,7 +25,7 @@ class RolePolicy
      * (他の役割関連の操作、例: Role作成・削除が将来的に追加される場合もこの権限でカバーするか、
      * 別途 roles.create, roles.delete などのパーミッションを定義することも可能です)
      */
-    public function update(User $user, Role $role): bool
+    public function update(User $user): bool
     {
         // $role パラメータはポリシーメソッドの標準的なシグネチャに合わせるために含めていますが、
         // 現在のパーミッション 'roles.update' は特定のロールインスタンスに依存しない一般的な権限です。
@@ -43,8 +43,8 @@ class RolePolicy
     //     return $user->hasPermissionTo('roles.create');
     // }
 
-    // public function delete(User $user, Role $role): bool
-    // {
-    //     return $user->hasPermissionTo('roles.delete');
-    // }
+    public function delete(User $user, Role $role): bool
+    {
+        return $user->hasPermissionTo('roles.delete');
+    }
 }

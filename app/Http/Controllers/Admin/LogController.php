@@ -20,7 +20,7 @@ class LogController extends Controller
         $this->authorize('viewAny', Activity::class);
 
         $query = Activity::with(['causer', 'subject'])
-            ->latest();
+            ->latest()->take(200);
 
         $filters = [
             'user_name' => $request->input('user_name'),
@@ -82,7 +82,7 @@ class LogController extends Controller
             });
         }
 
-        $activities = $query->paginate(50)->appends($filters);
+        $activities = $query->orderBy('created_at', 'desc')->paginate(50)->appends($filters);
 
         // ★ 絞り込み用の操作イベントの選択肢
         $availableEvents = [
@@ -91,7 +91,7 @@ class LogController extends Controller
             'deleted' => '削除',
             // 手動でログした場合の 'event' は spatie/laravel-activitylog v4 以降では description や log_name で
             // 区別することが多く、event カラムはモデルイベント（created, updated, deletedなど）が主に入ります。
-            // ログイン・ログアウトなどの案件依頼イベントを event カラムに記録している場合は、ここに追加します。
+            // ログイン・ログアウトなどのカスタムイベントを event カラムに記録している場合は、ここに追加します。
             // 今回はモデルイベントのみを主要な選択肢とします。
             // 例: 'login' => 'ログイン', 'logout' => 'ログアウト'
         ];

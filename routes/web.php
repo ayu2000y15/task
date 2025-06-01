@@ -10,10 +10,13 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\MeasurementController;
 use App\Http\Controllers\MaterialController;
 use App\Http\Controllers\CostController;
-use App\Http\Controllers\ProcessTemplateController;
+
 use App\Http\Controllers\CharacterController;
 use App\Http\Controllers\ExternalFormController;
 // フィードバック機能で追加するコントローラー
+use App\Http\Controllers\Admin\ProcessTemplateController;
+use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Admin\RolePermissionController;
 use App\Http\Controllers\UserFeedbackController;
 use App\Http\Controllers\Admin\FeedbackController as AdminFeedbackController;
 use App\Http\Controllers\Admin\FeedbackCategoryController as AdminFeedbackCategoryController;
@@ -85,32 +88,35 @@ Route::middleware('auth')->group(function () {
     Route::put('/projects/{project}/characters/{character}/costs/{cost}', [CostController::class, 'update'])->name('projects.characters.costs.update');
     Route::delete('/projects/{project}/characters/{character}/costs/{cost}', [CostController::class, 'destroy'])->name('projects.characters.costs.destroy');
 
-    // 工程テンプレート管理
-    Route::resource('process-templates', ProcessTemplateController::class);
-    Route::post('process-templates/{processTemplate}/items', [ProcessTemplateController::class, 'storeItem'])->name('process-templates.items.store');
-    Route::delete('process-templates/{processTemplate}/items/{item}', [ProcessTemplateController::class, 'destroyItem'])->name('process-templates.items.destroy');
-
     // キャラクター管理 (案件詳細ページ内で処理の起点、編集は別ページ)
     Route::resource('projects.characters', CharacterController::class)->except(['index', 'show', 'create'])->shallow();
     Route::get('/projects/{project}/characters/{character}/costs-partial', [CharacterController::class, 'getCharacterCostsPartial'])->name('projects.characters.costs.partial');
-
-    // ユーザー管理・権限設定 (既存のルート)
-    Route::get('/users', [\App\Http\Controllers\UserController::class, 'index'])->name('users.index');
-    Route::get('/users/{user}/edit', [\App\Http\Controllers\UserController::class, 'edit'])->name('users.edit');
-    Route::put('/users/{user}', [\App\Http\Controllers\UserController::class, 'update'])->name('users.update');
-    Route::get('/roles', [\App\Http\Controllers\RolePermissionController::class, 'index'])->name('roles.index');
-    Route::put('/roles/{role}', [\App\Http\Controllers\RolePermissionController::class, 'update'])->name('roles.update');
 
     // --- ユーザー向けフィードバック機能 ---
     Route::get('/feedback/create', [UserFeedbackController::class, 'create'])->name('user_feedbacks.create');
     Route::post('/feedback', [UserFeedbackController::class, 'store'])->name('user_feedbacks.store');
     // --- ここまでユーザー向けフィードバック機能 ---
 
-    Route::prefix('admin')->name('admin.')->middleware(['can:viewAny,App\Models\FormFieldDefinition'])->group(function () { // 管理者用などのミドルウェアを想定
+    Route::prefix('admin')->name('admin.')->middleware(['can:viewAny,App\Models\ProcessTemplate'])->group(function () { // 管理者用などのミドルウェアを想定
         Route::resource('form-definitions', FormFieldDefinitionController::class)
             ->parameters(['form-definitions' => 'formFieldDefinition'])
             ->except(['show']);
         Route::post('/form-definitions/reorder', [FormFieldDefinitionController::class, 'reorder'])->name('form-definitions.reorder');
+
+        // 工程テンプレート管理
+        Route::resource('process-templates', ProcessTemplateController::class);
+        Route::post('process-templates/{processTemplate}/items', [ProcessTemplateController::class, 'storeItem'])->name('process-templates.items.store');
+        Route::delete('process-templates/{processTemplate}/items/{item}', [ProcessTemplateController::class, 'destroyItem'])->name('process-templates.items.destroy');
+
+
+        // ユーザー管理・権限設定 (既存のルート)
+        Route::get('users', [UserController::class, 'index'])->name('users.index');
+        Route::get('users/{user}/edit', [UserController::class, 'edit'])->name('users.edit');
+        Route::put('users/{user}', [UserController::class, 'update'])->name('users.update');
+        Route::resource('roles', RolePermissionController::class);
+        Route::get('roles', [RolePermissionController::class, 'index'])->name('roles.index');
+        Route::put('roles/{role}', [RolePermissionController::class, 'update'])->name('roles.update');
+
 
         // --- 管理者向けフィードバック機能 ---
         Route::get('/feedbacks', [AdminFeedbackController::class, 'index'])->name('feedbacks.index');

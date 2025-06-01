@@ -41,7 +41,7 @@
                         </div>
                         <div class="grid grid-cols-[theme(spacing.40)_1fr] gap-x-2 items-start py-3 border-b border-gray-200 dark:border-gray-700">
                             <strong class="font-semibold text-gray-700 dark:text-gray-300">メールアドレス:</strong>
-                            <span class="text-gray-900 dark:text-gray-100">{{ $submission->submitter_email }}</span>
+                            <span class="text-gray-900 dark:text-gray-100 break-all">{{ $submission->submitter_email }}</span>
                         </div>
                         <div class="grid grid-cols-[theme(spacing.40)_1fr] gap-x-2 items-start py-3 border-b border-gray-200 dark:border-gray-700">
                             <strong class="font-semibold text-gray-700 dark:text-gray-300">依頼日時:</strong>
@@ -49,7 +49,7 @@
                         </div>
                         <div class="grid grid-cols-[theme(spacing.40)_1fr] gap-x-2 items-start py-3">
                             <strong class="font-semibold text-gray-700 dark:text-gray-300">依頼者備考:</strong>
-                            <p class="whitespace-pre-wrap bg-gray-50 dark:bg-gray-700/50 p-2 rounded-md text-gray-900 dark:text-gray-100">{{ trim($submission->submitter_notes) ?: '-' }}</p>
+                            <p class="whitespace-pre-wrap bg-gray-50 dark:bg-gray-700/50 p-2 rounded-md text-gray-900 dark:text-gray-100 break-all">{{ trim($submission->submitter_notes) ?: '-' }}</p>
                         </div>
                     </div>
                 </div>
@@ -63,9 +63,9 @@
                         @forelse ($displayData as $data)
                             <div class="grid grid-cols-[theme(spacing.40)_1fr] gap-x-2 items-start py-3 @if(!$loop->last || count($fileFields) > 0) border-b border-gray-200 dark:border-gray-700 @endif">
                                 <strong class="font-semibold text-gray-700 dark:text-gray-300">{{ $data['label'] }}:</strong>
-                                <div class="break-words text-gray-900 dark:text-gray-100">
+                                <div class="break-all text-gray-900 dark:text-gray-100">
                                     @if ($data['type'] === 'textarea')
-                                        <p class="whitespace-pre-wrap bg-gray-50 dark:bg-gray-700/50 p-2 rounded-md">{{ $data['value'] ? trim($data['value']) : '-' }}</p>
+                                        <p class="whitespace-pre-wrap bg-gray-50 dark:bg-gray-700/50 p-2 rounded-md break-all">{{ $data['value'] ? trim($data['value']) : '-' }}</p>
                                     @elseif ($data['type'] === 'checkbox')
                                         <span>{{ $data['value'] ? 'はい' : 'いいえ' }}</span>
                                     @elseif (($data['type'] === 'select' || $data['type'] === 'radio') && isset($data['options']) && is_array($data['options']))
@@ -78,6 +78,14 @@
                                         </span>
                                         @else
                                             -
+                                        @endif
+                                    @elseif ($data['type'] === 'url')
+                                        @if($data['value'])
+                                            <a href="{{ $data['value'] }}" target="_blank" rel="noopener noreferrer" class="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-200 underline">
+                                                {{ $data['value'] }}
+                                            </a>
+                                        @else
+                                            <span>-</span>
                                         @endif
                                     @else
                                         <span>{{ $data['value'] ?: '-' }}</span>
@@ -169,7 +177,7 @@
                         <div class="grid grid-cols-[theme(spacing.40)_1fr] gap-x-2 items-center py-3 border-b border-gray-200 dark:border-gray-700">
                             <strong class="font-semibold text-gray-700 dark:text-gray-300">最終対応者:</strong>
                             {{-- IDは不要になります --}}
-                            <span class="text-gray-900 dark:text-gray-100">{{ $submission->processedBy->name ?? '-' }}</span>
+                            <span class="text-gray-900 dark:text-gray-100 break-all">{{ $submission->processedBy->name ?? '-' }}</span>
                         </div>
                         <div class="grid grid-cols-[theme(spacing.40)_1fr] gap-x-2 items-center py-3">
                             <strong class="font-semibold text-gray-700 dark:text-gray-300">最終対応日時:</strong>
