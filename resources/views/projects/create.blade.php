@@ -112,7 +112,7 @@
 
                                 <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">
                                     @if($externalSubmission)
-                                        案件情報（フォームからコピーしたもの）
+                                        案件情報（依頼フォームからコピーしたもの ※ファイルはコピーされません）
                                     @else
                                         案件情報（案件依頼項目）
                                     @endif
