@@ -14,10 +14,6 @@ class InventoryLogController extends Controller
      * Display a listing of the inventory logs.
      */ public function index(Request $request)
     {
-        if (!Gate::allows('viewAny', InventoryLog::class)) {
-            abort(403, '在庫変動ログを閲覧する権限がありません。');
-        }
-
         $query = InventoryLog::with(['inventoryItem', 'user', 'material', 'stockOrder'])->latest();
 
         // フィルター機能
