@@ -109,7 +109,14 @@
 
                         @if(!empty($customFormFields))
                             <div class="mt-6 mb-2 border-t pt-6 dark:border-gray-700">
-                                <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">追加情報（カスタム項目）</h3>
+
+                                <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">
+                                    @if($externalSubmission)
+                                        案件情報（フォームからコピーしたもの）
+                                    @else
+                                        案件情報（カスタム項目）
+                                    @endif
+                                </h3>
                             </div>
                             @foreach ($customFormFields as $field)
                                 @include('projects.partials.form-fields', [

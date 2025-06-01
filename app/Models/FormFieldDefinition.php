@@ -26,10 +26,7 @@ class FormFieldDefinition extends Model
     protected $casts = [
         'is_required' => 'boolean',
         'is_enabled' => 'boolean',
-        'options' => 'array', // ★ 以前の提示では array でしたが、DB保存時は JSON 文字列のままの可能性もあるため、
-        // ★ 必要に応じて $logAttributes で明示的に options を含めるか、
-        // ★ または options の変更をログしない場合は $dontLogIfAttributesChangedOnly で指定することも検討。
-        // ★ 今回は一旦 logFillable() で options も対象とします。
+        'options' => 'array',
     ];
 
     // ★ アクティビティログのオプション設定

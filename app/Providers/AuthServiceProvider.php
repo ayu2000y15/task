@@ -26,6 +26,8 @@ use App\Models\StockOrder; // ★ 追加
 use App\Policies\StockOrderPolicy; // ★ 追加
 use App\Models\InventoryLog; // ★ 追加
 use App\Policies\InventoryLogPolicy; // ★ 追加
+use App\Models\ExternalProjectSubmission; // ★ 追加
+use App\Policies\ExternalProjectSubmissionPolicy; // ★ 追加
 
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
@@ -50,6 +52,7 @@ class AuthServiceProvider extends ServiceProvider
         InventoryItem::class => InventoryItemPolicy::class, // ★ 追加
         StockOrder::class => StockOrderPolicy::class,       // ★ 追加
         InventoryLog::class => InventoryLogPolicy::class, // ★ 追加
+        ExternalProjectSubmission::class => ExternalProjectSubmissionPolicy::class, // ★ 追加
     ];
 
 

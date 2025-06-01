@@ -139,9 +139,15 @@ Route::middleware('auth')->group(function () {
 
         Route::get('inventory-logs', [InventoryLogController::class, 'index'])->name('inventory-logs.index');
 
-
         // ★ 操作ログ閲覧ルートを追加
         Route::get('/logs', [AdminLogController::class, 'index'])->name('logs.index');
+
+        // ★ 衣装案件依頼フォーム一覧ルートを追加
+        Route::get('/external-submissions', [ExternalFormController::class, 'index'])->name('external-submissions.index');
+        Route::patch('/external-submissions/{submission}/status', [ExternalFormController::class, 'updateStatus'])->name('external-submissions.updateStatus'); // ステータス更新用
+        Route::get('/external-submissions/{submission}', [ExternalFormController::class, 'show'])->name('external-submissions.show'); // 詳細表示用
+
+        Route::get('/external-requests', [ExternalFormController::class, 'index'])->name('external-requests.index');
     });
 });
 

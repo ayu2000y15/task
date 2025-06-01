@@ -248,22 +248,27 @@ class ProjectController extends Controller
         $externalSubmission = null;
 
         if ($request->has('external_request_id')) {
-            $externalSubmission = ExternalProjectSubmission::find($request->input('external_request_id'));
-            if ($externalSubmission && $externalSubmission->status === 'new') {
-                $prefillStandardData['title'] = ($externalSubmission->submitter_name ?? '外部申請') . '様からの依頼案件（仮）';
-                $prefillStandardData['client_name'] = $externalSubmission->submitter_name;
-                $prefillStandardData['description'] = $externalSubmission->submitter_notes;
-                // emailはカスタムフィールド 'contact_email' にマッピングするか、備考に追加
-                $emailProcessedInCustom = false;
-                if (isset($externalSubmission->submitted_data['contact_email'])) { // 'contact_email' というカスタムフィールドがある前提
-                    // $prefillCustomAttributes['contact_email'] = $externalSubmission->submitter_email;
-                    // $emailProcessedInCustom = true;
-                }
-                // if(!$emailProcessedInCustom && $externalSubmission->submitter_email) {
-                //    $prefillStandardData['description'] = ($prefillStandardData['description'] ? $prefillStandardData['description'] . "\n" : '') . "連絡先Email(外部申請より): " . $externalSubmission->submitter_email;
-                // }
+            $externalRequestId = $request->input('external_request_id');
+            logger()->info('External Request ID received:', ['id' => $externalRequestId]); // ログにIDを記録
 
-                $prefillCustomAttributes = $externalSubmission->submitted_data ?? [];
+            $externalSubmission = ExternalProjectSubmission::find($externalRequestId);
+
+            if ($externalSubmission) {
+                logger()->info('External Submission found:', $externalSubmission->toArray()); // ログに取得データを記録
+                if ($externalSubmission->status === 'new' || $externalSubmission->status === 'in_progress') {
+                    $prefillStandardData['title'] = ($externalSubmission->submitter_name ?? '外部申請') . '様からの依頼案件（仮）';
+                    $prefillStandardData['client_name'] = $externalSubmission->submitter_name;
+                    $prefillStandardData['description'] = $externalSubmission->submitter_notes;
+
+                    $prefillCustomAttributes = $externalSubmission->submitted_data ?? [];
+
+                    logger()->info('Prefill Custom Attributes for view:', $prefillCustomAttributes);
+                } else {
+                    logger()->warning('External Submission status not eligible for prefill:', ['status' => $externalSubmission->status]);
+                    $externalSubmission = null; // 条件に合わない場合は案件化情報としては使わない
+                }
+            } else {
+                logger()->warning('External Submission not found for ID:', ['id' => $externalRequestId]);
             }
         }
 
@@ -377,17 +382,37 @@ class ProjectController extends Controller
 
 
         if ($request->filled('external_submission_id_on_creation')) {
-            $externalSubmission = ExternalProjectSubmission::find($request->input('external_submission_id_on_creation'));
-            if ($externalSubmission && $externalSubmission->status === 'new') {
-                $externalSubmission->status = 'processed';
-                $externalSubmission->processed_by_user_id = auth()->id();
-                $externalSubmission->processed_at = now();
-                $externalSubmission->save(); // ExternalProjectSubmissionモデルにもLogsActivityがあれば発火
-                // ★ 外部申請処理のログ
-                activity()
-                    ->causedBy(auth()->user())
-                    ->performedOn($externalSubmission)
-                    ->log("外部申請 ID:{$externalSubmission->id} が処理されました。");
+            $externalSubmissionId = $request->input('external_submission_id_on_creation');
+            $externalSubmission = ExternalProjectSubmission::find($externalSubmissionId);
+
+            if ($externalSubmission) {
+                // 案件化の対象となった外部申請 (ステータスが 'new' または 'in_progress') を 'processed' に更新
+                if ($externalSubmission->status === 'new' || $externalSubmission->status === 'in_progress') {
+                    $externalSubmission->status = 'processed';
+                    $externalSubmission->processed_by_user_id = auth()->id();
+                    $externalSubmission->processed_at = now();
+                    $externalSubmission->save();
+
+                    activity()
+                        ->causedBy(auth()->user())
+                        ->performedOn($externalSubmission)
+                        ->withProperties(['project_id' => $project->id]) // 関連プロジェクトIDをプロパティに追加
+                        ->log("外部申請 ID:{$externalSubmission->id} が案件化され、ステータスが 'processed' に更新されました。");
+                } else {
+                    // 外部申請は見つかったが、ステータスが 'new' または 'in_progress' ではなかった場合
+                    // (例: 既に 'processed' になっていた、など)
+                    logger()->info('External submission status was not "new" or "in_progress" during project creation finalization, no status change needed.', [
+                        'external_submission_id' => $externalSubmissionId,
+                        'current_status' => $externalSubmission->status,
+                        'project_id' => $project->id
+                    ]);
+                }
+            } else {
+                // external_submission_id_on_creation が送信されたが、該当の外部申請が見つからなかった場合
+                logger()->error('External submission not found during project creation finalization, though an ID was provided.', [
+                    'external_submission_id_on_creation' => $externalSubmissionId,
+                    'project_id' => $project->id
+                ]);
             }
         }
 

@@ -211,61 +211,178 @@
 
                 {{-- 右側グループ: 管理・ユーザーメニュー --}}
                 <div class="flex items-center space-x-1 sm:space-x-2 pl-1 sm:pl-2">
-                    @can('viewAny', App\Models\ProcessTemplate::class)
+                    @can('viewAny', App\Models\ProcessTemplate::class) {{-- このcanは管理メニュー全体を表示するかどうかの大元の権限チェックとして残す --}}
                     <div x-data="{ adminMenuOpenOnHeader: false }" class="relative">
                         <button @click="adminMenuOpenOnHeader = !adminMenuOpenOnHeader" class="flex items-center px-2 sm:px-3 py-2 text-sm font-medium text-gray-700 rounded-md dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none">
                             <i class="fas fa-cog"></i>
                             <span class="hidden sm:inline ml-1">管理</span>
                             <i class="fas fa-chevron-down fa-xs ml-1"></i>
                         </button>
-                        <div x-show="adminMenuOpenOnHeader" @click.away="adminMenuOpenOnHeader = false"
-                            x-transition
-                            class="absolute right-0 mt-2 w-48 py-1 bg-white rounded-md shadow-lg dark:bg-gray-700 ring-1 ring-black ring-opacity-5 z-50"
+
+                        @php
+                            $currentUser = Auth::user();
+                            $canViewGroup1 = $currentUser->can('viewAny', App\Models\StockOrder::class) ||
+                                            $currentUser->can('viewAny', App\Models\ExternalProjectSubmission::class) ||
+                                            $currentUser->can('viewAny', App\Models\Feedback::class);
+
+                            $canViewGroup2 = $currentUser->can('viewAny', App\Models\InventoryItem::class);
+
+                            $canViewGroup3 = $currentUser->can('viewAny', App\Models\User::class) || // ユーザー管理
+                                            $currentUser->can('viewAny', App\Models\Role::class) || // 権限設定
+                                            $currentUser->can('viewAny', App\Models\ProcessTemplate::class) || // 工程テンプレート (この@canが外側の条件なので実質true)
+                                            $currentUser->can('viewAny', App\Models\FormFieldDefinition::class); // カスタム項目定義
+
+                            $canViewGroup4 = $currentUser->can('viewAny', Spatie\Activitylog\Models\Activity::class); // 操作ログ閲覧
+
+                            $canViewGroup5 = $currentUser->can('viewAny', App\Models\User::class); // 新規ユーザー登録リンク (ユーザー管理権限に依存している場合)
+
+                            // 表示される最初のグループかどうかのフラグ
+                            $isFirstVisibleGroup = true;
+                        @endphp
+
+                        <div x-show="adminMenuOpenOnHeader"
+                            @click.away="adminMenuOpenOnHeader = false"
+                            x-transition:enter="transition ease-out duration-100"
+                            x-transition:enter-start="opacity-0 scale-95"
+                            x-transition:enter-end="opacity-100 scale-100"
+                            x-transition:leave="transition ease-in duration-75"
+                            x-transition:leave-start="opacity-100 scale-100"
+                            x-transition:leave-end="opacity-0 scale-95"
+                            x-data="{ openGroup: null }"
+                            class="absolute right-0 mt-2 w-64 bg-white rounded-md shadow-lg dark:bg-gray-700 ring-1 ring-black ring-opacity-5 z-50 overflow-hidden"
                             style="display: none;">
-                            @can('viewAny', App\Models\StockOrder::class)
-                            <a href="{{ route('admin.stock-orders.index') }}" class="flex justify-between items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
-                                在庫発注申請
-                                @if(isset($pendingStockOrdersCountGlobal) && $pendingStockOrdersCountGlobal > 0)
-                                    <span class="ml-auto inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-orange-100 bg-orange-500 rounded-full">{{ $pendingStockOrdersCountGlobal }}</span>
-                                @endif
-                            </a>
-                            @endcan
-                            @can('viewAny', App\Models\InventoryItem::class)
-                                <a href="{{ route('admin.inventory.index') }}" class="flex justify-between items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
-                                    在庫管理
-                                    @if(isset($hasInventoryAlertsGlobal) && $hasInventoryAlertsGlobal)
-                                        <i class="fas fa-exclamation-triangle text-lg text-yellow-500 dark:text-yellow-400" title="在庫僅少または在庫切れの品目あり"></i>
-                                    @endif
-                                </a>
-                            @endcan
-                            @can('viewAny', App\Models\User::class)
-                                <a href="{{ route('users.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">ユーザー管理</a>
-                            @endcan
-                            @can('viewAny', App\Models\Role::class)
-                                <a href="{{ route('roles.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">権限設定</a>
-                            @endcan
-                            @can('viewAny', App\Models\ProcessTemplate::class)
-                                <a href="{{ route('process-templates.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">工程テンプレート</a>
-                            @endcan
-                            @can('viewAny', App\Models\FormFieldDefinition::class) {{-- ポリシーに合わせる --}}
-                                <a href="{{ route('admin.form-definitions.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">カスタム項目定義</a>
-                            @endcan
-                            @can('viewAny', App\Models\Feedback::class)
-                            <a href="{{ route('admin.feedbacks.index') }}" class="flex justify-between items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
-                                フィードバック管理 @if(isset($unreadFeedbackCountGlobal) && $unreadFeedbackCountGlobal > 0)<span class="ml-auto inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-red-100 bg-red-600 rounded-full">{{ $unreadFeedbackCountGlobal }}</span>@endif
-                            </a>
-                            @endcan
-                            @can('viewAny', Spatie\Activitylog\Models\Activity::class) {{-- LogPolicy@viewAny の権限チェック --}}
-                                <a href="{{ route('admin.logs.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">操作ログ閲覧</a>
-                            @endcan
-                            @can('viewAny', App\Models\User::class)
-                                <a href="javascript:void(0)" onclick="copyToClipboard()" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">新規ユーザー登録リンク</a>
-                                <input type="text" value="{{ url('/register') }}" id="copyTarget" class="sr-only" aria-hidden="true">
-                            @endcan
+
+                            @if ($canViewGroup1)
+                            <div class="group-item @if(!$isFirstVisibleGroup) border-t border-gray-200 dark:border-gray-600 @endif">
+                                <button @click="openGroup = (openGroup === 'group1' ? null : 'group1')"
+                                        class="w-full flex justify-between items-center px-4 py-3 text-sm font-medium text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none">
+                                    <span>申請・通知</span>
+                                    <i class="fas fa-fw" :class="{'fa-chevron-down': openGroup === 'group1', 'fa-chevron-right': openGroup !== 'group1'}"></i>
+                                </button>
+                                <div x-show="openGroup === 'group1'" x-transition:enter="transition ease-out duration-100" x-transition:enter-start="opacity-0 transform -translate-y-1" x-transition:enter-end="opacity-100 transform translate-y-0" x-transition:leave="transition ease-in duration-75" x-transition:leave-start="opacity-100 transform translate-y-0" x-transition:leave-end="opacity-0 transform -translate-y-1"
+                                    class="bg-gray-50 dark:bg-gray-800">
+                                    @can('viewAny', App\Models\ExternalProjectSubmission::class)
+                                    <a href="{{ route('admin.external-submissions.index') }}" class="flex justify-between items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
+                                        案件依頼一覧
+                                        @if(isset($newExternalSubmissionsCountGlobal) && $newExternalSubmissionsCountGlobal > 0)
+                                            <span class="ml-auto inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-red-600 rounded-full">{{ $newExternalSubmissionsCountGlobal }}</span>
+                                        @endif
+                                    </a>
+                                    @endcan
+                                    @can('viewAny', App\Models\StockOrder::class)
+                                    <a href="{{ route('admin.stock-orders.index') }}" class="flex justify-between items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
+                                        在庫発注申請
+                                        @if(isset($pendingStockOrdersCountGlobal) && $pendingStockOrdersCountGlobal > 0)
+                                            <span class="ml-auto inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-orange-500 rounded-full">{{ $pendingStockOrdersCountGlobal }}</span>
+                                        @endif
+                                    </a>
+                                    @endcan
+                                    @can('viewAny', App\Models\Feedback::class)
+                                        <a href="{{ route('admin.feedbacks.index') }}" class="flex justify-between items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
+                                            フィードバック管理 @if(isset($unreadFeedbackCountGlobal) && $unreadFeedbackCountGlobal > 0)
+                                            <span class="ml-auto inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-green-600 rounded-full">{{ $unreadFeedbackCountGlobal }}</span>@endif
+                                        </a>
+                                    @endcan
+                                </div>
+                            </div>
+                            @php if($canViewGroup1) $isFirstVisibleGroup = false; @endphp
+                            @endif
+
+                            @if ($canViewGroup2)
+                            <div class="group-item @if(!$isFirstVisibleGroup) border-t border-gray-200 dark:border-gray-600 @endif">
+                                <button @click="openGroup = (openGroup === 'group2' ? null : 'group2')"
+                                        class="w-full flex justify-between items-center px-4 py-3 text-sm font-medium text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none">
+                                    <span>データ・在庫</span>
+                                    <i class="fas fa-fw" :class="{'fa-chevron-down': openGroup === 'group2', 'fa-chevron-right': openGroup !== 'group2'}"></i>
+                                </button>
+                                <div x-show="openGroup === 'group2'" x-transition:enter="transition ease-out duration-100" x-transition:enter-start="opacity-0 transform -translate-y-1" x-transition:enter-end="opacity-100 transform translate-y-0" x-transition:leave="transition ease-in duration-75" x-transition:leave-start="opacity-100 transform translate-y-0" x-transition:leave-end="opacity-0 transform -translate-y-1"
+                                    class="bg-gray-50 dark:bg-gray-800">
+                                    @can('viewAny', App\Models\InventoryItem::class)
+                                        <a href="{{ route('admin.inventory.index') }}" class="flex justify-between items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
+                                            在庫管理
+                                            @if(isset($hasInventoryAlertsGlobal) && $hasInventoryAlertsGlobal)
+                                                <i class="fas fa-exclamation-triangle text-lg text-yellow-500 dark:text-yellow-400" title="在庫僅少または在庫切れの品目あり"></i>
+                                            @endif
+                                        </a>
+                                    @endcan
+                                </div>
+                            </div>
+                            @php if($canViewGroup2) $isFirstVisibleGroup = false; @endphp
+                            @endif
+
+                            @if ($canViewGroup3)
+                            <div class="group-item @if(!$isFirstVisibleGroup) border-t border-gray-200 dark:border-gray-600 @endif">
+                                <button @click="openGroup = (openGroup === 'group3' ? null : 'group3')"
+                                        class="w-full flex justify-between items-center px-4 py-3 text-sm font-medium text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none">
+                                    <span>設定</span>
+                                    <i class="fas fa-fw" :class="{'fa-chevron-down': openGroup === 'group3', 'fa-chevron-right': openGroup !== 'group3'}"></i>
+                                </button>
+                                <div x-show="openGroup === 'group3'" x-transition:enter="transition ease-out duration-100" x-transition:enter-start="opacity-0 transform -translate-y-1" x-transition:enter-end="opacity-100 transform translate-y-0" x-transition:leave="transition ease-in duration-75" x-transition:leave-start="opacity-100 transform translate-y-0" x-transition:leave-end="opacity-0 transform -translate-y-1"
+                                    class="bg-gray-50 dark:bg-gray-800">
+                                    @can('viewAny', App\Models\User::class)
+                                        <a href="{{ route('users.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">ユーザー管理</a>
+                                    @endcan
+                                    @can('viewAny', App\Models\Role::class)
+                                        <a href="{{ route('roles.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">権限設定</a>
+                                    @endcan
+                                    @can('viewAny', App\Models\ProcessTemplate::class)
+                                        <a href="{{ route('process-templates.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">工程テンプレート</a>
+                                    @endcan
+                                    @can('viewAny', App\Models\FormFieldDefinition::class)
+                                        <a href="{{ route('admin.form-definitions.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">カスタム項目定義</a>
+                                    @endcan
+                                </div>
+                            </div>
+                            @php if($canViewGroup3) $isFirstVisibleGroup = false; @endphp
+                            @endif
+
+                            @if ($canViewGroup4)
+                            <div class="group-item @if(!$isFirstVisibleGroup) border-t border-gray-200 dark:border-gray-600 @endif">
+                                <button @click="openGroup = (openGroup === 'group4' ? null : 'group4')"
+                                        class="w-full flex justify-between items-center px-4 py-3 text-sm font-medium text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none">
+                                    <span>ログ</span>
+                                    <i class="fas fa-fw" :class="{'fa-chevron-down': openGroup === 'group4', 'fa-chevron-right': openGroup !== 'group4'}"></i>
+                                </button>
+                                <div x-show="openGroup === 'group4'" x-transition:enter="transition ease-out duration-100" x-transition:enter-start="opacity-0 transform -translate-y-1" x-transition:enter-end="opacity-100 transform translate-y-0" x-transition:leave="transition ease-in duration-75" x-transition:leave-start="opacity-100 transform translate-y-0" x-transition:leave-end="opacity-0 transform -translate-y-1"
+                                    class="bg-gray-50 dark:bg-gray-800">
+                                    @can('viewAny', Spatie\Activitylog\Models\Activity::class)
+                                        <a href="{{ route('admin.logs.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">操作ログ閲覧</a>
+                                    @endcan
+                                </div>
+                            </div>
+                            @php if($canViewGroup4) $isFirstVisibleGroup = false; @endphp
+                            @endif
+
+                            @if ($canViewGroup5)
+                            <div class="group-item @if(!$isFirstVisibleGroup) border-t border-gray-200 dark:border-gray-600 @endif">
+                                <button @click="openGroup = (openGroup === 'group5' ? null : 'group5')"
+                                        class="w-full flex justify-between items-center px-4 py-3 text-sm font-medium text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none">
+                                    <span>リンクコピー</span>
+                                    <i class="fas fa-fw" :class="{'fa-chevron-down': openGroup === 'group5', 'fa-chevron-right': openGroup !== 'group5'}"></i>
+                                </button>
+                                <div x-show="openGroup === 'group5'" x-transition:enter="transition ease-out duration-100" x-transition:enter-start="opacity-0 transform -translate-y-1" x-transition:enter-end="opacity-100 transform translate-y-0" x-transition:leave="transition ease-in duration-75" x-transition:leave-start="opacity-100 transform translate-y-0" x-transition:leave-end="opacity-0 transform -translate-y-1"
+                                    class="bg-gray-50 dark:bg-gray-800">
+                                    @can('viewAny', App\Models\User::class) {{-- 新規ユーザー登録リンクの表示権限 --}}
+                                    <a href="javascript:void(0)" onclick="copyLink(this)" data-copy-value="{{ url('/register') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
+                                        新規ユーザー登録リンク
+                                    </a>
+                                    @endcan
+                                    @can('viewAny', App\Models\ExternalProjectSubmission::class) {{-- 新規ユーザー登録リンクの表示権限 --}}
+                                    <a href="javascript:void(0)" onclick="copyLink(this)" data-copy-value="{{ url('/costume-request') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
+                                        案件依頼リンク
+                                    </a>
+                                    @endcan
+                                </div>
+                            </div>
+                            @php if($canViewGroup5) $isFirstVisibleGroup = false; @endphp
+                            @endif
+
                         </div>
                     </div>
                     @endcan
+
                     @auth
+                    {{-- ユーザーメニュー (変更なし) --}}
                     <div x-data="{ userMenuOpen: false }" class="relative">
                         <button @click="userMenuOpen = !userMenuOpen" class="flex items-center text-sm font-medium text-gray-700 rounded-md dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none p-2">
                             <span class="hidden sm:inline">{{ Auth::user()->name }}</span>
@@ -273,19 +390,17 @@
                             <i class="fas fa-chevron-down fa-xs ml-1"></i>
                         </button>
                         <div x-show="userMenuOpen" @click.away="userMenuOpen = false"
-                             x-transition
-                             class="absolute right-0 mt-2 w-48 py-1 bg-white rounded-md shadow-lg dark:bg-gray-700 ring-1 ring-black ring-opacity-5 z-50"
-                             style="display: none;">
-                            {{-- <a href="{{ route('profile.edit') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">プロフィール</a> --}}
-
+                            x-transition
+                            class="absolute right-0 mt-2 w-48 py-1 bg-white rounded-md shadow-lg dark:bg-gray-700 ring-1 ring-black ring-opacity-5 z-50"
+                            style="display: none;">
                             @can('create', App\Models\Feedback::class)
                             <a href="{{ route('user_feedbacks.create') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">フィードバックを送信</a>
                             @endcan
                             <form method="POST" action="{{ route('logout') }}">
                                 @csrf
                                 <a href="{{ route('logout') }}"
-                                   onclick="event.preventDefault(); this.closest('form').submit();"
-                                   class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
+                                onclick="event.preventDefault(); this.closest('form').submit();"
+                                class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
                                     ログアウト
                                 </a>
                             </form>
@@ -331,23 +446,28 @@
     @stack('scripts')
 
     <script>
-        function copyToClipboard() {
-            const copyTarget = document.getElementById("copyTarget");
-            if (!copyTarget) return;
-            navigator.clipboard.writeText(copyTarget.value).then(() => {
-                alert("招待リンクをコピーしました : \n" + copyTarget.value);
-            }).catch(err => {
-                console.error('クリップボードへのコピーに失敗しました: ', err);
-                try {
-                    copyTarget.style.display = 'block';
-                    copyTarget.select();
-                    document.execCommand("Copy");
-                    copyTarget.style.display = 'none';
-                    alert("招待リンクをコピーしました (fallback): \n" + copyTarget.value);
-                } catch (e) {
-                     alert("コピーに失敗しました。手動でコピーしてください。");
-                }
-            });
+        function copyLink(buttonElement) {
+            const textToCopy = buttonElement.dataset.copyValue;
+
+            if (textToCopy === undefined || textToCopy === null || textToCopy.trim() === "") {
+                console.error("data-copy-value attribute is missing or empty on the clicked element.");
+                alert("コピーする内容が指定されていません。");
+                return;
+            }
+
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(textToCopy).then(() => {
+                    alert("コピーしました : \n" + textToCopy);
+                }).catch(err => {
+                    console.error('navigator.clipboard.writeText failed: ', err);
+                    // フォールバック処理 (textareaを使用)
+                    fallbackCopyUsingExecCommand(textToCopy);
+                });
+            } else {
+                // navigator.clipboard APIがサポートされていない場合のフォールバック (textareaを使用)
+                console.warn('navigator.clipboard.writeText is not available. Using fallback.');
+                fallbackCopyUsingExecCommand(textToCopy);
+            }
         }
     </script>
 </body>

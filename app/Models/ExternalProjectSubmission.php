@@ -25,7 +25,21 @@ class ExternalProjectSubmission extends Model
         'processed_at' => 'datetime',
     ];
 
+    public const STATUS_OPTIONS = [
+        'new' => '新規',
+        'in_progress' => '検討中', // 例: プロジェクト化検討中など
+        'processed' => '案件化済', // 例: 案件化済み
+        'on_hold' => '保留',
+        'rejected' => '却下',
+    ];
+
     public function processor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'processed_by_user_id');
+    }
+
+    // app/Models/ExternalProjectSubmission.php
+    public function processedBy()
     {
         return $this->belongsTo(User::class, 'processed_by_user_id');
     }
