@@ -29,6 +29,8 @@ class Project extends Model
         'status',
         'form_definitions',
         'attributes',
+        'budget',
+        'target_cost',
     ];
 
     protected $casts = [

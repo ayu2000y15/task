@@ -38,6 +38,96 @@
         </div>
     </div>
 
+    {{-- ▼▼▼ コスト進捗バーと警告 ここから ▼▼▼ --}}
+    @php
+        $currentTotalCost = $project->characters->sum(function ($char) {
+            return $char->costs->sum('amount'); // Costモデルのamountカラムを合計
+        });
+        $budget = $project->budget ?? 0;
+        $targetCost = $project->target_cost ?? 0;
+    @endphp
+
+    <div class="mb-6 p-4 bg-white dark:bg-gray-800 shadow rounded-lg">
+        <h6 class="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-1">コスト進捗</h6>
+        @if($budget > 0)
+            <div class="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-2">
+                <span>0円</span>
+                <span class="font-semibold">予算: {{ number_format($budget) }}円</span>
+            </div>
+            <div class="w-full bg-gray-300 dark:bg-gray-600 rounded-full h-6 relative flex items-center">
+                @php
+                    $currentCostPercentage = $budget > 0 ? ($currentTotalCost / $budget) * 100 : 0;
+                    // バーの表示は予算の100%を上限とする。超過分はテキストや警告で示す。
+                    $displayCurrentCostPercentage = min($currentCostPercentage, 100);
+
+                    $barColorClass = 'bg-green-500'; // デフォルト緑
+
+                    if ($currentTotalCost > $budget) {
+                        $barColorClass = 'bg-red-600'; // 予算超過
+                    } elseif ($targetCost > 0 && $currentTotalCost > $targetCost) {
+                        $barColorClass = 'bg-yellow-500'; // 目標コスト超過
+                    }
+                @endphp
+
+                {{-- 実績コストバー --}}
+                <div class="{{ $barColorClass }} h-full rounded-l-full" style="width: {{ $displayCurrentCostPercentage }}%;">
+                    {{-- バーが非常に短い場合でもテキストが見えるように、バーの直後に配置 --}}
+                </div>
+
+                {{-- 実績コストテキスト (バーの右側、またはバーが短い場合はバーの外側右に表示) --}}
+                <div class="absolute right-2 h-full flex items-center">
+                    <span class="font-semibold text-xs whitespace-nowrap text-gray-800 dark:text-gray-200">実績: {{ number_format($currentTotalCost) }}円</span>
+                </div>
+
+
+                {{-- 目標コストマーカー --}}
+                @if($targetCost > 0 && $targetCost <= $budget)
+                    @php
+                        $targetCostMarkerPosition = ($targetCost / $budget) * 100;
+                        $targetCostMarkerPosition = max(0, min($targetCostMarkerPosition, 100)); // 0-100%の範囲に収める
+                    @endphp
+                    <div class="absolute top-0 h-full border-r-2 border-dashed border-blue-700 dark:border-blue-400"
+                         style="left: {{ $targetCostMarkerPosition }}%;"
+                         title="目標コスト: {{ number_format($targetCost) }}円">
+                         <span class="absolute -top-5 left-1/2 -translate-x-1/2 text-xs text-blue-700 dark:text-blue-400 whitespace-nowrap bg-white dark:bg-gray-800 px-1 rounded shadow">目標</span>
+                    </div>
+                @elseif($targetCost > 0 && $targetCost > $budget)
+                    <div class="absolute top-0 h-full border-r-2 border-dashed border-orange-500 dark:border-orange-400"
+                         style="left: 100%; margin-left: 2px;"
+                         title="目標コスト(予算超過): {{ number_format($targetCost) }}円">
+                         <span class="absolute -top-5 left-0 text-xs text-orange-500 dark:text-orange-400 whitespace-nowrap bg-white dark:bg-gray-800 px-1 rounded shadow">目標(超過)</span>
+                    </div>
+                @endif
+            </div>
+
+            @if ($currentTotalCost > $budget)
+                <p class="text-xs text-red-600 dark:text-red-400 mt-1 text-right">
+                    予算を {{ number_format($currentTotalCost - $budget) }}円 超過しています。
+                </p>
+            @endif
+
+            {{-- 警告メッセージ --}}
+            @if($currentTotalCost > $budget)
+                <div class="mt-3 p-3 text-sm text-red-700 bg-red-100 rounded-md dark:bg-red-900 dark:text-red-200 border border-red-300 dark:border-red-700">
+                    <i class="fas fa-exclamation-triangle mr-1"></i>
+                    <strong>重大な警告:</strong> 現在のコスト ({{ number_format($currentTotalCost) }}円) が予算 ({{ number_format($budget) }}円) を超過しています！
+                </div>
+            @elseif($targetCost > 0 && $currentTotalCost > $targetCost)
+                <div class="mt-3 p-3 text-sm text-yellow-700 bg-yellow-100 rounded-md dark:bg-yellow-900 dark:text-yellow-200 border border-yellow-300 dark:border-yellow-700">
+                    <i class="fas fa-exclamation-circle mr-1"></i>
+                    <strong>警告:</strong> 現在のコスト ({{ number_format($currentTotalCost) }}円) が目標コスト ({{ number_format($targetCost) }}円) を超過しています。
+                </div>
+            @endif
+        @else
+            <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">予算が設定されていません。コスト進捗を表示するには、案件編集画面から予算を設定してください。</p>
+            {{-- 予算未設定でも現在のコストは表示する --}}
+            <p class="text-sm text-gray-700 dark:text-gray-300 mt-1">
+                現在のコスト: {{ number_format($currentTotalCost) }}円
+            </p>
+        @endif
+    </div>
+    {{-- ▲▲▲ コスト進捗バーと警告 ここまで ▲▲▲ --}}
+
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div class="lg:col-span-1 space-y-6">
             {{-- 案件情報カード (変更なし) --}}
