@@ -39,6 +39,7 @@
     </div>
 
     {{-- ▼▼▼ コスト進捗バーと警告 ここから ▼▼▼ --}}
+    @can('manageCosts', $project)
     @php
         $currentTotalCost = $project->characters->sum(function ($char) {
             return $char->costs->sum('amount'); // Costモデルのamountカラムを合計
@@ -126,6 +127,7 @@
             </p>
         @endif
     </div>
+    @endcan
     {{-- ▲▲▲ コスト進捗バーと警告 ここまで ▲▲▲ --}}
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
