@@ -257,52 +257,75 @@ class SalesToolController extends Controller
      * Send the composed email.
      * 作成されたメールを送信（またはキューイング）します。
      */
+    /**
+     * Send the composed email.
+     * 作成されたメールを送信（またはキューイング）します。
+     */
     public function sendEmail(Request $request)
     {
         $this->authorize(self::SALES_TOOL_ACCESS_PERMISSION);
 
-        // ... (バリデーション、購読者取得、設定値取得は前回と同様) ...
-        $validatedData = $request->validate([ /* ... */]);
-        $emailList = EmailList::findOrFail($validatedData['email_list_id']);
-        $subscribers = $emailList->subscribers()->where('status', 'subscribed')->get();
+        $validatedData = $request->validate([
+            'subject' => 'required|string|max:255',
+            'body_html' => 'required|string',
+            'email_list_id' => 'required|exists:email_lists,id',
+            'sender_name' => 'nullable|string|max:255',
+            'sender_email' => 'required|email|max:255',
+        ]);
 
-        if ($subscribers->isEmpty()) {
+        $emailList = EmailList::findOrFail($validatedData['email_list_id']);
+        // ステータスが 'subscribed' の購読者のみを取得 (ここではまだクエリビルダ)
+        $subscribersQuery = $emailList->subscribers()->where('status', 'subscribed');
+
+        if ($subscribersQuery->doesntExist()) { // 実際に取得せずに存在確認
             return redirect()->back()->withInput()->with('error', '選択されたメールリストに送信可能な購読者がいません。');
         }
 
-        $maxEmailsPerMinute = SalesToolSetting::getSetting('max_emails_per_minute', 60);
-        $delayBetweenEmails = $maxEmailsPerMinute > 0 ? max(1, round(60 / $maxEmailsPerMinute)) : 1;
+        // --- 設定値の取得 ---
+        $maxEmailsPerMinute = SalesToolSetting::getSetting('max_emails_per_minute', 60); // 1分あたりの最大メール数
+        $delayBetweenEmails = 0;
+        if ($maxEmailsPerMinute > 0) {
+            $delayBetweenEmails = round(60 / $maxEmailsPerMinute);
+            $delayBetweenEmails = max(1, $delayBetweenEmails); // 最低でも1秒は空けるなど (任意)
+        } else {
+            $maxEmailsPerMinute = 60; // フォールバック
+            $delayBetweenEmails = 1;
+            Log::warning('max_emails_per_minute setting is invalid or not set, using default 60 emails/min.');
+        }
 
         $senderEmail = $validatedData['sender_email'];
         $senderName = $validatedData['sender_name'] ?? config('mail.from.name');
         $subject = $validatedData['subject'];
         $bodyHtml = $validatedData['body_html'];
 
+        // SentEmailレコードを作成
         $sentEmailRecord = SentEmail::create([
             'subject' => $subject,
             'body_html' => $bodyHtml,
             'email_list_id' => $emailList->id,
             'sender_email' => $senderEmail,
             'sender_name' => $senderName,
-            'sent_at' => now(), // 送信指示日時
-            'status' => 'queuing',
+            'sent_at' => now(), // 送信指示日時として記録
+            'status' => 'queuing', // 初期ステータスをキュー投入中に
         ]);
 
         $totalQueuedCount = 0;
         $blacklistedCount = 0;
         $blacklistedEmails = BlacklistEntry::pluck('email')->all();
-        $currentCumulativeDelay = 0;
+        $currentCumulativeDelay = 0; // 累積遅延時間 (秒)
+
+        // 購読者を実際に取得してループ処理
+        $subscribers = $subscribersQuery->get();
 
         foreach ($subscribers as $subscriber) {
             if (in_array($subscriber->email, $blacklistedEmails)) {
                 $blacklistedCount++;
                 Log::info("Mail to {$subscriber->email} skipped (blacklisted) for SentEmail ID {$sentEmailRecord->id}.");
-                // ★ ブラックリストによるスキップをSentEmailLogに記録
                 SentEmailLog::create([
                     'sent_email_id' => $sentEmailRecord->id,
                     'subscriber_id' => $subscriber->id,
                     'recipient_email' => $subscriber->email,
-                    'status' => 'skipped_blacklist', // 新しいステータス
+                    'status' => 'skipped_blacklist',
                     'processed_at' => now(),
                 ]);
                 continue;
@@ -313,47 +336,44 @@ class SalesToolController extends Controller
                 Mail::to($subscriber->email, $subscriber->name)
                     ->later(now()->addSeconds($currentCumulativeDelay), $mailable->from($senderEmail, $senderName));
 
-                // ★ キュー投入時にSentEmailLogに記録
                 SentEmailLog::create([
                     'sent_email_id' => $sentEmailRecord->id,
                     'subscriber_id' => $subscriber->id,
                     'recipient_email' => $subscriber->email,
-                    'status' => 'queued', // キュー投入済み
-                    // processed_at はキューワーカーが実際に処理を開始したときに更新するのが理想
+                    'status' => 'queued',
                 ]);
 
                 $totalQueuedCount++;
                 $currentCumulativeDelay += $delayBetweenEmails;
             } catch (\Exception $e) {
                 Log::error("Mail queueing failed for {$subscriber->email} for SentEmail ID {$sentEmailRecord->id}: " . $e->getMessage());
-                // ★ キューイング失敗もSentEmailLogに記録
                 SentEmailLog::create([
                     'sent_email_id' => $sentEmailRecord->id,
                     'subscriber_id' => $subscriber->id,
                     'recipient_email' => $subscriber->email,
                     'status' => 'queue_failed',
-                    'error_message' => Str::limit($e->getMessage(), 250), // エラーメッセージを記録
+                    'error_message' => Str::limit($e->getMessage(), 1000), // エラーメッセージを適切な長さに制限
                     'processed_at' => now(),
                 ]);
             }
         }
 
-        // ... (SentEmailレコードのステータス更新とリダイレクト処理は前回と同様) ...
-        // SentEmailのステータス更新ロジックは、SentEmailLogの集計に基づいてより精緻にできる
+        // SentEmailレコードの最終ステータス更新
         if ($totalQueuedCount > 0) {
             $sentEmailRecord->status = 'queued'; // 少なくとも1つキューに入った
-        } elseif ($blacklistedCount > 0 && $totalQueuedCount === 0 && !$subscribers->isEmpty()) {
-            $sentEmailRecord->status = 'all_blacklisted_or_failed'; // 全員ブラックリストまたはキューイング失敗
+        } elseif ($blacklistedCount > 0 && $totalQueuedCount === 0 && !$subscribers->isEmpty()) { // $subscribers->isEmpty() は上でチェック済みだが念のため
+            $sentEmailRecord->status = 'all_blacklisted_or_failed';
         } elseif (!$subscribers->isEmpty() && $totalQueuedCount === 0) {
-            $sentEmailRecord->status = 'all_queue_failed'; // キュー投入に全て失敗
-        } else {
+            $sentEmailRecord->status = 'all_queue_failed';
+        } else { // $subscribers->isEmpty() のケース (通常はここまで来ないが)
             $sentEmailRecord->status = 'no_recipients';
         }
-        // $sentEmailRecord->total_recipients = $subscribers->count(); // 総対象者数
-        // $sentEmailRecord->successfully_queued_recipients = $totalQueuedCount; // 実際にキューに入った数
+        // 将来的に総対象者数や実際にキューに入った数をSentEmailに記録する場合
+        // $sentEmailRecord->total_recipients_attempted = $subscribers->count();
+        // $sentEmailRecord->successfully_queued_recipients = $totalQueuedCount;
         $sentEmailRecord->save();
 
-        // ... (メッセージ作成とリダイレクトは前回と同様) ...
+        // ユーザーへのフィードバックメッセージ作成
         $messageParts = [];
         if ($totalQueuedCount > 0) {
             $messageParts[] = "{$totalQueuedCount}件のメールを送信キューに追加しました。";
@@ -361,17 +381,27 @@ class SalesToolController extends Controller
         if ($blacklistedCount > 0) {
             $messageParts[] = "{$blacklistedCount}件のメールアドレスがブラックリストのためスキップしました。";
         }
-        // (キューイング失敗件数もメッセージに含める場合は、別途カウントが必要)
+        // キューイング失敗件数もメッセージに含める場合は、別途カウントと条件分岐が必要
+        $failedQueueingCount = $subscribers->count() - $totalQueuedCount - $blacklistedCount;
+        if ($failedQueueingCount > 0) {
+            $messageParts[] = "{$failedQueueingCount}件のメールがキュー投入に失敗しました。詳細はログを確認してください。";
+        }
 
         if (empty($messageParts) && !$subscribers->isEmpty()) {
             $messageParts[] = "メールのキューイング処理が完了しましたが、実際にキューに追加されたメールはありませんでした（ブラックリスト、またはキューイングエラーの可能性があります）。";
-        } elseif (empty($messageParts)) {
+        } elseif (empty($messageParts) && $subscribers->isEmpty()) { // このケースは最初の分岐で処理されるはず
             $messageParts[] = "送信対象の購読者が見つかりませんでした。";
         }
-        $finalMessage = implode(' ', $messageParts) . ($totalQueuedCount > 0 ? "設定された間隔で順次送信されます。" : "");
+
+        $finalMessage = implode(' ', $messageParts);
+        if ($totalQueuedCount > 0) {
+            $finalMessage .= " 設定された間隔で順次送信されます。";
+        } elseif (empty($finalMessage)) { // 全ての分岐でメッセージが生成されなかった場合のフォールバック
+            $finalMessage = "メール送信処理は実行されましたが、特筆すべき結果はありませんでした。";
+        }
 
         return redirect()->route('tools.sales.index')
-            ->with('success', $finalMessage);
+            ->with('success', $finalMessage); // メッセージタイプは常に success で良いか検討
     }
 
     /**
