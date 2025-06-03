@@ -25,11 +25,26 @@ function updateTaskRowUI(row, newStatus, newProgress) {
     // アイコン更新
     const iconWrapper = row.querySelector(".task-status-icon-wrapper");
     if (iconWrapper) {
-        const taskNameCell = row.querySelector("td:nth-child(2)"); // 工程名セル
-        // マイルストーンやフォルダは専用アイコンなので、通常のステータスアイコンは更新しない
-        const isMilestone = iconWrapper.querySelector("i.fa-flag");
-        const isFolder = iconWrapper.querySelector("i.fa-folder");
-        if (!isMilestone && !isFolder) {
+        // マイルストーンやフォルダかどうかの判定をより堅牢に
+        let isSpecialTask = false;
+        // tr の場合、td経由でアイコンをチェック
+        if (row.tagName.toLowerCase() === "tr") {
+            const taskNameCell = row.querySelector("td:nth-child(2)"); // 工程名セルを想定
+            if (taskNameCell) {
+                isSpecialTask = !!(
+                    taskNameCell.querySelector("i.fa-flag") ||
+                    taskNameCell.querySelector("i.fa-folder")
+                );
+            }
+        } else if (row.tagName.toLowerCase() === "li") {
+            // li の場合、iconWrapper 自体が特殊アイコンを持っているか、または別の方法で判定
+            isSpecialTask = !!(
+                iconWrapper.querySelector("i.fa-flag") ||
+                iconWrapper.querySelector("i.fa-folder")
+            );
+        }
+
+        if (!isSpecialTask) {
             iconWrapper.innerHTML = getStatusIconHtml(newStatus);
         }
     }
@@ -51,13 +66,28 @@ function initializeTaskCheckboxes() {
 
     checkboxes.forEach((checkbox) => {
         checkbox.addEventListener("change", function () {
-            const row = this.closest("tr");
-            if (!row) return;
+            // ★ 修正点: 'tr' に加えて 'li' も検索対象にする
+            const row = this.closest("tr, li");
+            if (!row) {
+                console.warn(
+                    "Checkbox event couldn't find parent <tr> or <li>",
+                    this
+                );
+                return;
+            }
 
             const taskId = row.dataset.taskId;
             const projectId = row.dataset.projectId;
             const action = this.dataset.action;
             const isChecked = this.checked;
+
+            // taskId や projectId がない場合は処理を中断
+            if (!taskId || !projectId) {
+                console.warn("Missing taskId or projectId on row:", row);
+                // チェックボックスの状態を元に戻す (任意)
+                this.checked = !isChecked;
+                return;
+            }
 
             const inProgressCheckbox = row.querySelector(
                 ".task-status-in-progress"
@@ -71,7 +101,6 @@ function initializeTaskCheckboxes() {
             let currentProgressOnRow = parseInt(row.dataset.progress || "0");
             if (isNaN(currentProgressOnRow)) currentProgressOnRow = 0;
 
-            // 1. UI上のチェックボックスの状態をまず確定させる
             if (isChecked) {
                 if (action === "set-in-progress") {
                     if (completedCheckbox) completedCheckbox.checked = false;
@@ -80,35 +109,31 @@ function initializeTaskCheckboxes() {
                 }
             }
 
-            // 2. newStatus と newProgress を決定
             if (inProgressCheckbox && inProgressCheckbox.checked) {
                 newStatus = "in_progress";
                 if (currentProgressOnRow > 0 && currentProgressOnRow < 100) {
                     newProgress = currentProgressOnRow;
                 } else if (currentProgressOnRow === 100) {
-                    // 完了から進行中に戻した場合
                     newProgress = 90;
                 } else {
-                    // 未着手から進行中、または不明な状態から
                     newProgress = 10;
                 }
             } else if (completedCheckbox && completedCheckbox.checked) {
                 newStatus = "completed";
                 newProgress = 100;
             } else {
-                // 両方チェックされていない場合
                 newStatus = "not_started";
                 newProgress = 0;
             }
 
-            // 元のチェック状態を保存（エラー時用）
             const originalInProgressChecked = inProgressCheckbox
                 ? inProgressCheckbox.checked
                 : false;
             const originalCompletedChecked = completedCheckbox
                 ? completedCheckbox.checked
                 : false;
-            // 送信直前に、現在のチェック状態を UI に反映
+
+            // サーバー送信前のUI状態確定
             if (inProgressCheckbox)
                 inProgressCheckbox.checked = newStatus === "in_progress";
             if (completedCheckbox)
@@ -122,25 +147,38 @@ function initializeTaskCheckboxes() {
                 .then((response) => {
                     if (response.data.success) {
                         updateTaskRowUI(row, newStatus, newProgress);
+                        // ホーム画面（ToDoリストの見出しがあるページ）かどうかを判定
+                        const isHomePage =
+                            !!document.querySelector("h1.text-2xl") &&
+                            (!!document.querySelector("h5.text-lg") ||
+                                !!document.querySelector("h2.text-xl")); // より汎用的なホーム判定
+                        if (
+                            isHomePage &&
+                            (newStatus === "completed" ||
+                                newStatus === "cancelled" ||
+                                newStatus === "on_hold" ||
+                                newStatus === "not_started")
+                        ) {
+                            // ToDoリストや期限間近のリストから消えたり移動したりする可能性のあるステータス変更時はリロード
+                            location.reload();
+                        }
                     } else {
                         alert(
                             "更新に失敗: " +
                                 (response.data.message || "不明なエラー")
                         );
-                        // UIを元に戻す
                         if (inProgressCheckbox)
                             inProgressCheckbox.checked =
                                 originalInProgressChecked;
                         if (completedCheckbox)
                             completedCheckbox.checked =
                                 originalCompletedChecked;
-                        // row UIも元のステータスに戻す必要がある場合があるが、一旦チェックボックスのみ
+                        // アイコンも元に戻す必要があれば、元のステータスを保持しておき updateTaskRowUI を呼ぶ
                     }
                 })
                 .catch((error) => {
                     console.error("Error updating task via checkbox:", error);
                     alert("更新中にエラーが発生しました。");
-                    // UIを元に戻す
                     if (inProgressCheckbox)
                         inProgressCheckbox.checked = originalInProgressChecked;
                     if (completedCheckbox)
@@ -151,7 +189,6 @@ function initializeTaskCheckboxes() {
 }
 
 function initializeTaskStatusUpdater() {
-    // (既存の関数 - 変更なし)
     const selects = document.querySelectorAll(".task-status-select");
     selects.forEach((select) => {
         const row = select.closest("tr, li");
@@ -181,8 +218,7 @@ function initializeTaskStatusUpdater() {
                 else if (currentProgress === 100) newProgress = 90;
                 else newProgress = currentProgress > 0 ? currentProgress : 10;
             } else {
-                // on_hold など
-                newProgress = currentProgress; // 基本的には現在の進捗を維持
+                newProgress = currentProgress;
             }
 
             axios
@@ -199,7 +235,6 @@ function initializeTaskStatusUpdater() {
                                 newStatusFromSelect,
                                 newProgress
                             );
-                            // チェックボックスの状態も同期
                             const inProgressCheckbox = currentRow.querySelector(
                                 ".task-status-in-progress"
                             );
@@ -215,15 +250,18 @@ function initializeTaskStatusUpdater() {
                                     newStatusFromSelect === "completed";
                             }
                         }
-                        // ホーム画面（ToDoリストの見出しがあるページ）かどうかを判定
                         const isHomePage =
-                            !!document.querySelector("h2.text-xl");
+                            !!document.querySelector("h1.text-2xl") &&
+                            (!!document.querySelector("h5.text-lg") ||
+                                !!document.querySelector("h2.text-xl"));
                         if (
                             isHomePage &&
                             (newStatusFromSelect === "completed" ||
-                                newStatusFromSelect === "cancelled")
+                                newStatusFromSelect === "cancelled" ||
+                                newStatusFromSelect === "on_hold" || // 保留中もリスト移動の可能性
+                                newStatusFromSelect === "not_started") // 未着手もリスト移動の可能性
                         ) {
-                            location.reload(); // 完了やキャンセル時はホームのカンバンから消える可能性があるのでリロード
+                            location.reload();
                         }
                     } else {
                         alert(
@@ -242,9 +280,8 @@ function initializeTaskStatusUpdater() {
         });
     });
 }
-
+// initializeEditableAssignee と initializeFolderFileToggle は変更なし
 function initializeEditableAssignee() {
-    // (既存の関数 - 変更なし)
     const cells = document.querySelectorAll(
         '.editable-cell[data-field="assignee"]'
     );
@@ -260,8 +297,20 @@ function initializeEditableAssignee() {
             if (this.querySelector("input.assignee-edit-input")) return;
 
             const currentAssignee = this.dataset.originalValue || "";
-            const taskId = this.dataset.taskId;
-            const projectId = this.dataset.projectId;
+            const taskId = this.dataset.taskId; // trから取得するよう変更の必要性検討
+            const projectId = this.dataset.projectId; // trから取得するよう変更の必要性検討
+
+            if (!taskId || !projectId) {
+                // taskId, projectId が cell の dataset になければ row から取得
+                const parentRow = this.closest("tr");
+                if (parentRow) {
+                    if (!taskId) this.dataset.taskId = parentRow.dataset.taskId;
+                    if (!projectId)
+                        this.dataset.projectId = parentRow.dataset.projectId;
+                }
+            }
+            const finalTaskId = this.dataset.taskId;
+            const finalProjectId = this.dataset.projectId;
 
             this.innerHTML = `<input type="text" value="${currentAssignee}" class="assignee-edit-input form-input w-full text-sm p-1 border border-blue-500 rounded dark:bg-gray-700 dark:text-gray-200" placeholder="担当者名">`;
             const input = this.querySelector("input.assignee-edit-input");
@@ -279,10 +328,14 @@ function initializeEditableAssignee() {
                 cell.innerHTML = newAssignee || "-";
                 cell.dataset.originalValue = newAssignee;
 
-                if (newAssignee !== currentAssignee) {
+                if (
+                    newAssignee !== currentAssignee &&
+                    finalTaskId &&
+                    finalProjectId
+                ) {
                     axios
                         .post(
-                            `/projects/${projectId}/tasks/${taskId}/assignee`,
+                            `/projects/${finalProjectId}/tasks/${finalTaskId}/assignee`,
                             {
                                 assignee: newAssignee,
                             }
@@ -327,7 +380,6 @@ function initializeEditableAssignee() {
 }
 
 function initializeFolderFileToggle() {
-    // (既存の関数 - 変更なし)
     const buttons = document.querySelectorAll(".toggle-folder-files");
     buttons.forEach((button) => {
         const targetId = button.dataset.target;
@@ -354,8 +406,8 @@ function initializeFolderFileToggle() {
 
 // Initialize features specific to tasks index page
 try {
-    initializeTaskStatusUpdater(); // 既存のセレクトボックス用
-    initializeTaskCheckboxes(); // ★ 新しいチェックボックス用を追加
+    initializeTaskStatusUpdater();
+    initializeTaskCheckboxes(); // ★ 修正箇所
     initializeEditableAssignee();
     initializeFolderFileToggle();
 } catch (e) {

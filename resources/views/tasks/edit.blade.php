@@ -73,7 +73,6 @@
                 <span class="text-lg text-gray-500 dark:text-gray-400 ml-2"> (案件:
                     {{ Str::limit($project->title, 20) }})</span>
             </h1>
-            {{-- ★ ボタン配置をページ上部右側に変更 --}}
             <div>
                 <a href="{{ route('projects.show', $project) }}"
                     class="inline-flex items-center px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md font-semibold text-xs text-gray-700 dark:text-gray-200 uppercase tracking-widest shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 disabled:opacity-25 transition ease-in-out duration-150 mr-2">
@@ -103,24 +102,56 @@
             </div>
         @endif
 
+        @php
+            $taskType = 'task';
+            if ($task->is_milestone) {
+                $taskType = 'milestone';
+            } elseif ($task->is_folder) {
+                $taskType = 'folder';
+            } elseif (!$task->start_date && !$task->end_date && !$task->is_milestone && !$task->is_folder) {
+                $taskType = 'todo_task';
+            }
+
+            $displayDurationValue = old('duration_value');
+            $displayDurationUnit = old('duration_unit', 'days');
+
+            if (!$errors->any() && $task->duration !== null) {
+                $totalMinutes = $task->duration;
+                if ($totalMinutes == 0 && $taskType !== 'milestone') {
+                    $displayDurationValue = 0;
+                    $displayDurationUnit = 'minutes';
+                } elseif ($taskType === 'milestone') {
+                    $displayDurationValue = 0;
+                    $displayDurationUnit = 'minutes';
+                } elseif ($totalMinutes > 0) {
+                    if ($totalMinutes % (24 * 60) === 0) { // 1日24時間で割り切れる
+                        $displayDurationValue = $totalMinutes / (24 * 60);
+                        $displayDurationUnit = 'days';
+                    } elseif ($totalMinutes % 60 === 0) { // 1時間で割り切れる
+                        $displayDurationValue = $totalMinutes / 60;
+                        $displayDurationUnit = 'hours';
+                    } else {
+                        $displayDurationValue = $totalMinutes;
+                        $displayDurationUnit = 'minutes';
+                    }
+                }
+            } elseif (is_null($displayDurationValue) && $taskType === 'task') {
+                 $displayDurationValue = 1;
+                 $displayDurationUnit = 'days';
+            } elseif (is_null($displayDurationValue)) {
+                $displayDurationValue = 0;
+            }
+            $isDurationDisabled = $taskType === 'milestone' || $taskType === 'todo_task' || $taskType === 'folder';
+        @endphp
+
         <div class="max-w-3xl mx-auto bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
             <div class="p-6 sm:p-8">
                 <form action="{{ route('projects.tasks.update', [$project, $task]) }}" method="POST" id="task-edit-form">
                     @csrf
                     @method('PUT')
                     <div class="space-y-6">
-                        {{-- 工程種別 (編集不可) --}}
                         <div>
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">工程種別</label>
-                            @php
-                                $taskType = 'task';
-                                if ($task->is_milestone)
-                                    $taskType = 'milestone';
-                                elseif ($task->is_folder)
-                                    $taskType = 'folder';
-                                elseif (!$task->start_date && !$task->end_date && !$task->is_milestone && !$task->is_folder)
-                                    $taskType = 'todo_task';
-                            @endphp
                             <div class="p-2 bg-gray-100 dark:bg-gray-700 rounded-md text-sm text-gray-600 dark:text-gray-300">
                                 @switch($taskType)
                                     @case('milestone')
@@ -138,7 +169,6 @@
                             </div>
                         </div>
 
-                        {{-- 工程名 --}}
                         <div>
                             <x-input-label for="name_individual" value="工程名" :required="true" />
                             <x-text-input type="text" id="name_individual" name="name" class="mt-1 block w-full"
@@ -146,8 +176,7 @@
                             <x-input-error :messages="$errors->get('name')" class="mt-2" />
                         </div>
 
-                        {{-- 所属先キャラクター (フォルダの場合は非表示) --}}
-                        <div id="character_id_wrapper_individual" {{ $task->is_folder ? 'style="display:none;"' : '' }}>
+                        <div id="character_id_wrapper_individual" {{ $taskType === 'folder' ? 'style="display:none;"' : '' }}>
                             <x-select-input label="所属先キャラクター" name="character_id" id="character_id_individual"
                                 :options="$project->characters->pluck('name', 'id')"
                                 :selected="old('character_id', $task->character_id)"
@@ -156,8 +185,7 @@
                             <x-input-error :messages="$errors->get('character_id')" class="mt-2" />
                         </div>
 
-                        {{-- ファイル管理セクション (フォルダの場合のみ表示) --}}
-                        @if($task->is_folder)
+                        @if($taskType === 'folder')
                             @can('fileView', $task)
                                 <div id="file-management-section" class="mb-3">
                                     <hr class="my-4 dark:border-gray-600">
@@ -183,7 +211,6 @@
                             @endcan
                         @endif
 
-                        {{-- メモ --}}
                         <div>
                             <x-input-label for="description_individual" value="メモ" />
                             <x-textarea-input id="description_individual" name="description" class="mt-1 block w-full"
@@ -191,49 +218,56 @@
                             <x-input-error :messages="$errors->get('description')" class="mt-2" />
                         </div>
 
-                        {{-- 日付・工数関連フィールド (フォルダの場合は非表示・無効化) --}}
-                        <div id="task-fields-individual" class="space-y-4" {{ $task->is_folder ? 'style="display:none;"' : '' }}>
+                        <div id="task-fields-individual" class="space-y-4" {{ $taskType === 'folder' ? 'style="display:none;"' : '' }}>
                             <div class="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-4">
                                 <div>
-                                    <x-input-label for="start_date_individual" value="開始日" />
-                                    <x-text-input type="date" id="start_date_individual" name="start_date"
+                                    <x-input-label for="start_date_individual" value="開始日時" />
+                                    <x-text-input type="datetime-local" id="start_date_individual" name="start_date"
                                         class="mt-1 block w-full"
-                                        :value="old('start_date', optional($task->start_date)->format('Y-m-d'))"
-                                        :disabled="$taskType == 'milestone' || $taskType == 'todo_task' || $task->is_folder"
+                                        :value="old('start_date', optional($task->start_date)->format('Y-m-d\TH:i'))"
+                                        :disabled="$isDurationDisabled"
                                         :hasError="$errors->has('start_date')" />
                                     <x-input-error :messages="$errors->get('start_date')" class="mt-2" />
                                 </div>
                                 <div>
-                                    <x-input-label for="duration_individual" value="工数(日)" />
-                                    <x-text-input type="number" id="duration_individual" name="duration"
-                                        class="mt-1 block w-full"
-                                        :value="old('duration', $task->duration)" min="1"
-                                        :disabled="$taskType == 'milestone' || $taskType == 'todo_task' || $task->is_folder"
-                                        :hasError="$errors->has('duration')" />
-                                    <x-input-error :messages="$errors->get('duration')" class="mt-2" />
+                                    <x-input-label for="duration_value" value="工数" />
+                                    <div class="flex items-center mt-1 space-x-2">
+                                        <x-text-input type="number" id="duration_value" name="duration_value" class="block w-1/2"
+                                            :value="$displayDurationValue" min="0" step="any"
+                                            :disabled="$isDurationDisabled"
+                                            :hasError="$errors->has('duration_value')" />
+                                        <select name="duration_unit" id="duration_unit"
+                                                class="block w-1/2 mt-0 form-select rounded-md shadow-sm border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:focus:border-indigo-500 dark:focus:ring-indigo-500 {{ $isDurationDisabled ? 'bg-gray-100 dark:bg-gray-800 cursor-not-allowed' : '' }} {{ $errors->has('duration_unit') ? 'border-red-500' : '' }}"
+                                                {{ $isDurationDisabled ? 'disabled' : '' }}>
+                                            <option value="days" @if($displayDurationUnit == 'days') selected @endif>日</option>
+                                            <option value="hours" @if($displayDurationUnit == 'hours') selected @endif>時間</option>
+                                            <option value="minutes" @if($displayDurationUnit == 'minutes') selected @endif>分</option>
+                                        </select>
+                                    </div>
+                                    <x-input-error :messages="$errors->get('duration_value')" class="mt-2" />
+                                    <x-input-error :messages="$errors->get('duration_unit')" class="mt-2" />
                                 </div>
                                 <div>
-                                    <x-input-label for="end_date_individual" value="終了日" />
-                                    <x-text-input type="date" id="end_date_individual" name="end_date"
+                                    <x-input-label for="end_date_individual" value="終了日時" />
+                                    <x-text-input type="datetime-local" id="end_date_individual" name="end_date"
                                         class="mt-1 block w-full"
-                                        :value="old('end_date', optional($task->end_date)->format('Y-m-d'))"
-                                        :disabled="$taskType == 'milestone' || $taskType == 'todo_task' || $task->is_folder"
+                                        :value="old('end_date', optional($task->end_date)->format('Y-m-d\TH:i'))"
+                                        :disabled="$isDurationDisabled"
                                         :hasError="$errors->has('end_date')" />
                                     <x-input-error :messages="$errors->get('end_date')" class="mt-2" />
                                 </div>
                             </div>
                         </div>
 
-                        {{-- 担当者 (フォルダの場合は非表示) --}}
-                        <div {{ $task->is_folder ? 'style="display:none;"' : '' }}>
+                        <div id="assignee_wrapper_individual" {{ $taskType === 'folder' ? 'style="display:none;"' : '' }}>
                             <x-input-label for="assignee_individual" value="担当者" />
                             <x-text-input type="text" id="assignee_individual" name="assignee" class="mt-1 block w-full"
-                                :value="old('assignee', $task->assignee)" :hasError="$errors->has('assignee')" />
+                                :value="old('assignee', $task->assignee)" :hasError="$errors->has('assignee')"
+                                :disabled="$taskType === 'folder'" />
                             <x-input-error :messages="$errors->get('assignee')" class="mt-2" />
                         </div>
 
-                        {{-- 親工程 (フォルダの場合は非表示) --}}
-                        <div {{ $task->is_folder ? 'style="display:none;"' : '' }}>
+                        <div id="parent_id_wrapper_individual" {{ $taskType === 'folder' ? 'style="display:none;"' : '' }}>
                              @php
                                 $parentTaskOptions = $project->tasks
                                     ->where('is_folder', true)
@@ -248,12 +282,12 @@
                                 :options="$parentTaskOptions"
                                 :selected="old('parent_id', $task->parent_id)"
                                 emptyOptionText="なし"
-                                :hasError="$errors->has('parent_id')" />
+                                :hasError="$errors->has('parent_id')"
+                                :disabled="$taskType === 'folder'" />
                            <x-input-error :messages="$errors->get('parent_id')" class="mt-2" />
                         </div>
 
-                        {{-- ステータス (フォルダの場合は非表示) --}}
-                        <div id="status-field-individual" {{ $task->is_folder ? 'style="display:none;"' : '' }}>
+                        <div id="status-field-individual" {{ $taskType === 'folder' ? 'style="display:none;"' : '' }}>
                             <x-select-input label="ステータス" name="status" id="status_individual"
                                 :options="['not_started' => '未着手', 'in_progress' => '進行中', 'completed' => '完了', 'on_hold' => '保留中', 'cancelled' => 'キャンセル']"
                                 :selected="old('status', $task->status)"
@@ -262,16 +296,7 @@
                         </div>
                     </div>
 
-                    {{-- ★ フォーム下部のボタン配置を変更 --}}
                     <div class="mt-8 pt-5 border-t border-gray-200 dark:border-gray-700 flex justify-end space-x-3">
-                        {{-- 削除ボタンはページ上部に移動したため、ここからは削除 --}}
-                        {{-- @can('delete', $task)
-                            <button type="button"
-                                class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 text-sm font-medium"
-                                onclick="document.getElementById('delete-task-form').submit();">
-                                <i class="fas fa-trash mr-1"></i> この工程を削除
-                            </button>
-                        @endcan --}}
                         <x-secondary-button as="a" href="{{ route('projects.show', $project) }}">
                             キャンセル
                         </x-secondary-button>
@@ -280,13 +305,180 @@
                         </x-primary-button>
                     </div>
                 </form>
-                {{-- 削除フォームはページ上部に移動したため、ここからは削除（または必要なら維持） --}}
-                {{-- <form id="delete-task-form" action="{{ route('projects.tasks.destroy', [$project, $task]) }}" method="POST"
-                    style="display: none;" onsubmit="return confirm('本当に削除しますか？この工程に関連するすべての子工程も削除されます。');">
-                    @csrf
-                    @method('DELETE')
-                </form> --}}
             </div>
         </div>
     </div>
 @endsection
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const taskType = "{{ $taskType }}"; // BladeからPHP変数を取得
+    const taskFieldsIndividual = document.getElementById('task-fields-individual');
+    const characterIdWrapper = document.getElementById('character_id_wrapper_individual');
+    const statusField = document.getElementById('status-field-individual');
+    const startDateInput = document.getElementById('start_date_individual');
+    const durationValueInput = document.getElementById('duration_value');
+    const durationUnitSelect = document.getElementById('duration_unit');
+    const endDateInput = document.getElementById('end_date_individual');
+    const parentIdSelect = document.getElementById('parent_id_individual');
+    const assigneeInput = document.getElementById('assignee_individual');
+    const assigneeWrapper = document.getElementById('assignee_wrapper_individual');
+    const parentIdWrapper = document.getElementById('parent_id_wrapper_individual');
+
+
+    function setFieldsBasedOnTaskType(currentTaskType) {
+        const isFolder = currentTaskType === 'folder';
+        const isMilestone = currentTaskType === 'milestone';
+        const isTodoTask = currentTaskType === 'todo_task';
+        const isDateTimeDisabled = isFolder || isMilestone || isTodoTask;
+
+        if (taskFieldsIndividual) taskFieldsIndividual.style.display = isFolder ? 'none' : 'block';
+        if (characterIdWrapper) characterIdWrapper.style.display = isFolder ? 'none' : 'block';
+        if (statusField) statusField.style.display = isFolder ? 'none' : 'block';
+
+        if (assigneeWrapper) assigneeWrapper.style.display = isFolder ? 'none' : 'block';
+        if (parentIdWrapper) parentIdWrapper.style.display = isFolder ? 'none' : 'block';
+
+
+        if (startDateInput) startDateInput.disabled = isDateTimeDisabled;
+        if (durationValueInput) durationValueInput.disabled = isDateTimeDisabled;
+        if (durationUnitSelect) durationUnitSelect.disabled = isDateTimeDisabled;
+        if (endDateInput) endDateInput.disabled = isDateTimeDisabled;
+
+        if (assigneeInput) assigneeInput.disabled = isFolder;
+        if (parentIdSelect) parentIdSelect.disabled = isFolder;
+
+
+        if (isMilestone) {
+            if (durationValueInput) durationValueInput.value = 0;
+            if (durationUnitSelect) durationUnitSelect.value = 'minutes';
+            // マイルストーンの場合、終了日時は任意で開始日時と同じにするか、ユーザー入力に任せる
+            // if (endDateInput && startDateInput && startDateInput.value) {
+            //      endDateInput.value = startDateInput.value;
+            // }
+        } else if (isTodoTask || isFolder) {
+            // 期限なしタスクまたはフォルダの場合、日付・工数をクリア
+            if (startDateInput) startDateInput.value = '';
+            if (durationValueInput) durationValueInput.value = '';
+            if (endDateInput) endDateInput.value = '';
+        }
+    }
+    // 初期表示のために呼び出し
+    setFieldsBasedOnTaskType(taskType);
+
+
+    // 開始日時と工数から終了日時を自動計算するリスナー
+    function calculateEndDate() {
+        // 日付・工数フィールドが無効の場合は計算しない
+        if (!startDateInput || startDateInput.disabled ||
+            !durationValueInput || durationValueInput.disabled ||
+            !durationUnitSelect || durationUnitSelect.disabled ||
+            !endDateInput || endDateInput.disabled) {
+            return;
+        }
+
+        const startDateValue = startDateInput.value;
+        const duration = parseFloat(durationValueInput.value);
+        const unit = durationUnitSelect.value;
+
+        if (startDateValue && !isNaN(duration) && duration >= 0 && unit) {
+            const start = new Date(startDateValue);
+            let minutesToAdd = 0;
+
+            if (unit === 'days') {
+                minutesToAdd = duration * 24 * 60; // 1日 = 24時間
+            } else if (unit === 'hours') {
+                minutesToAdd = duration * 60;
+            } else if (unit === 'minutes') {
+                minutesToAdd = duration;
+            }
+
+            const end = new Date(start.getTime() + minutesToAdd * 60000); // 60000ミリ秒 = 1分
+
+            if (!isNaN(end.getTime())) {
+                const year = end.getFullYear();
+                const month = ('0' + (end.getMonth() + 1)).slice(-2);
+                const day = ('0' + end.getDate()).slice(-2);
+                const hours = ('0' + end.getHours()).slice(-2);
+                const minutes = ('0' + end.getMinutes()).slice(-2);
+                endDateInput.value = `${year}-${month}-${day}T${hours}:${minutes}`;
+            } else {
+                // endDateInput.value = ''; // 計算できない場合はクリア（または何もしない）
+            }
+        } else {
+            // endDateInput.value = ''; // 入力が不完全な場合はクリア（または何もしない）
+        }
+    }
+
+    if (startDateInput && durationValueInput && durationUnitSelect && endDateInput) {
+        startDateInput.addEventListener('change', calculateEndDate);
+        durationValueInput.addEventListener('input', calculateEndDate);
+        durationUnitSelect.addEventListener('change', calculateEndDate);
+        // ★ 初期ロード時の自動計算は行わない
+        // if(startDateInput.value && !endDateInput.disabled) calculateEndDate();
+    }
+
+    // Dropzone の初期化 (フォルダの場合のみ)
+    if (taskType === 'folder' && document.getElementById('file-upload-dropzone-edit')) {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        const projectId = document.getElementById('task-form-page').dataset.projectId;
+        const taskId = document.getElementById('task-form-page').dataset.taskId;
+
+        const myDropzone = new Dropzone("#file-upload-dropzone-edit", {
+            url: `/projects/${projectId}/tasks/${taskId}/files`,
+            paramName: "file",
+            maxFilesize: 100, // MB
+            acceptedFiles: "image/*,application/pdf,.doc,.docx,.xls,.xlsx,.zip,.txt",
+            addRemoveLinks: false,
+            headers: { 'X-CSRF-TOKEN': csrfToken },
+            dictDefaultMessage: "<p class='mb-2'>ここにファイルをドラッグ＆ドロップ</p><p class='mb-3 text-xs text-gray-500 dark:text-gray-400'>または</p><button type='button' class='dz-button-bootstrap'><i class='fas fa-folder-open mr-1'></i>ファイルを選択</button>",
+            init: function() {
+                this.on("success", function(file, response) {
+                    if (response.success && response.html) {
+                        document.getElementById('file-list-edit').innerHTML = response.html;
+                        initializeDynamicDeleteButtons();
+                    }
+                    this.removeFile(file);
+                });
+                this.on("error", function(file, message) {
+                    alert("アップロードに失敗しました: " + (message.error || message));
+                    this.removeFile(file);
+                });
+            }
+        });
+
+        function initializeDynamicDeleteButtons() {
+            document.querySelectorAll('.folder-file-delete-btn').forEach(button => {
+                const newButton = button.cloneNode(true);
+                button.parentNode.replaceChild(newButton, button);
+                newButton.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    if (!confirm('このファイルを削除しますか？')) return;
+                    const url = this.dataset.url;
+                    const fileId = this.dataset.fileId;
+                    fetch(url, {
+                        method: 'DELETE',
+                        headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            const fileItem = document.getElementById(`folder-file-item-${fileId}`);
+                            if (fileItem) fileItem.remove();
+                        } else {
+                            alert('ファイルの削除に失敗しました: ' + (data.message || '不明なエラー'));
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error deleting file:', error);
+                        alert('ファイルの削除中にエラーが発生しました。');
+                    });
+                });
+            });
+        }
+        initializeDynamicDeleteButtons(); // 初期ロード時にも実行
+    }
+});
+</script>
+@endpush

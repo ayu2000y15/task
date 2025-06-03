@@ -89,7 +89,7 @@
                         @if(!$task->is_folder && !$task->is_milestone && $task->end_date && $task->end_date->startOfDay() < $now && !in_array($task->status, ['completed', 'cancelled']))
                             <div class="mt-1"><span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-red-100 text-red-800 dark:bg-red-700 dark:text-red-100">期限切れ</span></div>
                         @elseif(!$task->is_folder && !$task->is_milestone && $daysUntilDue !== null && $daysUntilDue >= 0 && $daysUntilDue <= 2 && !in_array($task->status, ['completed', 'cancelled']))
-                            <div class="mt-1"><span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-700 dark:text-yellow-100">あと{{ $daysUntilDue }}日</span></div>
+                            <div class="mt-1"><span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-700 dark:text-yellow-100">あと{{ $daysUntilDue }}分</span></div>
                         @endif
                     </div>
                 </div>
@@ -134,7 +134,7 @@
         <td class="detail-column px-3 py-2.5 text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap editable-cell" data-field="assignee" data-task-id="{{ $task->id }}" data-project-id="{{ $project->id }}" data-current-value="{{ $task->assignee }}">
             <span>{{ $task->assignee ?? '-' }}</span>
         </td>
-        <td class="detail-column px-3 py-2.5 text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">{{ $task->is_folder ? '-' : ($task->duration ? $task->duration . '日' : '-') }}</td>
+        <td class="detail-column px-3 py-2.5 text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">{{ $task->is_folder ? '-' : ($task->duration ? $task->duration . '分' : '-') }}</td>
         @php
             $startDateClass = '';
             $endDateClass = '';
@@ -319,7 +319,7 @@
         <td class="detail-column px-3 py-2.5 text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap editable-cell" data-field="assignee" data-task-id="{{ $task->id }}" data-project-id="{{ $project->id }}" data-current-value="{{ $task->assignee }}">
             <span>{{ $task->assignee ?? '-' }}</span>
         </td>
-        <td class="detail-column px-3 py-2.5 text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">{{ $task->is_folder ? '-' : ($task->duration ? $task->duration . '日' : '-') }}</td>
+        <td class="detail-column px-3 py-2.5 text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">{{ $task->is_folder ? '-' : ($task->duration ? $task->duration . '分' : '-') }}</td>
         @php
             $startDateClass = '';
             $endDateClass = '';

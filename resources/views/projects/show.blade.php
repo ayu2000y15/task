@@ -40,6 +40,7 @@
     </div>
 
     {{-- ▼▼▼ コスト進捗バーと警告 ここから ▼▼▼ --}}
+    @can('manageCosts', $project)
     @php
         $currentTotalCost = $project->characters->sum(function ($char) {
             return $char->costs->sum('amount'); // Costモデルのamountカラムを合計
@@ -140,6 +141,7 @@
             @endif
         </div>
     </div>
+    @endcan
     {{-- ▲▲▲ コスト進捗バーと警告 ここまで ▲▲▲ --}}
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -157,7 +159,7 @@
                     @if($project->client_name)<div class="flex justify-between items-start"><span class="text-sm font-semibold text-gray-500 dark:text-gray-400 w-28 flex-shrink-0">依頼主名</span><span class="text-sm text-gray-700 dark:text-gray-300 text-right flex-1 whitespace-pre-wrap break-words">{{ $project->client_name }}</span></div>@endif
                     <div class="flex justify-between items-start"><span class="text-sm font-semibold text-gray-500 dark:text-gray-400 w-28 flex-shrink-0">期間</span><span class="text-sm text-gray-700 dark:text-gray-300 text-right">{{ $project->start_date ? $project->start_date->format('Y/m/d') : '-' }} 〜 {{ $project->end_date ? $project->end_date->format('Y/m/d') : '-' }}</span></div>
                     @if($project->description)
-                        <div class="flex justify-between items-start"><span class="text-sm font-semibold text-gray-500 dark:text-gray-400 w-28 flex-shrink-0">備考</span><p class="text-sm text-gray-700 dark:text-gray-300 text-right whitespace-pre-wrap break-words flex-1">{{ $project->description }}</p></div>
+                        <div class="flex justify-between items-start"><span class="text-sm font-semibold text-gray-500 dark:text-gray-400 w-28 flex-shrink-0">備考</span><p class="text-sm text-gray-700 dark:text-gray-300 text-left whitespace-pre-wrap break-words flex-1">{{ $project->description }}</p></div>
                     @endif
 
                     {{-- 納品フラグ --}}

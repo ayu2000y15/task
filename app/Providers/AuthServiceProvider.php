@@ -28,6 +28,8 @@ use App\Models\InventoryLog; // ★ 追加
 use App\Policies\InventoryLogPolicy; // ★ 追加
 use App\Models\ExternalProjectSubmission; // ★ 追加
 use App\Policies\ExternalProjectSubmissionPolicy; // ★ 追加
+use App\Models\SalesTool;
+use App\Policies\SalesToolPolicy;
 
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
@@ -53,6 +55,8 @@ class AuthServiceProvider extends ServiceProvider
         StockOrder::class => StockOrderPolicy::class,       // ★ 追加
         InventoryLog::class => InventoryLogPolicy::class, // ★ 追加
         ExternalProjectSubmission::class => ExternalProjectSubmissionPolicy::class, // ★ 追加
+
+        SalesTool::class => SalesToolPolicy::class,
     ];
 
 
@@ -65,5 +69,11 @@ class AuthServiceProvider extends ServiceProvider
                 return true;
             }
         });
+
+        // ツール一覧ページへのアクセス権限
+        Gate::define('tools.viewAnyPage', [SalesToolPolicy::class, 'viewAnyTools']);
+
+        // 営業ツールへのアクセス権限
+        Gate::define('tools.sales.access', [SalesToolPolicy::class, 'accessSalesTool']);
     }
 }

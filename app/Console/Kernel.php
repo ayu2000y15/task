@@ -50,6 +50,9 @@ class Kernel extends ConsoleKernel
             ->onFailure(function () {
                 \Illuminate\Support\Facades\Log::channel('schedule')->error('PruneOldActivityLogsCommand: Failed.');
             });
+
+        // 1分ごとにキューワーカーを起動し、キューが空なら停止、タイムアウト60秒
+        $schedule->command('queue:work --stop-when-empty --tries=3 --timeout=60')->everyMinute()->withoutOverlapping();
     }
 
     /**

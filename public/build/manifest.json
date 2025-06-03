@@ -8,12 +8,12 @@
     "name": "sortable.esm"
   },
   "resources/css/app.css": {
-    "file": "assets/app-CVfG1WcP.css",
+    "file": "assets/app-3ZKFZSl_.css",
     "src": "resources/css/app.css",
     "isEntry": true
   },
   "resources/js/admin/feedback-categories-sortable.js": {
-    "file": "assets/feedback-categories-sortable-CPpgEhCC.js",
+    "file": "assets/feedback-categories-sortable-cEO9zSw-.js",
     "name": "feedback-categories-sortable",
     "src": "resources/js/admin/feedback-categories-sortable.js",
     "isDynamicEntry": true,
@@ -32,7 +32,7 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-9G7k0uWa.js",
+    "file": "assets/app-BKGCNJKk.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
@@ -50,7 +50,7 @@
     ]
   },
   "resources/js/page-specific/admin-feedbacks-index.js": {
-    "file": "assets/admin-feedbacks-index-CZhb88FG.js",
+    "file": "assets/admin-feedbacks-index-ai1aHaGD.js",
     "name": "admin-feedbacks-index",
     "src": "resources/js/page-specific/admin-feedbacks-index.js",
     "isDynamicEntry": true,
@@ -59,7 +59,7 @@
     ]
   },
   "resources/js/page-specific/gantt-chart.js": {
-    "file": "assets/gantt-chart-D19kOO_3.js",
+    "file": "assets/gantt-chart-D-3ZbVVC.js",
     "name": "gantt-chart",
     "src": "resources/js/page-specific/gantt-chart.js",
     "isDynamicEntry": true,
@@ -69,7 +69,7 @@
     ]
   },
   "resources/js/page-specific/project-show-main.js": {
-    "file": "assets/project-show-main-Bu9Td1Dc.js",
+    "file": "assets/project-show-main-hCsMFyM4.js",
     "name": "project-show-main",
     "src": "resources/js/page-specific/project-show-main.js",
     "isDynamicEntry": true,
@@ -99,7 +99,7 @@
     "isDynamicEntry": true
   },
   "resources/js/page-specific/tasks-index.js": {
-    "file": "assets/tasks-index-Bh7ah6mp.js",
+    "file": "assets/tasks-index-DlDxVQ63.js",
     "name": "tasks-index",
     "src": "resources/js/page-specific/tasks-index.js",
     "isDynamicEntry": true,

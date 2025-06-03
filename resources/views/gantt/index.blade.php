@@ -55,7 +55,7 @@
                             <th rowspan="2" class="detail-column px-3 py-3 align-top font-medium" style="min-width: 100px;">担当者</th>
                             <th rowspan="2" class="detail-column px-3 py-3 align-top font-medium" style="min-width: 70px;">工数</th>
                             <th rowspan="2" class="detail-column px-3 py-3 align-top font-medium" style="min-width: 100px;">開始日</th>
-                            <th rowspan="2" class="detail-column px-3 py-3 align-top font-medium" style="min-width: 100px;">完了日</th>
+                            <th rowspan="2" class="detail-column px-3 py-3 align-top font-medium" style="min-width: 100px;">終了日</th>
                             <th rowspan="2" class="detail-column px-3 py-3 align-top font-medium" style="min-width: 120px;">ステータス</th>
                             @php
                                 $months = [];

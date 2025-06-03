@@ -28,6 +28,9 @@ use App\Http\Controllers\Admin\StockOrderController;
 use App\Http\Controllers\Admin\InventoryLogController;
 use App\Http\Controllers\Admin\MeasurementTemplateController;
 
+use App\Http\Controllers\ToolController;
+use App\Http\Controllers\SalesToolController;
+
 Route::middleware('auth')->group(function () {
     // ホーム
     Route::get('/', [HomeController::class, 'index'])->name('home.index');
@@ -116,6 +119,7 @@ Route::middleware('auth')->group(function () {
         Route::resource('process-templates', ProcessTemplateController::class);
         Route::post('process-templates/{processTemplate}/items', [ProcessTemplateController::class, 'storeItem'])->name('process-templates.items.store');
         Route::delete('process-templates/{processTemplate}/items/{item}', [ProcessTemplateController::class, 'destroyItem'])->name('process-templates.items.destroy');
+        Route::put('process-templates/{process_template}/items/{item}', [ProcessTemplateController::class, 'itemsUpdate'])->name('process-templates.items.update');
 
         // 採寸テンプレート管理
         Route::resource('measurement-templates', MeasurementTemplateController::class)->except(['show']); // showはeditと統合する形で今回は作成
@@ -173,6 +177,68 @@ Route::middleware('auth')->group(function () {
         Route::get('/external-submissions/{submission}', [ExternalFormController::class, 'show'])->name('external-submissions.show'); // 詳細表示用
 
         Route::get('/external-requests', [ExternalFormController::class, 'index'])->name('external-requests.index');
+    });
+
+    // -------------------------------------------------------------------------
+    // 営業ツール
+    // -------------------------------------------------------------------------
+    // 営業ツールへのアクセス権限は 'access_sales_tools' と仮定します。
+    // 必要に応じて権限名を変更し、AuthServiceProviderなどで定義してください。
+    Route::prefix('tools')->name('tools.')->middleware(['can:tools.viewAnyPage'])->group(function () {
+        Route::get('/', [ToolController::class, 'index'])
+            ->name('index')
+            ->middleware(['can:tools.viewAnyPage']);
+
+        // ---------------------------------------------------------------------
+        // 営業ツール機能 (ツール一覧の下の個別ツールとして)
+        // ---------------------------------------------------------------------
+        Route::prefix('sales')->name('sales.')->group(function () {
+            Route::get('/', [SalesToolController::class, 'index'])->name('index')->middleware(['can:tools.sales.access']);
+
+            // メールリスト管理
+            Route::prefix('email-lists')->name('email-lists.')->group(function () {
+                Route::get('/', [SalesToolController::class, 'emailListsIndex'])->name('index');
+                Route::get('/create', [SalesToolController::class, 'emailListsCreate'])->name('create');
+                Route::post('/', [SalesToolController::class, 'emailListsStore'])->name('store');
+                // Route::get('/{emailList}', [SalesToolController::class, 'emailListsShow'])->name('show');
+                Route::get('/{emailList}/edit', [SalesToolController::class, 'emailListsEdit'])->name('edit');
+                Route::put('/{emailList}', [SalesToolController::class, 'emailListsUpdate'])->name('update');
+                Route::delete('/{emailList}', [SalesToolController::class, 'emailListsDestroy'])->name('destroy');
+
+                // メールリスト詳細 (購読者一覧)
+                Route::get('/{emailList}', [SalesToolController::class, 'emailListsShow'])->name('show'); // メールリスト詳細 (購読者一覧)
+
+                Route::prefix('/{emailList}/subscribers')->name('subscribers.')->group(function () {
+                    Route::get('/create', [SalesToolController::class, 'subscribersCreate'])->name('create');
+                    Route::post('/', [SalesToolController::class, 'subscribersStore'])->name('store');
+                    Route::get('/{subscriber}/edit', [SalesToolController::class, 'subscribersEdit'])->name('edit');
+                    Route::put('/{subscriber}', [SalesToolController::class, 'subscribersUpdate'])->name('update');
+                    Route::delete('/{subscriber}', [SalesToolController::class, 'subscribersDestroy'])->name('destroy');
+                });
+            });
+            // メール送信
+            Route::prefix('emails')->name('emails.')->group(function () { // tools.sales.emails.
+                Route::get('/compose', [SalesToolController::class, 'composeEmail'])->name('compose'); // ★★★ このルート ★★★
+                Route::post('/send', [SalesToolController::class, 'sendEmail'])->name('send');
+                // Route::get('/sent', [SalesToolController::class, 'sentEmailsIndex'])->name('sent.index'); // 送信履歴一覧 (今後作成)
+                Route::post('/upload-image', [SalesToolController::class, 'uploadImageForTinyMCE'])->name('uploadImage');
+                Route::get('/sent', [SalesToolController::class, 'sentEmailsIndex'])->name('sent.index');
+                Route::get('/sent/{sentEmail}', [SalesToolController::class, 'sentEmailsShow'])->name('sent.show'); // ルートモデルバインディング
+
+            });
+
+            // ブラックリスト管理
+            Route::prefix('blacklist')->name('blacklist.')->group(function () { // middlewareは親(sales)で適用済み
+                Route::get('/', [SalesToolController::class, 'blacklistIndex'])->name('index');
+                Route::post('/', [SalesToolController::class, 'blacklistStore'])->name('store');
+                Route::delete('/{blacklistEntry}', [SalesToolController::class, 'blacklistDestroy'])->name('destroy');
+            });
+
+            Route::prefix('settings')->name('settings.')->group(function () { // middlewareは親(sales)で適用済み
+                Route::get('/', [SalesToolController::class, 'settingsEdit'])->name('edit'); // 設定画面は編集フォームのみ
+                Route::put('/', [SalesToolController::class, 'settingsUpdate'])->name('update');
+            });
+        });
     });
 });
 
