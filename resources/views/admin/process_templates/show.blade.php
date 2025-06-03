@@ -226,22 +226,6 @@
 <script>
     document.addEventListener('alpine:init', () => {
         Alpine.data('templateItemForm', () => ({
-            // currentItem: null, // This will be managed by the parent x-data
-            // editItemModal: false, // This will be managed by the parent x-data
-
-            // Helper function to prepare item data for the modal
-            // This needs to be called when an edit button is clicked,
-            // and the result stored in the parent's `currentItem`.
-            // The @click on the button is: @click="currentItem = prepareItemForEdit({{ $item }}); editItemModal = true"
-            // However, passing the full $item object directly to JS like that is not ideal.
-            // It's better to set individual properties of currentItem.
-            // The current @click="currentItem = {{ $item }}; editItemModal = true" is simpler
-            // but might have issues if $item contains complex objects or too much data.
-
-            // For simplicity, we'll assume currentItem is populated correctly by the @click.
-            // We might need to add properties like default_duration_value_for_edit and
-            // default_duration_unit_for_edit to currentItem when it's set.
-            // This can be done in the @click or by watching currentItem.
 
             init() {
                 this.$watch('currentItem', (newItem) => {

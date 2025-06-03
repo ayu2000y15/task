@@ -113,7 +113,7 @@
                                         <td class="hidden sm:table-cell px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 align-top">{{ $task->character->name ?? '-' }}</td>
                                         <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 align-top">{{ $task->assignee ?? '-' }}</td>
                                         <td class="hidden sm:table-cell px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 align-top">
-                                            {{ optional($task->end_date)->format('n/j') }}
+                                            {{ optional($task->end_date)->format('n/j H:i') }}
                                         </td>
                                         <td class="hidden sm:table-cell px-4 py-3 whitespace-nowrap text-sm align-top">
                                             @if(!$task->is_folder && !$task->is_milestone)
@@ -227,7 +227,7 @@
                                             @endif
                                         </p>
                                         <p class="text-xs text-gray-500 dark:text-gray-400">
-                                            期限: {{ optional($task->end_date)->format('n/j') }} ({{ $task->end_date ? $task->end_date->diffForHumans() : '' }})
+                                            期限: {{ optional($task->end_date)->format('n/j H:i') }} ({{ $task->end_date ? $task->end_date->diffForHumans() : '' }})
                                         </p>
                                     </div>
                                     @if(!$task->is_milestone && !$task->is_folder)
@@ -323,6 +323,8 @@
                                     @endif
                                     <div class="flex-grow min-w-0">
                                         <div>
+                                            <span class="text-xs font-semibold" style="color: {{ $task->project->color }}">{{ $task->project->title }}</span>
+                                            <br>
                                             <a href="{{ route('projects.tasks.edit', [$task->project, $task]) }}" class="text-sm font-medium text-gray-800 dark:text-gray-200 hover:text-blue-600 whitespace-normal break-words inline-block">
                                                 {{ $task->name }}
                                             </a>
@@ -331,13 +333,11 @@
                                             @endif
                                         </div>
                                         <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                            <span class="font-semibold" style="color: {{ $task->project->color }}">{{ $task->project->title }}</span>
-                                            <span class="mx-1">&bull;</span>
-                                            {{ $task->character->name ?? '案件全体' }}
-                                            <span class="mx-1">&bull;</span>
+                                            {{-- {{ $task->character->name ?? '案件全体' }}
+                                            <span class="mx-1">&bull;</span> --}}
                                             担当: {{ $task->assignee ?? '-' }}
-                                            <span class="hidden sm:inline mx-1">&bull;</span>
-                                            <span class="hidden sm:inline">作成: {{ $task->created_at ? $task->created_at->format('n/j') : '-'}}</span>
+                                            {{-- <span class="hidden sm:inline mx-1">&bull;</span> --}}
+                                            {{-- <span class="hidden sm:inline">作成: {{ $task->created_at ? $task->created_at->format('n/j H:i') : '-'}}</span> --}}
                                         </p>
                                     </div>
                                     @if(!$task->is_milestone && !$task->is_folder)
