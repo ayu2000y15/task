@@ -28,10 +28,6 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule): void
     {
-        // $schedule->command('inspire')->hourly();
-        $schedule->call(function () {
-            Log::info('Test schedule ran at ' . now());
-        })->everyMinute()->name('test-schedule');
         // ★ 毎日AM3:00に前日のログをCSVにエクスポートするスケジュール
         $schedule->command(ExportActivityLogCommand::class)
             ->dailyAt('03:00')
