@@ -776,23 +776,24 @@ class SalesToolController extends Controller
     {
         $this->authorize(self::SALES_TOOL_ACCESS_PERMISSION);
 
-        $query = SentEmail::with('emailList')
-            ->withCount([
-                'recipientLogs as total_recipients_count',
-                'recipientLogs as successful_sends_count' => function ($q) {
-                    $q->where('status', 'sent');
-                },
-                'recipientLogs as failed_sends_count' => function ($q) {
-                    $q->whereIn('status', ['failed', 'bounced', 'queue_failed']);
-                },
-                'recipientLogs as skipped_blacklist_count' => function ($q) {
-                    $q->where('status', 'skipped_blacklist');
-                },
-                'recipientLogs as still_queued_count' => function ($q) {
-                    $q->where('status', 'queued');
-                } // ★ 追加
-            ])
-            ->orderBy('sent_at', 'desc');
+        $query = SentEmail::with(['emailList', 'recipientLogs'])->orderBy('sent_at', 'desc');
+        // $query = SentEmail::with('emailList')
+        //     ->withCount([
+        //         'recipientLogs as total_recipients_count',
+        //         'recipientLogs as successful_sends_count' => function ($q) {
+        //             $q->where('status', 'sent');
+        //         },
+        //         'recipientLogs as failed_sends_count' => function ($q) {
+        //             $q->whereIn('status', ['failed', 'bounced', 'queue_failed']);
+        //         },
+        //         'recipientLogs as skipped_blacklist_count' => function ($q) {
+        //             $q->where('status', 'skipped_blacklist');
+        //         },
+        //         'recipientLogs as still_queued_count' => function ($q) {
+        //             $q->where('status', 'queued');
+        //         } // ★ 追加
+        //     ])
+        //     ->orderBy('sent_at', 'desc');
 
         if ($request->filled('keyword')) {
             $keyword = $request->input('keyword');

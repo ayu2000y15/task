@@ -742,6 +742,7 @@ namespace App\Models{
  * @property int $send_interval_minutes
  * @property int $emails_per_batch
  * @property bool $image_sending_enabled
+ * @property int $max_emails_per_minute
  * @property int $batch_delay_seconds
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
@@ -753,6 +754,7 @@ namespace App\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|SalesToolSetting whereEmailsPerBatch($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|SalesToolSetting whereId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|SalesToolSetting whereImageSendingEnabled($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SalesToolSetting whereMaxEmailsPerMinute($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|SalesToolSetting whereSendIntervalMinutes($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|SalesToolSetting whereUpdatedAt($value)
  */
@@ -775,6 +777,11 @@ namespace App\Models{
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read \App\Models\EmailList|null $emailList
+ * @property-read float $click_through_rate
+ * @property-read float $click_to_open_rate
+ * @property-read int $clicked_count
+ * @property-read float $open_rate
+ * @property-read int $opened_count
  * @property-read string $readable_status
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\SentEmailLog> $recipientLogs
  * @property-read int|null $recipient_logs_count

@@ -85,4 +85,88 @@ class SentEmail extends Model
 
         return $statuses[$this->status];
     }
+
+    /**
+     * recipientLogs の基本的な集計を一度だけ行うヘルパー
+     */
+    protected function getRecipientLogsSummary(): array
+    {
+        if ($this->_recipientLogsSummary === null) {
+            $logs = $this->recipientLogs; // Eager loadされていれば効率的
+            $this->_recipientLogsSummary = [
+                'total_logs' => $logs->count(),
+                // 実際に送信試行されたもの (ブラックリストスキップやキュー投入失敗を除く)
+                'attempted_sends' => $logs->whereNotIn('status', ['skipped_blacklist', 'queue_failed'])->count(),
+                'opened_count' => $logs->whereNotNull('opened_at')->count(),
+                'clicked_count' => $logs->whereNotNull('clicked_at')->count(), // ユニーククリック数 (同じ人が複数回クリックしても1とカウント)
+            ];
+        }
+        return $this->_recipientLogsSummary;
+    }
+
+    /**
+     * 開封数を取得します。
+     */
+    public function getOpenedCountAttribute(): int
+    {
+        return $this->getRecipientLogsSummary()['opened_count'];
+    }
+
+    /**
+     * クリック数を取得します (ユニークユーザーのクリック)。
+     */
+    public function getClickedCountAttribute(): int
+    {
+        return $this->getRecipientLogsSummary()['clicked_count'];
+    }
+
+    /**
+     * 開封率 (%) を取得します。
+     * (開封数 / 送信成功数) * 100
+     * 送信成功数は、'sent' または 'bounced' (バウンスも一度は届いたとみなす場合あり) または 'opened', 'clicked' のログの数
+     */
+    public function getOpenRateAttribute(): float
+    {
+        $summary = $this->getRecipientLogsSummary();
+        // 'sent', 'opened', 'clicked', 'bounced' を配信試行成功と見なす母数とする
+        // (キューイング中やキューイング失敗、BLスキップは除く)
+        $deliveredOrBouncedCount = $this->recipientLogs
+            ->whereIn('status', ['sent', 'opened', 'clicked', 'bounced'])
+            ->count();
+
+        if ($deliveredOrBouncedCount === 0) {
+            return 0.0;
+        }
+        return round(($summary['opened_count'] / $deliveredOrBouncedCount) * 100, 2);
+    }
+
+    /**
+     * クリック率 (CTOR - Click To Open Rate) (%) を取得します。
+     * (クリック数 / 開封数) * 100
+     */
+    public function getClickToOpenRateAttribute(): float
+    {
+        $summary = $this->getRecipientLogsSummary();
+        if ($summary['opened_count'] === 0) {
+            return 0.0;
+        }
+        return round(($summary['clicked_count'] / $summary['opened_count']) * 100, 2);
+    }
+
+    /**
+     * リストに対するクリック率 (CTR - Click Through Rate) (%) を取得します。
+     * (クリック数 / 送信成功数) * 100
+     */
+    public function getClickThroughRateAttribute(): float
+    {
+        $summary = $this->getRecipientLogsSummary();
+        $deliveredOrBouncedCount = $this->recipientLogs
+            ->whereIn('status', ['sent', 'opened', 'clicked', 'bounced'])
+            ->count();
+
+        if ($deliveredOrBouncedCount === 0) {
+            return 0.0;
+        }
+        return round(($summary['clicked_count'] / $deliveredOrBouncedCount) * 100, 2);
+    }
 }
