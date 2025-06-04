@@ -19,6 +19,8 @@ class SentEmailLog extends Model
         'delivered_at',
         'opened_at',
         'clicked_at',
+        'message_identifier',
+        'original_message_id',
     ];
 
     protected $casts = [

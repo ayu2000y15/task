@@ -53,6 +53,15 @@
 
         {{-- 各機能へのナビゲーションカード --}}
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <a href="{{ route('tools.sales.managed-contacts.index') }}"
+                class="block bg-white dark:bg-gray-800 shadow-md rounded-lg p-6 hover:shadow-xl transition-shadow duration-300">
+                <div class="flex items-center mb-3">
+                    <i class="fas fa-id-card fa-2x text-purple-500 mr-4"></i> {{-- アイコンと色を変更 --}}
+                    <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-300">管理連絡先</h3>
+                </div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">中央で管理する連絡先情報（メールアドレス等）を登録・編集します。</p>
+            </a>
+
             <a href="{{ route('tools.sales.email-lists.index') }}"
                 class="block bg-white dark:bg-gray-800 shadow-md rounded-lg p-6 hover:shadow-xl transition-shadow duration-300">
                 <div class="flex items-center mb-3">

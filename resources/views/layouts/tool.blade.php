@@ -83,6 +83,14 @@
                     </div>
                 </div>
             @endif
+            @if(session('warning'))
+                <div class="mb-4">
+                    <div class="p-4 bg-yellow-100 border border-yellow-400 text-yellow-700 rounded-md dark:bg-yellow-700 dark:text-yellow-100 dark:border-yellow-600"
+                        role="alert">
+                        {{ session('warning') }}
+                    </div>
+                </div>
+            @endif
             @if(session('error'))
                 <div class="mb-4">
                     <div class="p-4 bg-red-100 border border-red-400 text-red-700 rounded-md dark:bg-red-700 dark:text-red-100 dark:border-red-600"

@@ -36,7 +36,7 @@
                         </th>
                         <th scope="col"
                             class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                            登録数 (仮)
+                            登録数
                         </th>
                         <th scope="col"
                             class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
@@ -61,7 +61,7 @@
                                 {!! nl2br(e(trim($list->description))) !!}
                             </td>
                             <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-center">
-                                0 {{-- ← 購読者数は未実装のため仮 --}}
+                                {{ $list->subscribers_count }}
                             </td>
                             <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                                 {{ $list->created_at->format('Y/m/d') }}

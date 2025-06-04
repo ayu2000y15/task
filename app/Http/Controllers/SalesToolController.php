@@ -18,6 +18,10 @@ use Illuminate\Http\JsonResponse;
 use App\Models\SalesToolSetting;
 use App\Models\SentEmailLog;
 use Illuminate\Support\Str;
+use App\Models\ManagedContact;
+use Illuminate\Support\Facades\Validator; // Validator を use
+use League\Csv\Reader; // league/csv を use
+use League\Csv\Statement; // league/csv を use
 
 class SalesToolController extends Controller
 {
@@ -39,7 +43,8 @@ class SalesToolController extends Controller
     {
         $this->authorize(self::SALES_TOOL_ACCESS_PERMISSION); // ★ 権限チェックを統一
 
-        $emailLists = EmailList::orderBy('name')->paginate(15);
+        $emailLists = EmailList::withCount('subscribers')
+            ->orderBy('name')->paginate(15);
         return view('tools.sales.email_lists.index', compact('emailLists'));
     }
 
@@ -125,57 +130,242 @@ class SalesToolController extends Controller
      * Show the form for creating a new subscriber for the given email list.
      * 指定されたメールリストに新しい購読者を追加するためのフォームを表示します。
      */
-    public function subscribersCreate(EmailList $emailList): View
+    /**
+     * Show the form for creating new subscribers for the given email list by selecting from ManagedContacts.
+     * 指定されたメールリストに、管理連絡先から選択して新しい購読者を追加するためのフォームを表示します。
+     */
+    public function subscribersCreate(Request $request, EmailList $emailList): View
     {
         $this->authorize(self::SALES_TOOL_ACCESS_PERMISSION);
-        return view('tools.sales.subscribers.create', compact('emailList'));
+
+        $query = ManagedContact::query();
+
+        // Keyword search (quick search for selecting contacts)
+        if ($request->filled('keyword')) {
+            $keyword = $request->input('keyword');
+            $query->where(function ($q) use ($keyword) {
+                $q->where('email', 'like', "%{$keyword}%")
+                    ->orWhere('name', 'like', "%{$keyword}%")
+                    ->orWhere('company_name', 'like', "%{$keyword}%");
+            });
+        }
+
+        // Advanced Filters for selecting ManagedContacts
+        if ($request->filled('filter_company_name')) {
+            $query->where('company_name', 'like', '%' . $request->input('filter_company_name') . '%');
+        }
+        if ($request->filled('filter_postal_code')) {
+            $query->where('postal_code', 'like', '%' . $request->input('filter_postal_code') . '%');
+        }
+        if ($request->filled('filter_address')) {
+            $query->where('address', 'like', '%' . $request->input('filter_address') . '%');
+        }
+        if ($request->filled('filter_establishment_date_from')) {
+            $query->whereDate('establishment_date', '>=', $request->input('filter_establishment_date_from'));
+        }
+        if ($request->filled('filter_establishment_date_to')) {
+            $query->whereDate('establishment_date', '<=', $request->input('filter_establishment_date_to'));
+        }
+        if ($request->filled('filter_industry')) {
+            $query->where('industry', 'like', '%' . $request->input('filter_industry') . '%');
+        }
+        if ($request->filled('filter_notes')) {
+            $query->where('notes', 'like', '%' . $request->input('filter_notes') . '%');
+        }
+        if ($request->filled('filter_status') && $request->input('filter_status') !== '') {
+            $query->where('status', $request->input('filter_status'));
+        } else {
+            // デフォルトでは 'active' の連絡先のみを表示候補とする
+            $query->where('status', 'active');
+        }
+
+        // Exclude contacts already subscribed to this EmailList
+        $existingSubscriberEmails = $emailList->subscribers()->pluck('email')->all();
+        if (!empty($existingSubscriberEmails)) {
+            $query->whereNotIn('email', $existingSubscriberEmails);
+        }
+
+        $managedContacts = $query->orderBy('email')->paginate(500)->appends($request->query());
+
+        $statusOptions = [ // For the ManagedContact status filter dropdown
+            'active' => '有効',
+            'do_not_contact' => '連絡不要',
+            'archived' => 'アーカイブ済',
+        ];
+
+        // Capture all relevant filter inputs for repopulating the form
+        $filterValues = $request->only([
+            'keyword',
+            'filter_company_name',
+            'filter_postal_code',
+            'filter_address',
+            'filter_establishment_date_from',
+            'filter_establishment_date_to',
+            'filter_industry',
+            'filter_notes',
+            'filter_status',
+        ]);
+
+        return view('tools.sales.subscribers.create', compact('emailList', 'managedContacts', 'statusOptions', 'filterValues'));
     }
 
     /**
-     * Store a newly created subscriber in storage for the given email list.
-     * 新しい購読者を指定されたメールリストに保存します。
+     * Store newly created subscribers in storage for the given email list from selected ManagedContacts.
+     * 選択された管理連絡先から、新しい購読者を指定されたメールリストに保存します。
      */
     public function subscribersStore(Request $request, EmailList $emailList)
     {
         $this->authorize(self::SALES_TOOL_ACCESS_PERMISSION);
 
-        $validatedData = $request->validate([
-            'email' => [
-                'required',
-                'string',
-                'email',
-                'max:255',
-                Rule::unique('subscribers')->where(function ($query) use ($emailList) {
-                    return $query->where('email_list_id', $emailList->id);
-                }),
-            ],
-            'name' => 'nullable|string|max:255',
-            'company_name' => 'nullable|string|max:255',
-            'postal_code' => 'nullable|string|max:20',        // ★ 追加
-            'address' => 'nullable|string|max:1000',        // ★ 追加 (max長は適宜調整)
-            'phone_number' => 'nullable|string|max:30',       // ★ 追加
-            'fax_number' => 'nullable|string|max:30',         // ★ 追加
-            'url' => 'nullable|string|url|max:255',          // ★ 追加 (urlバリデーション)
-            'representative_name' => 'nullable|string|max:255', // ★ 追加
-            'establishment_date' => 'nullable|date',          // ★ 追加
-            'industry' => 'nullable|string|max:255',
-            // 'job_title' => 'nullable|string|max:255',      // 必要なら復活
-            'status' => 'nullable|string|in:subscribed,unsubscribed,bounced,pending',
-        ]);
+        $contactIdsToAdd = [];
+        $isAddAllFiltered = $request->has('add_all_filtered_action');
 
-        $subscriberData = array_merge($validatedData, ['email_list_id' => $emailList->id]);
-        if (empty($subscriberData['status'])) {
-            $subscriberData['status'] = 'subscribed';
+        if ($isAddAllFiltered) {
+            Log::info("Attempting to add all filtered contacts to EmailList ID: {$emailList->id}, Filters: ", $request->except(['_token', 'add_all_filtered_action']));
+            // フィルター条件に基づいて全ての対象IDを取得
+            $query = ManagedContact::query();
+
+            // Keyword (from hidden input if present, or original request param)
+            if ($request->filled('keyword')) {
+                $keyword = $request->input('keyword');
+                $query->where(function ($q) use ($keyword) {
+                    if (Str::contains($keyword, ['%', '_'])) {
+                        $q->where('email', 'like', $keyword)
+                            ->orWhere('name', 'like', $keyword)
+                            ->orWhere('company_name', 'like', $keyword);
+                    } else {
+                        $q->where('email', 'like', "%{$keyword}%")
+                            ->orWhere('name', 'like', "%{$keyword}%")
+                            ->orWhere('company_name', 'like', "%{$keyword}%");
+                    }
+                });
+            }
+            // Advanced Filters (from hidden inputs or original request params)
+            if ($request->filled('filter_company_name')) {
+                $this->applyWildcardSearch($query, 'company_name', $request->input('filter_company_name'));
+            }
+            if ($request->filled('filter_postal_code')) {
+                $this->applyWildcardSearch($query, 'postal_code', $request->input('filter_postal_code'));
+            }
+            if ($request->filled('filter_address')) {
+                $this->applyWildcardSearch($query, 'address', $request->input('filter_address'));
+            }
+            if ($request->filled('filter_establishment_date_from')) {
+                $query->whereDate('establishment_date', '>=', $request->input('filter_establishment_date_from'));
+            }
+            if ($request->filled('filter_establishment_date_to')) {
+                $query->whereDate('establishment_date', '<=', $request->input('filter_establishment_date_to'));
+            }
+            if ($request->filled('filter_industry')) {
+                $this->applyWildcardSearch($query, 'industry', $request->input('filter_industry'));
+            }
+            if ($request->filled('filter_notes')) {
+                $this->applyWildcardSearch($query, 'notes', $request->input('filter_notes'));
+            }
+
+            if ($request->filled('filter_status') && $request->input('filter_status') !== '') {
+                $query->where('status', $request->input('filter_status'));
+            } else {
+                $query->where('status', 'active'); // デフォルトで 'active' の連絡先のみを対象
+            }
+
+            $existingSubscriberEmails = $emailList->subscribers()->pluck('email')->all();
+            if (!empty($existingSubscriberEmails)) {
+                $query->whereNotIn('email', $existingSubscriberEmails);
+            }
+
+            // 注意: 大量データの場合、サーバー負荷やタイムアウトの可能性があるため、
+            // 本番環境では件数制限やバックグラウンド処理を検討してください。
+            // 例: $contactIdsToAdd = $query->limit(1000)->pluck('id')->all();
+            $contactIdsToAdd = $query->pluck('id')->all();
+
+            if (empty($contactIdsToAdd)) {
+                return redirect()->route('tools.sales.email-lists.subscribers.create', $emailList) // showではなくcreateに戻す
+                    ->with('info', 'フィルター条件に一致する追加可能な連絡先が見つかりませんでした。')
+                    ->withInput($request->except(['add_all_filtered_action', '_token'])); // フィルター条件をフォームに再表示
+            }
+            Log::info(count($contactIdsToAdd) . " contacts found via 'add all filtered' for EmailList ID: {$emailList->id}. Processing...");
+        } else {
+            // 通常のチェックボックス選択による処理
+            $validated = $request->validate([
+                'managed_contact_ids' => 'present|array',
+                'managed_contact_ids.*' => 'integer|exists:managed_contacts,id',
+            ]);
+            $contactIdsToAdd = $validated['managed_contact_ids'] ?? [];
+
+            if (empty($contactIdsToAdd)) {
+                return redirect()->route('tools.sales.email-lists.subscribers.create', $emailList) // showではなくcreateに戻す
+                    ->with('warning', '追加する連絡先が選択されていません。')
+                    ->withInput($request->except(['_token']));
+            }
         }
-        if (isset($subscriberData['establishment_date']) && $subscriberData['establishment_date'] === '') { // 空文字の場合nullを許容
-            $subscriberData['establishment_date'] = null;
+
+        $addedCount = 0;
+        $skippedCount = 0;
+        $errorCount = 0;
+
+        foreach ($contactIdsToAdd as $contactId) {
+            $managedContact = ManagedContact::find($contactId);
+            if (!$managedContact) {
+                $errorCount++;
+                Log::warning("ManagedContact ID {$contactId} not found. Skipping.");
+                continue;
+            }
+
+            $existingSubscriber = $emailList->subscribers()->where('email', $managedContact->email)->first();
+            if ($existingSubscriber) {
+                $skippedCount++;
+                continue;
+            }
+
+            try {
+                Subscriber::create([
+                    'email_list_id' => $emailList->id,
+                    'email' => $managedContact->email,
+                    'name' => $managedContact->name,
+                    'company_name' => $managedContact->company_name,
+                    'postal_code' => $managedContact->postal_code,
+                    'address' => $managedContact->address,
+                    'phone_number' => $managedContact->phone_number,
+                    'fax_number' => $managedContact->fax_number,
+                    'url' => $managedContact->url,
+                    'representative_name' => $managedContact->representative_name,
+                    'establishment_date' => $managedContact->establishment_date,
+                    'industry' => $managedContact->industry,
+                    'subscribed_at' => now(),
+                    'status' => 'subscribed',
+                ]);
+                $addedCount++;
+            } catch (\Exception $e) {
+                $errorCount++;
+                Log::error("Error creating subscriber from ManagedContact ID {$contactId} for EmailList ID {$emailList->id}: " . $e->getMessage(), ['exception' => $e]);
+            }
         }
 
+        $messageParts = [];
+        if ($isAddAllFiltered) {
+            $messageParts[] = "フィルター結果に基づき、";
+        }
+        if ($addedCount > 0) $messageParts[] = "{$addedCount}件の連絡先を購読者としてリストに追加しました。";
+        if ($skippedCount > 0) $messageParts[] = "{$skippedCount}件は既にリストに登録済み、または対象外のためスキップしました。";
+        if ($errorCount > 0) $messageParts[] = "{$errorCount}件の処理中にエラーが発生しました。詳細はログを確認してください。";
 
-        $subscriber = Subscriber::create($subscriberData);
+        if (empty($messageParts)) {
+            $feedbackMessage = $isAddAllFiltered ? 'フィルター条件に一致する追加可能な連絡先が見つかりませんでした。' : '処理対象の連絡先がありませんでした。';
+        } else {
+            $feedbackMessage = implode(' ', $messageParts);
+        }
 
+        $messageType = 'info';
+        if ($addedCount > 0 && $errorCount == 0) $messageType = 'success';
+        elseif ($addedCount > 0) $messageType = 'success'; // 一部エラーでも成功件数があれば success
+        elseif ($skippedCount > 0 && $errorCount == 0) $messageType = 'info';
+        elseif ($errorCount > 0) $messageType = 'danger';
+        else $messageType = 'warning';
+
+        // 処理後はリスト詳細ページにリダイレクト
         return redirect()->route('tools.sales.email-lists.show', $emailList)
-            ->with('success', '購読者「' . $subscriber->email . '」をリストに追加しました。');
+            ->with($messageType, $feedbackMessage);
     }
 
     public function subscribersEdit(EmailList $emailList, Subscriber $subscriber): View
@@ -274,106 +464,122 @@ class SalesToolController extends Controller
         ]);
 
         $emailList = EmailList::findOrFail($validatedData['email_list_id']);
-        // ステータスが 'subscribed' の購読者のみを取得 (ここではまだクエリビルダ)
         $subscribersQuery = $emailList->subscribers()->where('status', 'subscribed');
 
-        if ($subscribersQuery->doesntExist()) { // 実際に取得せずに存在確認
+        if ($subscribersQuery->doesntExist()) {
             return redirect()->back()->withInput()->with('error', '選択されたメールリストに送信可能な購読者がいません。');
         }
 
-        // --- 設定値の取得 ---
-        $maxEmailsPerMinute = SalesToolSetting::getSetting('max_emails_per_minute', 60); // 1分あたりの最大メール数
-        $delayBetweenEmails = 0;
-        if ($maxEmailsPerMinute > 0) {
-            $delayBetweenEmails = round(60 / $maxEmailsPerMinute);
-            $delayBetweenEmails = max(1, $delayBetweenEmails); // 最低でも1秒は空けるなど (任意)
-        } else {
-            $maxEmailsPerMinute = 60; // フォールバック
-            $delayBetweenEmails = 1;
-            Log::warning('max_emails_per_minute setting is invalid or not set, using default 60 emails/min.');
+        $maxEmailsPerMinute = SalesToolSetting::getSetting('max_emails_per_minute', 60);
+        $delayBetweenEmails = $maxEmailsPerMinute > 0 ? max(1, round(60 / $maxEmailsPerMinute)) : 1;
+        if ($maxEmailsPerMinute <= 0) { // 念のため
+            Log::warning('max_emails_per_minute setting is invalid or not set, using default 60 emails/min (delay 1s).');
         }
+
 
         $senderEmail = $validatedData['sender_email'];
         $senderName = $validatedData['sender_name'] ?? config('mail.from.name');
         $subject = $validatedData['subject'];
         $bodyHtml = $validatedData['body_html'];
 
-        // SentEmailレコードを作成
         $sentEmailRecord = SentEmail::create([
             'subject' => $subject,
             'body_html' => $bodyHtml,
             'email_list_id' => $emailList->id,
             'sender_email' => $senderEmail,
             'sender_name' => $senderName,
-            'sent_at' => now(), // 送信指示日時として記録
-            'status' => 'queuing', // 初期ステータスをキュー投入中に
+            'sent_at' => now(),
+            'status' => 'queuing',
         ]);
 
         $totalQueuedCount = 0;
         $blacklistedCount = 0;
+        $failedQueueingCount = 0; // キューイング失敗をカウント
         $blacklistedEmails = BlacklistEntry::pluck('email')->all();
-        $currentCumulativeDelay = 0; // 累積遅延時間 (秒)
+        $currentCumulativeDelay = 0;
 
-        // 購読者を実際に取得してループ処理
         $subscribers = $subscribersQuery->get();
 
         foreach ($subscribers as $subscriber) {
             if (in_array($subscriber->email, $blacklistedEmails)) {
                 $blacklistedCount++;
                 Log::info("Mail to {$subscriber->email} skipped (blacklisted) for SentEmail ID {$sentEmailRecord->id}.");
-                SentEmailLog::create([
-                    'sent_email_id' => $sentEmailRecord->id,
-                    'subscriber_id' => $subscriber->id,
-                    'recipient_email' => $subscriber->email,
-                    'status' => 'skipped_blacklist',
-                    'processed_at' => now(),
-                ]);
+                SentEmailLog::firstOrCreate(
+                    ['sent_email_id' => $sentEmailRecord->id, 'recipient_email' => $subscriber->email],
+                    [
+                        'subscriber_id' => $subscriber->id,
+                        'status' => 'skipped_blacklist',
+                        'processed_at' => now(),
+                        'message_identifier' => $sentEmailRecord->id . '_' . Str::uuid()->toString() // スキップ時もユニークID生成
+                    ]
+                );
                 continue;
             }
 
             try {
-                $mailable = new SalesCampaignMail($subject, $bodyHtml);
+                $mailable = new SalesCampaignMail(
+                    $subject,
+                    $bodyHtml,
+                    $sentEmailRecord->id,
+                    $subscriber->email
+                    // Mailable内部で messageIdentifier が生成される
+                );
+
                 Mail::to($subscriber->email, $subscriber->name)
                     ->later(now()->addSeconds($currentCumulativeDelay), $mailable->from($senderEmail, $senderName));
 
-                SentEmailLog::create([
+                SentEmailLog::firstOrCreate(
+                    [
+                        'sent_email_id' => $sentEmailRecord->id,
+                        'subscriber_id' => $subscriber->id,
+                        'recipient_email' => $subscriber->email,
+                    ],
+                    [
+                        'status' => 'queued', // ★★★ ここが 'queued' であることを確認
+                        'message_identifier' => $mailable->messageIdentifier, // Mailableから取得
+                    ]
+                );
+                Log::info('SentEmailLog created/found in Controller for queueing:', [ // ★ ログ追加
                     'sent_email_id' => $sentEmailRecord->id,
-                    'subscriber_id' => $subscriber->id,
                     'recipient_email' => $subscriber->email,
                     'status' => 'queued',
+                    'message_identifier' => $mailable->messageIdentifier
                 ]);
 
                 $totalQueuedCount++;
                 $currentCumulativeDelay += $delayBetweenEmails;
             } catch (\Exception $e) {
+                $failedQueueingCount++;
                 Log::error("Mail queueing failed for {$subscriber->email} for SentEmail ID {$sentEmailRecord->id}: " . $e->getMessage());
-                SentEmailLog::create([
-                    'sent_email_id' => $sentEmailRecord->id,
-                    'subscriber_id' => $subscriber->id,
-                    'recipient_email' => $subscriber->email,
-                    'status' => 'queue_failed',
-                    'error_message' => Str::limit($e->getMessage(), 1000), // エラーメッセージを適切な長さに制限
-                    'processed_at' => now(),
-                ]);
+                SentEmailLog::firstOrCreate(
+                    ['sent_email_id' => $sentEmailRecord->id, 'recipient_email' => $subscriber->email],
+                    [
+                        'subscriber_id' => $subscriber->id, // subscriber_id も含める
+                        'status' => 'queue_failed',
+                        'error_message' => Str::limit($e->getMessage(), 1000),
+                        'processed_at' => now(),
+                        'message_identifier' => $sentEmailRecord->id . '_' . Str::uuid()->toString() // 失敗時もユニークID生成
+                    ]
+                );
             }
         }
 
-        // SentEmailレコードの最終ステータス更新
+        $actualSubscribersCount = $subscribers->count();
         if ($totalQueuedCount > 0) {
-            $sentEmailRecord->status = 'queued'; // 少なくとも1つキューに入った
-        } elseif ($blacklistedCount > 0 && $totalQueuedCount === 0 && !$subscribers->isEmpty()) { // $subscribers->isEmpty() は上でチェック済みだが念のため
-            $sentEmailRecord->status = 'all_blacklisted_or_failed';
-        } elseif (!$subscribers->isEmpty() && $totalQueuedCount === 0) {
+            $sentEmailRecord->status = 'queued';
+        } elseif ($actualSubscribersCount > 0 && $blacklistedCount === $actualSubscribersCount) {
+            $sentEmailRecord->status = 'all_blacklisted';
+        } elseif ($actualSubscribersCount > 0 && $failedQueueingCount === $actualSubscribersCount) {
             $sentEmailRecord->status = 'all_queue_failed';
-        } else { // $subscribers->isEmpty() のケース (通常はここまで来ないが)
+        } elseif ($actualSubscribersCount > 0 && ($blacklistedCount + $failedQueueingCount) === $actualSubscribersCount) {
+            $sentEmailRecord->status = 'all_skipped_or_failed';
+        } else if ($actualSubscribersCount == 0) {
             $sentEmailRecord->status = 'no_recipients';
+        } else { // 何らかの理由でキューに入らなかったが、上記以外のケース
+            $sentEmailRecord->status = 'processing_issue';
         }
-        // 将来的に総対象者数や実際にキューに入った数をSentEmailに記録する場合
-        // $sentEmailRecord->total_recipients_attempted = $subscribers->count();
-        // $sentEmailRecord->successfully_queued_recipients = $totalQueuedCount;
         $sentEmailRecord->save();
 
-        // ユーザーへのフィードバックメッセージ作成
         $messageParts = [];
         if ($totalQueuedCount > 0) {
             $messageParts[] = "{$totalQueuedCount}件のメールを送信キューに追加しました。";
@@ -381,28 +587,27 @@ class SalesToolController extends Controller
         if ($blacklistedCount > 0) {
             $messageParts[] = "{$blacklistedCount}件のメールアドレスがブラックリストのためスキップしました。";
         }
-        // キューイング失敗件数もメッセージに含める場合は、別途カウントと条件分岐が必要
-        $failedQueueingCount = $subscribers->count() - $totalQueuedCount - $blacklistedCount;
         if ($failedQueueingCount > 0) {
             $messageParts[] = "{$failedQueueingCount}件のメールがキュー投入に失敗しました。詳細はログを確認してください。";
         }
 
-        if (empty($messageParts) && !$subscribers->isEmpty()) {
-            $messageParts[] = "メールのキューイング処理が完了しましたが、実際にキューに追加されたメールはありませんでした（ブラックリスト、またはキューイングエラーの可能性があります）。";
-        } elseif (empty($messageParts) && $subscribers->isEmpty()) { // このケースは最初の分岐で処理されるはず
+        if (empty($messageParts) && $actualSubscribersCount > 0) {
+            $messageParts[] = "メールのキューイング処理が完了しましたが、実際にキューに追加されたメールはありませんでした。";
+        } elseif (empty($messageParts) && $actualSubscribersCount == 0) {
             $messageParts[] = "送信対象の購読者が見つかりませんでした。";
         }
 
         $finalMessage = implode(' ', $messageParts);
         if ($totalQueuedCount > 0) {
             $finalMessage .= " 設定された間隔で順次送信されます。";
-        } elseif (empty($finalMessage)) { // 全ての分岐でメッセージが生成されなかった場合のフォールバック
+        } elseif (empty($finalMessage)) {
             $finalMessage = "メール送信処理は実行されましたが、特筆すべき結果はありませんでした。";
         }
 
         return redirect()->route('tools.sales.index')
-            ->with('success', $finalMessage); // メッセージタイプは常に success で良いか検討
+            ->with('success', $finalMessage);
     }
+
 
     /**
      * Display a listing of the blacklisted email addresses.
@@ -535,31 +740,29 @@ class SalesToolController extends Controller
      */
     public function settingsUpdate(Request $request)
     {
-        $this->authorize(self::SALES_TOOL_ACCESS_PERMISSION); // または設定管理専用の権限
+        $this->authorize(self::SALES_TOOL_ACCESS_PERMISSION);
 
         $validatedData = $request->validate([
-            'send_interval_minutes' => 'required|integer|min:1',         // 最低1分
-            'emails_per_batch' => 'required|integer|min:1|max:1000',  // 1回あたり1～1000通
-            'batch_delay_seconds' => 'required|integer|min:0',        // 最低0秒 (遅延なし)
+            'max_emails_per_minute' => 'required|integer|min:1', // ★ バリデーション対象
             'image_sending_enabled' => 'nullable|boolean',
+            // 不要になった古いレート制御カラムのバリデーションは削除
         ]);
 
-        // boolean 値の処理: チェックボックスがオフの場合、リクエストにそのキーが含まれないため
         $validatedData['image_sending_enabled'] = $request->has('image_sending_enabled');
 
-
-        // sales_tool_settings テーブルには通常1レコードのみ存在すると想定
-        $settings = SalesToolSetting::firstOrCreate(
-            ['id' => 1],
-            [ // もし万が一レコードがなかった場合の初期値 (通常はeditで作成されているはず)
-                'send_interval_minutes' => 5,
-                'emails_per_batch' => 100,
-                'batch_delay_seconds' => 60,
-                'image_sending_enabled' => true,
+        // SalesToolSettingモデルのupdateSettingsメソッドまたはfirstOrCreate()->update()で保存
+        $settings = SalesToolSetting::updateOrCreate( // もしモデルにupdateSettingsがなければ
+            ['id' => 1],                             // このように直接更新
+            [ // デフォルト値 (レコードがない場合)
+                'max_emails_per_minute' => $validatedData['max_emails_per_minute'] ?? 60,
+                'image_sending_enabled' => $validatedData['image_sending_enabled'] ?? true,
             ]
         );
+        // 既にレコードがある場合は update のみ
+        // $settings = SalesToolSetting::firstOrCreate(['id' => 1]);
+        // $settings->fill($validatedData);
+        // $settings->save();
 
-        $settings->update($validatedData);
 
         return redirect()->route('tools.sales.settings.edit')
             ->with('success', '営業ツールの設定を更新しました。');
@@ -571,24 +774,26 @@ class SalesToolController extends Controller
      */
     public function sentEmailsIndex(Request $request): View
     {
-        $this->authorize(self::SALES_TOOL_ACCESS_PERMISSION); // または専用の閲覧権限
+        $this->authorize(self::SALES_TOOL_ACCESS_PERMISSION);
 
-        $query = SentEmail::with('emailList') // EmailListもEager Loadする
+        $query = SentEmail::with('emailList')
             ->withCount([
                 'recipientLogs as total_recipients_count',
-                'recipientLogs as successful_sends_count' => function ($query) {
-                    $query->where('status', 'sent'); // 'sent' ステータスを成功と仮定
+                'recipientLogs as successful_sends_count' => function ($q) {
+                    $q->where('status', 'sent');
                 },
-                'recipientLogs as failed_sends_count' => function ($query) {
-                    $query->whereIn('status', ['failed', 'bounced', 'queue_failed']); // これらを失敗と仮定
+                'recipientLogs as failed_sends_count' => function ($q) {
+                    $q->whereIn('status', ['failed', 'bounced', 'queue_failed']);
                 },
-                'recipientLogs as skipped_blacklist_count' => function ($query) {
-                    $query->where('status', 'skipped_blacklist');
-                }
+                'recipientLogs as skipped_blacklist_count' => function ($q) {
+                    $q->where('status', 'skipped_blacklist');
+                },
+                'recipientLogs as still_queued_count' => function ($q) {
+                    $q->where('status', 'queued');
+                } // ★ 追加
             ])
             ->orderBy('sent_at', 'desc');
 
-        // (任意) キーワード検索などのフィルターを追加可能
         if ($request->filled('keyword')) {
             $keyword = $request->input('keyword');
             $query->where(function ($q) use ($keyword) {
@@ -608,27 +813,391 @@ class SalesToolController extends Controller
      * Display the specified sent email and its recipient logs.
      * 指定された送信メールの詳細と、各受信者への送信ログを表示します。
      */
-    public function sentEmailsShow(SentEmail $sentEmail): View // ルートモデルバインディング
+    public function sentEmailsShow(SentEmail $sentEmail): View
     {
-        $this->authorize(self::SALES_TOOL_ACCESS_PERMISSION); // または専用の閲覧権限
+        $this->authorize(self::SALES_TOOL_ACCESS_PERMISSION);
 
-        // 関連する送信ログをページネーション付きで取得
         $recipientLogs = $sentEmail->recipientLogs()
-            ->with('subscriber') // Subscriber情報もEager Load (任意)
-            ->orderBy('created_at', 'desc') // または processed_at など
-            ->paginate(25); // 1ページあたり25件
-
-        // (任意) サマリー情報をビューに渡す
+            ->with('subscriber')
+            ->orderBy('created_at', 'desc')
+            ->paginate(25);
         $summary = [
             'total' => $sentEmail->recipientLogs()->count(),
             'sent' => $sentEmail->recipientLogs()->where('status', 'sent')->count(),
             'failed' => $sentEmail->recipientLogs()->whereIn('status', ['failed', 'bounced', 'queue_failed'])->count(),
             'queued' => $sentEmail->recipientLogs()->where('status', 'queued')->count(),
             'skipped_blacklist' => $sentEmail->recipientLogs()->where('status', 'skipped_blacklist')->count(),
-            // 開封数やクリック数は将来的に
         ];
 
-
         return view('tools.sales.emails.sent.show', compact('sentEmail', 'recipientLogs', 'summary'));
+    }
+
+    /**
+     * Display a listing of the managed contacts.
+     * 管理連絡先の一覧を表示します。
+     */
+    public function managedContactsIndex(Request $request): View
+    {
+        $this->authorize(self::SALES_TOOL_ACCESS_PERMISSION);
+
+        $query = ManagedContact::query();
+
+        // Keyword search (quick search)
+        if ($request->filled('keyword')) {
+            $keyword = $request->input('keyword');
+            $query->where(function ($q) use ($keyword) {
+                $q->where('email', 'like', "%{$keyword}%")
+                    ->orWhere('name', 'like', "%{$keyword}%")
+                    ->orWhere('company_name', 'like', "%{$keyword}%");
+            });
+        }
+
+        // Advanced Filters
+        if ($request->filled('filter_company_name')) {
+            $query->where('company_name', 'like', '%' . $request->input('filter_company_name') . '%');
+        }
+        if ($request->filled('filter_postal_code')) {
+            // 郵便番号は部分一致より前方一致か完全一致が良い場合もあるが、ここでは部分一致
+            $query->where('postal_code', 'like', '%' . $request->input('filter_postal_code') . '%');
+        }
+        if ($request->filled('filter_address')) {
+            $query->where('address', 'like', '%' . $request->input('filter_address') . '%');
+        }
+        if ($request->filled('filter_establishment_date_from')) {
+            $query->whereDate('establishment_date', '>=', $request->input('filter_establishment_date_from'));
+        }
+        if ($request->filled('filter_establishment_date_to')) {
+            $query->whereDate('establishment_date', '<=', $request->input('filter_establishment_date_to'));
+        }
+        if ($request->filled('filter_industry')) {
+            $query->where('industry', 'like', '%' . $request->input('filter_industry') . '%');
+        }
+        if ($request->filled('filter_notes')) {
+            $query->where('notes', 'like', '%' . $request->input('filter_notes') . '%');
+        }
+        if ($request->filled('filter_status') && $request->input('filter_status') !== '') {
+            $query->where('status', $request->input('filter_status'));
+        }
+
+        $managedContacts = $query->orderBy('created_at', 'desc')->paginate(100)->appends($request->query()); //  appends($request->query()) ですべてのGETパラメータを引き継ぐ
+
+        $statusOptions = [
+            'active' => '有効',
+            'do_not_contact' => '連絡不要',
+            'archived' => 'アーカイブ済',
+        ];
+
+        // ビューに渡すフィルター値の配列を準備（フィルターフォームの初期値設定用）
+        $filterValues = $request->only([
+            'keyword',
+            'filter_company_name',
+            'filter_postal_code',
+            'filter_address',
+            'filter_establishment_date_from',
+            'filter_establishment_date_to',
+            'filter_industry',
+            'filter_notes',
+            'filter_status',
+        ]);
+
+        $csvImportInterruptedMessage = null;
+        if ($request->session()->has('csv_import_status')) {
+            $importStatus = $request->session()->get('csv_import_status');
+            if (isset($importStatus['in_progress']) && $importStatus['in_progress'] === true) {
+                $fileName = $importStatus['file_name'] ?? '前回';
+                $imported = $importStatus['imported_count'] ?? 0;
+                $updated = $importStatus['updated_count'] ?? 0;
+                $failed = $importStatus['failed_count'] ?? 0; // セッションには途中までの失敗件数が入る
+
+                $csvImportInterruptedMessage = "{$fileName} のCSVインポート処理が中断された可能性があります。";
+                if ($imported > 0 || $updated > 0 || $failed > 0) {
+                    $csvImportInterruptedMessage .= " その時点までに {$imported}件が新規登録、{$updated}件が更新、{$failed}件が失敗として記録されています。";
+                } else {
+                    $csvImportInterruptedMessage .= " 処理された件数は記録されていません。";
+                }
+                $csvImportInterruptedMessage .= " データを確認し、必要に応じて再度インポートを実行してください。";
+            }
+            $request->session()->forget('csv_import_status'); // メッセージ表示後にセッション情報を削除
+        }
+
+        return view('tools.sales.managed_contacts.index', compact('managedContacts', 'statusOptions', 'filterValues'));
+    }
+
+    /**
+     * Show the form for creating a new managed contact.
+     * 新規管理連絡先の作成フォームを表示します。
+     */
+    public function managedContactsCreate(): View
+    {
+        $this->authorize(self::SALES_TOOL_ACCESS_PERMISSION);
+        return view('tools.sales.managed_contacts.create');
+    }
+
+    /**
+     * Store a newly created managed contact in storage.
+     * 新規管理連絡先を保存します。
+     */
+    public function managedContactsStore(Request $request)
+    {
+        $this->authorize(self::SALES_TOOL_ACCESS_PERMISSION);
+
+        $validatedData = $request->validate([
+            'email' => 'required|string|email|max:255|unique:managed_contacts,email',
+            'name' => 'nullable|string|max:255',
+            'company_name' => 'nullable|string|max:255',
+            'postal_code' => 'nullable|string|max:20',
+            'address' => 'nullable|string|max:1000',
+            'phone_number' => 'nullable|string|max:30',
+            'fax_number' => 'nullable|string|max:30',
+            'url' => 'nullable|string|url|max:255',
+            'representative_name' => 'nullable|string|max:255',
+            'establishment_date' => 'nullable|date_format:Y-m-d', // dateフォーマット指定
+            'industry' => 'nullable|string|max:255',
+            'notes' => 'nullable|string',
+            'status' => 'nullable|string|in:active,do_not_contact,archived', // 適切なステータス値
+        ]);
+        if (empty($validatedData['status'])) {
+            $validatedData['status'] = 'active'; // デフォルトステータス
+        }
+        if (isset($validatedData['establishment_date']) && $validatedData['establishment_date'] === '') {
+            $validatedData['establishment_date'] = null;
+        }
+
+        $managedContact = ManagedContact::create($validatedData);
+
+        return redirect()->route('tools.sales.managed-contacts.index')
+            ->with('success', '管理連絡先「' . $managedContact->email . '」を作成しました。');
+    }
+
+    /**
+     * Show the form for editing the specified managed contact.
+     * 指定された管理連絡先の編集フォームを表示します。
+     */
+    public function managedContactsEdit(ManagedContact $managedContact): View // ルートモデルバインディング
+    {
+        $this->authorize(self::SALES_TOOL_ACCESS_PERMISSION);
+        return view('tools.sales.managed_contacts.edit', compact('managedContact'));
+    }
+
+    /**
+     * Update the specified managed contact in storage.
+     * 指定された管理連絡先を更新します。
+     */
+    public function managedContactsUpdate(Request $request, ManagedContact $managedContact)
+    {
+        $this->authorize(self::SALES_TOOL_ACCESS_PERMISSION);
+
+        $validatedData = $request->validate([
+            'email' => 'required|string|email|max:255|unique:managed_contacts,email,' . $managedContact->id,
+            'name' => 'nullable|string|max:255',
+            'company_name' => 'nullable|string|max:255',
+            'postal_code' => 'nullable|string|max:20',
+            'address' => 'nullable|string|max:1000',
+            'phone_number' => 'nullable|string|max:30',
+            'fax_number' => 'nullable|string|max:30',
+            'url' => 'nullable|string|url|max:255',
+            'representative_name' => 'nullable|string|max:255',
+            'establishment_date' => 'nullable|date_format:Y-m-d',
+            'industry' => 'nullable|string|max:255',
+            'notes' => 'nullable|string',
+            'status' => 'required|string|in:active,do_not_contact,archived',
+        ]);
+        if (isset($validatedData['establishment_date']) && $validatedData['establishment_date'] === '') {
+            $validatedData['establishment_date'] = null;
+        }
+
+        $managedContact->update($validatedData);
+
+        return redirect()->route('tools.sales.managed-contacts.index')
+            ->with('success', '管理連絡先「' . $managedContact->email . '」を更新しました。');
+    }
+
+    /**
+     * Remove the specified managed contact from storage.
+     * 指定された管理連絡先を削除します。
+     */
+    public function managedContactsDestroy(ManagedContact $managedContact)
+    {
+        $this->authorize(self::SALES_TOOL_ACCESS_PERMISSION);
+        $email = $managedContact->email;
+        // TODO: この連絡先がメールリストのSubscriberとして使用されている場合の考慮が必要か？
+        // (アプローチAでは、Subscriberはコピーなので、ManagedContactを削除してもSubscriberは残る)
+        // ソフトデリートをManagedContactモデルで有効にしている場合は、$managedContact->delete()でソフトデリート。
+        $managedContact->delete();
+
+        return redirect()->route('tools.sales.managed-contacts.index')
+            ->with('success', '管理連絡先「' . $email . '」を削除しました。');
+    }
+
+    /**
+     * Import managed contacts from a CSV file.
+     * CSVファイルから管理連絡先をインポートします。
+     */
+    public function managedContactsImportCsv(Request $request)
+    {
+        // ★★★ 最大実行時間を180秒に設定 ★★★
+        @set_time_limit(180); // エラー制御演算子 @ は、set_time_limit が無効な環境での警告を抑制するため
+
+        $this->authorize(self::SALES_TOOL_ACCESS_PERMISSION);
+
+        $request->validate([
+            'csv_file' => 'required|file|mimes:csv,txt|max:4096',
+        ]);
+
+        $file = $request->file('csv_file');
+        $filePath = $file->getRealPath();
+        $originalFileName = $file->getClientOriginalName();
+
+        // ★★★ インポート処理中ステータスをセッションに保存 ★★★
+        $request->session()->put('csv_import_status', [
+            'in_progress' => true,
+            'file_name' => $originalFileName,
+            'imported_count' => 0,
+            'updated_count' => 0,
+            'failed_count' => 0,
+        ]);
+
+        try {
+            $csv = Reader::createFromPath($filePath, 'r');
+            // 必要に応じてエンコーディング設定
+            // try {
+            //     $csv->setCharset('SJIS-win'); // 例: Windowsで作成されたShift_JIS CSVの場合
+            //     // BOMチェックと除去（league/csv v9.7.0+）
+            //     if (str_starts_with(file_get_contents($filePath, false, null, 0, 3), "\xEF\xBB\xBF")) {
+            //        $csv->setInputBOM(Reader::BOM_UTF8);
+            //     }
+            // } catch (\Exception $e) { /* Charset setting failed, try default */ }
+
+            $csv->setHeaderOffset(0);
+            $header = $csv->getHeader();
+            $records = Statement::create()->process($csv);
+        } catch (\Exception $e) {
+            Log::error('CSV Import - File Read Error: ' . $e->getMessage(), ['file' => $originalFileName]);
+            $request->session()->forget('csv_import_status'); // エラー時はセッションクリア
+            return redirect()->back()->with('danger', 'CSVファイルの読み込みに失敗しました。ファイル形式やエンコーディングを確認してください。');
+        }
+
+        $columnMappings = [ /* ... (前回定義の通り) ... */
+            'email' => ['メールアドレス', 'Email', 'email_address', 'メール'],
+            'name' => ['名前', '氏名', 'Name', 'フルネーム'],
+            'company_name' => ['会社名', 'Company Name', '法人名', '所属'],
+            'postal_code' => ['郵便番号', 'Postal Code', '郵便'],
+            'address' => ['住所', 'Address'],
+            'phone_number' => ['電話番号', 'Phone Number', '電話'],
+            'fax_number' => ['FAX番号', 'FAX Number', 'FAX'],
+            'url' => ['URL', 'Website', 'ウェブサイト'],
+            'representative_name' => ['代表者名', 'Representative Name', '代表'],
+            'establishment_date' => ['設立年月日', 'Establishment Date', '設立日'],
+            'industry' => ['業種', 'Industry'],
+            'notes' => ['備考', 'Notes', 'メモ'],
+            'status' => ['ステータス', 'Status'],
+        ];
+        $headerToModelMap = [];
+        $actualCsvHeaders = array_map('trim', $header);
+        foreach ($columnMappings as $modelAttribute => $possibleHeaders) {
+            foreach ($possibleHeaders as $possibleHeader) {
+                $columnIndex = array_search($possibleHeader, $actualCsvHeaders);
+                if ($columnIndex !== false) {
+                    $headerToModelMap[$modelAttribute] = $columnIndex;
+                    break;
+                }
+            }
+        }
+        if (!isset($headerToModelMap['email'])) {
+            $request->session()->forget('csv_import_status');
+            return redirect()->back()->with('danger', 'CSVヘッダーに「メールアドレス」に該当する列が見つかりませんでした。');
+        }
+
+        $importedCount = 0;
+        $updatedCount = 0;
+        $failedCount = 0;
+        $failedRowsDetails = [];
+
+        foreach ($records as $index => $record) {
+            $rowData = [];
+            foreach ($headerToModelMap as $modelAttribute => $columnIndex) {
+                if (isset($actualCsvHeaders[$columnIndex]) && isset($record[$actualCsvHeaders[$columnIndex]])) {
+                    $rowData[$modelAttribute] = trim($record[$actualCsvHeaders[$columnIndex]]);
+                } else {
+                    $rowData[$modelAttribute] = null;
+                }
+            }
+
+            $validator = Validator::make($rowData, [ /* ... (バリデーションルールは前回定義の通り) ... */
+                'email' => 'required|email|max:255',
+                'name' => 'nullable|string|max:255',
+                'company_name' => 'nullable|string|max:255',
+                'postal_code' => 'nullable|string|max:20',
+                'address' => 'nullable|string|max:1000',
+                'phone_number' => 'nullable|string|max:30',
+                'fax_number' => 'nullable|string|max:30',
+                'url' => 'nullable|string|url|max:255',
+                'representative_name' => 'nullable|string|max:255',
+                'establishment_date' => 'nullable|date_format:Y-m-d,Y/m/d',
+                'industry' => 'nullable|string|max:255',
+                'notes' => 'nullable|string',
+                'status' => 'nullable|string|in:active,do_not_contact,archived',
+            ]);
+
+            if ($validator->fails()) {
+                $failedCount++;
+                $failedRowsDetails[] = ['row' => $index + 2, 'email' => $rowData['email'] ?? 'N/A', 'errors' => $validator->errors()->all()];
+                Log::warning('CSV Import - Validation Failed for row', ['file' => $originalFileName, 'row_index' => $index + 2, 'data' => $rowData, 'errors' => $validator->errors()->all()]);
+                $request->session()->put('csv_import_status.failed_count', $failedCount); // 失敗件数もセッション更新
+                continue;
+            }
+
+            $dataToUpsert = $validator->validated();
+            if (!empty($dataToUpsert['establishment_date'])) {
+                try {
+                    $dataToUpsert['establishment_date'] = \Carbon\Carbon::parse($dataToUpsert['establishment_date'])->format('Y-m-d');
+                } catch (\Exception $e) {
+                    $dataToUpsert['establishment_date'] = null;
+                }
+            } else {
+                $dataToUpsert['establishment_date'] = null;
+            }
+            if (empty($dataToUpsert['status'])) {
+                $dataToUpsert['status'] = 'active';
+            }
+
+            try {
+                $contact = ManagedContact::updateOrCreate(
+                    ['email' => $dataToUpsert['email']],
+                    $dataToUpsert
+                );
+
+                if ($contact->wasRecentlyCreated) {
+                    $importedCount++;
+                    $request->session()->put('csv_import_status.imported_count', $importedCount);
+                } else if ($contact->wasChanged()) {
+                    $updatedCount++;
+                    $request->session()->put('csv_import_status.updated_count', $updatedCount);
+                }
+            } catch (\Exception $e) {
+                $failedCount++;
+                $failedRowsDetails[] = ['row' => $index + 2, 'email' => $dataToUpsert['email'] ?? 'N/A', 'errors' => ['データベースエラー: ' . Str::limit($e->getMessage(), 100)]];
+                Log::error('CSV Import - DB Error for email: ' . ($dataToUpsert['email'] ?? 'N/A'), ['file' => $originalFileName, 'message' => $e->getMessage()]);
+                $request->session()->put('csv_import_status.failed_count', $failedCount);
+            }
+        }
+
+        // ★★★ 正常完了時はセッション情報をクリア ★★★
+        $request->session()->forget('csv_import_status');
+
+        $message = "CSVインポート処理が完了しました（{$originalFileName}）。";
+        $message .= " {$importedCount}件の新規連絡先を登録しました。";
+        $message .= " {$updatedCount}件の既存連絡先を更新しました。";
+        if ($failedCount > 0) {
+            $messageType = 'warning'; // 失敗がある場合は warning
+            $message .= " {$failedCount}件の処理に失敗しました。";
+            Log::warning('CSV Import Summary: Failed rows present.', ['file' => $originalFileName, 'details' => $failedRowsDetails]);
+            $message .= ' 詳細はログを確認してください。';
+        } else {
+            $messageType = 'success';
+        }
+
+        return redirect()->route('tools.sales.managed-contacts.index')
+            ->with($messageType, $message);
     }
 }

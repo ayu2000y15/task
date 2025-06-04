@@ -13,9 +13,21 @@ return [
     | "mailers" array. Examples of each type of mailer are provided.
     |
     */
-
     'default' => env('MAIL_MAILER', 'smtp'),
 
+
+
+    'bounce_address' => env('MAIL_BOUNCE_ADDRESS'),
+
+    'bounce_mailbox' => [
+        'host' => env('BOUNCE_MAIL_HOST'),
+        'port' => env('BOUNCE_MAIL_PORT', 993),
+        'encryption' => env('BOUNCE_MAIL_ENCRYPTION', 'ssl'), // 'ssl', 'tls', or null
+        'protocol'   => env('BOUNCE_MAILBOX_PROTOCOL', 'imap'),
+        'username' => env('BOUNCE_MAIL_USERNAME'),
+        'password' => env('BOUNCE_MAIL_PASSWORD'),
+        'validate_cert' => env('BOUNCE_MAILBOX_VALIDATE_CERT', true),
+    ],
     /*
     |--------------------------------------------------------------------------
     | Mailer Configurations

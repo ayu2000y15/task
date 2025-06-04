@@ -82,7 +82,7 @@
                         <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                             <td class="px-6 py-2 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
                                 {{ $entry->email }}</td>
-                            <td class="px-6 py-2 text-sm text-gray-500 dark:text-gray-400 whitespace-pre-wrap break-words">
+                            <td class="px-6 py-2 text-sm text-gray-500 dark:text-gray-400 ">
                                 {!! nl2br(e(trim($entry->reason))) !!}</td>
                             <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                                 {{ $entry->addedByUser->name ?? 'N/A' }}</td>

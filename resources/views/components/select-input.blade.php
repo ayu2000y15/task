@@ -28,11 +28,18 @@
         @if ($emptyOptionText)
             <option value="">{{ $emptyOptionText }}</option>
         @endif
-        @foreach ($options as $value => $display)
-            <option value="{{ $value }}" {{ ($selected !== null && (string) $value === (string) $selected) ? 'selected' : '' }}>
-                {{ $display }}
-            </option>
-        @endforeach
+
+        {{-- ▼▼▼ ここから修正 ▼▼▼ --}}
+        @if (!empty($options)) {{-- :options プロパティが提供されている場合 --}}
+            @foreach ($options as $value => $display)
+                <option value="{{ $value }}" {{ ($selected !== null && (string) $value === (string) $selected) ? 'selected' : '' }}>
+                    {{ $display }}
+                </option>
+            @endforeach
+        @else
+            {{ $slot }} {{-- :options が空の場合、スロットのコンテンツ（直接書かれたoptionタグなど）を表示 --}}
+        @endif
+        {{-- ▲▲▲ ここまで修正 ▲▲▲ --}}
     </select>
 
     <x-input-error :messages="$errors->get($name)" class="mt-2" />

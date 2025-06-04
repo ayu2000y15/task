@@ -52,6 +52,11 @@ class Kernel extends ConsoleKernel
 
         // 1分ごとにキューワーカーを起動し、キューが空なら停止、タイムアウト60秒
         $schedule->command('queue:work --stop-when-empty --tries=3 --timeout=60')->everyMinute()->withoutOverlapping();
+
+        // 例: 1時間ごとにバウンスメール処理コマンドを実行
+        $schedule->command('emails:process-bounces')
+            ->everyMinute() // または ->everyThirtyMinutes() など適切な頻度で
+            ->withoutOverlapping();
     }
 
     /**

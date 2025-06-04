@@ -13,6 +13,7 @@ use App\Http\Controllers\CostController;
 
 use App\Http\Controllers\CharacterController;
 use App\Http\Controllers\ExternalFormController;
+use App\Http\Controllers\TrackingController;
 
 // フィードバック機能で追加するコントローラー
 use App\Http\Controllers\Admin\ProcessTemplateController;
@@ -27,6 +28,7 @@ use App\Http\Controllers\Admin\InventoryController;
 use App\Http\Controllers\Admin\StockOrderController;
 use App\Http\Controllers\Admin\InventoryLogController;
 use App\Http\Controllers\Admin\MeasurementTemplateController;
+
 
 use App\Http\Controllers\ToolController;
 use App\Http\Controllers\SalesToolController;
@@ -216,6 +218,20 @@ Route::middleware('auth')->group(function () {
                     Route::delete('/{subscriber}', [SalesToolController::class, 'subscribersDestroy'])->name('destroy');
                 });
             });
+
+            // 管理連絡先管理
+            Route::prefix('managed-contacts')->name('managed-contacts.')->middleware(['can:tools.sales.access'])->group(function () {
+                Route::get('/', [SalesToolController::class, 'managedContactsIndex'])->name('index');
+                Route::get('/create', [SalesToolController::class, 'managedContactsCreate'])->name('create');
+                Route::post('/', [SalesToolController::class, 'managedContactsStore'])->name('store');
+                Route::get('/{managedContact}/edit', [SalesToolController::class, 'managedContactsEdit'])->name('edit');
+                Route::put('/{managedContact}', [SalesToolController::class, 'managedContactsUpdate'])->name('update');
+                Route::delete('/{managedContact}', [SalesToolController::class, 'managedContactsDestroy'])->name('destroy');
+                Route::post('/import-csv', [SalesToolController::class, 'managedContactsImportCsv'])->name('importCsv'); // ★ この行を追加 ★
+
+                // 必要に応じて検索やフィルター用のルートもここに追加
+            });
+
             // メール送信
             Route::prefix('emails')->name('emails.')->group(function () { // tools.sales.emails.
                 Route::get('/compose', [SalesToolController::class, 'composeEmail'])->name('compose'); // ★★★ このルート ★★★
@@ -240,6 +256,11 @@ Route::middleware('auth')->group(function () {
             });
         });
     });
+});
+
+Route::prefix('track')->name('track.')->group(function () {
+    Route::get('/open/{identifier}', [TrackingController::class, 'open'])->name('open');
+    Route::get('/click/{identifier}', [TrackingController::class, 'click'])->name('click');
 });
 
 // 外部向け申請フォーム (認証外)
