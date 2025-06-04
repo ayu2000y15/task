@@ -55,7 +55,7 @@ class Kernel extends ConsoleKernel
 
         // 例: 1時間ごとにバウンスメール処理コマンドを実行
         $schedule->command('emails:process-bounces')
-            ->everyMinute() // または ->everyThirtyMinutes() など適切な頻度で
+            ->hourly() // または ->everyThirtyMinutes() など適切な頻度で
             ->withoutOverlapping();
     }
 
