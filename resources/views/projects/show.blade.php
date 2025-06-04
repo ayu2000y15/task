@@ -1,4 +1,3 @@
-{{-- show.blade.php --}}
 @extends('layouts.app')
 
 @section('title', '案件詳細 - ' . $project->title)
@@ -481,16 +480,32 @@
                                         <div class="border-b border-gray-200 dark:border-gray-700">
                                             <nav class="-mb-px flex space-x-2 sm:space-x-4 overflow-x-auto text-xs sm:text-sm" aria-label="Character Tabs for {{ $character->id }}">
                                                 @can('manageMeasurements', $project)
-                                                <button @click="activeCharacterTab[{{ $character->id }}] = (activeCharacterTab[{{ $character->id }}] === 'measurements-{{ $character->id }}') ? null : 'measurements-{{ $character->id }}'" :class="{ 'border-blue-500 text-blue-600 dark:border-blue-400 dark:text-blue-400 font-semibold': activeCharacterTab[{{ $character->id }}] === 'measurements-{{ $character->id }}', 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:border-gray-600': activeCharacterTab[{{ $character->id }}] !== 'measurements-{{ $character->id }}' }" class="whitespace-nowrap py-2 px-2 sm:px-3 border-b-2 font-medium focus:outline-none"><i class="fas fa-ruler mr-1"></i> 採寸</button>
+                                                <button @click="activeCharacterTab[{{ $character->id }}] = (activeCharacterTab[{{ $character->id }}] === 'measurements-{{ $character->id }}') ? null : 'measurements-{{ $character->id }}'"
+                                                        :class="{ 'border-blue-500 text-blue-600 dark:border-blue-400 dark:text-blue-400 font-semibold': activeCharacterTab[{{ $character->id }}] === 'measurements-{{ $character->id }}', 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:border-gray-600': activeCharacterTab[{{ $character->id }}] !== 'measurements-{{ $character->id }}' }"
+                                                        class="whitespace-nowrap py-2 px-2 sm:px-3 border-b-2 font-medium focus:outline-none">
+                                                    <i class="fas fa-ruler mr-1"></i> 採寸 <span class="ml-1 text-xs">({{ $character->measurements->count() }})</span>
+                                                </button>
                                                 @endcan
                                                 @can('manageMaterials', $project)
-                                                <button @click="activeCharacterTab[{{ $character->id }}] = (activeCharacterTab[{{ $character->id }}] === 'materials-{{ $character->id }}') ? null : 'materials-{{ $character->id }}'" :class="{ 'border-blue-500 text-blue-600 dark:border-blue-400 dark:text-blue-400 font-semibold': activeCharacterTab[{{ $character->id }}] === 'materials-{{ $character->id }}', 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:border-gray-600': activeCharacterTab[{{ $character->id }}] !== 'materials-{{ $character->id }}' }" class="whitespace-nowrap py-2 px-2 sm:px-3 border-b-2 font-medium focus:outline-none"><i class="fas fa-box mr-1"></i> 材料</button>
+                                                <button @click="activeCharacterTab[{{ $character->id }}] = (activeCharacterTab[{{ $character->id }}] === 'materials-{{ $character->id }}') ? null : 'materials-{{ $character->id }}'"
+                                                        :class="{ 'border-blue-500 text-blue-600 dark:border-blue-400 dark:text-blue-400 font-semibold': activeCharacterTab[{{ $character->id }}] === 'materials-{{ $character->id }}', 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:border-gray-600': activeCharacterTab[{{ $character->id }}] !== 'materials-{{ $character->id }}' }"
+                                                        class="whitespace-nowrap py-2 px-2 sm:px-3 border-b-2 font-medium focus:outline-none">
+                                                    <i class="fas fa-box mr-1"></i> 材料 <span class="ml-1 text-xs">({{ $character->materials->count() }})</span>
+                                                </button>
                                                 @endcan
                                                 @can('viewAny', App\Models\Task::class)
-                                                <button @click="activeCharacterTab[{{ $character->id }}] = (activeCharacterTab[{{ $character->id }}] === 'tasks-{{ $character->id }}') ? null : 'tasks-{{ $character->id }}'" :class="{ 'border-blue-500 text-blue-600 dark:border-blue-400 dark:text-blue-400 font-semibold': activeCharacterTab[{{ $character->id }}] === 'tasks-{{ $character->id }}', 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:border-gray-600': activeCharacterTab[{{ $character->id }}] !== 'tasks-{{ $character->id }}' }" class="whitespace-nowrap py-2 px-2 sm:px-3 border-b-2 font-medium focus:outline-none"><i class="fas fa-tasks mr-1"></i> 工程 <span class="ml-1 text-xs">({{ $character->tasks->count() }})</span></button>
+                                                <button @click="activeCharacterTab[{{ $character->id }}] = (activeCharacterTab[{{ $character->id }}] === 'tasks-{{ $character->id }}') ? null : 'tasks-{{ $character->id }}'"
+                                                        :class="{ 'border-blue-500 text-blue-600 dark:border-blue-400 dark:text-blue-400 font-semibold': activeCharacterTab[{{ $character->id }}] === 'tasks-{{ $character->id }}', 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:border-gray-600': activeCharacterTab[{{ $character->id }}] !== 'tasks-{{ $character->id }}' }"
+                                                        class="whitespace-nowrap py-2 px-2 sm:px-3 border-b-2 font-medium focus:outline-none">
+                                                    <i class="fas fa-tasks mr-1"></i> 工程 <span class="ml-1 text-xs">({{ $character->tasks->count() }})</span>
+                                                </button>
                                                 @endcan
                                                 @can('manageCosts', $project)
-                                                <button @click="activeCharacterTab[{{ $character->id }}] = (activeCharacterTab[{{ $character->id }}] === 'costs-{{ $character->id }}') ? null : 'costs-{{ $character->id }}'" :class="{ 'border-blue-500 text-blue-600 dark:border-blue-400 dark:text-blue-400 font-semibold': activeCharacterTab[{{ $character->id }}] === 'costs-{{ $character->id }}', 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:border-gray-600': activeCharacterTab[{{ $character->id }}] !== 'costs-{{ $character->id }}' }" class="whitespace-nowrap py-2 px-2 sm:px-3 border-b-2 font-medium focus:outline-none"><i class="fas fa-yen-sign mr-1"></i> コスト</button>
+                                                <button @click="activeCharacterTab[{{ $character->id }}] = (activeCharacterTab[{{ $character->id }}] === 'costs-{{ $character->id }}') ? null : 'costs-{{ $character->id }}'"
+                                                        :class="{ 'border-blue-500 text-blue-600 dark:border-blue-400 dark:text-blue-400 font-semibold': activeCharacterTab[{{ $character->id }}] === 'costs-{{ $character->id }}', 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:border-gray-600': activeCharacterTab[{{ $character->id }}] !== 'costs-{{ $character->id }}' }"
+                                                        class="whitespace-nowrap py-2 px-2 sm:px-3 border-b-2 font-medium focus:outline-none">
+                                                    <i class="fas fa-yen-sign mr-1"></i> コスト <span class="ml-1 text-xs">({{ number_format($character->costs->sum('amount')) }}円)</span>
+                                                </button>
                                                 @endcan
                                             </nav>
                                         </div>
@@ -552,3 +567,4 @@
     </div>
 </div>
 @endsection
+

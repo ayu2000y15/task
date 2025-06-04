@@ -85,7 +85,7 @@ class TaskController extends Controller
     /**
      * 新規工程を保存
      */
-    public function store(Request $request, Project $project)
+    public function store(Request $request, Project $project): \Illuminate\Http\RedirectResponse
     {
         $this->authorize('create', Task::class);
 
@@ -133,6 +133,7 @@ class TaskController extends Controller
                 'nullable',
                 Rule::in(['not_started', 'in_progress', 'completed', 'on_hold', 'cancelled'])
             ],
+            'apply_individual_to_all_characters' => 'nullable|boolean', // Added
         ], [
             'start_date.required_if' => '開始日時は必須です（工程または重要納期の場合）。',
             'start_date.date_format' => '開始日時は正しい形式で入力してください。',
@@ -147,10 +148,11 @@ class TaskController extends Controller
         $isMilestone = $taskTypeInput === 'milestone';
         $isTodoTask = $taskTypeInput === 'todo_task';
 
-        $taskData = [
+        $applyToAllCharacters = $request->boolean('apply_individual_to_all_characters') && !$isFolder;
+
+        $baseTaskData = [
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
-            'character_id' => (array_key_exists('character_id', $validated) && $validated['character_id'] !== '') ? $validated['character_id'] : null,
             'assignee' => $validated['assignee'] ?? null,
             'parent_id' => $request->input('parent_id'),
             'is_milestone' => $isMilestone,
@@ -159,36 +161,35 @@ class TaskController extends Controller
         ];
 
         if ($isFolder || $isTodoTask) {
-            $taskData['start_date'] = null;
-            $taskData['end_date'] = null;
-            $taskData['duration'] = null;
-            $taskData['progress'] = $isFolder ? null : 0;
-            $taskData['status'] = $isFolder ? null : ($validated['status'] ?? 'not_started');
+            $baseTaskData['start_date'] = null;
+            $baseTaskData['end_date'] = null;
+            $baseTaskData['duration'] = null;
+            $baseTaskData['progress'] = $isFolder ? null : 0;
+            $baseTaskData['status'] = $isFolder ? null : ($validated['status'] ?? 'not_started');
         } elseif ($isMilestone) {
             $startDate = isset($validated['start_date']) ? Carbon::parse($validated['start_date']) : null;
-            $taskData['start_date'] = $startDate;
-            $taskData['end_date'] = $startDate ? $startDate->copy() : null;
-            $taskData['duration'] = 0;
-            $taskData['status'] = $validated['status'] ?? 'not_started';
+            $baseTaskData['start_date'] = $startDate;
+            $baseTaskData['end_date'] = $startDate ? $startDate->copy() : null;
+            $baseTaskData['duration'] = 0;
+            $baseTaskData['status'] = $validated['status'] ?? 'not_started';
         } else { // 通常のタスク (task)
             $startDate = Carbon::parse($validated['start_date']);
             $endDate = $request->filled('end_date') ? Carbon::parse($validated['end_date']) : null;
             $durationValue = $request->filled('duration_value') ? (float)$validated['duration_value'] : null;
             $durationUnit = $request->filled('duration_unit') ? $validated['duration_unit'] : null;
 
-            $taskData['start_date'] = $startDate;
-            $taskData['status'] = $validated['status'] ?? 'not_started';
+            $baseTaskData['start_date'] = $startDate;
+            $baseTaskData['status'] = $validated['status'] ?? 'not_started';
 
             if ($endDate && $endDate->greaterThanOrEqualTo($startDate)) {
-                $taskData['end_date'] = $endDate;
-                // 修正: $startDate->diffInMinutes($endDate) を使用
-                $taskData['duration'] = $startDate->diffInMinutes($endDate);
+                $baseTaskData['end_date'] = $endDate;
+                $baseTaskData['duration'] = $startDate->diffInMinutes($endDate);
             } elseif ($durationValue !== null && $durationUnit !== null) {
                 $calculatedDurationInMinutes = 0;
                 switch ($durationUnit) {
                     case 'days':
                         $calculatedDurationInMinutes = $durationValue * 24 * 60;
-                        break; // 1日24時間
+                        break;
                     case 'hours':
                         $calculatedDurationInMinutes = $durationValue * 60;
                         break;
@@ -196,18 +197,43 @@ class TaskController extends Controller
                         $calculatedDurationInMinutes = $durationValue;
                         break;
                 }
-                $taskData['duration'] = $calculatedDurationInMinutes;
-                $taskData['end_date'] = $startDate->copy()->addMinutes($calculatedDurationInMinutes);
+                $baseTaskData['duration'] = $calculatedDurationInMinutes;
+                $baseTaskData['end_date'] = $startDate->copy()->addMinutes($calculatedDurationInMinutes);
             } else {
-                $taskData['duration'] = 0;
-                $taskData['end_date'] = $startDate->copy();
+                // If neither end_date nor duration is provided, but start_date is,
+                // default duration to 0 and end_date to start_date.
+                // This case might be hit if required_if for duration/end_date is not triggered
+                // (e.g. task type is not 'task' but still hits this else block, though unlikely with current logic)
+                $baseTaskData['duration'] = 0;
+                $baseTaskData['end_date'] = $startDate->copy();
             }
         }
 
-        $task = new Task($taskData);
-        $project->tasks()->save($task);
+        $message = '工程が作成されました。';
+        if ($applyToAllCharacters && $project->characters()->exists()) {
+            foreach ($project->characters as $character) {
+                $taskDataForCharacter = $baseTaskData;
+                $taskDataForCharacter['character_id'] = $character->id;
+                $task = new Task($taskDataForCharacter);
+                $project->tasks()->save($task);
+            }
+            $message = '工程がすべてのキャラクターに作成されました。';
+        } else {
+            $taskData = $baseTaskData;
+            // Only set character_id if not applying to all, or if it's a folder (folders don't have characters)
+            // And if character_id is actually provided in validated data.
+            $taskData['character_id'] = ($isFolder) ? null : ((array_key_exists('character_id', $validated) && $validated['character_id'] !== '') ? $validated['character_id'] : null);
+            if ($applyToAllCharacters && !$project->characters()->exists()) {
+                // If "apply to all" is checked but no characters exist, create one task without character_id
+                $taskData['character_id'] = null;
+                $message = '工程が作成されました（案件にキャラクターが存在しないため、キャラクター未所属となります）。';
+            }
 
-        return redirect()->route('gantt.index', ['project_id' => $project->id])->with('success', '工程が作成されました。');
+            $task = new Task($taskData);
+            $project->tasks()->save($task);
+        }
+
+        return redirect()->route('projects.show', $project)->with('success', $message);
     }
 
     /**
@@ -225,7 +251,7 @@ class TaskController extends Controller
     /**
      * 工程を更新
      */
-    public function update(Request $request, Project $project, Task $task)
+    public function update(Request $request, Project $project, Task $task): \Illuminate\Http\RedirectResponse
     {
         $this->authorize('update', $task);
 
@@ -269,12 +295,13 @@ class TaskController extends Controller
                 Rule::requiredIf(fn() => $currentTaskType === 'task' && !$request->filled('end_date') && $request->filled('duration_value')),
             ],
             'assignee' => 'nullable|string|max:255',
-            'parent_id' => 'nullable|exists:tasks,id',
+            'parent_id' => 'nullable|exists:tasks,id', // Ensure parent_id is validated
             'status' => [
                 Rule::requiredIf(fn() => $currentTaskType !== 'folder'),
                 'nullable',
                 Rule::in(['not_started', 'in_progress', 'completed', 'on_hold', 'cancelled'])
             ],
+            'apply_edit_to_all_characters_same_name' => 'nullable|boolean', // Added
         ], [
             'start_date.required_if' => '開始日時は必須です（工程または重要納期の場合）。',
             'start_date.date_format' => '開始日時は正しい形式で入力してください。',
@@ -286,46 +313,51 @@ class TaskController extends Controller
         ]);
 
 
-        $taskData = [
+        $taskDataForCurrent = [
             'name' => $validated['name'],
             'description' => $validated['description'],
-            'character_id' => (array_key_exists('character_id', $validated) && $validated['character_id'] !== '') ? $validated['character_id'] : null,
+            'character_id' => ($currentTaskType === 'folder') ? null : ((array_key_exists('character_id', $validated) && $validated['character_id'] !== '') ? $validated['character_id'] : $task->character_id),
             'assignee' => $validated['assignee'],
-            'parent_id' => $validated['parent_id'],
+            // parent_id should be taken from validated data if present, otherwise keep existing.
+            // This ensures that if parent_id is not part of the form for certain task types, it's not nullified.
+            'parent_id' => $request->filled('parent_id') ? $validated['parent_id'] : $task->parent_id,
         ];
 
         if ($currentTaskType === 'folder') {
-            $taskData['status'] = null;
+            $taskDataForCurrent['status'] = null;
+            // For folders, dates and duration are not applicable or should remain as they are (usually null)
+            $taskDataForCurrent['start_date'] = $task->start_date; // or null
+            $taskDataForCurrent['end_date'] = $task->end_date;   // or null
+            $taskDataForCurrent['duration'] = $task->duration; // or null
         } elseif ($currentTaskType === 'milestone') {
             $startDate = $request->filled('start_date') ? Carbon::parse($validated['start_date']) : $task->start_date;
-            $taskData['start_date'] = $startDate;
-            $taskData['end_date'] = $startDate ? $startDate->copy() : null;
-            $taskData['duration'] = 0;
-            $taskData['status'] = $validated['status'] ?? $task->status;
+            $taskDataForCurrent['start_date'] = $startDate;
+            $taskDataForCurrent['end_date'] = $startDate ? $startDate->copy() : null;
+            $taskDataForCurrent['duration'] = 0;
+            $taskDataForCurrent['status'] = $validated['status'] ?? $task->status;
         } elseif ($currentTaskType === 'todo_task') {
-            $taskData['start_date'] = null;
-            $taskData['end_date'] = null;
-            $taskData['duration'] = null;
-            $taskData['status'] = $validated['status'] ?? $task->status;
+            $taskDataForCurrent['start_date'] = null;
+            $taskDataForCurrent['end_date'] = null;
+            $taskDataForCurrent['duration'] = null;
+            $taskDataForCurrent['status'] = $validated['status'] ?? $task->status;
         } else { // 通常のタスク
             $startDate = $request->filled('start_date') ? Carbon::parse($validated['start_date']) : $task->start_date;
             $endDate = $request->filled('end_date') ? Carbon::parse($validated['end_date']) : null;
             $durationValue = $request->filled('duration_value') ? (float)$validated['duration_value'] : null;
             $durationUnit = $request->filled('duration_unit') ? $validated['duration_unit'] : null;
 
-            $taskData['start_date'] = $startDate;
-            $taskData['status'] = $validated['status'] ?? $task->status;
+            $taskDataForCurrent['start_date'] = $startDate;
+            $taskDataForCurrent['status'] = $validated['status'] ?? $task->status;
 
             if ($startDate && $endDate && $endDate->greaterThanOrEqualTo($startDate)) {
-                $taskData['end_date'] = $endDate;
-                // 修正: $startDate->diffInMinutes($endDate) を使用
-                $taskData['duration'] = $startDate->diffInMinutes($endDate);
+                $taskDataForCurrent['end_date'] = $endDate;
+                $taskDataForCurrent['duration'] = $startDate->diffInMinutes($endDate);
             } elseif ($startDate && $durationValue !== null && $durationUnit !== null) {
                 $calculatedDurationInMinutes = 0;
                 switch ($durationUnit) {
                     case 'days':
                         $calculatedDurationInMinutes = $durationValue * 24 * 60;
-                        break; // 1日24時間
+                        break;
                     case 'hours':
                         $calculatedDurationInMinutes = $durationValue * 60;
                         break;
@@ -333,22 +365,80 @@ class TaskController extends Controller
                         $calculatedDurationInMinutes = $durationValue;
                         break;
                 }
-                $taskData['duration'] = $calculatedDurationInMinutes;
-                $taskData['end_date'] = $startDate->copy()->addMinutes($calculatedDurationInMinutes);
+                $taskDataForCurrent['duration'] = $calculatedDurationInMinutes;
+                $taskDataForCurrent['end_date'] = $startDate->copy()->addMinutes($calculatedDurationInMinutes);
             } elseif ($startDate) {
-                $taskData['duration'] = $task->duration ?? 0;
-                $taskData['end_date'] = $startDate->copy()->addMinutes($taskData['duration']);
+                // If only start_date is provided (or changed), and no end_date/duration,
+                // we might want to preserve existing duration or set to a default.
+                // Here, we'll use the task's current duration if available, or 0.
+                $currentDuration = $task->duration ?? 0;
+                $taskDataForCurrent['duration'] = $currentDuration;
+                $taskDataForCurrent['end_date'] = $startDate->copy()->addMinutes($currentDuration);
             } else {
-                $taskData['start_date'] = null;
-                $taskData['end_date'] = null;
-                $taskData['duration'] = null;
+                // No start date, likely a todo_task or similar, or an invalid state for 'task' type.
+                // Nullify date/duration fields if start_date is removed for a task that previously had one.
+                $taskDataForCurrent['start_date'] = null;
+                $taskDataForCurrent['end_date'] = null;
+                $taskDataForCurrent['duration'] = null;
             }
         }
 
-        $task->fill($taskData);
+        $task->fill($taskDataForCurrent);
         $task->save();
+        $message = '工程が更新されました。';
 
-        return redirect()->route('gantt.index', ['project_id' => $task->project_id])->with('success', '工程が更新されました。');
+        $applyEditToAllCharactersSameName = $request->boolean('apply_edit_to_all_characters_same_name')
+            && $task->character_id // Only if current task is linked to a char
+            && $currentTaskType !== 'folder'; // Not for folders
+
+        if ($applyEditToAllCharactersSameName) {
+            // These are the attributes from the *updated* original task ($task)
+            // that we want to propagate to other similar tasks.
+            $attributesToSync = [
+                'name' => $task->name, // Name is the primary key for finding "same" tasks, but also sync it if changed.
+                'description' => $task->description,
+                'start_date' => $task->start_date,
+                'end_date' => $task->end_date,
+                'duration' => $task->duration,
+                'status' => $task->status,
+                'progress' => $task->progress, // Sync progress as well
+                'assignee' => $task->assignee,
+                // parent_id is tricky. If other tasks have different parents, this could be an issue.
+                // For now, let's assume if they are "same name" tasks, they might share the same parent intent.
+                // Or, only sync parent if it was explicitly part of the $validated data for the main task.
+                'parent_id' => $task->parent_id,
+            ];
+
+            // Find other tasks in the same project, with the same name (original name before this update, if name changed)
+            // or new name if name itself is being synced.
+            // We will use the *new* name from the updated $task.
+            $otherTasks = Task::where('project_id', $project->id)
+                ->where('name', $task->name) // Match by the (potentially new) name
+                ->where('id', '!=', $task->id) // Exclude the task just updated
+                ->whereNotNull('character_id') // Only tasks linked to characters
+                ->where('character_id', '!=', $task->character_id) // Different characters
+                ->where('is_milestone', $task->is_milestone) // Same type
+                ->where('is_folder', $task->is_folder)       // Same type
+                ->get();
+
+            $updatedCount = 0;
+            foreach ($otherTasks as $otherTask) {
+                // Preserve the otherTask's own character_id and id.
+                // Also preserve its specific is_milestone and is_folder flags (though already filtered by these).
+                $dataForOtherTask = $attributesToSync;
+                // Remove keys that should not be mass-updated or are specific to the instance
+                // unset($dataForOtherTask['character_id']); // character_id is not in attributesToSync
+
+                $otherTask->fill($dataForOtherTask);
+                $otherTask->save(); // Use save() to trigger activity logs for each updated task
+                $updatedCount++;
+            }
+            if ($updatedCount > 0) {
+                $message = '工程が更新され、他のキャラクターの同名工程 (' . $updatedCount . '件) にも反映されました。';
+            }
+        }
+
+        return redirect()->route('projects.show', $project)->with('success', $message);
     }
 
     /**
@@ -359,7 +449,7 @@ class TaskController extends Controller
         $this->authorize('delete', $task);
 
         $this->deleteTaskAndChildren($task);
-        return redirect()->route('gantt.index', ['project_id' => $project->id])->with('success', '工程が削除されました。');
+        return redirect()->route('projects.show', $project)->with('success', '工程が削除されました。');
     }
 
     /**
@@ -624,7 +714,7 @@ class TaskController extends Controller
         return response()->json(['success' => true, 'message' => 'ファイルを削除しました。']);
     }
 
-    public function storeFromTemplate(Request $request, Project $project)
+    public function storeFromTemplate(Request $request, Project $project): \Illuminate\Http\RedirectResponse
     {
         $this->authorize('create', Task::class);
         Log::info('storeFromTemplate called', $request->all());
@@ -640,6 +730,7 @@ class TaskController extends Controller
             }],
             'working_hours_start' => 'required|date_format:H:i',
             'working_hours_end' => 'required|date_format:H:i|after:working_hours_start',
+            'apply_template_to_all_characters' => 'nullable|boolean', // Added
         ], [
             'working_hours_start.required' => '稼働開始時刻は必須です。',
             'working_hours_start.date_format' => '稼働開始時刻はHH:MM形式で入力してください。',
@@ -654,10 +745,9 @@ class TaskController extends Controller
         $carbonWorkDayStartTime = Carbon::parse($validated['working_hours_start']);
         $carbonWorkDayEndTime = Carbon::parse($validated['working_hours_end']);
 
-        // 稼働時間を分で計算 (abs=true を明示的に指定)
         $workableMinutesPerDay = $carbonWorkDayEndTime->diffInMinutes($carbonWorkDayStartTime, true);
 
-        if ($workableMinutesPerDay <= 0 && !($carbonWorkDayStartTime->eq($carbonWorkDayEndTime))) { // 0分稼働は許可しない (ただし開始と終了が同じ場合は0分として扱う)
+        if ($workableMinutesPerDay <= 0 && !($carbonWorkDayStartTime->eq($carbonWorkDayEndTime))) {
             Log::error('Workable minutes per day is not positive', [
                 'start_time' => $validated['working_hours_start'],
                 'end_time' => $validated['working_hours_end'],
@@ -667,158 +757,201 @@ class TaskController extends Controller
         }
         Log::info('Workable minutes per day', ['minutes' => $workableMinutesPerDay]);
 
-        $currentTaskProcessingDateTime = Carbon::parse($validated['template_start_date']);
-        Log::info('Initial processing date from input', ['datetime' => $currentTaskProcessingDateTime->format('Y-m-d H:i:s')]);
-
-        // テンプレート適用開始日時に時刻が含まれていない場合、または稼働開始時刻より前の場合、稼働開始時刻に設定
-        $parsedInputDate = Carbon::parse($validated['template_start_date']);
-        if (strpos($validated['template_start_date'], 'T') === false && strpos($validated['template_start_date'], ' ') === false) {
-            $currentTaskProcessingDateTime->setTimeFrom($carbonWorkDayStartTime);
-            Log::info('Time not in input, set to working_hours_start', ['datetime' => $currentTaskProcessingDateTime->format('Y-m-d H:i:s')]);
-        } elseif ($parsedInputDate->copy()->setTime($parsedInputDate->hour, $parsedInputDate->minute)
-            ->lt($parsedInputDate->copy()->setTimeFrom($carbonWorkDayStartTime))
-        ) {
-            $currentTaskProcessingDateTime->setTimeFrom($carbonWorkDayStartTime);
-            Log::info('Input time before working_hours_start, adjusted', ['datetime' => $currentTaskProcessingDateTime->format('Y-m-d H:i:s')]);
-        }
-
-        // 開始日時が稼働終了時刻より後なら翌日の稼働開始時刻へ
-        if ($currentTaskProcessingDateTime->copy()->setTime($currentTaskProcessingDateTime->hour, $currentTaskProcessingDateTime->minute)
-            ->gte($currentTaskProcessingDateTime->copy()->setTimeFrom($carbonWorkDayEndTime))
-        ) {
-            $currentTaskProcessingDateTime->addDay()->setTimeFrom($carbonWorkDayStartTime);
-            Log::info('Input time after working_hours_end, moved to next day start', ['datetime' => $currentTaskProcessingDateTime->format('Y-m-d H:i:s')]);
-        }
-
-        // 週末なら月曜へスキップし、稼働開始時刻に設定
-        while ($currentTaskProcessingDateTime->isWeekend()) {
-            $currentTaskProcessingDateTime->addDay()->setTimeFrom($carbonWorkDayStartTime);
-            Log::info('Skipped weekend, new date', ['datetime' => $currentTaskProcessingDateTime->format('Y-m-d H:i:s')]);
-        }
-        Log::info('Final initial processing date', ['datetime' => $currentTaskProcessingDateTime->format('Y-m-d H:i:s')]);
-
-
+        $applyToAllCharacters = $request->boolean('apply_template_to_all_characters');
         $parentTaskIdForTemplate = $validated['parent_id_for_template'] ?? null;
-        $characterIdForTemplate = $validated['character_id_for_template'] ?? null;
-        $createdTaskNames = [];
-
-        foreach ($template->items()->orderBy('order')->get() as $itemIndex => $item) {
-            Log::info("Processing template item: {$item->name} (Order: {$item->order})");
-            $taskDurationInMinutes = $item->default_duration ?? 0;
-            Log::info("Item duration in minutes: {$taskDurationInMinutes}");
-
-            // このタスクの実際の開始日時を、前のタスクの終了処理後の $currentTaskProcessingDateTime からコピー
-            $actualTaskStartDate = $currentTaskProcessingDateTime->copy();
-            // ただし、actualTaskStartDate が稼働時間外であれば調整
-            if ($actualTaskStartDate->copy()->setTime($actualTaskStartDate->hour, $actualTaskStartDate->minute)
-                ->lt($actualTaskStartDate->copy()->setTimeFrom($carbonWorkDayStartTime))
-            ) {
-                $actualTaskStartDate->setTimeFrom($carbonWorkDayStartTime);
-            } elseif ($actualTaskStartDate->copy()->setTime($actualTaskStartDate->hour, $actualTaskStartDate->minute)
-                ->gte($actualTaskStartDate->copy()->setTimeFrom($carbonWorkDayEndTime))
-            ) {
-                $actualTaskStartDate->addDay()->setTimeFrom($carbonWorkDayStartTime);
-            }
-            while ($actualTaskStartDate->isWeekend()) {
-                $actualTaskStartDate->addDay()->setTimeFrom($carbonWorkDayStartTime);
-            }
-            Log::info("Actual start date for item {$item->name}: " . $actualTaskStartDate->format('Y-m-d H:i:s'));
+        $totalCreatedTasksCount = 0;
+        $firstCreatedTaskNameForLog = null;
 
 
-            $remainingDurationForThisTask = $taskDurationInMinutes;
-            $taskCalculatedEndDate = $actualTaskStartDate->copy();
-
-            if ($taskDurationInMinutes <= 0) { // 工数0の場合は開始と終了を同じにする
-                $taskCalculatedEndDate = $actualTaskStartDate->copy();
-                Log::info("Task duration is 0. End date set to start date: " . $taskCalculatedEndDate->format('Y-m-d H:i:s'));
+        $charactersToProcess = collect();
+        if ($applyToAllCharacters) {
+            if ($project->characters()->exists()) {
+                $charactersToProcess = $project->characters;
             } else {
-                while ($remainingDurationForThisTask > 0) {
-                    Log::info("Remaining duration for {$item->name}: {$remainingDurationForThisTask} mins. Current calc end date for loop start: " . $taskCalculatedEndDate->format('Y-m-d H:i:s'));
-
-                    // 現在の日の稼働終了時刻
-                    $todayWorkEnd = $taskCalculatedEndDate->copy()->setTimeFrom($carbonWorkDayEndTime);
-                    // 現在の日の処理開始時刻から稼働終了時刻までの残り稼働時間
-                    $minutesAvailableToday = $taskCalculatedEndDate->diffInMinutes($todayWorkEnd, false); // falseで絶対値でない差分
-                    Log::info("Minutes available today ({$taskCalculatedEndDate->format('Y-m-d')} from {$taskCalculatedEndDate->format('H:i')} to {$todayWorkEnd->format('H:i')}): {$minutesAvailableToday}");
-
-                    if ($minutesAvailableToday <= 0) {
-                        $taskCalculatedEndDate->addDay()->setTimeFrom($carbonWorkDayStartTime);
-                        while ($taskCalculatedEndDate->isWeekend()) {
-                            $taskCalculatedEndDate->addDay()->setTimeFrom($carbonWorkDayStartTime);
-                        }
-                        Log::info("No time left today or started after EOD. Moved to next working day start: " . $taskCalculatedEndDate->format('Y-m-d H:i:s'));
-                        // ループの先頭に戻って、新しい日付で minutesAvailableToday を再計算
-                        continue;
-                    }
-
-                    if ($remainingDurationForThisTask <= $minutesAvailableToday) {
-                        $taskCalculatedEndDate->addMinutes($remainingDurationForThisTask);
-                        $remainingDurationForThisTask = 0;
-                        Log::info("Task fits in current day. New calc end date: " . $taskCalculatedEndDate->format('Y-m-d H:i:s'));
-                    } else {
-                        $taskCalculatedEndDate->addMinutes($minutesAvailableToday);
-                        $remainingDurationForThisTask -= $minutesAvailableToday;
-                        Log::info("Task does not fit. Remaining duration: {$remainingDurationForThisTask}. End of day reached: " . $taskCalculatedEndDate->format('Y-m-d H:i:s'));
-
-                        // 次の稼働日の開始時刻へ
-                        $taskCalculatedEndDate->addDay()->setTimeFrom($carbonWorkDayStartTime);
-                        while ($taskCalculatedEndDate->isWeekend()) {
-                            $taskCalculatedEndDate->addDay()->setTimeFrom($carbonWorkDayStartTime);
-                        }
-                        Log::info("Moved to next working day start for remaining duration: " . $taskCalculatedEndDate->format('Y-m-d H:i:s'));
-                    }
+                // If "apply to all" is checked but no characters exist, create one set of tasks without character_id
+                $charactersToProcess = collect([null]); // Represents a single run with character_id = null
+            }
+        } else {
+            $selectedCharacterId = $validated['character_id_for_template'] ?? null;
+            if ($selectedCharacterId) {
+                $character = $project->characters()->find($selectedCharacterId);
+                if ($character) {
+                    $charactersToProcess = collect([$character]);
+                } else {
+                    // Character ID provided but not found, should not happen due to validation, but as a fallback:
+                    return redirect()->back()->withErrors(['character_id_for_template' => '指定されたキャラクターが見つかりません。'])->withInput();
                 }
+            } else {
+                // No specific character selected, and not "apply to all" -> create tasks for project (character_id = null)
+                $charactersToProcess = collect([null]);
             }
+        }
 
-            $taskData = [
-                'name' => $item->name,
-                'description' => null,
-                'assignee' => null,
-                'parent_id' => $parentTaskIdForTemplate,
-                'character_id' => $characterIdForTemplate,
-                'is_milestone' => false,
-                'is_folder' => false,
-                'progress' => 0,
-                'status' => 'not_started',
-                'start_date' => $actualTaskStartDate,
-                'duration' => $taskDurationInMinutes,
-                'end_date' => $taskCalculatedEndDate,
-            ];
-            Log::info("Task data to be created for {$item->name}", $taskData);
+        if ($charactersToProcess->isEmpty()) {
+            return redirect()->route('projects.show', $project)->with('info', 'テンプレートを適用する対象のキャラクターがいません。');
+        }
 
-            $createdTask = $project->tasks()->create($taskData);
-            $createdTaskNames[] = $createdTask->name;
+        foreach ($charactersToProcess as $characterInstance) { // $characterInstance can be a Character model or null
+            $characterIdForThisIteration = $characterInstance ? $characterInstance->id : null;
 
-            // 次のタスクの開始日時を、現在のタスクの計算された終了日時に設定
-            $currentTaskProcessingDateTime = $taskCalculatedEndDate->copy();
-            // 次のタスクの開始が稼働時間外なら調整
-            if ($currentTaskProcessingDateTime->copy()->setTime($currentTaskProcessingDateTime->hour, $currentTaskProcessingDateTime->minute)
-                ->gte($currentTaskProcessingDateTime->copy()->setTimeFrom($carbonWorkDayEndTime))
+            // Reset $currentTaskProcessingDateTime for each character set from the initial template_start_date
+            $currentTaskProcessingDateTime = Carbon::parse($validated['template_start_date']);
+            Log::info('Initial processing date from input for iteration', ['character_id' => $characterIdForThisIteration, 'datetime' => $currentTaskProcessingDateTime->format('Y-m-d H:i:s')]);
+
+            // Adjust $currentTaskProcessingDateTime to working hours and skip weekends
+            $parsedInputDate = Carbon::parse($validated['template_start_date']); // Use the original template start for time check
+            if (strpos($validated['template_start_date'], 'T') === false && strpos($validated['template_start_date'], ' ') === false) { // Only date, no time
+                $currentTaskProcessingDateTime->setTimeFrom($carbonWorkDayStartTime);
+                Log::info('Time not in input, set to working_hours_start', ['datetime' => $currentTaskProcessingDateTime->format('Y-m-d H:i:s')]);
+            } elseif ($currentTaskProcessingDateTime->copy()->setTime($currentTaskProcessingDateTime->hour, $currentTaskProcessingDateTime->minute)
+                ->lt($parsedInputDate->copy()->setTimeFrom($carbonWorkDayStartTime)) // If original time is before work start
             ) {
-                $currentTaskProcessingDateTime->addDay()->setTimeFrom($carbonWorkDayStartTime);
-                Log::info("Next task start (after EOD adjustment): " . $currentTaskProcessingDateTime->format('Y-m-d H:i:s'));
+                $currentTaskProcessingDateTime->setTimeFrom($carbonWorkDayStartTime);
+                Log::info('Input time before working_hours_start, adjusted', ['datetime' => $currentTaskProcessingDateTime->format('Y-m-d H:i:s')]);
             }
+
+            // If current processing time (after potential adjustment above) is at or after EOD, move to next working day's start
+            if (
+                $currentTaskProcessingDateTime->copy()->setTime($currentTaskProcessingDateTime->hour, $currentTaskProcessingDateTime->minute)
+                ->gte($currentTaskProcessingDateTime->copy()->setTimeFrom($carbonWorkDayEndTime)) && $workableMinutesPerDay > 0
+            ) { // also check workableMinutesPerDay to avoid infinite loop if EOD = SOD
+                $currentTaskProcessingDateTime->addDay()->setTimeFrom($carbonWorkDayStartTime);
+                Log::info('Input time after working_hours_end, moved to next day start', ['datetime' => $currentTaskProcessingDateTime->format('Y-m-d H:i:s')]);
+            }
+
+            // Skip weekends
             while ($currentTaskProcessingDateTime->isWeekend()) {
                 $currentTaskProcessingDateTime->addDay()->setTimeFrom($carbonWorkDayStartTime);
-                Log::info("Next task start (after weekend skip): " . $currentTaskProcessingDateTime->format('Y-m-d H:i:s'));
+                Log::info('Skipped weekend, new date', ['datetime' => $currentTaskProcessingDateTime->format('Y-m-d H:i:s')]);
             }
-            Log::info("End of loop for item {$item->name}. Next task processing date: " . $currentTaskProcessingDateTime->format('Y-m-d H:i:s'));
+            Log::info('Final initial processing date for iteration', ['character_id' => $characterIdForThisIteration, 'datetime' => $currentTaskProcessingDateTime->format('Y-m-d H:i:s')]);
+
+            foreach ($template->items()->orderBy('order')->get() as $itemIndex => $item) {
+                Log::info("Processing template item: {$item->name} (Order: {$item->order}) for character ID: {$characterIdForThisIteration}");
+                $taskDurationInMinutes = $item->default_duration ?? 0;
+                Log::info("Item duration in minutes: {$taskDurationInMinutes}");
+
+                $actualTaskStartDate = $currentTaskProcessingDateTime->copy();
+                // Ensure actualTaskStartDate is within working hours and not on a weekend
+                if ($actualTaskStartDate->copy()->setTime($actualTaskStartDate->hour, $actualTaskStartDate->minute)
+                    ->lt($actualTaskStartDate->copy()->setTimeFrom($carbonWorkDayStartTime))
+                ) {
+                    $actualTaskStartDate->setTimeFrom($carbonWorkDayStartTime);
+                } elseif (
+                    $actualTaskStartDate->copy()->setTime($actualTaskStartDate->hour, $actualTaskStartDate->minute)
+                    ->gte($actualTaskStartDate->copy()->setTimeFrom($carbonWorkDayEndTime)) && $workableMinutesPerDay > 0
+                ) {
+                    $actualTaskStartDate->addDay()->setTimeFrom($carbonWorkDayStartTime);
+                }
+                while ($actualTaskStartDate->isWeekend()) {
+                    $actualTaskStartDate->addDay()->setTimeFrom($carbonWorkDayStartTime);
+                }
+                Log::info("Actual start date for item {$item->name}: " . $actualTaskStartDate->format('Y-m-d H:i:s'));
+
+
+                $remainingDurationForThisTask = $taskDurationInMinutes;
+                $taskCalculatedEndDate = $actualTaskStartDate->copy();
+
+                if ($taskDurationInMinutes <= 0) {
+                    $taskCalculatedEndDate = $actualTaskStartDate->copy();
+                    Log::info("Task duration is 0. End date set to start date: " . $taskCalculatedEndDate->format('Y-m-d H:i:s'));
+                } else {
+                    if ($workableMinutesPerDay <= 0) { // Cannot process tasks with duration if no workable time
+                        Log::warning("Workable minutes per day is 0, cannot process task '{$item->name}' with duration {$taskDurationInMinutes}. Setting end date to start date.");
+                        $taskCalculatedEndDate = $actualTaskStartDate->copy();
+                        $remainingDurationForThisTask = 0; // Mark as processed
+                    }
+                    while ($remainingDurationForThisTask > 0) {
+                        Log::info("Remaining duration for {$item->name}: {$remainingDurationForThisTask} mins. Current calc end date for loop start: " . $taskCalculatedEndDate->format('Y-m-d H:i:s'));
+
+                        $todayWorkEnd = $taskCalculatedEndDate->copy()->setTimeFrom($carbonWorkDayEndTime);
+                        // Minutes from task's current time on $taskCalculatedEndDate to EOD on that day
+                        $minutesAvailableToday = $taskCalculatedEndDate->diffInMinutes($todayWorkEnd, false);
+                        Log::info("Minutes available today ({$taskCalculatedEndDate->format('Y-m-d')} from {$taskCalculatedEndDate->format('H:i')} to {$todayWorkEnd->format('H:i')}): {$minutesAvailableToday}");
+
+                        if ($minutesAvailableToday <= 0) { // No time left today or started at/after EOD
+                            $taskCalculatedEndDate->addDay()->setTimeFrom($carbonWorkDayStartTime);
+                            while ($taskCalculatedEndDate->isWeekend()) {
+                                $taskCalculatedEndDate->addDay()->setTimeFrom($carbonWorkDayStartTime);
+                            }
+                            Log::info("No time left today or started after EOD. Moved to next working day start: " . $taskCalculatedEndDate->format('Y-m-d H:i:s'));
+                            continue;
+                        }
+
+                        if ($remainingDurationForThisTask <= $minutesAvailableToday) {
+                            $taskCalculatedEndDate->addMinutes($remainingDurationForThisTask);
+                            $remainingDurationForThisTask = 0;
+                            Log::info("Task fits in current day. New calc end date: " . $taskCalculatedEndDate->format('Y-m-d H:i:s'));
+                        } else {
+                            $taskCalculatedEndDate->addMinutes($minutesAvailableToday); // Use up all available time today
+                            $remainingDurationForThisTask -= $minutesAvailableToday;
+                            Log::info("Task does not fit. Remaining duration: {$remainingDurationForThisTask}. End of day reached: " . $taskCalculatedEndDate->format('Y-m-d H:i:s'));
+
+                            $taskCalculatedEndDate->addDay()->setTimeFrom($carbonWorkDayStartTime); // Move to start of next working day
+                            while ($taskCalculatedEndDate->isWeekend()) {
+                                $taskCalculatedEndDate->addDay()->setTimeFrom($carbonWorkDayStartTime);
+                            }
+                            Log::info("Moved to next working day start for remaining duration: " . $taskCalculatedEndDate->format('Y-m-d H:i:s'));
+                        }
+                    }
+                }
+
+                $taskData = [
+                    'name' => $item->name,
+                    'description' => null, // Or $item->description if template items have descriptions
+                    'assignee' => null,    // Or $item->default_assignee
+                    'parent_id' => $parentTaskIdForTemplate,
+                    'character_id' => $characterIdForThisIteration,
+                    'is_milestone' => false, // Template items are assumed to be regular tasks
+                    'is_folder' => false,    // Template items are assumed to be regular tasks
+                    'progress' => 0,
+                    'status' => 'not_started',
+                    'start_date' => $actualTaskStartDate,
+                    'duration' => $taskDurationInMinutes,
+                    'end_date' => $taskCalculatedEndDate,
+                ];
+                Log::info("Task data to be created for {$item->name}", $taskData);
+
+                $createdTask = $project->tasks()->create($taskData);
+                if ($totalCreatedTasksCount === 0) { // Capture the name of the very first task created for logging
+                    $firstCreatedTaskNameForLog = $createdTask->name;
+                }
+                $totalCreatedTasksCount++;
+
+                // Set $currentTaskProcessingDateTime for the *next* task to start right after this one ends
+                $currentTaskProcessingDateTime = $taskCalculatedEndDate->copy();
+                // Adjust if it's outside working hours for the next task's start
+                if (
+                    $currentTaskProcessingDateTime->copy()->setTime($currentTaskProcessingDateTime->hour, $currentTaskProcessingDateTime->minute)
+                    ->gte($currentTaskProcessingDateTime->copy()->setTimeFrom($carbonWorkDayEndTime)) && $workableMinutesPerDay > 0
+                ) {
+                    $currentTaskProcessingDateTime->addDay()->setTimeFrom($carbonWorkDayStartTime);
+                    Log::info("Next task start (after EOD adjustment): " . $currentTaskProcessingDateTime->format('Y-m-d H:i:s'));
+                }
+                while ($currentTaskProcessingDateTime->isWeekend()) {
+                    $currentTaskProcessingDateTime->addDay()->setTimeFrom($carbonWorkDayStartTime);
+                    Log::info("Next task start (after weekend skip): " . $currentTaskProcessingDateTime->format('Y-m-d H:i:s'));
+                }
+                Log::info("End of loop for item {$item->name}. Next task processing date: " . $currentTaskProcessingDateTime->format('Y-m-d H:i:s'));
+            }
         }
 
-        if (count($createdTaskNames) > 0) {
+        if ($totalCreatedTasksCount > 0) {
             activity()
                 ->causedBy(auth()->user())
                 ->performedOn($project)
                 ->withProperties([
                     'template_name' => $template->name,
-                    'created_tasks_count' => count($createdTaskNames),
-                    'first_task_name' => $createdTaskNames[0] ?? null
+                    'created_tasks_count' => $totalCreatedTasksCount,
+                    'first_task_name' => $firstCreatedTaskNameForLog, // Use the captured name
+                    'applied_to_all_characters' => $applyToAllCharacters,
+                    'characters_processed_count' => $charactersToProcess->count(),
                 ])
-                ->log("工程テンプレート「{$template->name}」から {$project->title} に " . count($createdTaskNames) . " 件の工程が一括作成されました。");
+                ->log("工程テンプレート「{$template->name}」から {$project->title} に " . $totalCreatedTasksCount . " 件の工程が一括作成されました。");
             Log::info('Activity log created for template application.');
         }
 
-        return redirect()->route('gantt.index', ['project_id' => $project->id])->with('success', 'テンプレートから工程を一括作成しました。');
+        return redirect()->route('projects.show', $project)->with('success', 'テンプレートから工程を一括作成しました。');
     }
 
     public function updateDescription(Request $request, Project $project, Task $task): JsonResponse

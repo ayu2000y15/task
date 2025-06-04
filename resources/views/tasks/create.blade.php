@@ -1,3 +1,4 @@
+{{-- resources/views/tasks/create.blade.php --}}
 @extends('layouts.app')
 
 @section('title', '工程作成 - ' . $project->title)
@@ -24,37 +25,48 @@
                 テンプレートから工程を一括作成</h2>
             <form action="{{ route('projects.tasks.fromTemplate', $project) }}" method="POST">
                 @csrf
-                <div class="grid grid-cols-1 md:grid-cols-8 gap-4 items-end">
-                    <div class="md:col-span-4">
+                {{-- md:grid-cols-8 から md:grid-cols-10 に変更して調整 --}}
+                <div class="grid grid-cols-1 md:grid-cols-10 gap-4 items-start"> {{-- items-end から items-start に変更 --}}
+                    <div class="md:col-span-5"> {{-- md:col-span-4 から md:col-span-5 に変更 --}}
                         <x-select-input label="工程テンプレート" name="process_template_id" id="process_template_id"
                             :options="$processTemplates->pluck('name', 'id')" emptyOptionText="選択してください" required />
                     </div>
-                    <div class="md:col-span-4">
+                    <div class="md:col-span-5"> {{-- md:col-span-4 から md:col-span-5 に変更 --}}
                         <x-select-input label="所属先キャラクター (任意)" name="character_id_for_template"
                             id="character_id_for_template" :options="$project->characters->pluck('name', 'id')"
                             :selected="old('character_id_for_template', request('character_id_for_new_task'))"
                             emptyOptionText="案件全体 (キャラクター未所属)" />
+                        <div class="mt-2">
+                            <x-input-label for="apply_template_to_all_characters" class="inline-flex items-center">
+                                <input type="checkbox" id="apply_template_to_all_characters" name="apply_template_to_all_characters" value="1" class="rounded dark:bg-gray-900 border-gray-300 dark:border-gray-700 text-indigo-600 shadow-sm focus:ring-indigo-500 dark:focus:ring-indigo-600 dark:focus:ring-offset-gray-800" {{ old('apply_template_to_all_characters') ? 'checked' : '' }}>
+                                <span class="ml-2 text-sm text-gray-600 dark:text-gray-400">すべてのキャラクターへ工程を適用する</span>
+                            </x-input-label>
+                        </div>
                     </div>
-                    <div class="md:col-span-2">
+                    {{-- 日付と時刻入力、ボタンを新しい行に配置し、オフセットを利用して中央寄りに見せることも可能 --}}
+                    {{-- または、グリッドの列数を調整して配置 --}}
+                    <div class="md:col-span-2"> {{-- 変更なし --}}
                         <x-input-label for="template_start_date" value="最初の工程の開始日" required />
-                        <x-text-input type="date" id="template_start_date" name="template_start_date" class="mt-1"
+                        <x-text-input type="date" id="template_start_date" name="template_start_date" class="mt-1 w-full"
                             :value="old('template_start_date', now()->format('Y-m-d'))" required />
                     </div>
-                    <div class="md:col-span-2">
+                    <div class="md:col-span-2"> {{-- 変更なし --}}
                         <x-input-label for="working_hours_start" value="稼働開始時刻" required />
                         <x-text-input type="time" id="working_hours_start" name="working_hours_start" class="mt-1 block w-full" value="{{ old('working_hours_start', '09:00') }}" required />
                     </div>
-                    <div class="md:col-span-2">
+                    <div class="md:col-span-2"> {{-- 変更なし --}}
                         <x-input-label for="working_hours_end" value="稼働終了時刻" required />
                         <x-text-input type="time" id="working_hours_end" name="working_hours_end" class="mt-1 block w-full" value="{{ old('working_hours_end', '18:00') }}" required />
                     </div>
                     <input type="hidden" name="parent_id_for_template" value="{{ optional($parentTask)->id }}">
-                    <div class="md:col-span-2">
+                    <div class="md:col-span-2 md:self-end"> {{-- md:col-span-2, md:self-end でボタンを他の入力フィールドの高さに合わせる --}}
                         <x-primary-button type="submit"
                             class="w-full justify-center bg-teal-500 hover:bg-teal-600 active:bg-teal-700 focus:border-teal-700 focus:ring-teal-300 dark:bg-teal-600 dark:hover:bg-teal-700 dark:active:bg-teal-800 dark:focus:border-teal-800 dark:focus:ring-teal-400">
                             <i class="fas fa-magic mr-2"></i>適用して作成
                         </x-primary-button>
                     </div>
+                     {{-- 空のdivでレイアウト調整、必要なら --}}
+                    <div class="md:col-span-2"></div>
                 </div>
             </form>
         </div>
@@ -101,6 +113,12 @@
                                 :selected="old('character_id', request('character_id_for_new_task'))"
                                 emptyOptionText="案件全体"
                                 :hasError="$errors->has('character_id')" />
+                            <div class="mt-2">
+                                <x-input-label for="apply_individual_to_all_characters" class="inline-flex items-center">
+                                    <input type="checkbox" id="apply_individual_to_all_characters" name="apply_individual_to_all_characters" value="1" class="rounded dark:bg-gray-900 border-gray-300 dark:border-gray-700 text-indigo-600 shadow-sm focus:ring-indigo-500 dark:focus:ring-indigo-600 dark:focus:ring-offset-gray-800" {{ old('apply_individual_to_all_characters') ? 'checked' : '' }}>
+                                    <span class="ml-2 text-sm text-gray-600 dark:text-gray-400">すべてのキャラクターへ同じ内容で作成する</span>
+                                </x-input-label>
+                            </div>
                             <x-input-error :messages="$errors->get('character_id')" class="mt-2" />
                         </div>
 
@@ -201,7 +219,13 @@
 document.addEventListener('DOMContentLoaded', function () {
     const taskTypeRadios = document.querySelectorAll('input[name="is_milestone_or_folder"]');
     const taskFieldsIndividual = document.getElementById('task-fields-individual');
-    const characterIdWrapper = document.getElementById('character_id_wrapper_individual');
+    const characterIdWrapperIndividual = document.getElementById('character_id_wrapper_individual');
+    const characterIdSelectIndividual = document.getElementById('character_id_individual');
+    const applyIndividualToAllCharsCheckbox = document.getElementById('apply_individual_to_all_characters');
+
+    const characterIdForTemplateSelect = document.getElementById('character_id_for_template');
+    const applyTemplateToAllCharsCheckbox = document.getElementById('apply_template_to_all_characters');
+
     const statusField = document.getElementById('status-field-individual');
     const startDateInput = document.getElementById('start_date_individual');
     const durationValueInput = document.getElementById('duration_value');
@@ -222,7 +246,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
         if (taskFieldsIndividual) taskFieldsIndividual.style.display = isFolder ? 'none' : 'block';
-        if (characterIdWrapper) characterIdWrapper.style.display = isFolder ? 'none' : 'block';
+        if (characterIdWrapperIndividual) characterIdWrapperIndividual.style.display = isFolder ? 'none' : 'block';
         if (statusField) statusField.style.display = isFolder ? 'none' : 'block';
         if (assigneeWrapper) assigneeWrapper.style.display = isFolder ? 'none' : 'block';
         if (parentIdWrapper) parentIdWrapper.style.display = isFolder ? 'none' : 'block';
@@ -240,12 +264,24 @@ document.addEventListener('DOMContentLoaded', function () {
             if (startDateInput) startDateInput.value = '';
             if (durationValueInput) durationValueInput.value = '';
             if (endDateInput) endDateInput.value = '';
-        } else if (isMilestone) {
+            if (applyIndividualToAllCharsCheckbox) {
+                applyIndividualToAllCharsCheckbox.checked = false; // フォルダの場合は全キャラオプションは無効化し、チェックを外す
+                applyIndividualToAllCharsCheckbox.disabled = true;
+            }
+            if (characterIdSelectIndividual) characterIdSelectIndividual.disabled = true; // フォルダはキャラ選択も無効
+        } else {
+             if (applyIndividualToAllCharsCheckbox) {
+                applyIndividualToAllCharsCheckbox.disabled = false; // フォルダ以外なら全キャラオプションを有効化
+            }
+            // 全キャラオプションがチェックされているかどうかに基づいてキャラ選択を制御
+            if (characterIdSelectIndividual && applyIndividualToAllCharsCheckbox) {
+                 characterIdSelectIndividual.disabled = applyIndividualToAllCharsCheckbox.checked;
+            }
+        }
+
+        if (isMilestone) {
             if (durationValueInput) durationValueInput.value = 0;
             if (durationUnitSelect) durationUnitSelect.value = 'minutes';
-            // if (endDateInput && startDateInput && startDateInput.value) {
-            //     endDateInput.value = startDateInput.value;
-            // }
         } else if (isTodoTask) {
             if (startDateInput) startDateInput.value = '';
             if (durationValueInput) durationValueInput.value = '';
@@ -257,10 +293,49 @@ document.addEventListener('DOMContentLoaded', function () {
         radio.addEventListener('change', function() {
             toggleTaskFields(this.value);
         });
+        // 初期読み込み時にも、チェックされているラジオボタンに基づいてフィールドの状態を更新
         if (radio.checked) {
             toggleTaskFields(radio.value);
         }
     });
+
+    // 個別作成時の「すべてのキャラクターへ」チェックボックスの制御
+    if (applyIndividualToAllCharsCheckbox && characterIdSelectIndividual) {
+        applyIndividualToAllCharsCheckbox.addEventListener('change', function() {
+            characterIdSelectIndividual.disabled = this.checked;
+            if (this.checked) {
+                characterIdSelectIndividual.value = ''; // チェックされたら選択を解除
+            }
+        });
+        // 初期状態の制御: ページ読み込み時にチェック状態に応じて disable を設定
+        const initialTaskTypeSelected = document.querySelector('input[name="is_milestone_or_folder"]:checked');
+        if (initialTaskTypeSelected && initialTaskTypeSelected.value !== 'folder') {
+            characterIdSelectIndividual.disabled = applyIndividualToAllCharsCheckbox.checked;
+            if (applyIndividualToAllCharsCheckbox.checked) {
+                characterIdSelectIndividual.value = '';
+            }
+        } else if (initialTaskTypeSelected && initialTaskTypeSelected.value === 'folder') {
+            applyIndividualToAllCharsCheckbox.checked = false;
+            applyIndividualToAllCharsCheckbox.disabled = true;
+            characterIdSelectIndividual.disabled = true;
+        }
+    }
+
+    // テンプレート適用時の「すべてのキャラクターへ」チェックボックスの制御
+    if (applyTemplateToAllCharsCheckbox && characterIdForTemplateSelect) {
+        applyTemplateToAllCharsCheckbox.addEventListener('change', function() {
+            characterIdForTemplateSelect.disabled = this.checked;
+            if (this.checked) {
+                characterIdForTemplateSelect.value = ''; // チェックされたら選択を解除
+            }
+        });
+        // 初期状態の制御
+        characterIdForTemplateSelect.disabled = applyTemplateToAllCharsCheckbox.checked;
+        if (applyTemplateToAllCharsCheckbox.checked) {
+            characterIdForTemplateSelect.value = '';
+        }
+    }
+
 
     function calculateEndDate() {
         if (!startDateInput || !durationValueInput || !durationUnitSelect || !endDateInput || endDateInput.disabled) {
@@ -276,14 +351,14 @@ document.addEventListener('DOMContentLoaded', function () {
             let minutesToAdd = 0;
 
             if (unit === 'days') {
-                minutesToAdd = duration * 24 * 60; // 1日 = 24時間 = 1440分
+                minutesToAdd = duration * 24 * 60;
             } else if (unit === 'hours') {
                 minutesToAdd = duration * 60;
             } else if (unit === 'minutes') {
                 minutesToAdd = duration;
             }
 
-            const end = new Date(start.getTime() + minutesToAdd * 60000); // 60000ミリ秒 = 1分
+            const end = new Date(start.getTime() + minutesToAdd * 60000);
 
             if (!isNaN(end.getTime())) {
                 const year = end.getFullYear();
@@ -304,7 +379,10 @@ document.addEventListener('DOMContentLoaded', function () {
         startDateInput.addEventListener('change', calculateEndDate);
         durationValueInput.addEventListener('input', calculateEndDate);
         durationUnitSelect.addEventListener('change', calculateEndDate);
-        if(startDateInput.value) calculateEndDate();
+        // 初期値が入力されていれば、一度計算を実行
+        if(startDateInput.value && !startDateInput.disabled) { // disabledでない場合のみ
+            calculateEndDate();
+        }
     }
 });
 </script>
