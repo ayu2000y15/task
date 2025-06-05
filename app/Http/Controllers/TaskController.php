@@ -14,6 +14,8 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Http\JsonResponse; // ★ JsonResponse を use
 use Illuminate\Validation\Rule;
 
+use function PHPUnit\Framework\isEmpty;
+
 class TaskController extends Controller
 {
     // ... (index, create, store, edit, update, destroy, deleteTaskAndChildren, updateProgress, updatePosition, updateParent, updateAssignee は変更なし) ...
@@ -477,6 +479,10 @@ class TaskController extends Controller
             'duration_unit.required_if' => '工程で工数を入力する場合、単位は必須です。',
             'status.required_if' => 'ステータスは必須です（フォルダ以外の場合）。',
         ]);
+
+        if (isEmpty($request['assignee'])) {
+            $validated['assignee'] = "";
+        }
 
         $taskDataForCurrent = [
             'name' => $validated['name'],
