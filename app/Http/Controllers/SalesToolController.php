@@ -500,6 +500,58 @@ class SalesToolController extends Controller
             'status' => 'queuing',
         ]);
 
+        // ▼▼▼ ダミー購読者を使用してプレビュー用HTMLを生成し、SentEmailレコードに保存 ▼▼▼
+        try {
+            // 1. ダミーのSubscriberオブジェクトを作成
+            $dummySubscriber = new Subscriber();
+            $dummySubscriber->email = 'preview-user@example.com'; // ダミーのメールアドレス
+            // SalesCampaignMailが使用するプレースホルダーに対応するダミーデータを設定
+            // SalesCampaignMailのコンストラクタやpersonalizeContentで参照するプロパティを埋めます
+            $dummySubscriber->name = 'プレビュー様';
+            $dummySubscriber->company_name = 'プレビュー株式会社';
+            $dummySubscriber->postal_code = '123-4567';
+            $dummySubscriber->address = '東京都プレビュー区プレビュー1-2-3';
+            $dummySubscriber->phone_number = '03-1234-5678';
+            $dummySubscriber->fax_number = '03-1234-5679';
+            $dummySubscriber->url = 'https://example.com/preview';
+            $dummySubscriber->representative_name = '代表 プレビュー';
+            $dummySubscriber->establishment_date = null; // または new \Carbon\Carbon('2020-01-01');
+            $dummySubscriber->industry = '情報通信業（プレビュー）';
+            // Subscriberモデルに上記プロパティが存在しない場合は、
+            // モデル側で $fillable に追加するか、ここで動的にプロパティを設定する必要があります。
+            // もしくは、Mailable側がアクセスするデータを調整します。
+            // ここでは、Subscriberモデルがこれらの属性を持つ前提で記述しています。
+
+            // 2. SalesCampaignMailをダミーデータでインスタンス化
+            $previewMailable = new SalesCampaignMail(
+                $baseSubject,
+                $baseBodyHtml,
+                $sentEmailRecord->id,
+                $dummySubscriber->email, // Mailableにはダミーのメールアドレスを渡す
+                $dummySubscriber       // ダミーのSubscriberオブジェクト
+            );
+
+            // 3. メールコンテンツのレンダリング
+            $mailContentObject = $previewMailable->content();
+            $renderedPreviewHtml = $mailContentObject->htmlString;
+
+            // 4. SentEmailレコードのbody_htmlを更新
+            $sentEmailRecord->body_html = $renderedPreviewHtml;
+            // 必要であればステータスを更新 (例: 'preview_generated')
+            // $sentEmailRecord->status = 'preview_generated';
+            $sentEmailRecord->save();
+
+            Log::info("ダミー購読者を使用してプレビュー用HTMLをSentEmail ID {$sentEmailRecord->id} に保存しました。");
+        } catch (\Exception $e) {
+            Log::error("プレビュー用HTMLの生成または保存中にエラーが発生しました (SentEmail ID: {$sentEmailRecord->id}): " . $e->getMessage(), ['exception' => $e]);
+            // プレビューHTMLの保存に失敗しても、主要なメール送信処理は続行する
+            // その場合、SentEmail->body_html は元の $baseBodyHtml のままとなる
+            // 必要であれば、ここでの失敗を示すステータスを $sentEmailRecord に設定することも可能
+            // $sentEmailRecord->status = 'preview_failed';
+            // $sentEmailRecord->save();
+        }
+        // ▲▲▲ ダミー購読者を使用したプレビュー用HTMLの生成と保存ここまで ▲▲▲
+
         $totalQueuedCount = 0;
         $blacklistedCount = 0;
         $failedQueueingCount = 0;
@@ -526,6 +578,7 @@ class SalesToolController extends Controller
             }
 
             try {
+
                 // Mailableをインスタンス化 (ここで $subscriber を渡す)
                 $mailable = new SalesCampaignMail(
                     $baseSubject,
