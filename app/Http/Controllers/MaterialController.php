@@ -23,28 +23,30 @@ class MaterialController extends Controller
 
         $rules = [
             'inventory_item_id' => ['nullable', Rule::requiredIf(!$isManualInput), 'exists:inventory_items,id'],
-            'name' => ['required', 'string', 'max:255'], // JS側で在庫品名 or 手入力名がここにセットされる
-            'unit' => ['required', 'string', 'max:50'],  // JS側で在庫品単位 or 手入力単位がここにセットされる
+            'name' => ['required', 'string', 'max:255'],
+            'unit' => ['required', 'string', 'max:50'],
             'price' => 'required|numeric|min:0',
-            // unit_price_at_creation は必須だが、手入力の場合は price/qty で計算するので nullable にして後処理も可
             'unit_price_at_creation' => 'required|numeric|min:0',
             'quantity_needed' => 'required|numeric|min:0.01',
             'notes' => 'nullable|string|max:1000',
             'status' => ['required', Rule::in(['未購入', '購入済'])],
+            'apply_to_other_characters' => 'nullable|boolean',
         ];
 
-        // 手入力の場合、inventory_item_id の exists は不要
         if ($isManualInput) {
-            unset($rules['inventory_item_id']); // inventory_item_id はバリデーション対象外、または 'nullable' のみ
+            unset($rules['inventory_item_id']);
         }
-
 
         $validated = $request->validate($rules);
 
         $statusToSet = $validated['status'];
         $quantityNeeded = floatval($validated['quantity_needed']);
         $inventoryItemId = $isManualInput ? null : $validated['inventory_item_id'];
+        $applyToOthers = $request->boolean('apply_to_other_characters');
+        $createdOrUpdatedMaterialsForResponse = [];
+        $costsUpdatedForCharacters = [];
 
+        // メインキャラクターの在庫チェック (購入済の場合)
         if ($statusToSet === '購入済' && $inventoryItemId) {
             $inventoryItem = InventoryItem::find($inventoryItemId);
             if ($inventoryItem && $inventoryItem->quantity < $quantityNeeded) {
@@ -58,69 +60,96 @@ class MaterialController extends Controller
 
         DB::beginTransaction();
         try {
-            $materialData = $validated;
-            $materialData['character_id'] = $character->id;
-            $materialData['inventory_item_id'] = $inventoryItemId; // 手入力なら null
+            $baseMaterialData = [
+                'name' => $validated['name'],
+                'unit' => $validated['unit'],
+                'price' => $validated['price'],
+                'unit_price_at_creation' => $validated['unit_price_at_creation'],
+                'quantity_needed' => $quantityNeeded,
+                'notes' => $validated['notes'],
+                'status' => $statusToSet,
+                'inventory_item_id' => $inventoryItemId,
+            ];
 
-            // unit_price_at_creation の再計算 (手入力で合計価格が入力された場合など)
             if ($isManualInput && isset($validated['price']) && $quantityNeeded > 0) {
-                $materialData['unit_price_at_creation'] = round(floatval($validated['price']) / $quantityNeeded, 2);
-            } elseif ($inventoryItemId) {
-                // 在庫品の場合はJS側で設定された値 (data-avg_price) を使う
-                // $materialData['unit_price_at_creation'] は $validated['unit_price_at_creation'] のまま
-            } else {
-                $materialData['unit_price_at_creation'] = 0; //念のため
+                $baseMaterialData['unit_price_at_creation'] = round(floatval($validated['price']) / $quantityNeeded, 2);
             }
 
+            // 1. 主キャラクターへの材料作成
+            $mainMaterialData = $baseMaterialData;
+            $mainMaterialData['character_id'] = $character->id;
+            $mainMaterial = Material::create($mainMaterialData);
+            $createdOrUpdatedMaterialsForResponse[] = $mainMaterial->load('inventoryItem')->toArray();
 
-            $material = Material::create($materialData);
-
-            if ($material->status === '購入済' && $material->inventory_item_id) { // 在庫品かつ購入済の場合のみ在庫処理
-                $inventoryItem = InventoryItem::find($material->inventory_item_id);
-                if ($inventoryItem) {
-                    $oldInventoryQty = $inventoryItem->quantity;
-                    // unit_price_at_creation は材料作成時の単価、なければ現在の平均単価
-                    $unitPriceForCostDecrease = $material->unit_price_at_creation ?: $inventoryItem->average_unit_price;
-                    $costToDecrease = $unitPriceForCostDecrease * $quantityNeeded;
-
-                    $inventoryItem->decrement('quantity', $quantityNeeded);
-                    $inventoryItem->decrement('total_cost', $costToDecrease);
-
-                    InventoryLog::create([
-                        'inventory_item_id' => $inventoryItem->id,
-                        'user_id' => Auth::id(),
-                        'change_type' => 'used_for_material',
-                        'quantity_change' => -$quantityNeeded,
-                        'quantity_before_change' => $oldInventoryQty,
-                        'quantity_after_change' => $inventoryItem->quantity,
-                        'related_material_id' => $material->id,
-                        'unit_price_at_change' => $unitPriceForCostDecrease,
-                        'total_price_at_change' => -$costToDecrease,
-                        'notes' => "案件「{$project->title}」のキャラクター「{$character->name}」の材料「{$material->name}」として使用",
-                    ]);
+            if ($mainMaterial->status === '購入済') {
+                if ($mainMaterial->inventory_item_id) {
+                    $this->handleInventoryDecrement($mainMaterial, $project, $character);
+                }
+                if ($mainMaterial->price > 0) {
+                    $this->createCostEntry($character, $mainMaterial);
+                    if (!in_array($character->id, $costsUpdatedForCharacters)) {
+                        $costsUpdatedForCharacters[] = $character->id;
+                    }
                 }
             }
 
-            if ($material->status === '購入済' && $material->price > 0) {
-                $character->costs()->create([
-                    'item_description' => $material->name,
-                    'amount' => $material->price,
-                    'type' => '材料費',
-                    'cost_date' => now(),
-                ]);
+            // 2. 他のキャラクターへの適用 (新規追加時のみ)
+            if ($applyToOthers) {
+                $otherCharacters = $project->characters()->where('id', '!=', $character->id)->get();
+                foreach ($otherCharacters as $otherChar) {
+                    $dataForOtherChar = $baseMaterialData; // 基本データをコピー
+                    $dataForOtherChar['character_id'] = $otherChar->id;
+
+                    // ★他のキャラクターへの材料作成時の在庫チェック
+                    if ($dataForOtherChar['status'] === '購入済' && $dataForOtherChar['inventory_item_id']) {
+                        $inventoryItem = InventoryItem::find($dataForOtherChar['inventory_item_id']);
+                        // 在庫チェックの前に、このトランザクション内で既に引かれた分を考慮する必要がある場合があるが、
+                        // 今回は各キャラクターへの適用は独立した在庫チェックとする。
+                        // より厳密には、ループ開始前に全キャラクターの合計必要量をチェックする方法もある。
+                        if ($inventoryItem && $inventoryItem->quantity < $dataForOtherChar['quantity_needed']) {
+                            DB::rollBack(); // ★トランザクションをロールバック
+                            return response()->json([
+                                'success' => false,
+                                'message' => "キャラクター「{$otherChar->name}」への材料「{$inventoryItem->name}」適用時に在庫不足が発生しました。現在の在庫: {$inventoryItem->quantity}{$inventoryItem->unit}",
+                                'errors' => ['apply_to_other_characters' => ["キャラクター「{$otherChar->name}」の材料「{$inventoryItem->name}」で在庫が不足しています。必要量: {$dataForOtherChar['quantity_needed']}{$inventoryItem->unit}、現在庫: {$inventoryItem->quantity}{$inventoryItem->unit}"]],
+                            ], 422);
+                        }
+                    }
+
+                    $newMaterialForOther = Material::create($dataForOtherChar);
+                    $createdOrUpdatedMaterialsForResponse[] = $newMaterialForOther->load('inventoryItem')->toArray();
+
+                    if ($newMaterialForOther->status === '購入済') {
+                        if ($newMaterialForOther->inventory_item_id) {
+                            $this->handleInventoryDecrement($newMaterialForOther, $project, $otherChar);
+                        }
+                        if ($newMaterialForOther->price > 0) {
+                            $this->createCostEntry($otherChar, $newMaterialForOther);
+                            if (!in_array($otherChar->id, $costsUpdatedForCharacters)) {
+                                $costsUpdatedForCharacters[] = $otherChar->id;
+                            }
+                        }
+                    }
+                }
             }
 
             DB::commit();
             return response()->json([
                 'success' => true,
-                'message' => '材料を追加しました。',
-                'material' => $material->load('inventoryItem'),
-                'costs_updated' => ($material->status === '購入済' && $material->price > 0)
+                'message' => $applyToOthers ? '材料が現在のキャラクターに追加され、他のキャラクターにも新規追加されました。' : '材料を追加しました。',
+                'materials_data' => $createdOrUpdatedMaterialsForResponse,
+                'costs_updated_for_characters' => array_unique($costsUpdatedForCharacters),
+                'costs_updated' => !empty($costsUpdatedForCharacters)
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Material store failed: ' . $e->getMessage(), ['request_data' => $request->all(), 'exception' => $e]);
-            return response()->json(['success' => false, 'message' => '材料の追加中にエラーが発生しました。詳細はサーバーログを確認してください。エラー: ' . $e->getMessage()], 500);
+            // handleInventoryDecrement からスローされた例外もここでキャッチする
+            $errorMessage = '材料の追加中にエラーが発生しました。詳細はサーバーログを確認してください。';
+            if (str_contains($e->getMessage(), '在庫不足です')) { // 在庫不足の例外メッセージを判別
+                $errorMessage = $e->getMessage();
+            }
+            return response()->json(['success' => false, 'message' => $errorMessage], 500);
         }
     }
 
@@ -449,6 +478,120 @@ class MaterialController extends Controller
             DB::rollBack();
             Log::error('Material delete failed: ' . $e->getMessage(), ['material_id' => $material->id, 'exception' => $e]);
             return response()->json(['success' => false, 'message' => '材料の削除中にエラーが発生しました。'], 500);
+        }
+    }
+
+    private function handleInventoryDecrement(Material $material, Project $project, Character $character, string $logNotesPrefix = "材料として使用")
+    {
+        if (!$material->inventory_item_id || $material->quantity_needed <= 0) {
+            return;
+        }
+        $inventoryItem = InventoryItem::find($material->inventory_item_id);
+        if ($inventoryItem) {
+            $quantityToDecrement = floatval($material->quantity_needed);
+            if ($inventoryItem->quantity < $quantityToDecrement) {
+                Log::error("Inventory decrement failed for item {$inventoryItem->id} due to insufficient stock during final decrement. Needed: {$quantityToDecrement}, Has: {$inventoryItem->quantity}");
+                // エラーをスローしてトランザクションをロールバックさせる
+                throw new \Exception("在庫不足です。品目: {$inventoryItem->name} (必要: {$quantityToDecrement}, 現在庫: {$inventoryItem->quantity})");
+            }
+
+            $oldInventoryQty = $inventoryItem->quantity;
+            // 材料作成/更新時に保存された単価、なければ現在の平均単価
+            $unitPriceForCostDecrease = $material->unit_price_at_creation ?: $inventoryItem->average_unit_price;
+            $costToDecrease = $unitPriceForCostDecrease * $quantityToDecrement;
+
+            $inventoryItem->decrement('quantity', $quantityToDecrement);
+            // total_cost も減らす。マイナスにならないように注意が必要な場合があるが、ここでは単純に減算
+            $newTotalCost = $inventoryItem->total_cost - $costToDecrease;
+            $inventoryItem->total_cost = ($newTotalCost > 0) ? $newTotalCost : 0; // total_cost がマイナスにならないように
+            $inventoryItem->save(); // decrement は save を呼ばないので明示的に呼ぶ
+
+            InventoryLog::create([
+                'inventory_item_id' => $inventoryItem->id,
+                'user_id' => Auth::id(),
+                'change_type' => 'used_for_material', // マテリアル使用
+                'quantity_change' => -$quantityToDecrement,
+                'quantity_before_change' => $oldInventoryQty,
+                'quantity_after_change' => $inventoryItem->quantity,
+                'related_material_id' => $material->id,
+                'unit_price_at_change' => $unitPriceForCostDecrease,
+                'total_price_at_change' => -$costToDecrease, // 減少額なのでマイナス
+                'notes' => "{$logNotesPrefix} (案件「{$project->title}」キャラ「{$character->name}」材料「{$material->name}」)",
+            ]);
+        }
+    }
+
+    private function handleInventoryReturn(Material $material, Project $project, Character $character, string $logNotesPrefix = "在庫に戻されました")
+    {
+        if (!$material->inventory_item_id || $material->quantity_needed <= 0) {
+            return;
+        }
+        $inventoryItem = InventoryItem::find($material->inventory_item_id);
+        if ($inventoryItem) {
+            $quantityToReturn = floatval($material->quantity_needed);
+            $oldInventoryQty = $inventoryItem->quantity;
+            // 戻す際の単価は、材料作成時の記録単価、なければ現在の平均単価
+            $unitPriceForCostReturn = $material->unit_price_at_creation ?: $inventoryItem->average_unit_price;
+            $costToReturn = $unitPriceForCostReturn * $quantityToReturn;
+
+            $inventoryItem->increment('quantity', $quantityToReturn);
+            $inventoryItem->increment('total_cost', $costToReturn); // total_cost も増やす
+
+            InventoryLog::create([
+                'inventory_item_id' => $inventoryItem->id,
+                'user_id' => Auth::id(),
+                'change_type' => 'returned_from_material', // マテリアルからの返却
+                'quantity_change' => $quantityToReturn,
+                'quantity_before_change' => $oldInventoryQty,
+                'quantity_after_change' => $inventoryItem->quantity,
+                'related_material_id' => $material->id,
+                'unit_price_at_change' => $unitPriceForCostReturn,
+                'total_price_at_change' => $costToReturn, //増加額なのでプラス
+                'notes' => "{$logNotesPrefix} (案件「{$project->title}」キャラ「{$character->name}」材料「{$material->name}」)",
+            ]);
+        }
+    }
+
+    private function createCostEntry(Character $character, Material $material)
+    {
+        if ($material->price > 0) { // 価格が0より大きい場合のみコスト計上
+            $character->costs()->create([
+                'item_description' => $material->name, // 材料名を説明として使用
+                'amount' => $material->price,          // 材料の合計価格をコストとして計上
+                'type' => '材料費',                   // コストタイプ
+                'cost_date' => now(),                 // コスト発生日（現在時刻）
+                'material_id' => $material->id,      // 関連する材料ID
+            ]);
+        }
+    }
+
+    private function deleteCostEntry(Character $character, string $materialName, float $materialPrice)
+    {
+        if ($materialPrice > 0) {
+            // material_id があればそれを使って削除するのが最も確実
+            // ここでは、名前と金額で検索（古いデータとの互換性のため）
+            $costToDelete = $character->costs()
+                ->where('type', '材料費')
+                ->where('item_description', $materialName)
+                ->where('amount', $materialPrice)
+                // ->where('material_id', $materialId) // material_id があればこちらを優先
+                ->orderBy('created_at', 'desc') // もし複数該当する場合、最新のものを消す
+                ->first();
+            if ($costToDelete) {
+                $costToDelete->delete();
+            }
+        }
+    }
+
+    private function updateCostEntry(Character $character, Material $material, string $oldName, ?float $oldPrice, string $oldStatus)
+    {
+        // まず古いコストエントリを削除 (購入済だった場合)
+        if ($oldStatus === '購入済' && $oldPrice > 0) {
+            $this->deleteCostEntry($character, $oldName, $oldPrice);
+        }
+        // 新しい状態でコストエントリを作成 (購入済で価格があれば)
+        if ($material->status === '購入済' && $material->price > 0) {
+            $this->createCostEntry($character, $material);
         }
     }
 }

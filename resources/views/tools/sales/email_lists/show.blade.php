@@ -69,20 +69,23 @@
                     </thead>
                     <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                         @forelse ($subscribers as $subscriber)
-                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50"> {{-- 行クリックはここでは不要なので cursor-pointer は削除 --}}
+                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                                 <td class="px-6 py-2 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
-                                    {{ $subscriber->email }}
+                                    {{-- Subscriberに保存されたメールアドレスを表示 --}}
+                                    {{ $subscriber->managedContact->email }}
                                 </td>
                                 <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                    {{ $subscriber->name ?? '-' }}
+                                    {{-- ManagedContactの情報を表示 --}}
+                                    {{ $subscriber->managedContact->name ?? '-' }}
                                 </td>
                                 <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                    {{ $subscriber->company_name ?? '-' }}
+                                    {{-- ManagedContactの情報を表示 --}}
+                                    {{ $subscriber->managedContact->company_name ?? '-' }}
                                 </td>
                                 <td class="px-6 py-2 whitespace-nowrap text-sm">
                                     @php
                                         $statusClass = '';
-                                        switch ($subscriber->status) { // statusキーは英語のまま利用
+                                        switch ($subscriber->status) {
                                             case 'subscribed':
                                                 $statusClass = 'bg-green-100 text-green-800 dark:bg-green-700 dark:text-green-200';
                                                 break;
@@ -100,7 +103,6 @@
                                                 break;
                                         }
                                     @endphp
-                                    {{-- ▼▼▼ 日本語ステータス表示に変更 ▼▼▼ --}}
                                     <span
                                         class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {{ $statusClass }}">
                                         {{ $subscriber->readable_status }}
@@ -112,7 +114,6 @@
                                 <td class="px-6 py-2 whitespace-nowrap text-sm font-medium">
                                     <div class="flex items-center space-x-2">
                                         @can('tools.sales.access')
-                                            {{-- ▼▼▼ 編集・削除ボタンを実装 ▼▼▼ --}}
                                             <x-secondary-button as="a"
                                                 href="{{ route('tools.sales.email-lists.subscribers.edit', [$emailList, $subscriber]) }}"
                                                 class="py-1 px-3 text-xs">
@@ -128,7 +129,6 @@
                                                     <i class="fas fa-trash mr-1"></i>削除
                                                 </x-danger-button>
                                             </form>
-                                            {{-- ▲▲▲ ここまで ▲▲▲ --}}
                                         @else
                                             <span class="text-xs text-gray-400 dark:text-gray-500">(操作権限なし)</span>
                                         @endcan

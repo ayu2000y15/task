@@ -97,34 +97,44 @@
                                 {{ number_format($sentMail->click_to_open_rate, 1) }}%</td>
                             <td class="px-6 py-2 whitespace-nowrap text-sm">
                                 @php
-                                    $statusKey = $sentMail->status; // 英語のステータスキー
+                                    $statusKey = $sentMail->status;
                                     $statusClass = 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'; // Default
 
                                     switch ($statusKey) {
-                                        case 'queued':
                                         case 'queuing':
-                                        case 'processing': // 処理中 (青/水色系)
-                                            $statusClass = 'bg-sky-100 text-sky-800 dark:bg-sky-700 dark:text-sky-200';
+                                        case 'queued':
+                                        case 'processing':
+                                            $statusClass = 'bg-sky-100 text-sky-800 dark:bg-sky-700 dark:text-sky-200'; // 水色系
                                             break;
-                                        case 'sent': // MTAへの引き渡し完了
-                                        case 'completed_sent': // 全て成功 (緑系)
-                                            $statusClass = 'bg-green-100 text-green-800 dark:bg-green-700 dark:text-green-200';
+                                        case 'sent': // MTAへの引き渡しが完了した時点などを示す汎用的な成功
+                                        case 'completed_all_sent': // 全てのログが 'sent'
+                                        case 'completed_sent': // 'completed_all_sent' のエイリアスとして
+                                            $statusClass = 'bg-green-100 text-green-800 dark:bg-green-700 dark:text-green-200'; // 緑系
                                             break;
-                                        case 'completed_partially': // 一部完了/失敗混在 (黄色系)
-                                            $statusClass = 'bg-yellow-100 text-yellow-800 dark:bg-yellow-700 dark:text-yellow-200';
+                                        case 'completed_partially':
+                                        case 'partially_completed': // 一部成功、一部失敗/バウンス
+                                            $statusClass = 'bg-yellow-100 text-yellow-800 dark:bg-yellow-700 dark:text-yellow-200'; // 黄色系
                                             break;
-                                        case 'all_failed_or_bounced': // 全て失敗/バウンス (赤系)
-                                        case 'all_queue_failed':    // 全てキューイング失敗 (赤系)
-                                        case 'failed':              // 送信失敗 (全体) (赤系)
-                                            $statusClass = 'bg-red-100 text-red-800 dark:bg-red-700 dark:text-red-200';
+                                        case 'completed_all_failed_or_bounced':
+                                        case 'failed': // システムエラーなどによる全体の失敗
+                                        case 'all_failed_or_bounced': // 全てのログが 'failed' または 'bounced'
+                                        case 'all_queue_failed': // 全てのログが 'queue_failed'
+                                            $statusClass = 'bg-red-100 text-red-800 dark:bg-red-700 dark:text-red-200'; // 赤色系
                                             break;
-                                        case 'all_skipped': // 全件BLスキップ (黄色系 - 警告)
-                                            $statusClass = 'bg-yellow-100 text-yellow-800 dark:bg-yellow-700 dark:text-yellow-300';
+                                        case 'all_skipped': // 全ての対象がブラックリストでスキップ (ログあり)
+                                        case 'all_blacklisted': // キュー投入前に全員ブラックリストで対象なし (ログなし)
+                                        case 'all_skipped_or_failed': // 全員スキップまたはキュー失敗 (ログあり)
+                                            $statusClass = 'bg-yellow-100 text-yellow-800 dark:bg-yellow-700 dark:text-yellow-300'; // 警告的な黄色
                                             break;
-                                        case 'no_recipients':
-                                        case 'no_recipients_processed':
-                                        case 'processing_issue': // その他・情報 (グレー系)
-                                            $statusClass = 'bg-gray-200 text-gray-600 dark:bg-gray-600 dark:text-gray-300';
+                                        case 'no_recipients': // 送信リストに購読者がいなかった
+                                        case 'no_recipients_processed': // ログはあるが有効な処理対象がいなかった
+                                        case 'completed_with_no_valid_targets': // 上記の別名
+                                        case 'processing_issue': // その他の処理問題
+                                        case 'draft':
+                                        case 'review_needed':
+                                        case 'error_no_logs':
+                                        default: // 不明なステータス、またはその他の情報系
+                                            $statusClass = 'bg-gray-200 text-gray-600 dark:bg-gray-600 dark:text-gray-300'; // グレー系
                                             break;
                                     }
                                 @endphp

@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Response; // Responseファサードをuse
 use Illuminate\Support\Facades\Redirect;
+use App\Models\BlacklistEntry;
 
 class TrackingController extends Controller
 {
@@ -95,5 +96,57 @@ class TrackingController extends Controller
         // 元のURLにリダイレクト
         // 301 (Moved Permanently) または 302 (Found) / 307 (Temporary Redirect) を使用
         return Redirect::away($originalUrl, 302);
+    }
+
+    /**
+     * Handle email unsubscribe request.
+     *
+     * @param string $identifier (SentEmailLogのmessage_identifier)
+     * @return \Illuminate\View\View|\Illuminate\Http\RedirectResponse
+     */
+    public function unsubscribe(string $identifier)
+    {
+        Log::info("Unsubscribe attempt for identifier: {$identifier}");
+
+        // identifierを使ってSentEmailLogを検索 (ここからSubscriberとEmailListを特定)
+        $logEntry = SentEmailLog::where('message_identifier', $identifier)->with('subscriber.emailList')->first();
+
+        if (!$logEntry || !$logEntry->subscriber) {
+            Log::warning("Unsubscribe: No matching SentEmailLog or Subscriber found for identifier: {$identifier}");
+            // 適切なエラーページまたは汎用的な完了ページへリダイレクト
+            return view('tools.sales.unsubscribe.thanks', ['message' => '配信停止処理中にエラーが発生しました。お手数ですが再度お試しいただくか、管理者にご連絡ください。', 'error' => true]);
+        }
+
+        $subscriber = $logEntry->subscriber;
+        $emailList = $logEntry->subscriber->emailList; // Subscriberが属するEmailListを取得
+
+        if ($subscriber->status === 'unsubscribed' && $subscriber->email_list_id === $emailList->id) {
+            // 既にこのリストから配信停止済みの場合
+            Log::info("Unsubscribe: Subscriber ID {$subscriber->id} already unsubscribed from EmailList ID {$emailList->id}. Identifier: {$identifier}");
+            return view('tools.sales.unsubscribe.thanks', ['email' => $subscriber->email, 'listName' => $emailList->name, 'alreadyUnsubscribed' => true]);
+        }
+
+        // 購読者のステータスを更新
+        $subscriber->status = 'unsubscribed';
+        $subscriber->unsubscribed_at = now();
+        $subscriber->save();
+
+        //ブラックリストへ追加
+        BlacklistEntry::create([
+            'email' => $subscriber->email,
+            'reason' => '配信停止リンクより',
+            'added_by_user_id' => null, // 登録したユーザーIDを記録
+        ]);
+
+        // (任意) SentEmailLogのステータスも更新
+        $logEntry->status = 'unsubscribed_via_link'; // 新しいステータス
+        // $logEntry->clicked_at = now(); // クリックとしても記録する場合
+        $logEntry->save();
+
+        Log::info("Subscriber ID {$subscriber->id} ({$subscriber->email}) unsubscribed from EmailList ID {$emailList->id}. Identifier: {$identifier}");
+
+        // (任意) 親のSentEmailの集計情報を更新するロジックを呼び出すことも可能
+
+        return view('tools.sales.unsubscribe.thanks', ['email' => $subscriber->email, 'listName' => $emailList->name]);
     }
 }

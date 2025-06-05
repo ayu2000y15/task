@@ -122,7 +122,7 @@
                                                 $logStatusClass = 'bg-sky-100 text-sky-800 dark:bg-sky-700 dark:text-sky-200'; break; // 少し青系でも変える
                                             case 'failed': case 'bounced': case 'queue_failed':
                                                 $logStatusClass = 'bg-red-100 text-red-800 dark:bg-red-700 dark:text-red-200'; break;
-                                            case 'skipped_blacklist':
+                                            case 'skipped_blacklist': case 'unsubscribed_via_link':
                                                 $logStatusClass = 'bg-yellow-100 text-yellow-800 dark:bg-yellow-700 dark:text-yellow-300'; break;
                                         }
                                     @endphp

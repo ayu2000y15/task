@@ -1,3 +1,5 @@
+// resources/js/page-specific/project-show-materials.js
+
 import axios from "axios";
 import {
     handleFormError,
@@ -36,6 +38,7 @@ function getMaterialFormElements(characterId) {
             `material_notes_input-${characterId}`
         ),
         statusCheckbox: document.getElementById(
+            // 「購入済として処理」チェックボックス (フォーム内)
             `material_status_checkbox_for_form-${characterId}`
         ),
         // Hidden inputs
@@ -75,19 +78,33 @@ function getMaterialFormElements(characterId) {
             `material-form-errors-${characterId}`
         ),
         storeUrl: form.dataset.storeUrl,
+        applyToOthersCheckbox: document.getElementById(
+            // 追加フォーム用
+            `apply_material_to_other_characters-${characterId}`
+        ),
+        applyToOthersWrapperForAdd: document.getElementById(
+            // 追加フォームの「他キャラ適用」のラッパー
+            `apply_to_others_wrapper_for_add_material-${characterId}`
+        ),
     };
 }
 
 function calculateAndSetPrice(characterId) {
     const els = getMaterialFormElements(characterId);
-    if (!els) return;
+    if (
+        !els ||
+        !els.quantityInput ||
+        !els.priceDisplay ||
+        !els.priceHiddenInput ||
+        !els.unitPriceHiddenInput
+    )
+        return;
 
     const selectedOption =
         els.inventorySelect.options[els.inventorySelect.selectedIndex];
     const quantity = parseFloat(els.quantityInput.value);
 
     if (selectedOption.value && selectedOption.value !== "manual_input") {
-        // 在庫品目選択時
         const avgPrice = parseFloat(selectedOption.dataset.avg_price);
         if (!isNaN(avgPrice) && !isNaN(quantity) && quantity > 0) {
             const totalPrice = avgPrice * quantity;
@@ -101,7 +118,6 @@ function calculateAndSetPrice(characterId) {
             els.unitPriceHiddenInput.value = "";
         }
     } else if (selectedOption.value === "manual_input") {
-        // 手入力時
         const priceString = els.priceDisplay.value.replace(/[円,]/g, "");
         const manualPrice = parseFloat(priceString);
 
@@ -117,7 +133,6 @@ function calculateAndSetPrice(characterId) {
             els.unitPriceHiddenInput.value = "";
         }
     } else {
-        // 未選択時
         els.priceDisplay.value = "";
         els.priceHiddenInput.value = "";
         els.unitPriceHiddenInput.value = "";
@@ -151,7 +166,6 @@ function updateFormUIBasedOnSelection(characterId) {
             "dark:bg-gray-800",
             "dark:text-gray-400"
         );
-
         els.statusCheckbox.checked = false;
         els.statusCheckbox.disabled = false;
         els.statusHiddenInput.value = "未購入";
@@ -184,7 +198,6 @@ function updateFormUIBasedOnSelection(characterId) {
         els.nameHiddenInput.value = selectedOption.dataset.name || "";
         els.unitHiddenInput.value = selectedOption.dataset.unit || "";
     } else {
-        // 未選択状態
         els.manualNameField.classList.add("hidden");
         els.manualNameInput.required = false;
         els.manualNameInput.value = "";
@@ -225,7 +238,7 @@ export function resetMaterialForm(characterId, storeUrlFromFunc) {
 
     els.form.reset();
     els.form.setAttribute("action", storeUrlToUse);
-    if (els.methodField) els.methodField.value = "POST";
+    if (els.methodField) els.methodField.value = "POST"; // 常にPOSTに戻す（追加モード）
     if (els.idField) els.idField.value = "";
 
     if (els.formTitle) els.formTitle.textContent = "材料を追加";
@@ -296,20 +309,31 @@ export function resetMaterialForm(characterId, storeUrlFromFunc) {
     if (els.priceHiddenInput) els.priceHiddenInput.value = "";
     if (els.unitPriceHiddenInput) els.unitPriceHiddenInput.value = "";
 
+    if (els.applyToOthersCheckbox) {
+        // 追加フォームのチェックボックス
+        els.applyToOthersCheckbox.checked = false;
+    }
+    if (els.applyToOthersWrapperForAdd) {
+        // 追加フォームのチェックボックスラッパーを表示
+        els.applyToOthersWrapperForAdd.style.display = "block";
+    }
+
     updateFormUIBasedOnSelection(characterId);
 }
 
 export function redrawMaterialRow(
     characterId,
     materialData,
-    isUpdate,
-    projectData // projectData should contain: id, can_manage_materials, can_update_materials, can_delete_materials
+    isUpdate, // このフラグは行の挿入か置換かを決めるのに使う
+    projectData
 ) {
-    console.log(projectData);
     const tbody = document.querySelector(
         `#materials-content-${characterId} table tbody`
     );
     if (!tbody) {
+        console.warn(
+            `Table body not found for character materials: ${characterId}`
+        );
         return;
     }
 
@@ -324,60 +348,80 @@ export function redrawMaterialRow(
             ? Number(materialData.price).toLocaleString() + "円"
             : "-";
     const csrfToken = getCsrfToken();
-    const updateUrlForCheckbox = `/projects/${projectData.id}/characters/${characterId}/materials/${materialData.id}`;
+    const updateUrlForCheckbox = `/projects/${projectData.id}/characters/${characterId}/materials/${materialData.id}`; // ステータス更新用URL
 
     let actionsHtml = '<div class="flex items-center justify-end space-x-1">';
-    // Check specific permission for editing
-    actionsHtml += `
+    // projectDataに権限情報がない場合のフォールバックとしてtrueを設定（開発用）
+    // 本番ではprojectDataに適切な権限情報が含まれていること
+    const canUpdateMaterials =
+        projectData.can_update_materials === undefined
+            ? true
+            : projectData.can_update_materials;
+    const canDeleteMaterials =
+        projectData.can_delete_materials === undefined
+            ? true
+            : projectData.can_delete_materials;
+
+    if (canUpdateMaterials) {
+        actionsHtml += `
             <button type="button" class="p-1 text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 edit-material-btn"
-                    title="編集"
-                    data-id="${materialData.id}"
+                    title="編集" data-id="${materialData.id}"
                     data-inventory_item_id="${
                         materialData.inventory_item_id || ""
                     }"
-                    data-name="${escapeHtml(materialData.name || "")}"
-                    data-price="${materialData.price || ""}"
-                    data-unit="${escapeHtml(materialData.unit || "")}"
-                    data-unit_price_at_creation="${
-                        materialData.unit_price_at_creation || ""
-                    }"
+                    data-name="${escapeHtml(
+                        materialData.name || ""
+                    )}" data-price="${materialData.price || ""}"
+                    data-unit="${escapeHtml(
+                        materialData.unit || ""
+                    )}" data-unit_price_at_creation="${
+            materialData.unit_price_at_creation || ""
+        }"
                     data-quantity_needed="${escapeHtml(
                         materialData.quantity_needed || ""
                     )}"
-                    data-status="${escapeHtml(materialData.status || "未購入")}"
-                    data-notes="${escapeHtml(materialData.notes || "")}">
+                    data-status="${escapeHtml(
+                        materialData.status || "未購入"
+                    )}" data-notes="${escapeHtml(materialData.notes || "")}">
                 <i class="fas fa-edit fa-sm"></i>
             </button>`;
-    // Check specific permission for deleting
-    actionsHtml += `
+    }
+    if (canDeleteMaterials) {
+        actionsHtml += `
             <form action="/projects/${projectData.id}/characters/${characterId}/materials/${materialData.id}"
-                  method="POST" class="delete-material-form"
-                  data-id="${materialData.id}"
-                  onsubmit="return false;">
-                <input type="hidden" name="_token" value="${csrfToken}">
-                <input type="hidden" name="_method" value="DELETE">
-                <button type="submit"
-                    class="p-1 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
-                    title="削除">
+                  method="POST" class="delete-material-form" data-id="${materialData.id}" onsubmit="return false;">
+                <input type="hidden" name="_token" value="${csrfToken}"><input type="hidden" name="_method" value="DELETE">
+                <button type="submit" class="p-1 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300" title="削除">
                     <i class="fas fa-trash fa-sm"></i>
                 </button>
             </form>`;
+    }
     actionsHtml += "</div>";
 
     let statusHtml;
-    // General permission to manage materials (for status changes)
-    if (materialData.inventory_item_id) {
-        statusHtml = `<span class="text-xs px-2 py-1 font-semibold leading-tight text-green-700 bg-green-100 rounded-full dark:bg-green-700 dark:text-green-100">購入済</span>`;
-    } else {
-        statusHtml = `
-                <input type="checkbox"
-                    id="material-status-checkbox-${materialData.id}"
+    const canManageMaterials =
+        projectData.can_manage_materials === undefined
+            ? true
+            : projectData.can_manage_materials;
+
+    if (canManageMaterials) {
+        if (materialData.inventory_item_id) {
+            statusHtml = `<span class="text-xs px-2 py-1 font-semibold leading-tight text-green-700 bg-green-100 rounded-full dark:bg-green-700 dark:text-green-100">購入済</span>`;
+        } else {
+            statusHtml = `
+                <input type="checkbox" id="material-status-checkbox-${
+                    materialData.id
+                }"
                     class="form-checkbox h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:bg-gray-900 dark:border-gray-600 material-status-checkbox"
-                    data-url="${updateUrlForCheckbox}"
-                    data-id="${
-                        materialData.id
-                    }" data-character-id="${characterId}"
+                    data-url="${updateUrlForCheckbox}" data-id="${
+                materialData.id
+            }" data-character-id="${characterId}"
                     ${materialData.status === "購入済" ? "checked" : ""}>`;
+        }
+    } else {
+        statusHtml = `<span class="text-gray-700 dark:text-gray-200">${escapeHtml(
+            materialData.status
+        )}</span>`;
     }
 
     const itemNameDisplay = materialData.inventory_item
@@ -386,24 +430,22 @@ export function redrawMaterialRow(
     const itemUnitDisplay =
         materialData.unit ||
         (materialData.inventory_item ? materialData.inventory_item.unit : "");
-
     let qtyNeededDisplay;
     const qty = parseFloat(materialData.quantity_needed);
     const unitLower = (itemUnitDisplay || "").toLowerCase();
+    let decimalsQty = 0;
     if (unitLower === "m") {
-        qtyNeededDisplay = qty.toFixed(qty % 1 !== 0 ? 1 : 0);
+        decimalsQty = qty % 1 !== 0 ? 1 : 0;
     } else {
-        if (qty % 1 === 0) {
-            qtyNeededDisplay = qty.toFixed(0);
-        } else {
-            qtyNeededDisplay = qty.toString(); // Or qty.toFixed(2) for a consistent 2 decimal places
+        if (qty % 1 !== 0) {
+            const decimalPart = String(qty).split(".")[1] || "";
+            decimalsQty = Math.min(decimalPart.length, 2);
         }
     }
+    qtyNeededDisplay = Number(qty).toFixed(decimalsQty);
 
     const newRowCellsHtml = `
-        <td class="px-3 py-1.5 whitespace-nowrap">
-            ${statusHtml}
-        </td>
+        <td class="px-3 py-1.5 whitespace-nowrap">${statusHtml}</td>
         <td class="px-4 py-1.5 whitespace-nowrap text-gray-700 dark:text-gray-200 material-name">
             ${escapeHtml(itemNameDisplay)} ${
         materialData.inventory_item_id
@@ -418,12 +460,8 @@ export function redrawMaterialRow(
             qtyNeededDisplay
         )}</td>
         <td class="px-4 py-1.5 whitespace-nowrap text-gray-700 dark:text-gray-200 material-price">${totalPriceDisplay}</td>
-        <td class="px-4 py-1.5 text-gray-700 dark:text-gray-200 break-words text-left leading-tight material-notes" style="min-width: 150px;">
-            ${notesDisplay}
-        </td>
-        <td class="px-3 py-1.5 whitespace-nowrap text-right">
-            ${actionsHtml}
-        </td>
+        <td class="px-4 py-1.5 text-gray-700 dark:text-gray-200 break-words text-left leading-tight material-notes" style="min-width: 150px;">${notesDisplay}</td>
+        <td class="px-3 py-1.5 whitespace-nowrap text-right">${actionsHtml}</td>
     `;
 
     if (isUpdate && existingRow) {
@@ -443,10 +481,13 @@ export function initializeMaterialInteractions(
     materialsContentContainer,
     characterId,
     csrfToken,
-    projectData // projectData now expects: id, can_manage_materials, can_update_materials, can_delete_materials
+    projectData
 ) {
     const els = getMaterialFormElements(characterId);
     if (!els || !els.form) {
+        console.warn(
+            `Material form elements not found for character ID: ${characterId}`
+        );
         return;
     }
     const storeUrl = els.storeUrl;
@@ -456,57 +497,43 @@ export function initializeMaterialInteractions(
             updateFormUIBasedOnSelection(characterId);
         });
     }
-
     if (els.quantityInput) {
         els.quantityInput.addEventListener("input", function () {
             calculateAndSetPrice(characterId);
         });
     }
-
     if (els.priceDisplay) {
         els.priceDisplay.addEventListener("input", function () {
-            if (!this.readOnly) {
-                calculateAndSetPrice(characterId);
-            }
+            if (!this.readOnly) calculateAndSetPrice(characterId);
         });
         els.priceDisplay.addEventListener("blur", function () {
             if (!this.readOnly) {
                 let value = this.value.replace(/[円,]/g, "");
-                if (!isNaN(parseFloat(value)) && isFinite(value)) {
-                    this.value = parseFloat(value).toLocaleString() + "円";
-                } else if (value.trim() !== "") {
-                    this.value = "";
-                } else {
-                    this.value = ""; // Also clear if just whitespace
-                }
+                this.value =
+                    !isNaN(parseFloat(value)) && isFinite(value)
+                        ? parseFloat(value).toLocaleString() + "円"
+                        : "";
                 calculateAndSetPrice(characterId);
             }
         });
     }
-
     if (els.unitDisplay) {
         els.unitDisplay.addEventListener("input", function () {
-            if (!this.readOnly && els.unitHiddenInput) {
+            if (!this.readOnly && els.unitHiddenInput)
                 els.unitHiddenInput.value = this.value;
-            }
         });
     }
-
     if (els.manualNameInput) {
         els.manualNameInput.addEventListener("input", function () {
-            if (els.nameHiddenInput) {
-                els.nameHiddenInput.value = this.value;
-            }
+            if (els.nameHiddenInput) els.nameHiddenInput.value = this.value;
         });
     }
-
     if (els.statusCheckbox) {
         els.statusCheckbox.addEventListener("change", function () {
-            if (els.statusHiddenInput) {
+            if (els.statusHiddenInput)
                 els.statusHiddenInput.value = this.checked
                     ? "購入済"
                     : "未購入";
-            }
         });
     }
 
@@ -514,9 +541,13 @@ export function initializeMaterialInteractions(
 
     materialsContentContainer.addEventListener("click", function (event) {
         const editButton = event.target.closest(".edit-material-btn");
-        if (editButton) {
+        const canUpdateMaterials =
+            projectData.can_update_materials === undefined
+                ? true
+                : projectData.can_update_materials;
+        if (editButton && canUpdateMaterials) {
             event.preventDefault();
-            resetMaterialForm(characterId, storeUrl);
+            resetMaterialForm(characterId, storeUrl); // 編集前にフォームをリセット（他キャラ適用チェックもリセットされる）
 
             if (els.formTitle) els.formTitle.textContent = "材料を編集";
             els.form.setAttribute(
@@ -526,20 +557,31 @@ export function initializeMaterialInteractions(
             if (els.methodField) els.methodField.value = "PUT";
             if (els.idField) els.idField.value = editButton.dataset.id;
 
+            // 「他のキャラクターへ適用」オプションを編集時は非表示にする
+            if (els.applyToOthersWrapperForAdd) {
+                els.applyToOthersWrapperForAdd.style.display = "none";
+            }
+
             const inventoryItemId = editButton.dataset.inventory_item_id;
             const materialStatus = editButton.dataset.status;
 
-            if (inventoryItemId) {
+            if (
+                inventoryItemId &&
+                inventoryItemId !== "null" &&
+                inventoryItemId !== ""
+            ) {
                 els.inventorySelect.value = inventoryItemId;
             } else {
                 els.inventorySelect.value = "manual_input";
             }
-
-            const changeEvent = new Event("change");
-            els.inventorySelect.dispatchEvent(changeEvent);
+            els.inventorySelect.dispatchEvent(new Event("change"));
 
             setTimeout(() => {
-                if (!inventoryItemId) {
+                if (
+                    !inventoryItemId ||
+                    inventoryItemId === "null" ||
+                    inventoryItemId === ""
+                ) {
                     if (els.manualNameInput)
                         els.manualNameInput.value =
                             editButton.dataset.name || "";
@@ -548,10 +590,9 @@ export function initializeMaterialInteractions(
                 }
                 if (els.quantityInput)
                     els.quantityInput.value =
-                        editButton.dataset.quantity_needed;
+                        editButton.dataset.quantity_needed || "";
                 if (els.notesInput)
                     els.notesInput.value = editButton.dataset.notes || "";
-
                 if (els.priceDisplay) {
                     const price = editButton.dataset.price;
                     els.priceDisplay.value =
@@ -569,7 +610,17 @@ export function initializeMaterialInteractions(
                     const isPurchased = materialStatus === "購入済";
                     els.statusCheckbox.checked = isPurchased;
                     els.statusHiddenInput.value = materialStatus;
-                    // disabled state already handled by updateFormUIBasedOnSelection via inventorySelect change
+                    if (
+                        !inventoryItemId ||
+                        inventoryItemId === "null" ||
+                        inventoryItemId === ""
+                    ) {
+                        els.statusCheckbox.disabled = false;
+                    } else {
+                        els.statusCheckbox.disabled = true;
+                        els.statusCheckbox.checked = true;
+                        els.statusHiddenInput.value = "購入済";
+                    }
                 }
                 calculateAndSetPrice(characterId);
             }, 0);
@@ -594,7 +645,11 @@ export function initializeMaterialInteractions(
             if (els.cancelBtn) els.cancelBtn.style.display = "inline-flex";
             if (els.errorDiv) els.errorDiv.innerHTML = "";
 
-            if (inventoryItemId) {
+            if (
+                inventoryItemId &&
+                inventoryItemId !== "null" &&
+                inventoryItemId !== ""
+            ) {
                 if (els.quantityInput) els.quantityInput.focus();
             } else {
                 if (els.manualNameInput) els.manualNameInput.focus();
@@ -602,7 +657,11 @@ export function initializeMaterialInteractions(
         }
 
         const deleteFormElement = event.target.closest(".delete-material-form");
-        if (deleteFormElement) {
+        const canDeleteMaterials =
+            projectData.can_delete_materials === undefined
+                ? true
+                : projectData.can_delete_materials;
+        if (deleteFormElement && canDeleteMaterials) {
             event.preventDefault();
             if (confirm("この材料を本当に削除しますか？")) {
                 axios
@@ -615,8 +674,7 @@ export function initializeMaterialInteractions(
                     .then((response) => {
                         if (response.data.success) {
                             const rowId = `material-row-${deleteFormElement.dataset.id}`;
-                            const rowToRemove = document.getElementById(rowId);
-                            if (rowToRemove) rowToRemove.remove();
+                            document.getElementById(rowId)?.remove();
                             resetMaterialForm(characterId, storeUrl);
                             if (response.data.costs_updated) {
                                 refreshCharacterCosts(
@@ -632,13 +690,13 @@ export function initializeMaterialInteractions(
                             );
                         }
                     })
-                    .catch((error) => {
+                    .catch((error) =>
                         handleFormError(
                             error.response,
                             "削除中にエラーが発生しました。",
                             `material-form-errors-${characterId}`
-                        );
-                    });
+                        )
+                    );
             }
         }
     });
@@ -646,6 +704,10 @@ export function initializeMaterialInteractions(
     if (els.cancelBtn) {
         els.cancelBtn.addEventListener("click", function () {
             resetMaterialForm(characterId, storeUrl);
+            // キャンセル時は「他のキャラクターへ適用」オプションを再表示（追加モードに戻るため）
+            if (els.applyToOthersWrapperForAdd) {
+                els.applyToOthersWrapperForAdd.style.display = "block";
+            }
         });
     }
 
@@ -673,9 +735,40 @@ export function initializeMaterialInteractions(
                 if (els.unitHiddenInput) els.unitHiddenInput.value = "";
             }
         }
+        if (
+            els.statusHiddenInput &&
+            els.statusCheckbox &&
+            !els.statusCheckbox.disabled
+        ) {
+            els.statusHiddenInput.value = els.statusCheckbox.checked
+                ? "購入済"
+                : "未購入";
+        } else if (
+            els.statusHiddenInput &&
+            els.statusCheckbox &&
+            els.statusCheckbox.disabled &&
+            els.inventorySelect.value !== "" &&
+            els.inventorySelect.value !== "manual_input"
+        ) {
+            els.statusHiddenInput.value = "購入済";
+        }
 
         const formData = new FormData(els.form);
         const actionUrl = els.form.getAttribute("action");
+        const isUpdateOperation =
+            els.methodField && els.methodField.value === "PUT";
+
+        // 更新時は「他のキャラクターへ適用」関連のパラメータを送信しない
+        if (
+            !isUpdateOperation &&
+            els.applyToOthersCheckbox &&
+            els.applyToOthersCheckbox.checked
+        ) {
+            formData.append("apply_to_other_characters", "1");
+        } else {
+            formData.delete("apply_to_other_characters"); // 明示的に削除
+        }
+        formData.delete("update_same_name_on_others"); // 更新時専用フラグなので常に削除でOK
 
         axios({
             method: "post",
@@ -684,19 +777,52 @@ export function initializeMaterialInteractions(
             headers: { "X-CSRF-TOKEN": csrfToken, Accept: "application/json" },
         })
             .then((response) => {
-                if (response.data.success && response.data.material) {
-                    const isUpdate =
-                        els.methodField && els.methodField.value === "PUT";
-                    redrawMaterialRow(
-                        characterId,
-                        response.data.material,
-                        isUpdate,
-                        projectData
-                    );
+                if (response.data.success) {
+                    // materials_data が配列で返ってくる場合、現在のキャラのものを探す
+                    // そうでない場合は、response.data.material を使う
+                    let materialToRedraw = response.data.material; // 更新時は単一のはず
+                    if (
+                        response.data.materials_data &&
+                        Array.isArray(response.data.materials_data)
+                    ) {
+                        materialToRedraw =
+                            response.data.materials_data.find(
+                                (m) =>
+                                    String(m.character_id) ===
+                                        String(characterId) &&
+                                    (isUpdateOperation
+                                        ? String(m.id) === els.idField.value
+                                        : true)
+                            ) || response.data.materials_data[0]; // フォールバック
+                    }
+
+                    if (materialToRedraw) {
+                        redrawMaterialRow(
+                            characterId,
+                            materialToRedraw,
+                            isUpdateOperation,
+                            projectData
+                        );
+                    }
+
                     resetMaterialForm(characterId, storeUrl);
-                    if (response.data.costs_updated) {
+
+                    if (
+                        response.data.costs_updated_for_characters &&
+                        Array.isArray(
+                            response.data.costs_updated_for_characters
+                        )
+                    ) {
+                        response.data.costs_updated_for_characters.forEach(
+                            (charId) =>
+                                refreshCharacterCosts(projectData.id, charId)
+                        );
+                    } else if (response.data.costs_updated) {
                         refreshCharacterCosts(projectData.id, characterId);
                     }
+
+                    if (response.data.message)
+                        console.log("Server message:", response.data.message);
                 } else {
                     handleFormError(
                         response,
@@ -706,27 +832,45 @@ export function initializeMaterialInteractions(
                     );
                 }
             })
-            .catch((error) => {
+            .catch((error) =>
                 handleFormError(
                     error.response,
                     "送信中にエラーが発生しました。",
                     `material-form-errors-${characterId}`,
                     error.response?.data?.errors
-                );
-            });
+                )
+            );
     });
 
+    // 既存材料の「購入」チェックボックスのイベントリスナー
     materialsContentContainer.addEventListener("change", function (event) {
         const checkbox = event.target.closest(".material-status-checkbox");
-        if (checkbox && checkbox.dataset.characterId === characterId) {
+        if (checkbox && checkbox.dataset.characterId === String(characterId)) {
+            const canManageMaterials =
+                projectData.can_manage_materials === undefined
+                    ? true
+                    : projectData.can_manage_materials;
+            if (!canManageMaterials) {
+                event.preventDefault();
+                checkbox.checked = !checkbox.checked; // UIを元に戻す
+                alert("ステータスを変更する権限がありません。");
+                return;
+            }
+
             const materialId = checkbox.dataset.id;
-            const status = checkbox.checked ? "購入済" : "未購入";
+            const intendedStatus = checkbox.checked ? "購入済" : "未購入";
             const url = checkbox.dataset.url;
+            const originalCheckedState = !checkbox.checked; // 変更前の状態を記録
+
+            console.log(
+                `[Material Status Change] ID: ${materialId}, Intended Status: ${intendedStatus}, Original Checked: ${originalCheckedState}`
+            );
+            // checkbox.disabled = true; // 処理中の無効化は一旦コメントアウト
 
             axios
                 .put(
                     url,
-                    { status: status },
+                    { status: intendedStatus },
                     {
                         headers: {
                             "X-CSRF-TOKEN": csrfToken,
@@ -736,32 +880,80 @@ export function initializeMaterialInteractions(
                     }
                 )
                 .then((response) => {
+                    console.log(
+                        `[Material Status Change Response] ID: ${materialId}`,
+                        JSON.stringify(response.data)
+                    );
+                    // checkbox.disabled = false;
                     if (response.data.success && response.data.material) {
+                        // サーバーからの最新情報でUIを再描画
+                        console.log(
+                            `[SUCCESS] Redrawing row for ${materialId} with status from server: ${response.data.material.status}`
+                        );
                         redrawMaterialRow(
                             characterId,
                             response.data.material,
-                            true, // isUpdate
+                            true,
                             projectData
                         );
+
+                        // 再描画後に再度チェックボックスのIDで要素を取得して状態を確認（デバッグ用）
+                        const newCheckbox = document.getElementById(
+                            `material-status-checkbox-${materialId}`
+                        );
+                        if (newCheckbox) {
+                            console.log(
+                                `Checkbox ${materialId} state after redraw: ${newCheckbox.checked} (Server status: ${response.data.material.status})`
+                            );
+                        } else {
+                            console.warn(
+                                `Checkbox ${materialId} not found after redraw.`
+                            );
+                        }
+
                         if (response.data.costs_updated) {
+                            console.log(
+                                `Refreshing costs for char ${characterId}`
+                            );
                             refreshCharacterCosts(projectData.id, characterId);
                         }
                     } else {
+                        // サーバーが success: false を返したか、material データがなかった場合
+                        console.error(
+                            `[ERROR/UNEXPECTED] ID: ${materialId}, ServerSuccess: ${
+                                response.data.success
+                            }, MaterialData: ${!!response.data.material}`
+                        );
                         handleFormError(
                             response,
-                            "ステータス更新に失敗しました。",
+                            response.data.message ||
+                                "ステータス更新に失敗しました(レスポンス形式不正)。",
                             `material-form-errors-${characterId}`
                         );
-                        checkbox.checked = !checkbox.checked;
+                        // UIをユーザー操作前の状態に戻す
+                        if (checkbox) checkbox.checked = originalCheckedState;
+                        alert(
+                            response.data.message ||
+                                "ステータス更新に失敗しました。表示を元に戻します。"
+                        );
                     }
                 })
                 .catch((error) => {
+                    console.error(
+                        `[CATCH ERROR] ID: ${materialId}`,
+                        error.response || error
+                    );
+                    // checkbox.disabled = false;
                     handleFormError(
                         error.response,
-                        "ステータス更新中にエラーが発生しました。",
+                        "ステータス更新中に通信エラーが発生しました。",
                         `material-form-errors-${characterId}`
                     );
-                    checkbox.checked = !checkbox.checked;
+                    // UIをユーザー操作前の状態に戻す
+                    if (checkbox) checkbox.checked = originalCheckedState;
+                    alert(
+                        "ステータス更新中にエラーが発生しました。表示を元に戻します。"
+                    );
                 });
         }
     });

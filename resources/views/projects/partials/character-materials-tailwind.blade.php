@@ -1,3 +1,4 @@
+{{-- resources/views/projects/partials/character-materials-tailwind.blade.php --}}
 <div class="space-y-4">
     <div
         class="p-2 text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded-md dark:bg-blue-700/30 dark:text-blue-200 dark:border-blue-500">
@@ -63,15 +64,16 @@
                         <td class="px-4 py-1.5 whitespace-nowrap text-gray-700 dark:text-gray-200 material-quantity_needed">
                             @php
                                 $qtyNeeded = $material->quantity_needed;
-                                // 単位が 'm' または 'M' で、かつ小数点以下が .00 でない場合は小数点1桁まで表示、それ以外は適切な桁数で表示
                                 $unitLower = strtolower($material->unit ?? optional($material->inventoryItem)->unit);
+                                $decimalsQty = 0;
                                 if ($unitLower === 'm') {
                                     $decimalsQty = (fmod($qtyNeeded, 1) !== 0.00 ? 1 : 0);
                                 } else {
-                                    // 他の単位の場合、小数点以下が .00 なら整数、それ以外はそのまま表示（または特定の桁数に丸める）
-                                    // ここでは、小数点以下がなければ整数、あればそのまま表示する例
-                                    $decimalsQty = (fmod($qtyNeeded, 1) !== 0.00 ? strlen(substr(strrchr((string)$qtyNeeded, "."), 1)) : 0);
-                                    if ($decimalsQty > 2) $decimalsQty = 2; // 例として最大小数点2桁
+                                    if (fmod($qtyNeeded, 1) !== 0.00) {
+                                        $decimalPart = explode('.', (string)$qtyNeeded)[1] ?? '';
+                                        $decimalsQty = strlen($decimalPart);
+                                        if ($decimalsQty > 2) $decimalsQty = 2;
+                                    }
                                 }
                             @endphp
                             {{ number_format($qtyNeeded, $decimalsQty) }}
@@ -138,12 +140,11 @@
             <input type="hidden" name="_method" id="material-form-method-{{ $character->id }}" value="POST">
             <input type="hidden" name="material_id" id="material-form-id-{{ $character->id }}" value="">
 
-            {{-- これらの隠しフィールドはJSで適切に値が設定される --}}
             <input type="hidden" name="name" id="material_name_hidden_input-{{ $character->id }}" value="">
             <input type="hidden" name="unit" id="material_unit_hidden_input-{{ $character->id }}" value="">
             <input type="hidden" name="price" id="material_price_hidden_input-{{ $character->id }}">
             <input type="hidden" name="unit_price_at_creation" id="material_unit_price_hidden_input-{{ $character->id }}">
-            <input type="hidden" name="status" id="material_status_hidden_input-{{ $character->id }}" value="未購入"> {{-- デフォルト未購入 --}}
+            <input type="hidden" name="status" id="material_status_hidden_input-{{ $character->id }}" value="未購入">
 
             {{-- 1行目: 在庫品目選択 / 材料名手入力 --}}
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-x-4 gap-y-3 items-start">
@@ -166,7 +167,6 @@
                     <x-input-error :messages="$errors->get('inventory_item_id')" class="mt-2" />
                 </div>
 
-                {{-- 材料名手入力フィールド (JSで表示制御) --}}
                 <div id="manual_material_name_field-{{ $character->id }}" class="sm:col-span-2 hidden">
                     <x-input-label for="manual_material_name_input-{{ $character->id }}" value="材料名" :required="true" />
                     <x-text-input type="text" id="manual_material_name_input-{{ $character->id }}"
@@ -176,7 +176,6 @@
 
                 <div>
                     <x-input-label for="material_unit_display-{{ $character->id }}" value="単位" :required="true"/>
-                    {{-- 在庫品選択時の単位表示用、または手入力用 --}}
                     <x-text-input type="text" id="material_unit_display-{{ $character->id }}"
                         class="form-input mt-1 block w-full text-sm rounded-md border-gray-300 shadow-sm bg-gray-100 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-400"
                         readonly placeholder="品目選択時自動表示/手入力" />
@@ -202,7 +201,6 @@
                 </div>
             </div>
 
-            {{-- 3行目: 備考 (全幅) --}}
             <div>
                 <x-input-label for="material_notes_input-{{ $character->id }}" value="備考" />
                 <x-textarea-input name="notes" id="material_notes_input-{{ $character->id }}"
@@ -210,14 +208,29 @@
                     rows="2"></x-textarea-input>
             </div>
 
-            {{-- 購入ステータス制御 --}}
             <div class="flex items-center space-x-2">
                 <input type="checkbox" id="material_status_checkbox_for_form-{{ $character->id }}"
                        class="form-checkbox h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:bg-gray-900 dark:border-gray-600">
                 <label for="material_status_checkbox_for_form-{{ $character->id }}" class="text-sm text-gray-700 dark:text-gray-300">購入済として処理する</label>
             </div>
 
-            {{-- 4行目: ボタン (右寄せ) --}}
+            {{-- 他のキャラクターへ適用オプション (新規追加フォームにのみ表示) --}}
+            <div id="apply_to_others_wrapper_for_add_material-{{ $character->id }}">
+                @if ($project->characters->count() > 1)
+                    <div class="pt-2">
+                        <x-input-label for="apply_material_to_other_characters-{{ $character->id }}" class="inline-flex items-center">
+                            <input type="checkbox" id="apply_material_to_other_characters-{{ $character->id }}" name="apply_to_other_characters" value="1"
+                                   class="form-checkbox h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 dark:bg-gray-900 dark:border-gray-600">
+                            <span class="ml-2 text-sm text-gray-600 dark:text-gray-400">この案件の他のすべてのキャラクターに同じ材料情報を適用する</span>
+                        </x-input-label>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            注意: チェックすると、他のキャラクターにもこの材料が新規追加されます。
+                        </p>
+                    </div>
+                @endif
+            </div>
+
+
             <div class="flex justify-end items-center space-x-2">
                 <x-secondary-button type="button" id="material-form-cancel-btn-{{ $character->id }}" style="display: none;">
                     キャンセル

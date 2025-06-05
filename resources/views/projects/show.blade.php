@@ -478,6 +478,11 @@
                                     @if($character->description) <div class="px-5 py-2 text-xs text-gray-600 dark:text-gray-400 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50"> {{ $character->description }} </div> @endif
                                     <div class="p-1 sm:p-2">
                                         <div class="border-b border-gray-200 dark:border-gray-700">
+                                            <div
+                                                class="p-2 text-xs bg-yellow-50 text-yellow-700 border border-yellow-200 rounded-md dark:bg-yellow-700/30 dark:text-yellow-200 dark:border-yellow-500">
+                                                <i class="fas fa-info-circle mr-1"></i>
+                                                各タブの数値が実データと異なっている場合、画面を再読み込みしてください
+                                            </div>
                                             <nav class="-mb-px flex space-x-2 sm:space-x-4 overflow-x-auto text-xs sm:text-sm" aria-label="Character Tabs for {{ $character->id }}">
                                                 @can('manageMeasurements', $project)
                                                 <button @click="activeCharacterTab[{{ $character->id }}] = (activeCharacterTab[{{ $character->id }}] === 'measurements-{{ $character->id }}') ? null : 'measurements-{{ $character->id }}'"
@@ -533,7 +538,23 @@
                                             </div>
                                             @endcan
                                             @can('viewAny', App\Models\Task::class)
-                                            <div x-show="activeCharacterTab[{{ $character->id }}] === 'tasks-{{ $character->id }}'" x-collapse id="tasks-content-{{ $character->id }}" >
+                                            <div x-show="activeCharacterTab[{{ $character->id }}] === 'tasks-{{ $character->id }}'"
+                                                x-collapse id="tasks-content-{{ $character->id }}"
+                                                x-effect="
+                                                if (activeCharacterTab[{{ $character->id }}] === 'tasks-{{ $character->id }}') {
+                                                    console.log('[TGGL] x-effect: Tasks tab for character {{ $character->id }} (ID: tasks-content-{{ $character->id }}) is active.');
+                                                    const tableId = 'character-tasks-table-{{ $character->id }}';
+                                                    // Alpine.js がDOMの更新を完了した後に実行
+                                                    Alpine.nextTick(() => {
+                                                        console.log('[TGGL] x-effect (nextTick): Attempting to init tableId:', tableId);
+                                                        if (typeof window.setupTaskToggle === 'function') {
+                                                            window.setupTaskToggle(tableId);
+                                                        } else {
+                                                            console.warn('[TGGL] x-effect (nextTick): setupTaskToggle function NOT FOUND for tableId:', tableId);
+                                                        }
+                                                    });
+                                                }">
+
                                                 @include('projects.partials.character-tasks-tailwind', ['tasks' => $character->tasks()->orderByRaw('ISNULL(start_date), start_date ASC, name ASC')->get(), 'project' => $project, 'character' => $character])
                                             </div>
                                             @endcan
@@ -559,12 +580,104 @@
                 </div>
                 <div x-show="expanded" x-collapse class="border-t border-gray-200 dark:border-gray-700">
                     <div class="overflow-x-auto max-h-[60vh] overflow-y-auto">
-                        @include('projects.partials.projects-task-table', ['tasksToList' => $project->tasksWithoutCharacter()->orderByRaw('ISNULL(start_date), start_date ASC, name ASC')->get(), 'tableId' => 'project-tasks-table', 'projectForTable' => $project, 'isProjectTaskView' => true])
+                        @include('projects.partials.projects-task-table',
+                        ['tasksToList' => $project->tasksWithoutCharacter()->orderByRaw('ISNULL(start_date), start_date ASC, name ASC')->get(),
+                        'tableId' => 'project-tasks-table',
+                        'projectForTable' => $project,
+                        'isProjectTaskView' => true])
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
 @endsection
 
+<script>
+    // グローバルスコープに関数を定義 (一度だけ実行されるようにする)
+    if (typeof window.setupTaskToggle !== 'function') {
+        window.setupTaskToggle = function(tableContainerId) {
+            // console.log('[TGGL] Attempting to setup toggle for table ID:', tableContainerId);
+            const tableContainer = document.getElementById(tableContainerId);
+            if (!tableContainer) {
+                // console.warn('[TGGL] setupTaskToggle: Table container NOT FOUND for ID:', tableContainerId);
+                return;
+            }
+            if (tableContainer.dataset.taskToggleInitialized === 'true') {
+                // console.log('[TGGL] setupTaskToggle: Table ALREADY INITIALIZED for ID:', tableContainerId);
+                return;
+            }
+            tableContainer.dataset.taskToggleInitialized = 'true';
+            // console.log('[TGGL] setupTaskToggle: Initializing table for ID:', tableContainerId);
+
+            tableContainer.addEventListener('click', function (event) {
+                const toggleTrigger = event.target.closest('.task-toggle-trigger');
+
+                if (toggleTrigger && tableContainer.contains(toggleTrigger)) {
+                    event.preventDefault();
+                    const taskId = toggleTrigger.dataset.taskId;
+                    const icon = toggleTrigger.querySelector('.toggle-icon');
+                    const isExpanded = toggleTrigger.getAttribute('aria-expanded') === 'true';
+
+                    // console.log('[TGGL] Click on table:', tableContainerId, '- Task ID:', taskId, '- Expanded:', isExpanded);
+
+                    if (isExpanded) {
+                        if(icon) {
+                            icon.classList.remove('fa-chevron-down');
+                            icon.classList.add('fa-chevron-right');
+                        }
+                        toggleTrigger.setAttribute('aria-expanded', 'false');
+                    } else {
+                        if(icon) {
+                            icon.classList.remove('fa-chevron-right');
+                            icon.classList.add('fa-chevron-down');
+                        }
+                        toggleTrigger.setAttribute('aria-expanded', 'true');
+                    }
+                    window.toggleChildRowsInTable(tableContainer, taskId, !isExpanded);
+                }
+            });
+        };
+
+        window.toggleChildRowsInTable = function(tableContainer, parentId, show) {
+            // console.log('[TGGL] toggleChildRowsInTable: Parent ID:', parentId, '- Show:', show, '- Table:', tableContainer.id);
+            const childRows = tableContainer.querySelectorAll('tr.child-row.child-of-' + parentId);
+            // console.log('[TGGL] toggleChildRowsInTable: Found child rows:', childRows.length, childRows);
+            childRows.forEach(row => {
+                row.style.display = show ? '' : 'none';
+
+                const currentTaskId = row.dataset.taskId;
+                const nestedToggleTrigger = tableContainer.querySelector('.task-toggle-trigger[data-task-id="' + currentTaskId + '"]');
+
+                if (!show) { // 親を閉じるとき、その子も全て閉じる
+                    if (nestedToggleTrigger && nestedToggleTrigger.getAttribute('aria-expanded') === 'true') {
+                        const nestedIcon = nestedToggleTrigger.querySelector('.toggle-icon');
+                        if (nestedIcon) {
+                            nestedIcon.classList.remove('fa-chevron-down');
+                            nestedIcon.classList.add('fa-chevron-right');
+                        }
+                        nestedToggleTrigger.setAttribute('aria-expanded', 'false');
+                        // 子の子も再帰的に閉じる
+                        window.toggleChildRowsInTable(tableContainer, currentTaskId, false);
+                    }
+                } else { // 親を開くとき
+                    // 子が以前に展開状態('aria-expanded' === 'true')であった場合、その子の下も再帰的に開く
+                    if (nestedToggleTrigger && nestedToggleTrigger.getAttribute('aria-expanded') === 'true') {
+                         window.toggleChildRowsInTable(tableContainer, currentTaskId, true);
+                    }
+                    // 注意: もし親を開いた際に、子の以前の状態に関わらず常に直下の子だけを表示したい場合は、
+                    // この else ブロック内の再帰呼び出しは不要です。現在のロジックは子の以前の展開状態を尊重します。
+                }
+            });
+        };
+    }
+
+    // DOMContentLoaded で案件全体のタスクテーブルを初期化
+    document.addEventListener('DOMContentLoaded', function() {
+        if (typeof window.setupTaskToggle === 'function') {
+            // console.log('[TGGL] DOMContentLoaded: Initializing project-tasks-table');
+            window.setupTaskToggle('project-tasks-table'); // 案件全体のテーブルID
+        }
+    });
+</script>

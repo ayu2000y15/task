@@ -34,6 +34,20 @@
                 <form action="{{ route('tools.sales.emails.send') }}" method="POST" enctype="multipart/form-data">
                     @csrf
                     <div class="space-y-6">
+                        <div class="p-4 bg-slate-50 dark:bg-slate-700 rounded-md border dark:border-slate-600">
+                            <x-input-label for="email_template_id" value="メールテンプレートから読み込む (任意)" />
+                            <div class="mt-1 flex items-center space-x-2">
+                                <div class="flex-grow">
+                                    <x-select-input id="email_template_id" name="email_template_id_selector" {{--
+                                        送信データには含めない --}} class="w-full" :options="$emailTemplates"
+                                        emptyOptionText="テンプレートを選択..." />
+                                </div>
+                                <x-primary-button type="button" id="apply_template_button">
+                                    <i class="fas fa-check mr-1"></i> 適用
+                                </x-primary-button>
+                            </div>
+                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">選択したテンプレートの件名と本文が現在のフォームに読み込まれます。</p>
+                        </div>
                         <div>
                             <x-input-label for="email_list_id" value="送信先メールリスト" :required="true" />
                             <x-select-input id="email_list_id" name="email_list_id" class="mt-1 block w-full"
@@ -77,6 +91,26 @@
                             {{-- ▲▲▲ ここまで ▲▲▲ --}}
                             <x-input-error :messages="$errors->get('body_html')" class="mt-2" />
                             <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">HTML形式でリッチなメールを作成できます。</p>
+                            <div
+                                class="mt-2 p-3 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-md text-xs text-gray-600 dark:text-gray-400">
+                                <p class="font-semibold mb-1">利用可能なプレースホルダー (本文または件名に記述):</p>
+                                <ul class="list-disc list-inside space-y-0.5">
+                                    <li><code>{{ '{' }}{{ '{' }}email}}</code> - 受信者のメールアドレス</li>
+                                    <li><code>{{ '{' }}{{ '{' }}name}}</code> - 受信者の名前</li>
+                                    <li><code>{{ '{' }}{{ '{' }}company_name}}</code> - 会社名</li>
+                                    <li><code>{{ '{' }}{{ '{' }}postal_code}}</code> - 郵便番号</li>
+                                    <li><code>{{ '{' }}{{ '{' }}address}}</code> - 住所</li>
+                                    <li><code>{{ '{' }}{{ '{' }}phone_number}}</code> - 電話番号</li>
+                                    <li><code>{{ '{' }}{{ '{' }}fax_number}}</code> - FAX番号</li>
+                                    <li><code>{{ '{' }}{{ '{' }}url}}</code> - URL</li>
+                                    <li><code>{{ '{' }}{{ '{' }}representative_name}}</code> - 代表者名</li>
+                                    <li><code>{{ '{' }}{{ '{' }}establishment_date}}</code> - 設立日 (YYYY年M月D日 形式)</li>
+                                    <li><code>{{ '{' }}{{ '{' }}industry}}</code> - 業種</li>
+                                </ul>
+                                <p class="mt-1">例: <code>{{ '{' }}{{ '{' }}company_name}}</code>
+                                    <code>{{ '{' }}{{ '{' }}name}}</code> 様
+                                </p>
+                            </div>
                         </div>
                     </div>
 
@@ -106,6 +140,11 @@
         document.addEventListener('DOMContentLoaded', function () {
             tinymce.init({
                 selector: 'textarea#body_html_editor',
+                relative_urls: false,    // 生成されるURLを常に絶対パスにする
+                remove_script_host: false, // ホスト名を削除しない (絶対パスを維持)
+                convert_urls: false,     // URLを相対パスに変換しない
+                document_base_url: "{{ url('/') }}/", // ★ アプリケーションのベースURLを明示的に指定
+                // ▲▲▲ ここまで ▲▲▲
                 plugins: 'anchor autolink charmap codesample emoticons image link lists media searchreplace table visualblocks wordcount preview fullscreen insertdatetime help',
                 toolbar: 'undo redo | blocks fontfamily fontsize | ' +
                     'bold italic underline strikethrough | link image media table | ' +
@@ -207,6 +246,52 @@
                     });
                 }
             });
+
+            // ▼▼▼ メールテンプレート適用機能のJavaScript ▼▼▼
+            const templateSelect = document.getElementById('email_template_id');
+            const applyTemplateButton = document.getElementById('apply_template_button');
+            const subjectInput = document.getElementById('subject');
+            // const bodyHtmlEditor = tinymce.get('body_html_editor'); // TinyMCEインスタンスの取得はinit後
+
+            if (applyTemplateButton && templateSelect) {
+                applyTemplateButton.addEventListener('click', function () {
+                    const templateId = templateSelect.value;
+                    if (!templateId) {
+                        alert('適用するテンプレートを選択してください。');
+                        return;
+                    }
+
+                    // AJAXでテンプレート内容を取得
+                    // 実際のルート名は routes/web.php で定義したものを使用
+                    fetch(`{{ url('/tools/sales/templates') }}/${templateId}/content`)
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('テンプレートの取得に失敗しました。Status: ' + response.status);
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            if (subjectInput && data.subject !== undefined) {
+                                subjectInput.value = data.subject;
+                            }
+                            const editorInstance = tinymce.get('body_html_editor');
+                            if (editorInstance && data.body_html !== undefined) {
+                                editorInstance.setContent(data.body_html);
+                            }
+                            // 必要であればプレーンテキスト本文もセット
+                            // const bodyTextInput = document.getElementById('body_text');
+                            // if (bodyTextInput && data.body_text !== undefined) {
+                            //    bodyTextInput.value = data.body_text;
+                            // }
+                            alert('テンプレートを適用しました。');
+                        })
+                        .catch(error => {
+                            console.error('Error fetching template:', error);
+                            alert('テンプレートの適用に失敗しました。\n' + error.message);
+                        });
+                });
+            }
+            // ▲▲▲ ここまで ▲▲▲
         });
     </script>
 @endpush

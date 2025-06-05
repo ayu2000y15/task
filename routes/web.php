@@ -250,9 +250,22 @@ Route::middleware('auth')->group(function () {
                 Route::delete('/{blacklistEntry}', [SalesToolController::class, 'blacklistDestroy'])->name('destroy');
             });
 
+            // メール送信設定
             Route::prefix('settings')->name('settings.')->group(function () { // middlewareは親(sales)で適用済み
                 Route::get('/', [SalesToolController::class, 'settingsEdit'])->name('edit'); // 設定画面は編集フォームのみ
                 Route::put('/', [SalesToolController::class, 'settingsUpdate'])->name('update');
+            });
+
+            // メールテンプレート
+            Route::prefix('templates')->name('templates.')->group(function () {
+                Route::get('/', [SalesToolController::class, 'templatesIndex'])->name('index');
+                Route::get('/create', [SalesToolController::class, 'templatesCreate'])->name('create');
+                Route::post('/', [SalesToolController::class, 'templatesStore'])->name('store');
+                Route::get('/{template}/edit', [SalesToolController::class, 'templatesEdit'])->name('edit');
+                Route::put('/{template}', [SalesToolController::class, 'templatesUpdate'])->name('update');
+                Route::delete('/{template}', [SalesToolController::class, 'templatesDestroy'])->name('destroy');
+                // AJAX用: テンプレート内容取得
+                Route::get('/{template}/content', [SalesToolController::class, 'getEmailTemplateContent'])->name('content.json');
             });
         });
     });
@@ -261,6 +274,7 @@ Route::middleware('auth')->group(function () {
 Route::prefix('track')->name('track.')->group(function () {
     Route::get('/open/{identifier}', [TrackingController::class, 'open'])->name('open');
     Route::get('/click/{identifier}', [TrackingController::class, 'click'])->name('click');
+    Route::get('/unsubscribe/{identifier}/{list_hash?}', [TrackingController::class, 'unsubscribe'])->name('unsubscribe');
 });
 
 // 外部向け申請フォーム (認証外)

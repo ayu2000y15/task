@@ -6,58 +6,45 @@
 @push('styles')
     <link href="https://cdnjs.cloudflare.com/ajax/libs/dropzone/5.9.3/min/dropzone.min.css" rel="stylesheet">
     <style>
-        /* ... (既存のCSSスタイルは変更なし) ... */
         .dropzone-custom-style {
             @apply border-2 border-dashed border-blue-500 rounded-md p-4 flex flex-wrap gap-3 min-h-[150px] bg-gray-50 dark:bg-gray-700/50;
         }
-
         .dropzone-custom-style .dz-message {
             @apply text-gray-600 dark:text-gray-400 font-medium w-full text-center self-center;
         }
-
         .dropzone-custom-style .dz-message p {
             @apply mb-2;
         }
-
         .dropzone-custom-style .dz-button-bootstrap {
             @apply inline-flex items-center px-3 py-2 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-md font-semibold text-xs text-gray-700 dark:text-gray-200 uppercase tracking-widest shadow-sm hover:bg-gray-50 dark:hover:bg-gray-500;
         }
-
         .dropzone-custom-style .dz-preview {
             @apply w-32 h-auto m-1 bg-transparent border border-gray-300 dark:border-gray-600 flex flex-col items-center relative rounded-lg overflow-hidden;
         }
-
         .dropzone-custom-style .dz-image {
             @apply w-20 h-20 flex border border-gray-300 dark:border-gray-600 items-center justify-center overflow-hidden relative z-10;
         }
-
         .dropzone-custom-style .dz-image img {
             @apply max-w-full max-h-full object-contain bg-transparent;
         }
-
         .dropzone-custom-style .dz-details {
             @apply block text-center w-full relative p-1;
         }
-
         .dropzone-custom-style .dz-filename {
             @apply block text-xs text-gray-700 dark:text-gray-200 break-words leading-tight mt-1;
         }
-
         .dropzone-custom-style .dz-filename span {
             @apply bg-transparent;
         }
-
         .dropzone-custom-style .dz-size {
             @apply text-[0.65em] text-gray-500 dark:text-gray-400 mt-0.5 bg-transparent;
         }
-
         .dropzone-custom-style .dz-progress,
         .dropzone-custom-style .dz-error-message,
         .dropzone-custom-style .dz-success-mark,
         .dropzone-custom-style .dz-error-mark {
             @apply hidden;
         }
-
         .dropzone-custom-style .dz-remove {
             @apply absolute top-1 right-1 bg-red-600/80 hover:bg-red-700/90 text-white rounded-full w-[18px] h-[18px] text-xs leading-[18px] text-center font-bold no-underline cursor-pointer opacity-100 z-30;
         }
@@ -121,25 +108,25 @@
                 if ($totalMinutes == 0 && $taskType !== 'milestone') {
                     $displayDurationValue = 0;
                     $displayDurationUnit = 'minutes';
-                } elseif ($taskType === 'milestone') { // マイルストーンは工数0分固定
+                } elseif ($taskType === 'milestone') {
                     $displayDurationValue = 0;
                     $displayDurationUnit = 'minutes';
                 } elseif ($totalMinutes > 0) {
-                    if ($totalMinutes % (24 * 60) === 0 && ($totalMinutes / (24 * 60)) >=1 ) { // 1日=24hで割り切れる場合
+                    if ($totalMinutes % (24 * 60) === 0 && ($totalMinutes / (24 * 60)) >=1 ) {
                         $displayDurationValue = $totalMinutes / (24 * 60);
                         $displayDurationUnit = 'days';
-                    } elseif ($totalMinutes % 60 === 0 && ($totalMinutes / 60) >= 1) { // 1h=60mで割り切れる場合
+                    } elseif ($totalMinutes % 60 === 0 && ($totalMinutes / 60) >= 1) {
                         $displayDurationValue = $totalMinutes / 60;
                         $displayDurationUnit = 'hours';
-                    } else { // それ以外は分
+                    } else {
                         $displayDurationValue = $totalMinutes;
                         $displayDurationUnit = 'minutes';
                     }
                 }
-            } elseif (is_null($displayDurationValue) && $taskType === 'task') { // old()にも値がなく、通常のタスクの場合のデフォルト
+            } elseif (is_null($displayDurationValue) && $taskType === 'task') {
                  $displayDurationValue = 1;
                  $displayDurationUnit = 'days';
-            } elseif (is_null($displayDurationValue)) { //その他の場合のフォールバック
+            } elseif (is_null($displayDurationValue)) {
                 $displayDurationValue = 0;
                 $displayDurationUnit = 'minutes';
             }
@@ -178,22 +165,32 @@
                             <x-input-error :messages="$errors->get('name')" class="mt-2" />
                         </div>
 
+                        <div id="parent_id_wrapper_individual_edit" {{ $taskType === 'folder' ? 'style="display:none;"' : '' }}>
+                            <x-select-input label="親工程" name="parent_id" id="parent_id_individual_edit"
+                                :options="$parentTaskOptions"
+                                :selected="old('parent_id', $task->parent_id)"
+                                emptyOptionText="なし"
+                                :hasError="$errors->has('parent_id')"
+                                :disabled="$taskType === 'folder'" />
+                           <x-input-error :messages="$errors->get('parent_id')" class="mt-2" />
+                        </div>
+
                         <div id="character_id_wrapper_individual_edit" {{ $taskType === 'folder' ? 'style="display:none;"' : '' }}>
                             <x-select-input label="所属先キャラクター" name="character_id" id="character_id_individual_edit"
                                 :options="$project->characters->pluck('name', 'id')"
                                 :selected="old('character_id', $task->character_id)"
                                 emptyOptionText="案件全体 (キャラクター未所属)"
                                 :hasError="$errors->has('character_id')"
-                                :disabled="old('apply_edit_to_all_characters_same_name', false) || $taskType === 'folder' " /> {{-- JS と old() で制御 --}}
+                                :disabled="old('apply_edit_to_all_characters_same_name', false) || $taskType === 'folder' || old('parent_id', $task->parent_id) !== null" />
                             <x-input-error :messages="$errors->get('character_id')" class="mt-2" />
 
-                            @if ($taskType !== 'folder') {{-- フォルダ以外の場合に表示 --}}
+                            @if ($taskType !== 'folder')
                             <div class="mt-2">
                                 <x-input-label for="apply_edit_to_all_characters_same_name" class="inline-flex items-center">
-                                    <input type="checkbox" id="apply_edit_to_all_characters_same_name" name="apply_edit_to_all_characters_same_name" value="1" class="rounded dark:bg-gray-900 border-gray-300 dark:border-gray-700 text-indigo-600 shadow-sm focus:ring-indigo-500 dark:focus:ring-indigo-600 dark:focus:ring-offset-gray-800" {{ old('apply_edit_to_all_characters_same_name') ? 'checked' : '' }}>
+                                    <input type="checkbox" id="apply_edit_to_all_characters_same_name" name="apply_edit_to_all_characters_same_name" value="1" class="rounded dark:bg-gray-900 border-gray-300 dark:border-gray-700 text-indigo-600 shadow-sm focus:ring-indigo-500 dark:focus:ring-indigo-600 dark:focus:ring-offset-gray-800" {{ old('apply_edit_to_all_characters_same_name') ? 'checked' : '' }} {{ old('parent_id', $task->parent_id) !== null ? 'disabled' : '' }}>
                                     <span class="ml-2 text-sm text-gray-600 dark:text-gray-400">この案件のすべてのキャラクターの同名工程に同じ内容を反映する</span>
                                 </x-input-label>
-                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">注意: このオプションを有効にすると、現在編集中の工程と同じ名前を持つ、この案件内の他のキャラクターに紐づいた工程の内容が上書きされます。</p>
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">注意: このオプションを有効にすると、現在編集中の工程と同じ名前を持つ、この案件内の他のキャラクターに紐づいた工程の内容が上書きされます。（親工程が選択されている場合は無効です）</p>
                             </div>
                             @endif
                         </div>
@@ -281,34 +278,6 @@
                             <x-input-error :messages="$errors->get('assignee')" class="mt-2" />
                         </div>
 
-                        <div id="parent_id_wrapper_individual" {{ $taskType === 'folder' ? 'style="display:none;"' : '' }}>
-                             @php
-                                $parentTaskOptions = $project->tasks
-                                    ->where('is_folder', true)
-                                    ->where('id', '!=', $task->id) // 自分自身は親にできない
-                                    ->filter(function ($potentialParent) use ($task) {
-                                        // 自身の子孫を親に設定できないようにする (循環参照防止)
-                                        if (!$task->is_folder && $task->id && $potentialParent->id === $task->id) return false; // 自分自身
-                                        $tempTask = $potentialParent;
-                                        while ($tempTask->parent_id) {
-                                            if ($tempTask->parent_id === $task->id) return false;
-                                            $tempTask = $tempTask->parent;
-                                            if(!$tempTask) break; // 親がいなくなったらループ終了
-                                        }
-                                        return true;
-                                    })
-                                    ->sortBy('name')
-                                    ->pluck('name', 'id');
-                            @endphp
-                            <x-select-input label="親工程 (フォルダのみ)" name="parent_id" id="parent_id_individual"
-                                :options="$parentTaskOptions"
-                                :selected="old('parent_id', $task->parent_id)"
-                                emptyOptionText="なし"
-                                :hasError="$errors->has('parent_id')"
-                                :disabled="$taskType === 'folder'" />
-                           <x-input-error :messages="$errors->get('parent_id')" class="mt-2" />
-                        </div>
-
                         <div id="status-field-individual" {{ $taskType === 'folder' ? 'style="display:none;"' : '' }}>
                             <x-select-input label="ステータス" name="status" id="status_individual"
                                 :options="['not_started' => '未着手', 'in_progress' => '進行中', 'completed' => '完了', 'on_hold' => '保留中', 'cancelled' => 'キャンセル']"
@@ -334,11 +303,13 @@
 
 @push('scripts')
 <script>
+const characterParentTaskIdsForEdit = @json($characterParentTaskIdsForEdit ?? []);
+
 document.addEventListener('DOMContentLoaded', function () {
     const taskType = "{{ $taskType }}";
     const taskFieldsIndividual = document.getElementById('task-fields-individual');
-    const characterIdWrapperEdit = document.getElementById('character_id_wrapper_individual_edit'); // ID変更
-    const characterIdSelectEdit = document.getElementById('character_id_individual_edit'); // ID変更
+    const characterIdWrapperEdit = document.getElementById('character_id_wrapper_individual_edit');
+    const characterIdSelectEdit = document.getElementById('character_id_individual_edit');
     const applyEditToAllCharsCheckbox = document.getElementById('apply_edit_to_all_characters_same_name');
 
     const statusField = document.getElementById('status-field-individual');
@@ -346,11 +317,28 @@ document.addEventListener('DOMContentLoaded', function () {
     const durationValueInput = document.getElementById('duration_value');
     const durationUnitSelect = document.getElementById('duration_unit');
     const endDateInput = document.getElementById('end_date_individual');
-    const parentIdSelect = document.getElementById('parent_id_individual');
+    const parentIdSelectEdit = document.getElementById('parent_id_individual_edit');
     const assigneeInput = document.getElementById('assignee_individual');
     const assigneeWrapper = document.getElementById('assignee_wrapper_individual');
-    const parentIdWrapper = document.getElementById('parent_id_wrapper_individual');
+    const parentIdWrapperEdit = document.getElementById('parent_id_wrapper_individual_edit');
 
+    function handleParentIdChangeForEdit() {
+        const parentIsSelected = parentIdSelectEdit.value !== '';
+
+        if (characterIdSelectEdit) {
+            characterIdSelectEdit.disabled = parentIsSelected || taskType === 'folder' || (applyEditToAllCharsCheckbox && applyEditToAllCharsCheckbox.checked);
+            // 編集時は親を変更してもキャラクターIDはクリアしないでおく（ユーザーが意図的に変更する可能性があるため）
+            // if (parentIsSelected) {
+            // characterIdSelectEdit.value = '';
+            // }
+        }
+        if (applyEditToAllCharsCheckbox) {
+            applyEditToAllCharsCheckbox.disabled = parentIsSelected || taskType === 'folder';
+            if (parentIsSelected) {
+                applyEditToAllCharsCheckbox.checked = false;
+            }
+        }
+    }
 
     function setFieldsBasedOnTaskType(currentTaskType) {
         const isFolder = currentTaskType === 'folder';
@@ -359,57 +347,52 @@ document.addEventListener('DOMContentLoaded', function () {
         const isDateTimeDisabled = isFolder || isMilestone || isTodoTask;
 
         if (taskFieldsIndividual) taskFieldsIndividual.style.display = isFolder ? 'none' : 'block';
-        if (characterIdWrapperEdit) characterIdWrapperEdit.style.display = isFolder ? 'none' : 'block'; // ID変更
         if (statusField) statusField.style.display = isFolder ? 'none' : 'block';
         if (assigneeWrapper) assigneeWrapper.style.display = isFolder ? 'none' : 'block';
-        if (parentIdWrapper) parentIdWrapper.style.display = isFolder ? 'none' : 'block';
+
+        if (parentIdWrapperEdit) parentIdWrapperEdit.style.display = isFolder ? 'none' : 'block';
+        if (characterIdWrapperEdit) characterIdWrapperEdit.style.display = isFolder ? 'none' : 'block';
 
         if (startDateInput) startDateInput.disabled = isDateTimeDisabled;
         if (durationValueInput) durationValueInput.disabled = isDateTimeDisabled;
         if (durationUnitSelect) durationUnitSelect.disabled = isDateTimeDisabled;
         if (endDateInput) endDateInput.disabled = isDateTimeDisabled;
         if (assigneeInput) assigneeInput.disabled = isFolder;
-        if (parentIdSelect) parentIdSelect.disabled = isFolder;
+        if (parentIdSelectEdit) parentIdSelectEdit.disabled = isFolder;
 
-        // 編集画面でのキャラクター選択プルダウンと「全キャラへ反映」チェックボックスの制御
-        if (characterIdSelectEdit) {
-            characterIdSelectEdit.disabled = isFolder || (applyEditToAllCharsCheckbox ? applyEditToAllCharsCheckbox.checked : false);
-        }
-        if (applyEditToAllCharsCheckbox) {
-            applyEditToAllCharsCheckbox.disabled = isFolder; // フォルダの場合はチェックボックス自体も無効
-            if(isFolder) {
-                applyEditToAllCharsCheckbox.checked = false; // フォルダならチェックも外す
+        if (isFolder) {
+            if (characterIdSelectEdit) characterIdSelectEdit.disabled = true;
+            if (applyEditToAllCharsCheckbox) {
+                applyEditToAllCharsCheckbox.checked = false;
+                applyEditToAllCharsCheckbox.disabled = true;
             }
+        } else {
+             handleParentIdChangeForEdit();
         }
-
-
-        if (isMilestone) {
+         if (isMilestone) {
             if (durationValueInput) durationValueInput.value = 0;
             if (durationUnitSelect) durationUnitSelect.value = 'minutes';
         } else if (isTodoTask || isFolder) {
-            if (startDateInput) startDateInput.value = '';
-            if (durationValueInput) durationValueInput.value = '';
-            if (endDateInput) endDateInput.value = '';
+            if (startDateInput && !startDateInput.value) startDateInput.value = ''; // 既存の値がなければ空にする
+            if (durationValueInput && !durationValueInput.value) durationValueInput.value = '';
+            if (endDateInput && !endDateInput.value) endDateInput.value = '';
         }
     }
 
-    setFieldsBasedOnTaskType(taskType); // 初期表示
+    setFieldsBasedOnTaskType(taskType);
+
+    if (parentIdSelectEdit) {
+        parentIdSelectEdit.addEventListener('change', handleParentIdChangeForEdit);
+    }
 
     if (applyEditToAllCharsCheckbox && characterIdSelectEdit) {
         applyEditToAllCharsCheckbox.addEventListener('change', function() {
-            // 「全キャラへ反映」がチェックされたら、個別のキャラ選択は無効化する
-            // （サーバー側ではこのcharacter_idは無視され、現在のタスクのcharacter_idが使われる）
-            // ただし、編集画面では通常キャラクターは固定なので、この制御は主に見た目上の整合性のため
-            characterIdSelectEdit.disabled = this.checked || taskType === 'folder';
+            if (!parentIdSelectEdit || parentIdSelectEdit.value === '') {
+                 characterIdSelectEdit.disabled = this.checked || taskType === 'folder';
+            }
         });
-         // 初期状態の制御
-        characterIdSelectEdit.disabled = taskType === 'folder' || applyEditToAllCharsCheckbox.checked;
-        if(taskType === 'folder'){
-            applyEditToAllCharsCheckbox.disabled = true;
-            applyEditToAllCharsCheckbox.checked = false;
-        }
     }
-
+    handleParentIdChangeForEdit(); // 初期ロード時
 
     function calculateEndDate() {
         if (!startDateInput || startDateInput.disabled ||
@@ -418,15 +401,12 @@ document.addEventListener('DOMContentLoaded', function () {
             !endDateInput || endDateInput.disabled) {
             return;
         }
-
         const startDateValue = startDateInput.value;
         const duration = parseFloat(durationValueInput.value);
         const unit = durationUnitSelect.value;
-
         if (startDateValue && !isNaN(duration) && duration >= 0 && unit) {
             const start = new Date(startDateValue);
             let minutesToAdd = 0;
-
             if (unit === 'days') {
                 minutesToAdd = duration * 24 * 60;
             } else if (unit === 'hours') {
@@ -434,9 +414,7 @@ document.addEventListener('DOMContentLoaded', function () {
             } else if (unit === 'minutes') {
                 minutesToAdd = duration;
             }
-
             const end = new Date(start.getTime() + minutesToAdd * 60000);
-
             if (!isNaN(end.getTime())) {
                 const year = end.getFullYear();
                 const month = ('0' + (end.getMonth() + 1)).slice(-2);
@@ -444,11 +422,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const hours = ('0' + end.getHours()).slice(-2);
                 const minutes = ('0' + end.getMinutes()).slice(-2);
                 endDateInput.value = `${year}-${month}-${day}T${hours}:${minutes}`;
-            } else {
-                // endDateInput.value = '';
             }
-        } else {
-            // endDateInput.value = '';
         }
     }
 
@@ -456,7 +430,6 @@ document.addEventListener('DOMContentLoaded', function () {
         startDateInput.addEventListener('change', calculateEndDate);
         durationValueInput.addEventListener('input', calculateEndDate);
         durationUnitSelect.addEventListener('change', calculateEndDate);
-        // 初期ロード時の自動計算は行わない (ユーザーが意図的に設定した値を保持するため)
     }
 
     if (taskType === 'folder' && document.getElementById('file-upload-dropzone-edit')) {
@@ -467,7 +440,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const myDropzone = new Dropzone("#file-upload-dropzone-edit", {
             url: `/projects/${projectId}/tasks/${taskId}/files`,
             paramName: "file",
-            maxFilesize: 100, // MB
+            maxFilesize: 100,
             acceptedFiles: "image/*,application/pdf,.doc,.docx,.xls,.xlsx,.zip,.txt",
             addRemoveLinks: false,
             headers: { 'X-CSRF-TOKEN': csrfToken },

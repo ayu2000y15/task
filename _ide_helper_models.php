@@ -139,6 +139,39 @@ namespace App\Models{
  * 
  *
  * @property int $id
+ * @property string $name
+ * @property string|null $subject
+ * @property string|null $body_html
+ * @property string|null $body_text
+ * @property int|null $created_by_user_id
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property-read \App\Models\User|null $createdBy
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|EmailTemplate newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|EmailTemplate newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|EmailTemplate onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|EmailTemplate query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|EmailTemplate whereBodyHtml($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|EmailTemplate whereBodyText($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|EmailTemplate whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|EmailTemplate whereCreatedByUserId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|EmailTemplate whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|EmailTemplate whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|EmailTemplate whereName($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|EmailTemplate whereSubject($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|EmailTemplate whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|EmailTemplate withTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|EmailTemplate withoutTrashed()
+ */
+	class EmailTemplate extends \Eloquent {}
+}
+
+namespace App\Models{
+/**
+ * 
+ *
+ * @property int $id
  * @property int $sent_email_id
  * @property string $recipient_email
  * @property \Illuminate\Support\Carbon|null $opened_at
@@ -454,6 +487,8 @@ namespace App\Models{
  * @property string $status
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Subscriber> $subscribers
+ * @property-read int|null $subscribers_count
  * @method static \Illuminate\Database\Eloquent\Builder<static>|ManagedContact newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|ManagedContact newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|ManagedContact query()
@@ -893,17 +928,8 @@ namespace App\Models{
  *
  * @property int $id
  * @property int $email_list_id
+ * @property int|null $managed_contact_id
  * @property string $email
- * @property string|null $name
- * @property string|null $company_name
- * @property string|null $postal_code
- * @property string|null $address
- * @property string|null $phone_number
- * @property string|null $fax_number
- * @property string|null $url
- * @property string|null $representative_name
- * @property \Illuminate\Support\Carbon|null $establishment_date
- * @property string|null $industry
  * @property \Illuminate\Support\Carbon $subscribed_at
  * @property \Illuminate\Support\Carbon|null $unsubscribed_at
  * @property string $status
@@ -911,29 +937,21 @@ namespace App\Models{
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read \App\Models\EmailList $emailList
  * @property-read string $readable_status
+ * @property-read \App\Models\ManagedContact|null $managedContact
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\SentEmailLog> $sentEmailLogs
  * @property-read int|null $sent_email_logs_count
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Subscriber newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Subscriber newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Subscriber query()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Subscriber whereAddress($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Subscriber whereCompanyName($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Subscriber whereCreatedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Subscriber whereEmail($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Subscriber whereEmailListId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Subscriber whereEstablishmentDate($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Subscriber whereFaxNumber($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Subscriber whereId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Subscriber whereIndustry($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Subscriber whereName($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Subscriber wherePhoneNumber($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Subscriber wherePostalCode($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Subscriber whereRepresentativeName($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Subscriber whereManagedContactId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Subscriber whereStatus($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Subscriber whereSubscribedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Subscriber whereUnsubscribedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Subscriber whereUpdatedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Subscriber whereUrl($value)
  */
 	class Subscriber extends \Eloquent {}
 }

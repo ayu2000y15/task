@@ -452,19 +452,72 @@ class ProjectController extends Controller
     {
         $this->authorize('view', $project);
         $customFormFields = $this->getProjectCustomFieldDefinitions($project);
+
+        // 必要なリレーションをイーガーロード
         $project->load([
             'characters' => function ($query) {
-                $query->with(['tasks', 'measurements', 'materials', 'costs'])->orderBy('name');
+                $query->with([
+                    'tasks.children', // キャラクターごとのタスクの子供もロード
+                    'tasks.parent',
+                    'tasks.project',
+                    'tasks.character',
+                    'tasks.files',
+                    'measurements',
+                    'materials',
+                    'costs'
+                ])->orderBy('name');
             },
-            'tasksWithoutCharacter' => function ($query) {
-                $query->orderByRaw('ISNULL(start_date), start_date ASC');
+            'tasks' => function ($query) { // 案件全体のタスク用
+                $query->with(['children', 'parent', 'project', 'character', 'files']);
             }
         ]);
+
+        // --- 階層ソート用の共通ヘルパー関数 ---
+        $appendTasksRecursively = function ($parentId, $tasksGroupedByParent, &$sortedTasksList) use (&$appendTasksRecursively) {
+            $keyForGrouping = $parentId === null ? '' : $parentId;
+
+            if (!$tasksGroupedByParent->has($keyForGrouping)) {
+                return;
+            }
+
+            $childrenOfCurrentParent = $tasksGroupedByParent->get($keyForGrouping)
+                ->sortBy(function ($task) { // 同階層内のソート順
+                    return [
+                        $task->start_date === null ? PHP_INT_MAX : $task->start_date->getTimestamp(),
+                        $task->name
+                    ];
+                });
+
+            foreach ($childrenOfCurrentParent as $task) {
+                $sortedTasksList->push($task);
+                $appendTasksRecursively($task->id, $tasksGroupedByParent, $sortedTasksList);
+            }
+        };
+        // --- ヘルパー関数ここまで ---
+
+        // 案件全体のタスクリストの階層ソート
+        $allProjectTasks = $project->tasks;
+        $tasksGroupedByParentForProject = $allProjectTasks->groupBy('parent_id');
+        $hierarchicallySortedProjectTasks = collect();
+        $appendTasksRecursively(null, $tasksGroupedByParentForProject, $hierarchicallySortedProjectTasks);
+        $tasksToList = $hierarchicallySortedProjectTasks; // 案件全体のタスクリスト
+
+        // 各キャラクターのタスクリストを階層ソート
+        foreach ($project->characters as $character) {
+            $characterTasksCollection = $character->tasks; // これは Collection インスタンス
+            if (!($characterTasksCollection instanceof Collection)) {
+                $characterTasksCollection = collect($characterTasksCollection); // 念のため
+            }
+            $tasksGroupedForCharacter = $characterTasksCollection->groupBy('parent_id');
+            $sortedCharacterTasks = collect();
+            $appendTasksRecursively(null, $tasksGroupedForCharacter, $sortedCharacterTasks);
+            $character->sorted_tasks = $sortedCharacterTasks; // ソート済みリストをキャラクターオブジェクトに一時的に追加
+        }
 
         $availableInventoryItems = InventoryItem::where('quantity',  '>', 0)
             ->orderBy('name')->get();
 
-        return view('projects.show', compact('project', 'customFormFields', 'availableInventoryItems'));
+        return view('projects.show', compact('project', 'customFormFields', 'availableInventoryItems', 'tasksToList'));
     }
 
     /**

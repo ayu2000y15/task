@@ -63,6 +63,7 @@ class SentEmailLog extends Model
             'unsubscribed_via_this_email' => 'このメールで解除',
             'skipped_blacklist' => 'BLスキップ済',
             'queue_failed' => 'キュー投入失敗',
+            'unsubscribed_via_link' => '配信停止希望',
             // 必要に応じて他のステータスと日本語訳を追加
         ];
         return $statuses[$this->status] ?? ucfirst($this->status); // マッピングにない場合は先頭大文字でそのまま表示

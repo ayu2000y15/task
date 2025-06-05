@@ -6,6 +6,8 @@ use App\Models\EmailList;
 use App\Models\SentEmail;   // ★ SentEmailモデルをuse
 use App\Models\Subscriber;
 use App\Models\BlacklistEntry;
+use App\Models\EmailTemplate;
+
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Illuminate\Validation\Rule;
@@ -121,7 +123,11 @@ class SalesToolController extends Controller
         $this->authorize(self::SALES_TOOL_ACCESS_PERMISSION);
 
         // メールリストに紐づく購読者をページネーション付きで取得
-        $subscribers = $emailList->subscribers()->orderBy('email')->paginate(15); // 1ページあたり15件
+        // ManagedContactの情報も一緒に取得 (Eager Loading)
+        $subscribers = $emailList->subscribers()
+            ->with('managedContact') // ★ ManagedContactをEager Load
+            ->orderBy('created_at', 'desc') // Subscriberの登録日時順でソート（または他の基準）
+            ->paginate(100); // 1ページあたり100件
 
         return view('tools.sales.email_lists.show', compact('emailList', 'subscribers'));
     }
@@ -222,7 +228,6 @@ class SalesToolController extends Controller
 
         if ($isAddAllFiltered) {
             Log::info("Attempting to add all filtered contacts to EmailList ID: {$emailList->id}, Filters: ", $request->except(['_token', 'add_all_filtered_action']));
-            // フィルター条件に基づいて全ての対象IDを取得
             $query = ManagedContact::query();
 
             // Keyword (from hidden input if present, or original request param)
@@ -266,27 +271,24 @@ class SalesToolController extends Controller
             if ($request->filled('filter_status') && $request->input('filter_status') !== '') {
                 $query->where('status', $request->input('filter_status'));
             } else {
-                $query->where('status', 'active'); // デフォルトで 'active' の連絡先のみを対象
+                $query->where('status', 'active');
             }
 
-            $existingSubscriberEmails = $emailList->subscribers()->pluck('email')->all();
-            if (!empty($existingSubscriberEmails)) {
-                $query->whereNotIn('email', $existingSubscriberEmails);
+            // 既にこのEmailListに登録されているManagedContactのIDを取得
+            $existingManagedContactIds = $emailList->subscribers()->pluck('managed_contact_id')->all();
+            if (!empty($existingManagedContactIds)) {
+                $query->whereNotIn('id', $existingManagedContactIds); // ManagedContactのIDで除外
             }
 
-            // 注意: 大量データの場合、サーバー負荷やタイムアウトの可能性があるため、
-            // 本番環境では件数制限やバックグラウンド処理を検討してください。
-            // 例: $contactIdsToAdd = $query->limit(1000)->pluck('id')->all();
             $contactIdsToAdd = $query->pluck('id')->all();
 
             if (empty($contactIdsToAdd)) {
-                return redirect()->route('tools.sales.email-lists.subscribers.create', $emailList) // showではなくcreateに戻す
+                return redirect()->route('tools.sales.email-lists.subscribers.create', $emailList)
                     ->with('info', 'フィルター条件に一致する追加可能な連絡先が見つかりませんでした。')
-                    ->withInput($request->except(['add_all_filtered_action', '_token'])); // フィルター条件をフォームに再表示
+                    ->withInput($request->except(['add_all_filtered_action', '_token']));
             }
             Log::info(count($contactIdsToAdd) . " contacts found via 'add all filtered' for EmailList ID: {$emailList->id}. Processing...");
         } else {
-            // 通常のチェックボックス選択による処理
             $validated = $request->validate([
                 'managed_contact_ids' => 'present|array',
                 'managed_contact_ids.*' => 'integer|exists:managed_contacts,id',
@@ -294,7 +296,7 @@ class SalesToolController extends Controller
             $contactIdsToAdd = $validated['managed_contact_ids'] ?? [];
 
             if (empty($contactIdsToAdd)) {
-                return redirect()->route('tools.sales.email-lists.subscribers.create', $emailList) // showではなくcreateに戻す
+                return redirect()->route('tools.sales.email-lists.subscribers.create', $emailList)
                     ->with('warning', '追加する連絡先が選択されていません。')
                     ->withInput($request->except(['_token']));
             }
@@ -312,7 +314,10 @@ class SalesToolController extends Controller
                 continue;
             }
 
-            $existingSubscriber = $emailList->subscribers()->where('email', $managedContact->email)->first();
+            // 既に同じmanaged_contact_idがこのリストに存在するか確認
+            $existingSubscriber = $emailList->subscribers()
+                ->where('managed_contact_id', $managedContact->id)
+                ->first();
             if ($existingSubscriber) {
                 $skippedCount++;
                 continue;
@@ -321,19 +326,10 @@ class SalesToolController extends Controller
             try {
                 Subscriber::create([
                     'email_list_id' => $emailList->id,
-                    'email' => $managedContact->email,
-                    'name' => $managedContact->name,
-                    'company_name' => $managedContact->company_name,
-                    'postal_code' => $managedContact->postal_code,
-                    'address' => $managedContact->address,
-                    'phone_number' => $managedContact->phone_number,
-                    'fax_number' => $managedContact->fax_number,
-                    'url' => $managedContact->url,
-                    'representative_name' => $managedContact->representative_name,
-                    'establishment_date' => $managedContact->establishment_date,
-                    'industry' => $managedContact->industry,
+                    'managed_contact_id' => $managedContact->id, // ★ ManagedContactのIDを紐付け
+                    'email' => $managedContact->email, // ★ ManagedContactのemailをコピーして保持
                     'subscribed_at' => now(),
-                    'status' => 'subscribed',
+                    'status' => 'subscribed', // ★ Subscriber固有のステータス
                 ]);
                 $addedCount++;
             } catch (\Exception $e) {
@@ -347,7 +343,7 @@ class SalesToolController extends Controller
             $messageParts[] = "フィルター結果に基づき、";
         }
         if ($addedCount > 0) $messageParts[] = "{$addedCount}件の連絡先を購読者としてリストに追加しました。";
-        if ($skippedCount > 0) $messageParts[] = "{$skippedCount}件は既にリストに登録済み、または対象外のためスキップしました。";
+        if ($skippedCount > 0) $messageParts[] = "{$skippedCount}件は既にリストに登録済みのためスキップしました。"; // メッセージ変更
         if ($errorCount > 0) $messageParts[] = "{$errorCount}件の処理中にエラーが発生しました。詳細はログを確認してください。";
 
         if (empty($messageParts)) {
@@ -358,12 +354,11 @@ class SalesToolController extends Controller
 
         $messageType = 'info';
         if ($addedCount > 0 && $errorCount == 0) $messageType = 'success';
-        elseif ($addedCount > 0) $messageType = 'success'; // 一部エラーでも成功件数があれば success
+        elseif ($addedCount > 0) $messageType = 'success';
         elseif ($skippedCount > 0 && $errorCount == 0) $messageType = 'info';
         elseif ($errorCount > 0) $messageType = 'danger';
         else $messageType = 'warning';
 
-        // 処理後はリスト詳細ページにリダイレクト
         return redirect()->route('tools.sales.email-lists.show', $emailList)
             ->with($messageType, $feedbackMessage);
     }
@@ -381,41 +376,44 @@ class SalesToolController extends Controller
     {
         $this->authorize(self::SALES_TOOL_ACCESS_PERMISSION);
         if ($subscriber->email_list_id !== $emailList->id) {
-            abort(404);
+            abort(404); // 指定されたメールリストの購読者でない場合はエラー
         }
 
+        // バリデーション対象はSubscriberモデルの$fillableに含まれるもの（主にステータス）
         $validatedData = $request->validate([
-            'email' => [
-                'required',
-                'string',
-                'email',
-                'max:255',
-                Rule::unique('subscribers')->where(function ($query) use ($emailList) {
-                    return $query->where('email_list_id', $emailList->id);
-                })->ignore($subscriber->id),
-            ],
-            'name' => 'nullable|string|max:255',
-            'company_name' => 'nullable|string|max:255',
-            'postal_code' => 'nullable|string|max:20',        // ★ 追加
-            'address' => 'nullable|string|max:1000',        // ★ 追加
-            'phone_number' => 'nullable|string|max:30',       // ★ 追加
-            'fax_number' => 'nullable|string|max:30',         // ★ 追加
-            'url' => 'nullable|string|url|max:255',          // ★ 追加
-            'representative_name' => 'nullable|string|max:255', // ★ 追加
-            'establishment_date' => 'nullable|date',          // ★ 追加
-            'industry' => 'nullable|string|max:255',
-            // 'job_title' => 'nullable|string|max:255',      // 必要なら復活
+            // 'email' は基本的には変更させない方針。もし変更を許可する場合、
+            // ManagedContactのemailも変更するのか、Subscriber.emailのみ変更するのかポリシーが必要。
+            // ここでは、Subscriberのemailは変更不可とし、statusのみ更新可能とする。
+            // 'email' => [
+            //     'sometimes', // フォームに存在すればバリデーション
+            //     'required',
+            //     'string',
+            //     'email',
+            //     'max:255',
+            //      // email と email_list_id の組み合わせでユニーク (自分自身は除く)
+            //     Rule::unique('subscribers')->where(function ($query) use ($emailList) {
+            //         return $query->where('email_list_id', $emailList->id);
+            //     })->ignore($subscriber->id),
+            // ],
             'status' => 'required|string|in:subscribed,unsubscribed,bounced,pending',
         ]);
 
-        if (isset($validatedData['establishment_date']) && $validatedData['establishment_date'] === '') { // 空文字の場合nullを許容
-            $validatedData['establishment_date'] = null;
+        // 購読解除/再購読時の日時を更新
+        if ($validatedData['status'] === 'unsubscribed' && $subscriber->status !== 'unsubscribed') {
+            $validatedData['unsubscribed_at'] = now();
+        } elseif ($validatedData['status'] === 'subscribed' && $subscriber->status !== 'subscribed') {
+            // 再購読の場合、購読日を更新し、購読解除日をクリア
+            $validatedData['subscribed_at'] = now();
+            $validatedData['unsubscribed_at'] = null;
         }
 
         $subscriber->update($validatedData);
 
+        // 表示用のメールアドレス (ManagedContactが存在すればそちらを優先)
+        $displayEmail = $subscriber->managedContact ? $subscriber->managedContact->email : $subscriber->email;
+
         return redirect()->route('tools.sales.email-lists.show', $emailList)
-            ->with('success', '購読者「' . $subscriber->email . '」の情報を更新しました。');
+            ->with('success', '購読者「' . $displayEmail . '」のステータスを更新しました。');
     }
 
     public function subscribersDestroy(EmailList $emailList, Subscriber $subscriber)
@@ -431,33 +429,42 @@ class SalesToolController extends Controller
     }
 
     /**
+     * applyWildcardSearch (subscribersStoreで使用するヘルパーメソッド)
+     * このメソッドはクラス内に定義されている想定ですが、もし未定義であれば追加してください。
+     */
+    private function applyWildcardSearch($query, $field, $value)
+    {
+        if (Str::contains($value, ['%', '_'])) {
+            $query->where($field, 'like', $value);
+        } else {
+            $query->where($field, 'like', '%' . $value . '%');
+        }
+    }
+
+    /**
      * Show the form for composing a new email.
      * 新規メール作成フォームを表示します。
      */
     public function composeEmail(): View
     {
-        $this->authorize(self::SALES_TOOL_ACCESS_PERMISSION); // またはメール送信専用の権限
+        $this->authorize(self::SALES_TOOL_ACCESS_PERMISSION);
 
-        $emailLists = EmailList::orderBy('name')->pluck('name', 'id'); // 送信先リスト選択用
+        $emailLists = EmailList::orderBy('name')->pluck('name', 'id');
+        $emailTemplates = EmailTemplate::orderBy('name')->pluck('name', 'id'); // ★ 追加: メールテンプレートを取得
 
-        return view('tools.sales.emails.compose', compact('emailLists'));
+        return view('tools.sales.emails.compose', compact('emailLists', 'emailTemplates')); // ★ emailTemplates を渡す
     }
 
     /**
      * Send the composed email.
      * 作成されたメールを送信（またはキューイング）します。
-     */
-    /**
-     * Send the composed email.
-     * 作成されたメールを送信（またはキューイング）します。
-     */
-    public function sendEmail(Request $request)
+     */ public function sendEmail(Request $request)
     {
         $this->authorize(self::SALES_TOOL_ACCESS_PERMISSION);
 
         $validatedData = $request->validate([
             'subject' => 'required|string|max:255',
-            'body_html' => 'required|string',
+            'body_html' => 'required|string', // ここにはパーソナライズ前の本文が入る
             'email_list_id' => 'required|exists:email_lists,id',
             'sender_name' => 'nullable|string|max:255',
             'sender_email' => 'required|email|max:255',
@@ -472,19 +479,20 @@ class SalesToolController extends Controller
 
         $maxEmailsPerMinute = SalesToolSetting::getSetting('max_emails_per_minute', 60);
         $delayBetweenEmails = $maxEmailsPerMinute > 0 ? max(1, round(60 / $maxEmailsPerMinute)) : 1;
-        if ($maxEmailsPerMinute <= 0) { // 念のため
+        if ($maxEmailsPerMinute <= 0) {
             Log::warning('max_emails_per_minute setting is invalid or not set, using default 60 emails/min (delay 1s).');
         }
 
-
+        // これらはパーソナライズ前のベースとなる件名と本文
+        $baseSubject = $validatedData['subject'];
+        $baseBodyHtml = $validatedData['body_html'];
         $senderEmail = $validatedData['sender_email'];
         $senderName = $validatedData['sender_name'] ?? config('mail.from.name');
-        $subject = $validatedData['subject'];
-        $bodyHtml = $validatedData['body_html'];
 
+        // SentEmailレコードにはパーソナライズ前の情報を保存
         $sentEmailRecord = SentEmail::create([
-            'subject' => $subject,
-            'body_html' => $bodyHtml,
+            'subject' => $baseSubject,
+            'body_html' => $baseBodyHtml, // 元のHTML本文を保存
             'email_list_id' => $emailList->id,
             'sender_email' => $senderEmail,
             'sender_name' => $senderName,
@@ -494,7 +502,7 @@ class SalesToolController extends Controller
 
         $totalQueuedCount = 0;
         $blacklistedCount = 0;
-        $failedQueueingCount = 0; // キューイング失敗をカウント
+        $failedQueueingCount = 0;
         $blacklistedEmails = BlacklistEntry::pluck('email')->all();
         $currentCumulativeDelay = 0;
 
@@ -510,24 +518,27 @@ class SalesToolController extends Controller
                         'subscriber_id' => $subscriber->id,
                         'status' => 'skipped_blacklist',
                         'processed_at' => now(),
-                        'message_identifier' => $sentEmailRecord->id . '_' . Str::uuid()->toString() // スキップ時もユニークID生成
+                        // message_identifier はMailable生成時に決まるので、ここでは仮のIDかnull
+                        'message_identifier' => $sentEmailRecord->id . '_skipped_' . Str::uuid()->toString()
                     ]
                 );
                 continue;
             }
 
             try {
+                // Mailableをインスタンス化 (ここで $subscriber を渡す)
                 $mailable = new SalesCampaignMail(
-                    $subject,
-                    $bodyHtml,
+                    $baseSubject,
+                    $baseBodyHtml,
                     $sentEmailRecord->id,
-                    $subscriber->email
-                    // Mailable内部で messageIdentifier が生成される
+                    $subscriber->email,
+                    $subscriber // ★★★ Subscriberオブジェクトを渡す ★★★
                 );
 
                 Mail::to($subscriber->email, $subscriber->name)
                     ->later(now()->addSeconds($currentCumulativeDelay), $mailable->from($senderEmail, $senderName));
 
+                // SentEmailLog に Mailable 内で生成された messageIdentifier を記録
                 SentEmailLog::firstOrCreate(
                     [
                         'sent_email_id' => $sentEmailRecord->id,
@@ -535,11 +546,12 @@ class SalesToolController extends Controller
                         'recipient_email' => $subscriber->email,
                     ],
                     [
-                        'status' => 'queued', // ★★★ ここが 'queued' であることを確認
-                        'message_identifier' => $mailable->messageIdentifier, // Mailableから取得
+                        'status' => 'queued',
+                        'message_identifier' => $mailable->messageIdentifier, // ★ Mailableから取得
+                        'original_message_id' => $mailable->messageIdentifier, // ★ 同様に設定 (バウンス処理で使うため)
                     ]
                 );
-                Log::info('SentEmailLog created/found in Controller for queueing:', [ // ★ ログ追加
+                Log::info('SentEmailLog created/found in Controller for queueing:', [
                     'sent_email_id' => $sentEmailRecord->id,
                     'recipient_email' => $subscriber->email,
                     'status' => 'queued',
@@ -554,17 +566,19 @@ class SalesToolController extends Controller
                 SentEmailLog::firstOrCreate(
                     ['sent_email_id' => $sentEmailRecord->id, 'recipient_email' => $subscriber->email],
                     [
-                        'subscriber_id' => $subscriber->id, // subscriber_id も含める
+                        'subscriber_id' => $subscriber->id,
                         'status' => 'queue_failed',
                         'error_message' => Str::limit($e->getMessage(), 1000),
                         'processed_at' => now(),
-                        'message_identifier' => $sentEmailRecord->id . '_' . Str::uuid()->toString() // 失敗時もユニークID生成
+                        'message_identifier' => $sentEmailRecord->id . '_qfailed_' . Str::uuid()->toString()
                     ]
                 );
             }
         }
 
+        // ... (SentEmailレコードの最終ステータス更新とリダイレクト処理は前回と同様) ...
         $actualSubscribersCount = $subscribers->count();
+        // ... (ステータス更新ロジック) ...
         if ($totalQueuedCount > 0) {
             $sentEmailRecord->status = 'queued';
         } elseif ($actualSubscribersCount > 0 && $blacklistedCount === $actualSubscribersCount) {
@@ -573,39 +587,25 @@ class SalesToolController extends Controller
             $sentEmailRecord->status = 'all_queue_failed';
         } elseif ($actualSubscribersCount > 0 && ($blacklistedCount + $failedQueueingCount) === $actualSubscribersCount) {
             $sentEmailRecord->status = 'all_skipped_or_failed';
-        } else if ($actualSubscribersCount == 0) {
+        } else if ($actualSubscribersCount == 0) { // この分岐は最初の $subscribersQuery->doesntExist() で処理されるはず
             $sentEmailRecord->status = 'no_recipients';
-        } else { // 何らかの理由でキューに入らなかったが、上記以外のケース
+        } else {
             $sentEmailRecord->status = 'processing_issue';
         }
         $sentEmailRecord->save();
 
+        // ... (メッセージ作成とリダイレクト) ...
         $messageParts = [];
-        if ($totalQueuedCount > 0) {
-            $messageParts[] = "{$totalQueuedCount}件のメールを送信キューに追加しました。";
-        }
-        if ($blacklistedCount > 0) {
-            $messageParts[] = "{$blacklistedCount}件のメールアドレスがブラックリストのためスキップしました。";
-        }
-        if ($failedQueueingCount > 0) {
-            $messageParts[] = "{$failedQueueingCount}件のメールがキュー投入に失敗しました。詳細はログを確認してください。";
-        }
-
-        if (empty($messageParts) && $actualSubscribersCount > 0) {
-            $messageParts[] = "メールのキューイング処理が完了しましたが、実際にキューに追加されたメールはありませんでした。";
-        } elseif (empty($messageParts) && $actualSubscribersCount == 0) {
-            $messageParts[] = "送信対象の購読者が見つかりませんでした。";
-        }
-
+        if ($totalQueuedCount > 0) $messageParts[] = "{$totalQueuedCount}件のメールを送信キューに追加しました。";
+        if ($blacklistedCount > 0) $messageParts[] = "{$blacklistedCount}件がブラックリストのためスキップ。";
+        if ($failedQueueingCount > 0) $messageParts[] = "{$failedQueueingCount}件がキュー投入失敗。";
+        // ...
         $finalMessage = implode(' ', $messageParts);
-        if ($totalQueuedCount > 0) {
-            $finalMessage .= " 設定された間隔で順次送信されます。";
-        } elseif (empty($finalMessage)) {
-            $finalMessage = "メール送信処理は実行されましたが、特筆すべき結果はありませんでした。";
-        }
+        if ($totalQueuedCount > 0) $finalMessage .= " 設定された間隔で順次送信されます。";
+        elseif (empty($finalMessage)) $finalMessage = "メール送信処理は実行されましたが、キューに追加されたメールはありませんでした。";
 
-        return redirect()->route('tools.sales.index')
-            ->with('success', $finalMessage);
+
+        return redirect()->route('tools.sales.index')->with('success', $finalMessage);
     }
 
 
@@ -692,7 +692,7 @@ class SalesToolController extends Controller
             }
 
             $url = Storage::disk('public')->url($path);
-
+            Log::info('ファイルURL：' . $url . '' . $file->getClientOriginalName());
             // TinyMCEが期待するJSONレスポンス形式: { location: "URL" }
             return response()->json(['location' => $url]);
         } catch (ValidationException $e) {
@@ -1200,5 +1200,101 @@ class SalesToolController extends Controller
 
         return redirect()->route('tools.sales.managed-contacts.index')
             ->with($messageType, $message);
+    }
+
+    /**
+     * Display a listing of the email templates.
+     */
+    public function templatesIndex(): View
+    {
+        $this->authorize(self::SALES_TOOL_ACCESS_PERMISSION); // または専用権限
+
+        $templates = EmailTemplate::orderBy('name')->paginate(15);
+        return view('tools.sales.templates.index', compact('templates'));
+    }
+
+    /**
+     * Show the form for creating a new email template.
+     */
+    public function templatesCreate(): View
+    {
+        $this->authorize(self::SALES_TOOL_ACCESS_PERMISSION);
+        return view('tools.sales.templates.create');
+    }
+
+    /**
+     * Store a newly created email template in storage.
+     */
+    public function templatesStore(Request $request)
+    {
+        $this->authorize(self::SALES_TOOL_ACCESS_PERMISSION);
+
+        $validatedData = $request->validate([
+            'name' => 'required|string|max:255|unique:email_templates,name',
+            'subject' => 'nullable|string|max:255',
+            'body_html' => 'nullable|string',
+            'body_text' => 'nullable|string',
+        ]);
+
+        $validatedData['created_by_user_id'] = Auth::id();
+        $template = EmailTemplate::create($validatedData);
+
+        return redirect()->route('tools.sales.templates.index')
+            ->with('success', 'メールテンプレート「' . $template->name . '」を作成しました。');
+    }
+
+    /**
+     * Show the form for editing the specified email template.
+     */
+    public function templatesEdit(EmailTemplate $template): View // ルートモデルバインディング
+    {
+        $this->authorize(self::SALES_TOOL_ACCESS_PERMISSION);
+        return view('tools.sales.templates.edit', compact('template'));
+    }
+
+    /**
+     * Update the specified email template in storage.
+     */
+    public function templatesUpdate(Request $request, EmailTemplate $template)
+    {
+        $this->authorize(self::SALES_TOOL_ACCESS_PERMISSION);
+
+        $validatedData = $request->validate([
+            'name' => 'required|string|max:255|unique:email_templates,name,' . $template->id,
+            'subject' => 'nullable|string|max:255',
+            'body_html' => 'nullable|string',
+            'body_text' => 'nullable|string',
+        ]);
+
+        $template->update($validatedData);
+
+        return redirect()->route('tools.sales.templates.index')
+            ->with('success', 'メールテンプレート「' . $template->name . '」を更新しました。');
+    }
+
+    /**
+     * Remove the specified email template from storage.
+     */
+    public function templatesDestroy(EmailTemplate $template)
+    {
+        $this->authorize(self::SALES_TOOL_ACCESS_PERMISSION);
+        $templateName = $template->name;
+        $template->delete(); // ソフトデリート
+        return redirect()->route('tools.sales.templates.index')
+            ->with('success', 'メールテンプレート「' . $templateName . '」を削除しました。');
+    }
+
+    /**
+     * Get content of a specific email template (for AJAX calls from compose screen).
+     * 特定のメールテンプレートの内容をJSONで返します（メール作成画面からのAJAX呼び出し用）。
+     */
+    public function getEmailTemplateContent(EmailTemplate $template): JsonResponse
+    {
+        $this->authorize(self::SALES_TOOL_ACCESS_PERMISSION);
+        return response()->json([
+            'subject' => $template->subject,
+            'body_html' => $template->body_html,
+            'body_text' => $template->body_text,
+        ]);
     }
 }

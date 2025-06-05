@@ -57,6 +57,14 @@ class ManagedContact extends Model
     }
 
     /**
+     * この管理連絡先に関連する全ての購読者を取得します。
+     */
+    public function subscribers() // ★ このリレーションメソッドを追加
+    {
+        return $this->hasMany(Subscriber::class);
+    }
+
+    /**
      * updated_at のアクセサ (ビューで Carbon のメソッドを直接使えるように)
      *
      * @param  string  $value

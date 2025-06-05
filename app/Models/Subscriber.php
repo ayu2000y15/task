@@ -11,18 +11,8 @@ class Subscriber extends Model
 
     protected $fillable = [
         'email_list_id',
-        'email',
-        'name',
-        'company_name',
-        'postal_code',      // ★ 追加
-        'address',          // ★ 追加
-        'phone_number',     // ★ 追加
-        'fax_number',       // ★ 追加
-        'url',              // ★ 追加
-        'representative_name', // ★ 追加
-        'establishment_date', // ★ 追加
-        'industry',
-        // 'job_title',     // 必要なら復活
+        'managed_contact_id',
+        'email', // 購読時のメールアドレスとしてManagedContactからコピー
         'subscribed_at',
         'unsubscribed_at',
         'status',
@@ -31,13 +21,32 @@ class Subscriber extends Model
     protected $casts = [
         'subscribed_at' => 'datetime',
         'unsubscribed_at' => 'datetime',
-        'establishment_date' => 'date', // ★ 追加 (date型なのでキャスト)
+        // 'establishment_date' は削除されたのでキャストも不要
     ];
 
     public function emailList()
     {
         return $this->belongsTo(EmailList::class);
     }
+
+    public function managedContact()
+    {
+        return $this->belongsTo(ManagedContact::class);
+    }
+
+    // Subscriberモデル自体はManagedContactの属性を持たなくなるため、
+    // アクセサ経由でManagedContactの属性を取得するようにビューを修正するか、
+    // ビューで直接 $subscriber->managedContact->name のようにアクセスします。
+    // 例:
+    // public function getNameAttribute()
+    // {
+    //     return $this->managedContact ? $this->managedContact->name : null;
+    // }
+    // public function getCompanyNameAttribute()
+    // {
+    //     return $this->managedContact ? $this->managedContact->company_name : null;
+    // }
+    // ... 他の属性についても同様にアクセサを定義できますが、ビューで直接リレーション経ゆが良い場合も多いです。
 
     public function getReadableStatusAttribute(): string
     {
@@ -50,10 +59,7 @@ class Subscriber extends Model
         return $statuses[$this->status] ?? ucfirst($this->status);
     }
 
-    /**
-     * この購読者に関連する送信ログを取得します。
-     */
-    public function sentEmailLogs() // ★★★ このメソッドを追加 ★★★
+    public function sentEmailLogs()
     {
         return $this->hasMany(SentEmailLog::class);
     }
