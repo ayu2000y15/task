@@ -20,6 +20,11 @@
   document.addEventListener('DOMContentLoaded', function () {
     tinymce.init({
       selector: 'textarea#body_html_editor_template_edit', // ★ IDを変更
+      relative_urls: false,    // 生成されるURLを常に絶対パスにする
+      remove_script_host: false, // ホスト名を削除しない (絶対パスを維持)
+      convert_urls: false,     // URLを相対パスに変換しない
+      document_base_url: "{{ url('/') }}/", // ★ アプリケーションのベースURLを明示的に指定
+
       plugins: 'anchor autolink charmap codesample emoticons image link lists media searchreplace table visualblocks wordcount preview fullscreen insertdatetime help',
       toolbar: 'undo redo | blocks fontfamily fontsize | ' +
                'bold italic underline strikethrough | link image media table | ' +
