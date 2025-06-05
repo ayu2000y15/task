@@ -2,7 +2,7 @@
 <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700" id="{{ $tableId ?? 'default-task-table-fallback' }}">
     <thead class="bg-gray-50 dark:bg-gray-700">
         <tr>
-            <th scope="col" class="sticky top-0 z-10 bg-gray-50 dark:bg-gray-700 pl-4 pr-2 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-12"></th>
+            {{-- <th scope="col" class="sticky top-0 z-10 bg-gray-50 dark:bg-gray-700 pl-4 pr-2 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-12"></th> --}}
             <th scope="col" class="sticky top-0 z-10 bg-gray-50 dark:bg-gray-700 px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider min-w-[250px] sm:min-w-[300px]">{{ ($isFolderView ?? false) ? 'フォルダ名' : (($isMilestoneView ?? false) ? '重要納期名' : '工程名') }}</th>
 
             @if(!($isFolderView ?? false) && !($isMilestoneView ?? false) && !(isset($character) && $character)) {{-- $character 変数の存在と中身をチェック --}}
@@ -58,13 +58,13 @@
 
                 @if(($isFolderView ?? false) && $task->is_folder)
                     @can('fileView', $task)
-                    <td class="pl-4 pr-2 py-3 whitespace-nowrap align-top">
+                    {{-- <td class="pl-4 pr-2 py-3 whitespace-nowrap align-top">
                         <a href="{{ route('projects.show', $task->project) }}" class="flex items-center group">
                             <span class="w-6 h-6 flex items-center justify-center rounded text-white text-xs font-bold mr-2 flex-shrink-0" style="background-color: {{ $task->project->color }};">
                                 {{ mb_substr($task->project->title, 0, 1) }}
                             </span>
                         </a>
-                    </td>
+                    </td> --}}
                     <td class="px-4 py-3 text-sm text-gray-900 dark:text-gray-100 align-top">
                         <div class="flex items-start" style="padding-left: {{ $level * 1.5 }}rem;">
                              <div class="task-toggle-container mr-1" style="width: 1.2em; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 0.125rem;">
@@ -121,13 +121,13 @@
                     </td>
                     @endcan
                 @elseif(!($isFolderView ?? false)) {{-- 通常の工程または重要納期の場合 --}}
-                    <td class="pl-4 pr-2 py-3 whitespace-nowrap align-top">
+                    {{-- <td class="pl-4 pr-2 py-3 whitespace-nowrap align-top">
                         <a href="{{ route('projects.show', $task->project) }}" class="flex items-center group">
                             <span class="w-6 h-6 flex items-center justify-center rounded text-white text-xs font-bold mr-2 flex-shrink-0" style="background-color: {{ $task->project->color }};">
                                 {{ mb_substr($task->project->title, 0, 1) }}
                             </span>
                         </a>
-                    </td>
+                    </td> --}}
                     <td class="px-4 py-3 text-sm text-gray-900 dark:text-gray-100 align-top">
                         <div class="flex items-center gap-x-3">
                             @if(!$task->is_milestone && !$task->is_folder)
