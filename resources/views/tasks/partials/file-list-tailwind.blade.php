@@ -45,7 +45,7 @@
             </div>
             <div class="flex-shrink-0 ml-2">
                 {{-- 削除ボタン --}}
-                @can('update', $task) {{-- TaskControllerのdeleteFile権限に合わせる --}}
+                @can('delete', $task) {{-- TaskControllerのdeleteFile権限に合わせる --}}
                     <button type="button"
                         class="folder-file-delete-btn text-gray-400 hover:text-red-600 dark:hover:text-red-400 p-1"
                         data-url="{{ route('projects.tasks.files.destroy', [$project, $task, $file]) }}"
