@@ -480,8 +480,10 @@ class TaskController extends Controller
             'status.required_if' => 'ステータスは必須です（フォルダ以外の場合）。',
         ]);
 
-        if (isEmpty($request['assignee'])) {
-            $validated['assignee'] = "";
+        if ($task->is_folder) {
+            if (isEmpty($request['assignee'])) {
+                $validated['assignee'] = "";
+            }
         }
 
         $taskDataForCurrent = [
