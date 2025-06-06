@@ -88,11 +88,11 @@
                                     <x-radio-input name="is_milestone_or_folder" id="is_task_type_milestone"
                                         value="milestone" :label="'<i class=\'fas fa-flag mr-1\'></i>重要納期'"
                                         :checked="old('is_milestone_or_folder') == 'milestone'" />
-                                    @can('canCreateFoldersForFileUpload', App\Models\Task::class)
+                                    {{-- @can('canCreateFoldersForFileUpload', App\Models\Task::class)
                                         <x-radio-input name="is_milestone_or_folder" id="is_task_type_folder" value="folder"
                                             :label="'<i class=\'fas fa-folder mr-1\'></i>フォルダ'"
                                             :checked="old('is_milestone_or_folder') == 'folder'" />
-                                    @endcan
+                                    @endcan --}}
                                 </div>
                             </div>
 
@@ -124,8 +124,9 @@
                                 <x-select-input label="所属先キャラクター" name="character_id" id="character_id_individual"
                                     :options="$project->characters->pluck('name', 'id')"
                                     :selected="old('character_id', request('character_id_for_new_task'))"
-                                    emptyOptionText="案件全体 (キャラクター未所属)"
-                                    :hasError="$errors->has('character_id')" />
+                                    {{-- emptyOptionText="案件全体 (キャラクター未所属)" --}}
+                                    emptyOptionText="キャラクターを選択してください"
+                                    :hasError="$errors->has('character_id')" required="true"/>
                                 <div class="mt-2">
                                     <x-input-label for="apply_individual_to_all_characters" class="inline-flex items-center">
                                         <input type="checkbox" id="apply_individual_to_all_characters" name="apply_individual_to_all_characters" value="1" class="rounded dark:bg-gray-900 border-gray-300 dark:border-gray-700 text-indigo-600 shadow-sm focus:ring-indigo-500 dark:focus:ring-indigo-600 dark:focus:ring-offset-gray-800" {{ old('apply_individual_to_all_characters') ? 'checked' : '' }}>

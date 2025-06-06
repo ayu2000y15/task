@@ -6,6 +6,7 @@
         "dev": "vite"
     },
     "devDependencies": {
+        "@tailwindcss/aspect-ratio": "^0.4.2",
         "@tailwindcss/forms": "^0.5.2",
         "@tailwindcss/vite": "^4.0.0",
         "@types/dropzone": "^5.7.9",

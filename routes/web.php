@@ -105,6 +105,7 @@ Route::middleware('auth')->group(function () {
     // キャラクター管理 (案件詳細ページ内で処理の起点、編集は別ページ)
     Route::resource('projects.characters', CharacterController::class)->except(['index', 'show', 'create'])->shallow();
     Route::get('/projects/{project}/characters/{character}/costs-partial', [CharacterController::class, 'getCharacterCostsPartial'])->name('projects.characters.costs.partial');
+    Route::post('/projects/{project}/completion-folders', [ProjectController::class, 'storeCompletionFolder'])->name('projects.completionFolders.store');
 
     // --- ユーザー向けフィードバック機能 ---
     Route::get('/feedback/create', [UserFeedbackController::class, 'create'])->name('user_feedbacks.create');

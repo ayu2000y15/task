@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Project;
+use App\Models\Task;
 use App\Models\FormFieldDefinition;
 use App\Models\ExternalProjectSubmission;
 use Illuminate\Http\Request;
@@ -514,10 +515,60 @@ class ProjectController extends Controller
             $character->sorted_tasks = $sortedCharacterTasks; // ソート済みリストをキャラクターオブジェクトに一時的に追加
         }
 
+        // ▼▼▼【変更点】完成データフォルダの処理 ▼▼▼
+        $completionDataMasterFolderName = '_project_completion_data_';
+        $masterFolder = $project->tasks()
+            ->where('name', $completionDataMasterFolderName)
+            ->where('is_folder', true)
+            ->firstOrCreate(
+                ['name' => $completionDataMasterFolderName, 'project_id' => $project->id],
+                ['is_folder' => true, 'parent_id' => null, 'character_id' => null]
+            );
+
+        $completionDataFolders = Task::where('parent_id', $masterFolder->id)
+            ->where('is_folder', true)
+            ->with('files')
+            ->orderBy('name')
+            ->get();
+        // ▲▲▲【変更点】ここまで ▲▲▲
+
+
         $availableInventoryItems = InventoryItem::where('quantity',  '>', 0)
             ->orderBy('name')->get();
 
-        return view('projects.show', compact('project', 'customFormFields', 'availableInventoryItems', 'tasksToList'));
+        return view('projects.show', compact('project', 'customFormFields', 'availableInventoryItems', 'tasksToList', 'masterFolder', 'completionDataFolders'));
+    }
+
+    /**
+     * 案件詳細ページで完成データ用のフォルダを作成します。
+     */
+    public function storeCompletionFolder(Request $request, Project $project)
+    {
+        $this->authorize('update', $project);
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'parent_id' => 'required|exists:tasks,id',
+        ], [
+            'name.required' => 'フォルダ名は必須です。',
+            'parent_id.exists' => '親フォルダが見つかりません。',
+        ]);
+
+        // 親フォルダがこのプロジェクトのものであることを確認
+        $parentFolder = Task::where('id', $validated['parent_id'])
+            ->where('project_id', $project->id)
+            ->where('is_folder', true)
+            ->firstOrFail();
+
+        Task::create([
+            'project_id' => $project->id,
+            'name' => $validated['name'],
+            'is_folder' => true,
+            'parent_id' => $parentFolder->id,
+            'character_id' => null, // 案件直下のファイルなのでキャラクターは紐付けない
+        ]);
+
+        return redirect()->route('projects.show', $project)->with('success', '完成データ用のフォルダが作成されました。');
     }
 
     /**

@@ -1,7 +1,54 @@
 @extends('layouts.app')
 
 @section('title', '案件詳細 - ' . $project->title)
-
+@push('styles')
+    {{-- Dropzoneのスタイルを追加 --}}
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/dropzone/5.9.3/min/dropzone.min.css" rel="stylesheet">
+    <style>
+        .dropzone-custom-style {
+            @apply border-2 border-dashed border-blue-500 rounded-md p-4 flex flex-wrap gap-3 min-h-[150px] bg-gray-50 dark:bg-gray-700/50;
+        }
+        .dropzone-custom-style .dz-message {
+            @apply text-gray-600 dark:text-gray-400 font-medium w-full text-center self-center;
+        }
+        .dropzone-custom-style .dz-message p {
+            @apply mb-2;
+        }
+        .dropzone-custom-style .dz-button-bootstrap {
+            @apply inline-flex items-center px-3 py-2 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-md font-semibold text-xs text-gray-700 dark:text-gray-200 uppercase tracking-widest shadow-sm hover:bg-gray-50 dark:hover:bg-gray-500;
+        }
+        .dropzone-custom-style .dz-preview {
+            @apply w-32 h-auto m-1 bg-transparent border border-gray-300 dark:border-gray-600 flex flex-col items-center relative rounded-lg overflow-hidden;
+        }
+        .dropzone-custom-style .dz-image {
+            @apply w-20 h-20 flex border border-gray-300 dark:border-gray-600 items-center justify-center overflow-hidden relative z-10;
+        }
+        .dropzone-custom-style .dz-image img {
+            @apply max-w-full max-h-full object-contain bg-transparent;
+        }
+        .dropzone-custom-style .dz-details {
+            @apply block text-center w-full relative p-1;
+        }
+        .dropzone-custom-style .dz-filename {
+            @apply block text-xs text-gray-700 dark:text-gray-200 break-words leading-tight mt-1;
+        }
+        .dropzone-custom-style .dz-filename span {
+            @apply bg-transparent;
+        }
+        .dropzone-custom-style .dz-size {
+            @apply text-[0.65em] text-gray-500 dark:text-gray-400 mt-0.5 bg-transparent;
+        }
+        .dropzone-custom-style .dz-progress,
+        .dropzone-custom-style .dz-error-message,
+        .dropzone-custom-style .dz-success-mark,
+        .dropzone-custom-style .dz-error-mark {
+            @apply hidden;
+        }
+        .dropzone-custom-style .dz-remove {
+            @apply absolute top-1 right-1 bg-red-600/80 hover:bg-red-700/90 text-white rounded-full w-[18px] h-[18px] text-xs leading-[18px] text-center font-bold no-underline cursor-pointer opacity-100 z-30;
+        }
+    </style>
+@endpush
 @section('content')
 <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8" id="project-show-main-container" data-project-id="{{ $project->id }}" data-project='@json($project->only(['id']))'>
 
@@ -364,6 +411,102 @@
                 </div>
             </div>
 
+            {{-- ▼▼▼【変更後】完成データ管理カード（グリッド表示） ▼▼▼ --}}
+            @can('fileViewAny', App\Models\Task::class)
+            <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
+                <div class="px-5 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                    <h5 class="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-0 flex items-center">
+                        <i class="fas fa-archive mr-2 text-gray-600 dark:text-gray-300"></i>
+                        完成データ
+                    </h5>
+                    {{-- 新規フォルダ作成用のボタンを配置 --}}
+                    <button type="button" x-data @click="$dispatch('open-modal', 'create-completion-folder-modal')" class="inline-flex items-center px-3 py-1 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition ease-in-out duration-150">
+                        <i class="fas fa-folder-plus mr-1"></i> フォルダ追加
+                    </button>
+                </div>
+                <div class="p-5">
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        @forelse ($completionDataFolders as $folder)
+                            @php
+                                // ファイルを名前順でソートし、最初のファイルを取得
+                                $firstFile = $folder->files->sortBy('original_name')->first();
+                                $isImage = $firstFile && Str::startsWith($firstFile->mime_type, 'image/');
+                            @endphp
+                            <div class="group relative">
+                                <a href="{{ route('projects.tasks.edit', [$project, $folder]) }}" class="block border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden shadow-sm hover:shadow-lg hover:border-blue-400 dark:hover:border-blue-500 transition-all duration-300">
+                                    {{-- サムネイル表示エリア --}}
+                                    <div class="aspect-w-16 aspect-h-9 bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+                                        @if ($isImage)
+                                            <img src="{{ route('projects.tasks.files.show', [$project, $folder, $firstFile]) }}" alt="{{ $firstFile->original_name }}" class="w-full h-full object-cover">
+                                        @else
+                                            {{-- フォールバックアイコン --}}
+                                            <i class="fas fa-folder-open text-4xl text-gray-400 dark:text-gray-500"></i>
+                                        @endif
+                                    </div>
+                                    {{-- フォルダ情報エリア --}}
+                                    <div class="p-3 bg-white dark:bg-gray-800">
+                                        <h6 class="font-semibold text-sm text-gray-800 dark:text-gray-100 truncate group-hover:text-blue-600 dark:group-hover:text-blue-400">{{ $folder->name }}</h6>
+                                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ $folder->files->count() }} 件のファイル</p>
+                                    </div>
+                                </a>
+                                {{-- フォルダ削除ボタン --}}
+                                @can('delete', $folder)
+                                    <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <form action="{{ route('projects.tasks.destroy', [$project, $folder]) }}" method="POST" onsubmit="return confirm('このフォルダと中の全てのファイルを本当に削除しますか？');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="w-7 h-7 flex items-center justify-center bg-red-600/80 hover:bg-red-700 text-white rounded-full shadow-md" title="フォルダを削除">
+                                                <i class="fas fa-trash fa-xs"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                @endcan
+                            </div>
+                        @empty
+                            <p class="col-span-2 md:col-span-3 text-sm text-gray-500 dark:text-gray-400 text-center py-8">
+                                「フォルダ追加」ボタンから新しいフォルダを作成してください。
+                            </p>
+                        @endforelse
+                    </div>
+                </div>
+            </div>
+
+            <x-modal name="create-completion-folder-modal" :show="$errors->folderCreation->isNotEmpty()" focusable>
+                <form action="{{ route('projects.completionFolders.store', $project) }}" method="POST" class="p-6">
+                    @csrf
+                    <input type="hidden" name="parent_id" value="{{ $masterFolder->id }}">
+
+                    <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100">
+                        完成データフォルダを新規作成
+                    </h2>
+
+                    <div class="mt-6">
+                        <x-input-label for="new_folder_name_modal" value="フォルダ名" class="sr-only" />
+                        <x-text-input
+                            id="new_folder_name_modal"
+                            name="name"
+                            type="text"
+                            class="mt-1 block w-full"
+                            placeholder="例: 写真、仕様書、パターンなど"
+                            required
+                        />
+                        <x-input-error :messages="$errors->folderCreation->get('name')" class="mt-2" />
+                    </div>
+
+                    <div class="mt-6 flex justify-end">
+                        <x-secondary-button x-on:click="$dispatch('close')">
+                            キャンセル
+                        </x-secondary-button>
+
+                        <x-primary-button class="ml-3">
+                            作成する
+                        </x-primary-button>
+                    </div>
+                </form>
+            </x-modal>
+            @endcan
+            {{-- ▲▲▲ ここまで ▲▲▲ --}}
+
             {{-- 統計情報セクション --}}
             <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
                 <div class="px-5 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center">
@@ -594,6 +737,16 @@
 
 @endsection
 
+@push('scripts')
+{{-- Dropzone.jsライブラリを読み込みます --}}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dropzone/5.9.3/min/dropzone.min.js"></script>
+
+{{-- Dropzoneの自動検出を、DOM読み込みより「前」に無効化します --}}
+<script>
+    // Dropzoneの自動検出をグローバルに無効化
+    Dropzone.autoDiscover = false;
+</script>
+
 <script>
     // グローバルスコープに関数を定義 (一度だけ実行されるようにする)
     if (typeof window.setupTaskToggle !== 'function') {
@@ -666,18 +819,99 @@
                     if (nestedToggleTrigger && nestedToggleTrigger.getAttribute('aria-expanded') === 'true') {
                          window.toggleChildRowsInTable(tableContainer, currentTaskId, true);
                     }
-                    // 注意: もし親を開いた際に、子の以前の状態に関わらず常に直下の子だけを表示したい場合は、
-                    // この else ブロック内の再帰呼び出しは不要です。現在のロジックは子の以前の展開状態を尊重します。
                 }
             });
         };
     }
 
-    // DOMContentLoaded で案件全体のタスクテーブルを初期化
+    // DOMContentLoaded ですべての初期化処理を実行
     document.addEventListener('DOMContentLoaded', function() {
+        // 案件全体のタスクテーブルのトグル機能を初期化
         if (typeof window.setupTaskToggle === 'function') {
-            // console.log('[TGGL] DOMContentLoaded: Initializing project-tasks-table');
-            window.setupTaskToggle('project-tasks-table'); // 案件全体のテーブルID
+            window.setupTaskToggle('project-tasks-table');
         }
+
+        // 完成データ用Dropzoneとファイル削除の初期化処理
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+        document.querySelectorAll('.completion-dropzone').forEach(dropzoneElement => {
+            const projectId = dropzoneElement.dataset.projectId;
+            const taskId = dropzoneElement.dataset.taskId;
+            const dropzoneUrl = `/projects/${projectId}/tasks/${taskId}/files`;
+
+            const myDropzone = new Dropzone(dropzoneElement, {
+                url: dropzoneUrl,
+                paramName: "file",
+                maxFilesize: 100, // 100MB
+                acceptedFiles: "image/*,application/pdf,.doc,.docx,.xls,.xlsx,.zip,txt",
+                addRemoveLinks: false,
+                headers: { 'X-CSRF-TOKEN': csrfToken },
+                dictDefaultMessage: dropzoneElement.querySelector('.dz-message').innerHTML,
+                init: function() {
+                    this.on("success", function(file, response) {
+                        if (response.success && response.html) {
+                            const fileListContainer = document.getElementById(`file-list-container-${taskId}`);
+                            if (fileListContainer) {
+                                fileListContainer.innerHTML = response.html;
+                                initializeDynamicDeleteButtons();
+                            }
+                        }
+                        this.removeFile(file);
+                    });
+                    this.on("error", function(file, message) {
+                        let errorMessage = "アップロードに失敗しました。";
+                        if (typeof message === 'string') {
+                            errorMessage += message;
+                        } else if (message.error) {
+                            errorMessage += message.error;
+                        } else if (message.message) {
+                            errorMessage += message.message;
+                        }
+                        alert(errorMessage);
+                        this.removeFile(file);
+                    });
+                }
+            });
+        });
+
+        function initializeDynamicDeleteButtons() {
+            document.querySelectorAll('.completion-file-delete-btn, .folder-file-delete-btn').forEach(button => {
+                const newButton = button.cloneNode(true);
+                button.parentNode.replaceChild(newButton, button);
+
+                newButton.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    if (!confirm('このファイルを削除しますか？')) return;
+
+                    const url = this.dataset.url;
+                    const fileId = this.dataset.fileId;
+
+                    fetch(url, {
+                        method: 'DELETE',
+                        headers: {
+                            'X-CSRF-TOKEN': csrfToken,
+                            'Accept': 'application/json'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            const fileItem = document.getElementById(`folder-file-item-${fileId}`);
+                            if (fileItem) fileItem.remove();
+                        } else {
+                            alert('ファイルの削除に失敗しました: ' + (data.message || '不明なエラー'));
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error deleting file:', error);
+                        alert('ファイルの削除中にエラーが発生しました。');
+                    });
+                });
+            });
+        }
+
+        // 初期ロード時にファイル削除ボタンを初期化
+        initializeDynamicDeleteButtons();
     });
 </script>
+@endpush

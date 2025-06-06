@@ -49,14 +49,14 @@
                     x-on:click="activeTab = 'milestones'">
                     <i class="fas fa-flag mr-1"></i> 重要納期 ({{ $tasks->where('is_milestone', true)->count() }})
                 </button>
-                @can('viewAnyFileFolders', App\Models\Task::class)
+                {{-- @can('viewAnyFileFolders', App\Models\Task::class)
                 <button
                     class="tab-button py-4 px-1 inline-flex items-center gap-x-2 border-b-2 text-sm whitespace-nowrap focus:outline-none disabled:opacity-50 disabled:pointer-events-none"
                     :class="{ 'font-semibold border-blue-600 text-blue-600 dark:text-blue-500': activeTab === 'folders', 'border-transparent text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-500': activeTab !== 'folders' }"
                     x-on:click="activeTab = 'folders'">
                     <i class="fas fa-folder mr-1"></i> フォルダ ({{ $tasks->where('is_folder', true)->count() }})
                 </button>
-                @endcan
+                @endcan --}}
             </nav>
         </div>
 

@@ -34,6 +34,11 @@ class TaskPolicy
         return $user->hasPermissionTo('tasks.update');
     }
 
+    public function fileViewAny(User $user): bool
+    {
+        return $user->hasPermissionTo('tasks.file-view');
+    }
+
     public function fileView(User $user, Task $task): bool
     {
         return $user->hasPermissionTo('tasks.file-view');

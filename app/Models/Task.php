@@ -185,12 +185,13 @@ class Task extends Model
     public function getAllDescendants()
     {
         $descendants = collect();
+        $children = $this->children()->get(); // Eloquent Collectionとして取得
 
-        foreach ($this->children as $child) {
-            $descendants->push($child);
-            $descendants = $descendants->merge($child->getAllDescendants());
+        while ($children->isNotEmpty()) {
+            $descendants = $descendants->merge($children);
+            $childrenIds = $children->pluck('id');
+            $children = Task::whereIn('parent_id', $childrenIds)->get();
         }
-
         return $descendants;
     }
 
