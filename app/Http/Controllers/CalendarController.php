@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\Holiday;
+use App\Models\User; // Userモデルをインポート
 use Carbon\Carbon;
 use App\Services\TaskService;
 
@@ -18,39 +19,33 @@ class CalendarController extends Controller
     {
         $this->authorize('viewAny', Project::class);
 
-        // ▼▼▼ 変更点: assignee_id をフィルター条件に追加 ▼▼▼
         $filters = [
             'project_id' => $request->input('project_id', ''),
             'character_id' => $request->input('character_id', ''),
             'assignee' => $request->input('assignee', ''),
-            'assignee_id' => $request->input('assignee_id', ''), // 担当者IDによる絞り込み
+            'assignee_id' => $request->input('assignee_id', ''),
             'status' => $request->input('status', ''),
             'search' => $request->input('search', ''),
         ];
 
-        // タスクを絞り込むための共通ロジック
         $taskQueryLogic = function ($query) use ($filters, $taskService) {
             $taskService->applyAssigneeFilter($query, $filters['assignee']);
             $taskService->applyCharacterFilter($query, $filters['character_id']);
             $taskService->applyStatusFilter($query, $filters['status']);
             $taskService->applySearchFilter($query, $filters['search']);
 
-            // ▼▼▼ 変更点: assignee_id での絞り込み機能を追加 ▼▼▼
             if (!empty($filters['assignee_id'])) {
                 $query->whereHas('assignees', function ($subQuery) use ($filters) {
                     $subQuery->where('users.id', $filters['assignee_id']);
                 });
             }
 
-            // ▼▼▼ 変更点: ステータスが「完了」のものを除外 ▼▼▼
             $query->where('tasks.status', '!=', 'completed');
         };
-
 
         $projectsQuery = Project::with(['tasks' => function ($query) use ($taskQueryLogic) {
             $query->with(['character', 'assignees'])->where($taskQueryLogic);
         }])->whereHas('tasks', $taskQueryLogic);
-
 
         if (!empty($filters['project_id'])) {
             $projectsQuery->where('id', $filters['project_id']);
@@ -133,7 +128,11 @@ class CalendarController extends Controller
             ];
         }
 
-        $allAssignees = \App\Models\User::whereHas('tasks')->select('id', 'name')->distinct()->orderBy('name')->get();
+        // ▼▼▼ 変更点: pluckを使用して 'id' => 'name' の形式に変換 ▼▼▼
+        $allAssignees = User::whereHas('tasks')
+            ->orderBy('name')
+            ->get()
+            ->pluck('name', 'id');
 
         $statusOptions = [
             'not_started' => '未着手',
