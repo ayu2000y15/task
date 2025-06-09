@@ -50,7 +50,11 @@
     </style>
 @endpush
 @section('content')
-<div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8" id="project-show-main-container" data-project-id="{{ $project->id }}" data-project='@json($project->only(['id']))'>
+<div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8"
+        id="project-show-main-container"
+        data-project-id="{{ $project->id }}"
+        data-project='@json($project->only(['id']))'
+        data-assignee-options='{{ isset($assigneeOptions) ? json_encode($assigneeOptions) : '[]' }}'>
 
     {{-- ヘッダーセクション --}}
     <div class="mb-6 p-4 sm:p-6 rounded-lg shadow-lg text-white" style="background: linear-gradient(135deg, {{ $project->color ?? '#6c757d' }}DD, {{ $project->color ?? '#6c757d' }}FF); border-left: 4px solid {{ $project->color ?? '#6c757d' }};">

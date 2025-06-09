@@ -6,6 +6,7 @@ use App\Models\Project;
 use App\Models\Task;
 use App\Models\FormFieldDefinition;
 use App\Models\ExternalProjectSubmission;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Validator;
@@ -536,7 +537,15 @@ class ProjectController extends Controller
         $availableInventoryItems = InventoryItem::where('quantity',  '>', 0)
             ->orderBy('name')->get();
 
-        return view('projects.show', compact('project', 'customFormFields', 'availableInventoryItems', 'tasksToList', 'masterFolder', 'completionDataFolders'));
+        // ▼▼▼【ここから追加】▼▼▼
+        // 担当者選択プルダウン用に、アクティブなユーザーのリストを取得
+        $assigneeOptions = User::where('status', User::STATUS_ACTIVE)
+            ->orderBy('name')
+            ->pluck('name')
+            ->all();
+        // ▲▲▲【ここまで追加】▲▲▲
+
+        return view('projects.show', compact('project', 'customFormFields', 'availableInventoryItems', 'tasksToList', 'masterFolder', 'completionDataFolders', 'assigneeOptions'));
     }
 
     /**

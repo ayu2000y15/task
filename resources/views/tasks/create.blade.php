@@ -1,4 +1,3 @@
-{{-- resources/views/tasks/create.blade.php --}}
 @extends('layouts.app')
 
 @section('title', '工程作成 - ' . $project->title)
@@ -124,7 +123,6 @@
                                 <x-select-input label="所属先キャラクター" name="character_id" id="character_id_individual"
                                     :options="$project->characters->pluck('name', 'id')"
                                     :selected="old('character_id', request('character_id_for_new_task'))"
-                                    {{-- emptyOptionText="案件全体 (キャラクター未所属)" --}}
                                     emptyOptionText="キャラクターを選択してください"
                                     :hasError="$errors->has('character_id')" required="true"/>
                                 <div class="mt-2">
@@ -159,7 +157,7 @@
                                                 :value="old('duration_value', 1)" min="0" step="any"
                                                 :hasError="$errors->has('duration_value')" />
                                             <select name="duration_unit" id="duration_unit"
-                                                    class="block w-1/2 mt-0 form-select rounded-md shadow-sm border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:focus:border-indigo-500 dark:focus:ring-indigo-500 {{ $errors->has('duration_unit') ? 'border-red-500' : '' }}">
+                                                    class="block w-1/2 mt-0 form-select rounded-md shadow-sm border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 dark:focus:border-indigo-500 dark:focus:ring-indigo-500 {{ $errors->has('duration_unit') ? 'border-red-500' : '' }}">
                                                 <option value="days" @if(old('duration_unit', 'days') == 'days') selected @endif>日</option>
                                                 <option value="hours" @if(old('duration_unit') == 'hours') selected @endif>時間</option>
                                                 <option value="minutes" @if(old('duration_unit') == 'minutes') selected @endif>分</option>
@@ -179,9 +177,19 @@
                             </div>
 
                             <div id="assignee_wrapper_individual">
-                                <x-input-label for="assignee_individual" value="担当者" />
-                                <x-text-input type="text" id="assignee_individual" name="assignee" class="mt-1"
-                                    :value="old('assignee')" :hasError="$errors->has('assignee')" />
+                                <x-input-label for="assignee_select_individual" value="担当者" />
+                                <select name="assignee_select" id="assignee_select_individual" class="form-select mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300">
+                                    <option value="">担当者を選択</option>
+                                    @foreach($assigneeOptions as $value => $label)
+                                        <option value="{{ $value }}" {{ $currentAssigneeSelection == $value ? 'selected' : '' }}>{{ $label }}</option>
+                                    @endforeach
+                                </select>
+
+                                <div id="assignee_other_wrapper_individual" class="mt-2" style="display: {{ $currentAssigneeSelection == 'other' ? 'block' : 'none' }};">
+                                    <x-input-label for="assignee_other_individual" value="担当者名（その他）" />
+                                    <x-text-input type="text" id="assignee_other_individual" name="assignee_other" class="mt-1 block w-full" :value="$otherAssigneeText" />
+                                </div>
+                                <x-input-error :messages="$errors->get('assignee_other')" class="mt-2" />
                                 <x-input-error :messages="$errors->get('assignee')" class="mt-2" />
                             </div>
 
@@ -238,8 +246,12 @@
         const durationUnitSelect = document.getElementById('duration_unit');
         const endDateInput = document.getElementById('end_date_individual');
         const parentIdSelect = document.getElementById('parent_id_individual');
-        const assigneeInput = document.getElementById('assignee_individual');
+
         const assigneeWrapper = document.getElementById('assignee_wrapper_individual');
+        const assigneeSelect = document.getElementById('assignee_select_individual');
+        const assigneeOtherWrapper = document.getElementById('assignee_other_wrapper_individual');
+        const assigneeOtherInput = document.getElementById('assignee_other_individual');
+
         const parentIdWrapper = document.getElementById('parent_id_wrapper_individual');
 
         function handleParentIdChange() {
@@ -298,7 +310,8 @@
             if (durationValueInput) durationValueInput.disabled = isDateTimeDisabled;
             if (durationUnitSelect) durationUnitSelect.disabled = isDateTimeDisabled;
             if (endDateInput) endDateInput.disabled = isDateTimeDisabled;
-            if (assigneeInput) assigneeInput.disabled = isFolder;
+            if (assigneeSelect) assigneeSelect.disabled = isFolder;
+            if (assigneeOtherInput) assigneeOtherInput.disabled = isFolder;
             if (parentIdSelect) parentIdSelect.disabled = isFolder;
 
             if (isFolder) {
@@ -349,7 +362,6 @@
         if (applyIndividualToAllCharsCheckbox && characterIdSelectIndividual) {
             applyIndividualToAllCharsCheckbox.addEventListener('change', function() {
                 // This checkbox is only enabled when parent is not selected.
-                // So, its state doesn't need to re-disable characterIdSelectIndividual here.
             });
         }
 
@@ -364,6 +376,19 @@
             if (applyTemplateToAllCharsCheckbox.checked) {
                 characterIdForTemplateSelect.value = '';
             }
+        }
+
+        if (assigneeSelect) {
+            assigneeSelect.addEventListener('change', function() {
+                if (this.value === 'other') {
+                    assigneeOtherWrapper.style.display = 'block';
+                    assigneeOtherInput.setAttribute('required', 'required');
+                } else {
+                    assigneeOtherWrapper.style.display = 'none';
+                    assigneeOtherInput.removeAttribute('required');
+                    assigneeOtherInput.value = '';
+                }
+            });
         }
 
         function calculateEndDate() {

@@ -454,6 +454,17 @@
                             <a href="{{ route('user_feedbacks.create') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">フィードバックを送信</a>
                             @endcan
 
+                            @can('viewAny', App\Models\Task::class)
+                                @php
+                                    // 現在のルートが 'tasks.index' で、かつ 'assignee' クエリがログインユーザー名と一致するか判定
+                                    $isMyTasksActive = request()->routeIs('tasks.index') && request()->query('assignee') === Auth::user()->name;
+                                @endphp
+                                <a href="{{ route('tasks.index', ['assignee' => Auth::user()->name, 'close_filters' => 1]) }}"
+                                   class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 {{ $isMyTasksActive ? 'bg-gray-100 dark:bg-gray-600 font-semibold' : '' }}">
+                                    担当工程一覧
+                                </a>
+                            @endcan
+
                             @can('tools.viewAnyPage') {{-- ツール一覧ページへのアクセス権限 --}}
                             <a href="{{ route('tools.index') }}"
                                class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 {{ request()->routeIs('tools.index') || request()->routeIs('tools.sales.*') ? 'bg-gray-100 dark:bg-gray-600 font-semibold' : '' }}">

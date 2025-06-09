@@ -205,7 +205,7 @@
 
                     @if(!($isFolderView ?? false) && !($isMilestoneView ?? false))
                     <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 align-top">
-                        <div class="editable-cell" data-task-id="{{ $task->id }}" data-project-id="{{ $task->project_id }}" data-field="assignee" data-current-value="{{ $task->assignee }}">{{ $task->assignee ?? '-' }}</div>
+                        <div class="editable-cell" data-field="assignee">{{ $task->assignee ?? '-' }}</div>
                     </td>
                     <td class="hidden sm:table-cell px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 align-top">{{ optional($task->start_date)->format('n/j H:i') }}</td>
                     @endif

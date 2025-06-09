@@ -1,11 +1,11 @@
 @extends('layouts.app')
 
-@section('title', 'ユーザー役割編集')
+@section('title', 'ユーザー情報編集')
 
 @section('content')
     <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-            <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-200">ユーザー役割編集</h1>
+            <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-200">ユーザー情報編集</h1>
             <x-secondary-button onclick="location.href='{{ route('admin.users.index') }}'">
                 <i class="fas fa-arrow-left mr-2"></i>
                 <span>一覧へ戻る</span>
@@ -23,16 +23,45 @@
                     @csrf
                     @method('PUT')
 
-                    <div>
-                        <x-input-label value="役割" class="mb-2" />
-                        <div class="space-y-2">
-                            @foreach($roles as $role)
-                                <label for="role_{{ $role->id }}" class="flex items-center">
-                                    <input id="role_{{ $role->id }}" name="roles[]" type="checkbox" value="{{ $role->id }}" {{ $user->roles->contains($role->id) ? 'checked' : '' }}
-                                        class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600">
-                                    <span class="ms-2 text-sm text-gray-600 dark:text-gray-300">{{ $role->display_name }}</span>
-                                </label>
-                            @endforeach
+                    <div class="space-y-6">
+                        <div>
+                            <x-input-label value="役割" class="mb-2" />
+                            <div class="space-y-2">
+                                @foreach($roles as $role)
+                                    <label for="role_{{ $role->id }}" class="flex items-center">
+                                        <input id="role_{{ $role->id }}" name="roles[]" type="checkbox" value="{{ $role->id }}"
+                                            {{ $user->roles->contains($role->id) ? 'checked' : '' }}
+                                            class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600">
+                                        <span
+                                            class="ms-2 text-sm text-gray-600 dark:text-gray-300">{{ $role->display_name }}</span>
+                                    </label>
+                                @endforeach
+                            </div>
+                        </div>
+
+                        <div>
+                            <x-input-label value="ステータス" class="mb-2" />
+                            <div class="space-y-2">
+                                @php
+                                    // 本来はControllerから渡しますが、ファイルがないためここで定義します。
+                                    $statuses = [
+                                        \App\Models\User::STATUS_ACTIVE => 'アクティブ',
+                                        \App\Models\User::STATUS_INACTIVE => '非アクティブ',
+                                        \App\Models\User::STATUS_RETIRED => '退職',
+                                    ];
+                                @endphp
+                                @foreach($statuses as $statusValue => $statusLabel)
+                                    <label for="status_{{ $statusValue }}" class="flex items-center">
+                                        <input id="status_{{ $statusValue }}" name="status" type="radio"
+                                            value="{{ $statusValue }}" {{ (old('status', $user->status) == $statusValue) ? 'checked' : '' }}
+                                            class="border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600">
+                                        <span class="ms-2 text-sm text-gray-600 dark:text-gray-300">{{ $statusLabel }}</span>
+                                    </label>
+                                @endforeach
+                            </div>
+                            @error('status')
+                                <p class="text-sm text-red-600 dark:text-red-400 mt-2">{{ $message }}</p>
+                            @enderror
                         </div>
                     </div>
 

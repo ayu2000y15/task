@@ -3,8 +3,13 @@
 @section('title', '工程一覧')
 
 @section('content')
-<div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8" x-data="{ filtersOpen: {{ array_filter($filters) ? 'true' : 'false' }} }">
-    {{-- ... (フィルターボタン等は変更なし) ... --}}
+@php
+    // フィルターパネルを開くかどうかの条件を定義
+    // 基本：フィルターが何か設定されていれば開く
+    // 例外：「担当:自分」ボタンから遷移した場合（close_filters=1 がURLにある場合）は、フィルターが設定されていても閉じる
+    $shouldFiltersBeOpen = array_filter($filters) && !request()->has('close_filters');
+@endphp
+<div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8" x-data="{ filtersOpen: {{ $shouldFiltersBeOpen ? 'true' : 'false' }} }">
     <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
         <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-200">工程一覧</h1>
         <div class="flex space-x-2">
@@ -15,9 +20,23 @@
                 <span x-show="filtersOpen" style="display: none;"><i class="fas fa-chevron-up ml-2 fa-xs"></i></span>
                 <span x-show="!filtersOpen"><i class="fas fa-chevron-down ml-2 fa-xs"></i></span>
             </button>
+
+            @auth
+                @php
+                    $isFilteringBySelf = isset($filters['assignee']) && $filters['assignee'] === Auth::user()->name;
+                    $baseClass = 'inline-flex items-center px-4 py-2 border rounded-md font-semibold text-xs uppercase tracking-widest shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-25 transition ease-in-out duration-150';
+                    $activeClass = 'bg-blue-600 border-transparent text-white hover:bg-blue-700 focus:ring-blue-500';
+                    $inactiveClass = 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 focus:ring-indigo-500';
+                @endphp
+                {{-- ▼▼▼【修正点】URLに close_filters=1 パラメータを追加 ▼▼▼ --}}
+                <a href="{{ route('tasks.index', ['assignee' => Auth::user()->name, 'close_filters' => 1]) }}"
+                   class="{{ $baseClass }} {{ $isFilteringBySelf ? $activeClass : $inactiveClass }}">
+                    <i class="fas fa-user-check mr-2"></i>担当:自分
+                </a>
+            @endauth
+
             @can('create', App\Models\Project::class)
             <x-primary-button class="ml-2" onclick="location.href='{{ route('projects.create') }}'"><i class="fas fa-plus mr-1"></i>新規衣装案件</x-primary-button>
-
             @endcan
         </div>
     </div>
@@ -49,20 +68,14 @@
                     x-on:click="activeTab = 'milestones'">
                     <i class="fas fa-flag mr-1"></i> 重要納期 ({{ $tasks->where('is_milestone', true)->count() }})
                 </button>
-                {{-- @can('viewAnyFileFolders', App\Models\Task::class)
-                <button
-                    class="tab-button py-4 px-1 inline-flex items-center gap-x-2 border-b-2 text-sm whitespace-nowrap focus:outline-none disabled:opacity-50 disabled:pointer-events-none"
-                    :class="{ 'font-semibold border-blue-600 text-blue-600 dark:text-blue-500': activeTab === 'folders', 'border-transparent text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-500': activeTab !== 'folders' }"
-                    x-on:click="activeTab = 'folders'">
-                    <i class="fas fa-folder mr-1"></i> フォルダ ({{ $tasks->where('is_folder', true)->count() }})
-                </button>
-                @endcan --}}
+                {{-- @can('viewAnyFileFolders', App\Models\Task::class) ... @endcan --}}
             </nav>
         </div>
 
         <div class="mt-3">
             <div x-show="activeTab === 'tasks'" id="tasks-panel" role="tabpanel" aria-labelledby="tasks-tab-button">
-                <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
+                <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden"
+                     @if(isset($assigneeOptions)) data-assignee-options="{{ json_encode($assigneeOptions) }}" @endif>
                     <div class="px-4 sm:px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row justify-between items-center gap-2">
                         <h5 class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-0">工程一覧</h5>
                         <div class="flex space-x-1 bg-gray-200 dark:bg-gray-700 p-0.5 rounded-md">
@@ -88,7 +101,8 @@
             </div>
 
             <div x-show="activeTab === 'milestones'" id="milestones-panel" role="tabpanel" aria-labelledby="milestones-tab-button">
-                 <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
+                 <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden"
+                      @if(isset($assigneeOptions)) data-assignee-options="{{ json_encode($assigneeOptions) }}" @endif>
                     <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
                         <h5 class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-0">重要納期一覧</h5>
                     </div>
@@ -98,17 +112,17 @@
             </div>
 
             <div x-show="activeTab === 'folders'" id="folders-panel" role="tabpanel" aria-labelledby="folders-tab-button">
-                 <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
+                 <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden"
+                      @if(isset($assigneeOptions)) data-assignee-options="{{ json_encode($assigneeOptions) }}" @endif>
                     <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
                         <h5 class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-0">フォルダ一覧</h5>
                     </div>
                     <div class="overflow-x-auto">
-                        {{-- projects.partials.projects-task-table を使用していることを想定して修正 --}}
                         @include('tasks.partials.task-table', ['tasksToList' => $tasks->where('is_folder', true)->sortBy('name'), 'tableId' => 'folders-list-table', 'isFolderView' => true])
                     </div>
                 </div>
             </div>
         </div>
     </div>
-    </div>
+</div>
 @endsection

@@ -18,6 +18,12 @@ class User extends Authenticatable
     protected $primaryKey = 'id';
     public $timestamps = true;
 
+    // ステータス用の定数
+    const STATUS_ACTIVE = 'active';
+    const STATUS_INACTIVE = 'inactive';
+    const STATUS_RETIRED = 'retired';
+
+
     protected $fillable = [
         'name',
         'email',
@@ -25,6 +31,7 @@ class User extends Authenticatable
         'password',
         'access_id',
         'last_access',
+        'status', // statusカラムをfillableに追加
     ];
     protected $hidden = [
         'password',
@@ -35,45 +42,19 @@ class User extends Authenticatable
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            // ★ ユーザー作成時のモデルイベントログは、Registeredイベントリスナーで対応するため、
-            // ★ ここでは 'created' イベントを明示的にログ対象から外すか、
-            // ★ logOnly() で記録したいイベントのみを指定します。
-            // ★ 今回は、updated と deleted イベントのみをログするようにします。
-            ->logOnly(['name', 'email', 'access_id']) // ★ ログ記録する属性を明示的に指定
-            // ->logAll() // もし全てのfillable属性を記録したい場合 (ただしlogExceptと併用)
+            ->logOnly(['name', 'email', 'access_id', 'status']) // statusもログ対象に
             ->logExcept(['password', 'remember_token', 'email_verified_at', 'updated_at', 'last_access'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs()
-            // ★ useLogNameでログ名を指定可能 (例: 'user_activity')
-            // ->useLogName('user_management')
             ->setDescriptionForEvent(fn(string $eventName) => "ユーザー「{$this->name}」(ID:{$this->id}) の情報が{$this->getEventDescription($eventName)}されました")
-            // ★ createdイベントをログしたくない場合は、このメソッド内で明示的に
-            // ★ ->dontLogEvents(['created']) のように指定するか、
-            // ★ または、logOnly で created を含まないイベントを指定します。
-            // ★ Registeredイベントリスナーで登録ログはカバーするので、モデルのcreatedは不要という判断。
-            // ★ ただし、logOnly で属性を指定した場合、その属性の変更があった場合のみログが記録されます。
-            // ★ 'updated' と 'deleted' イベントのみを対象とするなら、以下のようにします。
-            // ★ (ただし、logOnly で属性指定をしない場合は、モデルのイベントのみで判断される)
-            // ★ ->logOnlyDirty() と組み合わせることで、指定した属性に変更があった場合のみログが記録されます。
-            // ★ 今回のケースでは、createdログの重複を避けることが主目的のため、
-            // ★ リスナー側でcreatedのログは十分なので、モデル側ではupdated/deletedのみを対象とします。
-            // ★ ただし、logOnly で指定した属性がないと updated も記録されません。
-            // ★ なので、updatedで記録したい属性を logOnly で指定する必要があります。
-            // ★ もし「どのイベントを記録するか」を制御したい場合は、
-            // ★ モデルの $recordEvents プロパティ (static) を使う方法もあります。
-            // protected static $recordEvents = ['updated', 'deleted'];
         ;
     }
-
-    // ★ $recordEvents プロパティで記録するイベントを制御する場合
-    // protected static $recordEvents = ['updated', 'deleted'];
-
 
     // イベント名を日本語に変換するヘルパーメソッド
     protected function getEventDescription(string $eventName): string
     {
         switch ($eventName) {
-            case 'created': // このケースは上記の修正により呼ばれにくくなります
+            case 'created':
                 return '作成';
             case 'updated':
                 return '更新';

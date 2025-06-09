@@ -13,8 +13,7 @@ use App\Models\ProcessTemplate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\JsonResponse; // ★ JsonResponse を use
 use Illuminate\Validation\Rule;
-
-use function PHPUnit\Framework\isEmpty;
+use App\Models\User;
 
 class TaskController extends Controller
 {
@@ -36,29 +35,19 @@ class TaskController extends Controller
             'due_date' => $request->input('due_date', ''),
         ];
 
-        // TaskService を使って基本的なクエリを構築 (イーガーローディングを含む)
         $query = $taskService->buildFilteredQuery($filters)->with(['project', 'files', 'children', 'character']);
-
-        // DBからの初期取得時のソート (これはPHPでの階層ソート前の準備段階のソート)
-        // PHP側で各階層内の子要素をソートするため、ここでのソートは必須ではないかもしれませんが、
-        // 大量のデータがある場合に初期のグループ化を助けることがあります。
-        // ただし、厳密な階層ソートは次のPHP処理で行います。
         $allTasks = $query->orderByRaw('ISNULL(tasks.parent_id), tasks.parent_id ASC, ISNULL(tasks.start_date), tasks.start_date ASC, tasks.name ASC')->get();
 
-        // --- ここから階層ソート処理 ---
         $tasksGroupedByParent = $allTasks->groupBy('parent_id');
-        $hierarchicallySortedTasks = collect(); // 新しいコレクションを初期化
+        $hierarchicallySortedTasks = collect();
 
-        // 再帰的にタスクを追加するヘルパー関数 (クロージャとして定義)
         $appendTasksRecursively = function ($parentId, $tasksGroupedByParent, &$hierarchicallySortedTasks) use (&$appendTasksRecursively) {
-            $keyForGrouping = $parentId === null ? '' : $parentId; // groupBy は null キーを空文字 '' で扱うため
+            $keyForGrouping = $parentId === null ? '' : $parentId;
 
             if (!$tasksGroupedByParent->has($keyForGrouping)) {
                 return;
             }
 
-            // 同じ親を持つ子タスク間のソート順
-            // (例: 開始日の昇順、次に名前の昇順。nullの開始日は最後に)
             $childrenOfCurrentParent = $tasksGroupedByParent->get($keyForGrouping)
                 ->sortBy(function ($task) {
                     return [
@@ -68,21 +57,15 @@ class TaskController extends Controller
                 });
 
             foreach ($childrenOfCurrentParent as $task) {
-                $hierarchicallySortedTasks->push($task); // タスクをリストに追加
-                // このタスクの子タスクを再帰的に追加
+                $hierarchicallySortedTasks->push($task);
                 $appendTasksRecursively($task->id, $tasksGroupedByParent, $hierarchicallySortedTasks);
             }
         };
 
-        // トップレベルのタスク (parent_id が null) から階層ソートを開始
         $appendTasksRecursively(null, $tasksGroupedByParent, $hierarchicallySortedTasks);
-
-        // ソートされたタスクリストを $tasks 変数に格納し直す
         $tasks = $hierarchicallySortedTasks;
-        // --- 階層ソート処理ここまで ---
 
         $allProjects = Project::orderBy('title')->get();
-
         $charactersForFilter = collect();
         if (!empty($filters['project_id'])) {
             $projectWithChars = Project::find($filters['project_id']);
@@ -99,19 +82,24 @@ class TaskController extends Controller
             'cancelled' => 'キャンセル',
         ];
 
+        // ▼▼▼【追加】アクティブなユーザーのリストを取得 ▼▼▼
+        $assigneeOptions = User::where('status', User::STATUS_ACTIVE)
+            ->orderBy('name')
+            ->pluck('name')
+            ->all();
+        // ▲▲▲【追加】ここまで ▲▲▲
+
         return view('tasks.index', compact(
-            'tasks', // ここで渡される $tasks が階層ソートされたものになる
+            'tasks',
             'allProjects',
             'charactersForFilter',
             'assignees',
             'statusOptions',
-            'filters'
+            'filters',
+            'assigneeOptions'
         ));
     }
 
-    /**
-     * 新規工程作成フォームを表示
-     */
     public function create(Request $request, Project $project)
     {
         $this->authorize('create', Task::class);
@@ -125,7 +113,7 @@ class TaskController extends Controller
 
         $potentialParentTasks = $project->tasks()
             ->with('character')
-            ->where('is_folder', false) // 通常の工程のみ
+            ->where('is_folder', false)
             ->orderBy('name')
             ->get();
 
@@ -139,19 +127,24 @@ class TaskController extends Controller
             ->pluck('id')
             ->all();
 
-        return view('tasks.create', compact('project', 'parentTask', 'processTemplates', 'parentTaskOptions', 'characterParentTaskIds'));
+        // 担当者候補を「アクティブ」なユーザーに限定
+        $users = User::where('status', User::STATUS_ACTIVE)->orderBy('name')->pluck('name')->all();
+        $assigneeOptions = array_combine($users, $users);
+        $assigneeOptions['other'] = 'その他';
+
+        $currentAssigneeSelection = old('assignee_select', '');
+        $otherAssigneeText = old('assignee_other', '');
+
+        return view('tasks.create', compact('project', 'parentTask', 'processTemplates', 'parentTaskOptions', 'characterParentTaskIds', 'assigneeOptions', 'currentAssigneeSelection', 'otherAssigneeText'));
     }
 
-
-    /**
-     * 新規工程を保存
-     */
     public function store(Request $request, Project $project): \Illuminate\Http\RedirectResponse
     {
         $this->authorize('create', Task::class);
 
         $taskTypeInput = $request->input('is_milestone_or_folder', 'task');
 
+        // ▼▼▼【ここから変更】▼▼▼
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
@@ -191,8 +184,9 @@ class TaskController extends Controller
                 Rule::in(['minutes', 'hours', 'days']),
                 Rule::requiredIf(fn() => $taskTypeInput === 'task' && !$request->filled('end_date') && $request->filled('duration_value')),
             ],
-            'assignee' => 'nullable|string|max:255',
-            'parent_id' => ['nullable', Rule::exists('tasks', 'id')->where('is_folder', false)], // 親はフォルダ以外
+            'assignee_select' => 'nullable|string',
+            'assignee_other' => 'nullable|string|max:255|required_if:assignee_select,other',
+            'parent_id' => ['nullable', Rule::exists('tasks', 'id')->where('is_folder', false)],
             'is_milestone_or_folder' => 'required|in:milestone,folder,task,todo_task',
             'status' => [
                 Rule::requiredIf(fn() => !in_array($taskTypeInput, ['folder'])),
@@ -202,14 +196,19 @@ class TaskController extends Controller
             'apply_individual_to_all_characters' => 'nullable|boolean',
             'apply_to_all_character_siblings_of_parent' => 'nullable|boolean',
         ], [
+            'assignee_other.required_if' => '担当者で「その他」を選択した場合は、担当者名の入力は必須です。',
             'start_date.required_if' => '開始日時は必須です（工程または重要納期の場合）。',
-            'start_date.date_format' => '開始日時は正しい形式で入力してください。',
-            'end_date.date_format' => '終了日時は正しい形式で入力してください。',
             'end_date.required_if' => '工程の場合、工数または終了日時のどちらかは必須です。',
             'duration_value.required_if' => '工程の場合、工数または終了日時のどちらかは必須です。',
             'duration_unit.required_if' => '工程で工数を入力する場合、単位は必須です。',
             'status.required_if' => 'ステータスは必須です（フォルダ以外の場合）。',
         ]);
+
+        $assignee = $request->input('assignee_select');
+        if ($assignee === 'other') {
+            $assignee = $request->input('assignee_other');
+        }
+        // ▲▲▲【ここまで変更】▲▲▲
 
         $isFolder = $taskTypeInput === 'folder';
         $isMilestone = $taskTypeInput === 'milestone';
@@ -226,7 +225,7 @@ class TaskController extends Controller
         $baseTaskData = [
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
-            'assignee' => $validated['assignee'] ?? null,
+            'assignee' => $assignee, // 変更
             'is_milestone' => $isMilestone,
             'is_folder' => $isFolder,
             'progress' => 0,
@@ -244,7 +243,7 @@ class TaskController extends Controller
             $baseTaskData['end_date'] = $startDate ? $startDate->copy() : null;
             $baseTaskData['duration'] = 0;
             $baseTaskData['status'] = $validated['status'] ?? 'not_started';
-        } else { // 通常のタスク (task)
+        } else {
             $startDate = Carbon::parse($validated['start_date']);
             $endDate = $request->filled('end_date') ? Carbon::parse($validated['end_date']) : null;
             $durationValue = $request->filled('duration_value') ? (float)$validated['duration_value'] : null;
@@ -377,11 +376,6 @@ class TaskController extends Controller
         return redirect()->route('projects.show', $project)->with('success', $message);
     }
 
-
-
-    /**
-     * 工程編集フォームを表示
-     */
     public function edit(Project $project, Task $task)
     {
         $this->authorize('update', $task);
@@ -393,7 +387,7 @@ class TaskController extends Controller
 
         $potentialParentTasks = $project->tasks()
             ->with('character')
-            ->where('is_folder', false) // 通常の工程のみ
+            ->where('is_folder', false)
             ->whereNotIn('id', $descendantAndSelfIds)
             ->orderBy('name')
             ->get();
@@ -408,12 +402,28 @@ class TaskController extends Controller
             ->pluck('id')
             ->all();
 
-        return view('tasks.edit', compact('project', 'task', 'files', 'parentTaskOptions', 'characterParentTaskIds'));
+        // 担当者候補を「アクティブ」なユーザーに限定
+        $users = User::where('status', User::STATUS_ACTIVE)->orderBy('name')->pluck('name')->all();
+        $assigneeOptions = array_combine($users, $users);
+        $assigneeOptions['other'] = 'その他';
+
+        // 現在の担当者がリストにいるか、その他かを判定
+        if (in_array($task->assignee, $users) || empty($task->assignee)) {
+            $currentAssigneeSelection = $task->assignee;
+            $otherAssigneeText = '';
+        } else {
+            $currentAssigneeSelection = 'other';
+            $otherAssigneeText = $task->assignee;
+        }
+
+        // バリデーション失敗時のold入力を優先
+        $currentAssigneeSelection = old('assignee_select', $currentAssigneeSelection);
+        $otherAssigneeText = old('assignee_other', $otherAssigneeText);
+
+        return view('tasks.edit', compact('project', 'task', 'files', 'parentTaskOptions', 'characterParentTaskIds', 'assigneeOptions', 'currentAssigneeSelection', 'otherAssigneeText'));
     }
 
-    /**
-     * 工程を更新
-     */
+
     public function update(Request $request, Project $project, Task $task): \Illuminate\Http\RedirectResponse
     {
         $this->authorize('update', $task);
@@ -423,10 +433,11 @@ class TaskController extends Controller
         elseif ($task->is_folder) $currentTaskType = 'folder';
         elseif (!$task->start_date && !$task->end_date && !$task->is_milestone && !$task->is_folder) $currentTaskType = 'todo_task';
 
+        // ▼▼▼【ここから変更】▼▼▼
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'character_id' => [ // 親が選択されている場合は character_id は現在の値を維持するか、親に追従
+            'character_id' => [
                 'nullable',
                 Rule::exists('characters', 'id')->where(function ($query) use ($project) {
                     return $query->where('project_id', $project->id);
@@ -462,7 +473,8 @@ class TaskController extends Controller
                 Rule::in(['minutes', 'hours', 'days']),
                 Rule::requiredIf(fn() => $currentTaskType === 'task' && !$request->filled('end_date') && $request->filled('duration_value')),
             ],
-            'assignee' => 'nullable|string|max:255',
+            'assignee_select' => 'nullable|string',
+            'assignee_other' => 'nullable|string|max:255|required_if:assignee_select,other',
             'parent_id' => 'nullable|exists:tasks,id',
             'status' => [
                 Rule::requiredIf(fn() => $currentTaskType !== 'folder'),
@@ -471,29 +483,28 @@ class TaskController extends Controller
             ],
             'apply_edit_to_all_characters_same_name' => 'nullable|boolean',
         ], [
+            'assignee_other.required_if' => '担当者で「その他」を選択した場合は、担当者名の入力は必須です。',
             'start_date.required_if' => '開始日時は必須です（工程または重要納期の場合）。',
-            'start_date.date_format' => '開始日時は正しい形式で入力してください。',
-            'end_date.date_format' => '終了日時は正しい形式で入力してください。',
             'end_date.required_if' => '工程の場合、工数または終了日時のどちらかは必須です。',
             'duration_value.required_if' => '工程の場合、工数または終了日時のどちらかは必須です。',
             'duration_unit.required_if' => '工程で工数を入力する場合、単位は必須です。',
             'status.required_if' => 'ステータスは必須です（フォルダ以外の場合）。',
         ]);
 
-        if ($task->is_folder) {
-            if (isEmpty($request['assignee'])) {
-                $validated['assignee'] = "";
-            }
+        $assignee = $request->input('assignee_select');
+        if ($assignee === 'other') {
+            $assignee = $request->input('assignee_other');
         }
+        // ▲▲▲【ここまで変更】▲▲▲
+
 
         $taskDataForCurrent = [
             'name' => $validated['name'],
             'description' => $validated['description'],
-            'assignee' => $validated['assignee'],
+            'assignee' => $assignee,
             'parent_id' => $request->filled('parent_id') ? $validated['parent_id'] : $task->parent_id,
         ];
 
-        // 親が選択された場合、キャラクターIDは親に追従する。そうでなければ入力値を尊重。
         if ($request->filled('parent_id') && $validated['parent_id']) {
             $parentTaskForChar = Task::find($validated['parent_id']);
             $taskDataForCurrent['character_id'] = $parentTaskForChar->character_id;
@@ -502,7 +513,6 @@ class TaskController extends Controller
         } else {
             $taskDataForCurrent['character_id'] = null;
         }
-
 
         if ($currentTaskType === 'folder') {
             $taskDataForCurrent['status'] = null;
@@ -520,7 +530,7 @@ class TaskController extends Controller
             $taskDataForCurrent['end_date'] = null;
             $taskDataForCurrent['duration'] = null;
             $taskDataForCurrent['status'] = $validated['status'] ?? $task->status;
-        } else { // 通常のタスク
+        } else {
             $startDate = $request->filled('start_date') ? Carbon::parse($validated['start_date']) : $task->start_date;
             $endDate = $request->filled('end_date') ? Carbon::parse($validated['end_date']) : null;
             $durationValue = $request->filled('duration_value') ? (float)$validated['duration_value'] : null;
@@ -565,7 +575,7 @@ class TaskController extends Controller
         $applyEditToAllCharactersSameName = $request->boolean('apply_edit_to_all_characters_same_name')
             && $task->character_id
             && $currentTaskType !== 'folder'
-            && !$request->filled('parent_id'); // 親が選択されている場合は個別編集の「全キャラ反映」は無効
+            && !$request->filled('parent_id');
 
         if ($applyEditToAllCharactersSameName) {
             $attributesToSync = [
@@ -600,7 +610,6 @@ class TaskController extends Controller
         }
         return redirect()->route('projects.show', $project)->with('success', $message);
     }
-
     /**
      * 工程を削除
      */
