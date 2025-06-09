@@ -52,7 +52,7 @@
         <div x-show="sidebarOpen" class="fixed inset-0 z-20 bg-black opacity-50 md:hidden" @click="sidebarOpen = false" style="display: none;"></div>
 
         <aside
-        class="fixed inset-y-0 left-0 z-30 w-66 h-screen overflow-y-auto transition duration-300 ease-in-out transform bg-white shadow-lg dark:bg-gray-800 md:translate-x-0"
+        class="fixed inset-y-0 left-0 z-30 w-72 max-w-66 h-screen overflow-y-auto transition duration-300 ease-in-out transform bg-white shadow-lg dark:bg-gray-800 md:translate-x-0"
         :class="{'translate-x-0': sidebarOpen, '-translate-x-full': !sidebarOpen}">
         <div class="flex items-center justify-center h-16 bg-gray-50 dark:bg-gray-700">
             <a href="{{ route('home.index') }}" class="text-xl font-semibold text-gray-700 dark:text-white">衣装案件管理</a>
@@ -140,7 +140,7 @@
                                     </p>
                                     @endif
                                     @if($task->end_date)
-                                        <p style="border-radius: 20px; padding: 0 3px; "
+                                        <p style="border-radius: 20px; padding: 0 3px; font-size:0.7rem;"
                                                 @if($isPast && !$isCompleted)
                                                     class="text-xs text-gray-500 dark:text-gray-400 mt-1 bg-red-200 font-semibold" title="期限切れ"
                                                 @elseif($isDueSoon && !$isCompleted)
@@ -237,7 +237,7 @@
         </nav>
     </aside>
 
-        <div class="flex flex-col flex-1 md:ml-64">
+        <div class="flex flex-col flex-1 md:ml-72">
             <header class="flex items-center justify-between h-16 px-2 sm:px-4 bg-white border-b dark:bg-gray-800 dark:border-gray-700 sticky top-0 z-50">
                  <div class="flex items-center">
                     <div class="md:hidden">

@@ -237,6 +237,9 @@
                                 <option value="1" {{ $deliveryFlagValue == '1' ? 'selected' : '' }}>納品済み</option>
                             </select>
                         @endcan
+                        @cannot('update', $project)
+                            <span class="ml-auto text-sm text-gray-700 dark:text-gray-300">{{ $deliveryTooltip }}</span>
+                        @endcannot
                     </div>
 
                     {{-- 支払いフラグ --}}
@@ -272,6 +275,9 @@
                                 @endforeach
                             </select>
                         @endcan
+                        @cannot('update', $project)
+                            <span class="ml-auto text-sm text-gray-700 dark:text-gray-300">{{ $paymentFlagTooltip }}</span>
+                        @endcannot
                     </div>
 
                     @if($project->payment)<div class="flex justify-between items-start"><span class="text-sm font-semibold text-gray-500 dark:text-gray-400 w-28 flex-shrink-0">支払条件</span><p class="text-sm text-gray-700 dark:text-gray-300 text-right whitespace-pre-wrap break-words flex-1">{{ $project->payment }}</p></div>@endif
@@ -305,6 +311,9 @@
                                 @endforeach
                             </select>
                         @endcan
+                        @cannot('update', $project)
+                            <span class="ml-auto text-sm text-gray-700 dark:text-gray-300">{{ $projectStatusTooltip }}</span>
+                        @endcannot
                     </div>
 
                     {{-- プロジェクト固有の form_definitions に基づく追加情報 (案件依頼項目) --}}
