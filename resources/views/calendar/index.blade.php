@@ -2,10 +2,9 @@
 
 @section('title', 'カレンダー')
 
-{{-- ▼▼▼ 変更点: ツールチップのデザインを全面的に刷新 ▼▼▼ --}}
 @push('styles')
     <style>
-        /* --- イベント自体のスタイル調整 --- */
+        /* FullCalendarのデフォルトのoverflow:hiddenを上書きして、内容がはみ出せるようにする */
         .fc-event-main {
             overflow: visible !important;
         }
@@ -42,17 +41,8 @@
             color: rgba(255, 255, 255, 0.7);
         }
 
-        /* --- 新しいツールチップのスタイル --- */
-        /* ツールチップのコンテンツラッパー */
-        .calendar-tooltip-content {
-            padding: 8px 12px;
-            /* 内側の余白を少し設定 */
-        }
-
-        /* ツールチップのタイトル */
         .tooltip-title {
             font-size: 1em;
-            /* 親要素(12px)の1倍 */
             font-weight: 600;
             color: #fff;
             margin: 0 0 6px 0;
@@ -60,42 +50,50 @@
             border-bottom: 1px solid #555;
         }
 
-        /* 詳細リスト(dl) */
         .tooltip-details {
             margin: 0;
             padding: 0;
             font-size: 0.9em;
-            /* 親要素(12px)の0.9倍 */
         }
 
-        /* 各詳細行 */
         .tooltip-detail-row {
             display: flex;
             align-items: flex-start;
-            /* 上揃えで複数行に対応 */
             line-height: 1.4;
-            /* 行間をコンパクトに */
             padding: 2px 0;
-            /* 各行の上下の余白を最小限に */
         }
 
-        /* ラベル(dt) */
         .tooltip-detail-row dt {
             font-weight: 500;
             color: #a0aec0;
-            /* Tailwindのgray-400相当 */
             flex-shrink: 0;
             width: 65px;
-            /* ラベルの幅を固定して揃える */
         }
 
-        /* 値(dd) */
         .tooltip-detail-row dd {
             margin: 0;
             flex-grow: 1;
             color: #e2e8f0;
-            /* Tailwindのgray-300相当 */
             word-break: break-all;
+        }
+
+        /* ▼▼▼ スマホ表示用のスタイルを追加 ▼▼▼ */
+        @media (max-width: 767px) {
+
+            /* スマホのリスト表示のタイトルを見やすく */
+            .fc-list-event-title {
+                font-weight: 600;
+                color: #333;
+            }
+
+            .dark .fc-list-event-title {
+                color: #fff;
+            }
+
+            /* リスト表示のドットの色をイベントカラーに合わせる */
+            .fc-list-event-dot {
+                border-color: var(--fc-event-bg-color, #3788d8);
+            }
         }
     </style>
 @endpush
@@ -136,7 +134,7 @@
                 :all-characters="$charactersForFilter" :all-assignees="$allAssignees" :status-options="$statusOptions" />
         </div>
 
-        <div class="bg-white dark:bg-gray-800 shadow-lg rounded-lg p-4 sm:p-6">
+        <div class="bg-white dark:bg-gray-800 shadow-lg rounded-lg p-2 sm:p-6">
             <div id="calendar" data-events='{!! $events !!}'></div>
         </div>
     </div>
@@ -229,171 +227,190 @@
             if (calendarEl) {
                 const eventsData = JSON.parse(calendarEl.getAttribute('data-events') || '[]');
                 const statusOptions = {!! json_encode($statusOptions) !!};
+                let calendar;
 
-                const calendar = new FullCalendar.Calendar(calendarEl, {
-                    headerToolbar: {
-                        left: 'prev,next today',
-                        center: 'title',
-                        right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
-                    },
+                function renderCalendar() {
+                    if (calendar) {
+                        calendar.destroy();
+                    }
 
-                    locale: 'ja',
-                    buttonText: { today: '今日', month: '月', week: '週', day: '日', list: 'リスト' },
-                    initialView: 'timeGridDay',
-                    navLinks: true,
-                    dayMaxEvents: true,
-                    events: eventsData,
+                    const isMobile = window.innerWidth < 768;
 
-                    slotMinTime: '00:00:00',
-                    slotMaxTime: '24:00:00',
-                    slotDuration: '00:30:00',
-                    slotLabelFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
+                    calendar = new FullCalendar.Calendar(calendarEl, {
+                        headerToolbar: isMobile ? {
+                            left: 'prev,next',
+                            center: 'title',
+                            right: 'timeGridDay,listWeek' // スマホ用のシンプルボタン
+                        } : {
+                            left: 'prev,next today',
+                            center: 'title',
+                            right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
+                        },
 
-                    eventTimeFormat: { hour: 'numeric', minute: '2-digit', meridiem: 'narrow' },
-                    listDayFormat: { month: 'long', day: 'numeric', weekday: 'short' },
-                    listDaySideFormat: false,
+                        initialView: isMobile ? 'listWeek' : 'timeGridDay', // スマホはリスト表示、PCは日表示で開始
 
-                    eventContent: function (arg) {
-                        let props = arg.event.extendedProps;
-                        if (props.type === 'task' || props.type === 'milestone') {
-                            let container = document.createElement('div');
-                            container.classList.add('custom-fc-content');
+                        locale: 'ja',
+                        buttonText: { today: '今日', month: '月', week: '週', day: '日', list: 'リスト' },
+                        navLinks: true,
+                        dayMaxEvents: true,
+                        events: eventsData,
+                        slotMinTime: '00:00:00',
+                        slotMaxTime: '24:00:00',
+                        slotDuration: '00:30:00',
+                        slotLabelFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
+                        eventTimeFormat: { hour: 'numeric', minute: '2-digit', meridiem: 'narrow' },
+                        listDayFormat: { month: 'long', day: 'numeric', weekday: 'short' },
+                        listDaySideFormat: false,
 
-                            let titleEl = document.createElement('div');
-                            titleEl.classList.add('fc-event-title');
-                            titleEl.innerText = arg.event.title;
-                            container.appendChild(titleEl);
+                        // リスト表示で時間も表示する設定
+                        eventDidMount: function (info) {
+                            if (info.view.type === 'listWeek' && !info.event.allDay) {
+                                const timeText = document.createElement('td');
+                                timeText.className = 'fc-list-event-time';
+                                timeText.innerText = info.event.start.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+                                info.el.querySelector('.fc-list-event-title').insertAdjacentElement('beforebegin', timeText);
+                            }
+                        },
 
-                            if (arg.view.type !== 'dayGridMonth') {
-                                let detailsEl = document.createElement('div');
-                                detailsEl.classList.add('fc-event-details');
+                        eventContent: function (arg) {
+                            let props = arg.event.extendedProps;
+                            if (props.type === 'task' || props.type === 'milestone') {
+                                let container = document.createElement('div');
+                                container.classList.add('custom-fc-content');
 
-                                let characterEl = document.createElement('div');
-                                characterEl.classList.add('fc-event-detail-item');
-                                characterEl.innerHTML = `<i class="fas fa-dragon fa-fw"></i> ${props.character_name || '未設定'}`;
-                                detailsEl.appendChild(characterEl);
+                                let titleEl = document.createElement('div');
+                                titleEl.classList.add('fc-event-title');
+                                titleEl.innerText = arg.event.title;
+                                container.appendChild(titleEl);
 
-                                if (props.assignee_names) {
-                                    let assigneeEl = document.createElement('div');
-                                    assigneeEl.classList.add('fc-event-detail-item');
-                                    assigneeEl.innerHTML = `<i class="fas fa-user fa-fw"></i> ${props.assignee_names}`;
-                                    detailsEl.appendChild(assigneeEl);
-                                }
+                                if (arg.view.type !== 'dayGridMonth') {
+                                    let detailsEl = document.createElement('div');
+                                    detailsEl.classList.add('fc-event-details');
 
-                                let timeRangeEl = document.createElement('div');
-                                timeRangeEl.classList.add('fc-event-detail-item');
-                                let start = arg.event.start;
-                                let end = arg.event.end;
-                                let timeText = '';
+                                    let characterEl = document.createElement('div');
+                                    characterEl.classList.add('fc-event-detail-item');
+                                    characterEl.innerHTML = `<i class="fas fa-dragon fa-fw"></i> ${props.character_name || '未設定'}`;
+                                    detailsEl.appendChild(characterEl);
 
-                                if (start) {
-                                    if (arg.event.allDay) {
-                                        timeText = '終日';
-                                    } else {
-                                        const formatOptions = { hour: '2-digit', minute: '2-digit', hour12: false };
-                                        const startTime = start.toLocaleTimeString('ja-JP', formatOptions);
-                                        const endTime = end ? end.toLocaleTimeString('ja-JP', formatOptions) : '';
-                                        timeText = `${startTime} 〜 ${endTime}`;
+                                    if (props.assignee_names) {
+                                        let assigneeEl = document.createElement('div');
+                                        assigneeEl.classList.add('fc-event-detail-item');
+                                        assigneeEl.innerHTML = `<i class="fas fa-user fa-fw"></i> ${props.assignee_names}`;
+                                        detailsEl.appendChild(assigneeEl);
                                     }
+
+                                    let timeRangeEl = document.createElement('div');
+                                    timeRangeEl.classList.add('fc-event-detail-item');
+                                    let start = arg.event.start;
+                                    let end = arg.event.end;
+                                    let timeText = '';
+
+                                    if (start) {
+                                        if (arg.event.allDay) {
+                                            timeText = '終日';
+                                        } else {
+                                            const formatOptions = { hour: '2-digit', minute: '2-digit', hour12: false };
+                                            const startTime = start.toLocaleTimeString('ja-JP', formatOptions);
+                                            const endTime = end ? end.toLocaleTimeString('ja-JP', formatOptions) : '';
+                                            timeText = `${startTime} 〜 ${endTime}`;
+                                        }
+                                    }
+                                    timeRangeEl.innerHTML = `<i class="far fa-clock fa-fw"></i> ${timeText}`;
+                                    detailsEl.appendChild(timeRangeEl);
+
+                                    container.appendChild(detailsEl);
                                 }
-                                timeRangeEl.innerHTML = `<i class="far fa-clock fa-fw"></i> ${timeText}`;
-                                detailsEl.appendChild(timeRangeEl);
-
-                                container.appendChild(detailsEl);
+                                return { domNodes: [container] };
                             }
-
-                            return { domNodes: [container] };
-                        }
-                        return;
-                    },
-
-                    // ▼▼▼ 変更点: ツールチップのHTML生成部分を新しいデザインに刷新 ▼▼▼
-                    eventMouseEnter: function (info) {
-                        if (info.event.extendedProps.type !== 'task' && info.event.extendedProps.type !== 'milestone') {
                             return;
-                        }
+                        },
 
-                        const tooltip = document.getElementById('calendar-event-tooltip');
-                        if (!tooltip) return;
-
-                        const props = info.event.extendedProps;
-                        const statusText = statusOptions[props.status] || props.status || '不明';
-
-                        const contentHtml = `
-                        <div class="calendar-tooltip-content">
-                            <h3 class="tooltip-title">${info.event.title}</h3>
-                            <dl class="tooltip-details">
-                                <div class="tooltip-detail-row">
-                                    <dt>案件:</dt>
-                                    <dd>${props.project_title || ''}</dd>
-                                </div>
-                                <div class="tooltip-detail-row">
-                                    <dt>キャラクター:</dt>
-                                    <dd>${props.character_name || '未設定'}</dd>
-                                </div>
-                                 <div class="tooltip-detail-row">
-                                    <dt>担当者:</dt>
-                                    <dd>${props.assignee_names || '未設定'}</dd>
-                                </div>
-                                <div class="tooltip-detail-row">
-                                    <dt>ステータス:</dt>
-                                    <dd>${statusText}</dd>
-                                </div>
-                                ${props.description ? `
-                                <div class="tooltip-detail-row">
-                                    <dt>説明:</dt>
-                                    <dd>${props.description}</dd>
-                                </div>` : ''}
-                            </dl>
-                        </div>
-                    `;
-
-                        tooltip.innerHTML = contentHtml;
-                        tooltip.style.display = 'block';
-
-                        const eventRect = info.el.getBoundingClientRect();
-                        const tooltipRect = tooltip.getBoundingClientRect();
-                        let top = eventRect.top + window.scrollY - tooltipRect.height - 5;
-                        let left = eventRect.left + window.scrollX + (eventRect.width / 2) - (tooltipRect.width / 2);
-
-                        if (top < window.scrollY) {
-                            top = eventRect.bottom + window.scrollY + 5;
-                        }
-                        if (left < window.scrollX) {
-                            left = window.scrollX + 5;
-                        }
-                        if (left + tooltipRect.width > window.innerWidth) {
-                            left = window.innerWidth - tooltipRect.width - 5;
-                        }
-
-                        tooltip.style.top = `${top}px`;
-                        tooltip.style.left = `${left}px`;
-                    },
-
-                    eventMouseLeave: function (info) {
-                        const tooltip = document.getElementById('calendar-event-tooltip');
-                        if (tooltip) {
-                            tooltip.style.display = 'none';
-                        }
-                    },
-
-                    eventClick: function (info) {
-                        info.jsEvent.preventDefault();
-
-                        if (info.event.extendedProps.type === 'holiday') {
-                            return;
-                        }
-
-                        window.dispatchEvent(new CustomEvent('open-modal', {
-                            detail: {
-                                name: 'eventDetailModal',
-                                eventData: info.event
+                        eventMouseEnter: function (info) {
+                            if (info.event.extendedProps.type !== 'task' && info.event.extendedProps.type !== 'milestone') {
+                                return;
                             }
-                        }));
-                    },
+                            const tooltip = document.getElementById('calendar-event-tooltip');
+                            if (!tooltip) return;
+
+                            const props = info.event.extendedProps;
+                            const statusText = statusOptions[props.status] || props.status || '不明';
+
+                            const contentHtml = `
+                            <div class="calendar-tooltip-content">
+                                <h3 class="tooltip-title">${info.event.title}</h3>
+                                <dl class="tooltip-details">
+                                    <div class="tooltip-detail-row">
+                                        <dt>案件:</dt>
+                                        <dd>${props.project_title || ''}</dd>
+                                    </div>
+                                    <div class="tooltip-detail-row">
+                                        <dt>キャラクター:</dt>
+                                        <dd>${props.character_name || '未設定'}</dd>
+                                    </div>
+                                     <div class="tooltip-detail-row">
+                                        <dt>担当者:</dt>
+                                        <dd>${props.assignee_names || '未設定'}</dd>
+                                    </div>
+                                    <div class="tooltip-detail-row">
+                                        <dt>ステータス:</dt>
+                                        <dd>${statusText}</dd>
+                                    </div>
+                                    ${props.description ? `
+                                    <div class="tooltip-detail-row">
+                                        <dt>説明:</dt>
+                                        <dd>${props.description}</dd>
+                                    </div>` : ''}
+                                </dl>
+                            </div>
+                        `;
+
+                            tooltip.innerHTML = contentHtml;
+                            tooltip.style.display = 'block';
+
+                            const eventRect = info.el.getBoundingClientRect();
+                            const tooltipRect = tooltip.getBoundingClientRect();
+                            let top = eventRect.top + window.scrollY - tooltipRect.height - 5;
+                            let left = eventRect.left + window.scrollX + (eventRect.width / 2) - (tooltipRect.width / 2);
+
+                            if (top < window.scrollY) { top = eventRect.bottom + window.scrollY + 5; }
+                            if (left < window.scrollX) { left = window.scrollX + 5; }
+                            if (left + tooltipRect.width > window.innerWidth) { left = window.innerWidth - tooltipRect.width - 5; }
+
+                            tooltip.style.top = `${top}px`;
+                            tooltip.style.left = `${left}px`;
+                        },
+
+                        eventMouseLeave: function (info) {
+                            const tooltip = document.getElementById('calendar-event-tooltip');
+                            if (tooltip) {
+                                tooltip.style.display = 'none';
+                            }
+                        },
+
+                        eventClick: function (info) {
+                            info.jsEvent.preventDefault();
+                            if (info.event.extendedProps.type === 'holiday') { return; }
+                            window.dispatchEvent(new CustomEvent('open-modal', {
+                                detail: {
+                                    name: 'eventDetailModal',
+                                    eventData: info.event
+                                }
+                            }));
+                        },
+                    });
+
+                    calendar.render();
+                }
+
+                // 初回描画
+                renderCalendar();
+
+                // ウィンドウリサイズ時に再描画（debounce処理付き）
+                let resizeTimer;
+                window.addEventListener('resize', function () {
+                    clearTimeout(resizeTimer);
+                    resizeTimer = setTimeout(renderCalendar, 250);
                 });
-
-                calendar.render();
             }
         });
     </script>

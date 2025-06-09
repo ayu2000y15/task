@@ -16,7 +16,7 @@
                 @endif
 
                 @if(!($isFolderView ?? false) && !($isMilestoneView ?? false))
-                    <th scope="col" class="sticky top-0 z-10 bg-gray-50 dark:bg-gray-700 px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">担当者</th>
+                    <th scope="col" class="sticky top-0 z-10 bg-gray-50 dark:bg-gray-700 px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider" style="min-width:100px;">担当者</th>
                     <th scope="col" class="sticky top-0 z-10 bg-gray-50 dark:bg-gray-700 hidden sm:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">開始日時</th>
                 @endif
 
@@ -184,6 +184,14 @@
                                         @if (!empty($task->description))
                                             <i class="far fa-comment-alt ml-1 text-gray-400 dark:text-gray-500 fa-xs" title="メモあり"></i>
                                         @endif
+
+                                        {{-- ▼▼▼【変更】sm以下の画面サイズでキャラクター名を表示 ▼▼▼ --}}
+                                        @if(!($isFolderView ?? false) && !($isMilestoneView ?? false) && !(isset($character) && $character))
+                                            <p class="sm:hidden text-xs text-gray-500 dark:text-gray-400 truncate mt-1" title="キャラクター: {{ $task->character->name ?? '未設定' }}">
+                                                <i class="fas fa-dragon fa-fw mr-1 text-gray-400"></i> {{ $task->character->name ?? 'キャラクター未設定' }}
+                                            </p>
+                                        @endif
+                                        {{-- ▲▲▲【変更】ここまで ▲▲▲ --}}
 
                                         @if($task->end_date && !$task->is_milestone)
                                         <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
