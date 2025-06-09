@@ -132,7 +132,7 @@
                             <div class="flex items-center gap-x-3">
                                 @if(!$task->is_milestone && !$task->is_folder)
                                     <div class="flex flex-col items-center self-start mt-0.5">
-                                        <span class="text-xs text-gray-500 dark:text-gray-400 mb-1" style="font-size: 0.5rem;">進行中</span>
+                                        <span class="text-xs text-gray-500 dark:text-gray-400 mb-1" style="font-size: 0.5rem; min-width: 30px; text-align: center;">進行中</span>
                                         <input type="checkbox"
                                                class="task-status-checkbox task-status-in-progress form-checkbox h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
                                                data-action="set-in-progress"
