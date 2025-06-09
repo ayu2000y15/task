@@ -52,7 +52,7 @@
         <div x-show="sidebarOpen" class="fixed inset-0 z-20 bg-black opacity-50 md:hidden" @click="sidebarOpen = false" style="display: none;"></div>
 
         <aside
-        class="fixed inset-y-0 left-0 z-30 w-64 h-screen overflow-y-auto transition duration-300 ease-in-out transform bg-white shadow-lg dark:bg-gray-800 md:translate-x-0"
+        class="fixed inset-y-0 left-0 z-30 w-66 h-screen overflow-y-auto transition duration-300 ease-in-out transform bg-white shadow-lg dark:bg-gray-800 md:translate-x-0"
         :class="{'translate-x-0': sidebarOpen, '-translate-x-full': !sidebarOpen}">
         <div class="flex items-center justify-center h-16 bg-gray-50 dark:bg-gray-700">
             <a href="{{ route('home.index') }}" class="text-xl font-semibold text-gray-700 dark:text-white">衣装案件管理</a>
@@ -140,18 +140,18 @@
                                     </p>
                                     @endif
                                     @if($task->end_date)
-                                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                            <i class="far fa-clock fa-fw mr-1 text-gray-400"></i>
-                                            <span
+                                        <p style="border-radius: 20px; padding: 0 3px; "
                                                 @if($isPast && !$isCompleted)
-                                                    class="text-red-500 font-semibold" title="期限切れ"
+                                                    class="text-xs text-gray-500 dark:text-gray-400 mt-1 bg-red-200 font-semibold" title="期限切れ"
                                                 @elseif($isDueSoon && !$isCompleted)
-                                                    class="text-yellow-500 font-semibold" title="期限1日前"
+                                                    class="text-xs text-gray-500 dark:text-gray-400 mt-1 bg-yellow-200 font-semibold" title="期限1日前"
                                                 @endif
                                             >
+                                            <i class="far fa-clock fa-fw mr-1 text-gray-400"></i>
+                                            <span>
                                                 {{ $task->end_date->format('n/j H:i') }}
                                             </span>
-                                            <span class="text-gray-400 dark:text-gray-500" style="font-size: 0.6rem;">
+                                            <span>
                                                 ({{ $task->end_date->diffForHumans() }})
                                             </span>
                                         </p>

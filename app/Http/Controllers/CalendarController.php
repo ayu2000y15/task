@@ -17,35 +17,44 @@ class CalendarController extends Controller
     public function index(Request $request, TaskService $taskService)
     {
         $this->authorize('viewAny', Project::class);
+
+        // ▼▼▼ 変更点: assignee_id をフィルター条件に追加 ▼▼▼
         $filters = [
             'project_id' => $request->input('project_id', ''),
             'character_id' => $request->input('character_id', ''),
             'assignee' => $request->input('assignee', ''),
+            'assignee_id' => $request->input('assignee_id', ''), // 担当者IDによる絞り込み
             'status' => $request->input('status', ''),
             'search' => $request->input('search', ''),
         ];
 
-        // ▼▼▼ 変更点: tasks.assignees もEager Loadingする ▼▼▼
-        $projectsQuery = Project::with(['tasks' => function ($query) {
-            $query->with(['character', 'assignees']); // ネストしたリレーションをロード
-        }, 'tasks' => function ($query) use ($filters, $taskService) {
+        // タスクを絞り込むための共通ロジック
+        $taskQueryLogic = function ($query) use ($filters, $taskService) {
             $taskService->applyAssigneeFilter($query, $filters['assignee']);
             $taskService->applyCharacterFilter($query, $filters['character_id']);
             $taskService->applyStatusFilter($query, $filters['status']);
             $taskService->applySearchFilter($query, $filters['search']);
-        }]);
+
+            // ▼▼▼ 変更点: assignee_id での絞り込み機能を追加 ▼▼▼
+            if (!empty($filters['assignee_id'])) {
+                $query->whereHas('assignees', function ($subQuery) use ($filters) {
+                    $subQuery->where('users.id', $filters['assignee_id']);
+                });
+            }
+
+            // ▼▼▼ 変更点: ステータスが「完了」のものを除外 ▼▼▼
+            $query->where('tasks.status', '!=', 'completed');
+        };
+
+
+        $projectsQuery = Project::with(['tasks' => function ($query) use ($taskQueryLogic) {
+            $query->with(['character', 'assignees'])->where($taskQueryLogic);
+        }])->whereHas('tasks', $taskQueryLogic);
 
 
         if (!empty($filters['project_id'])) {
             $projectsQuery->where('id', $filters['project_id']);
         }
-
-        $projectsQuery->whereHas('tasks', function ($query) use ($filters, $taskService) {
-            $taskService->applyAssigneeFilter($query, $filters['assignee']);
-            $taskService->applyCharacterFilter($query, $filters['character_id']);
-            $taskService->applyStatusFilter($query, $filters['status']);
-            $taskService->applySearchFilter($query, $filters['search']);
-        });
 
         $projects = $projectsQuery->get();
 
@@ -91,7 +100,6 @@ class CalendarController extends Controller
                     'extendedProps' => [
                         'type' => $task->is_milestone ? 'milestone' : 'task',
                         'description' => $task->description,
-                        // ▼▼▼ 変更点: extendedPropsに担当者名を追加 ▼▼▼
                         'assignee_names' => $task->assignees->isNotEmpty() ? $task->assignees->pluck('name')->join(', ') : null,
                         'progress' => $task->progress,
                         'status' => $task->status,
@@ -125,16 +133,11 @@ class CalendarController extends Controller
             ];
         }
 
-        $allAssignees = Task::whereNotNull('assignee')
-            ->distinct()
-            ->pluck('assignee')
-            ->sort()
-            ->values();
+        $allAssignees = \App\Models\User::whereHas('tasks')->select('id', 'name')->distinct()->orderBy('name')->get();
 
         $statusOptions = [
             'not_started' => '未着手',
             'in_progress' => '進行中',
-            'completed' => '完了',
             'on_hold' => '保留中',
             'cancelled' => 'キャンセル',
         ];
@@ -148,7 +151,6 @@ class CalendarController extends Controller
                 $charactersForFilter = $projectWithChars->characters;
             }
         }
-
 
         return view('calendar.index', [
             'events' => json_encode($events),
