@@ -2,6 +2,7 @@
 @import "tailwindcss/base";
 @import "tailwindcss/components";
 @import "tailwindcss/utilities";
+@import "tom-select/dist/css/tom-select.default.css";
 
 /* 既存のtooltip.cssの内容をここにペースト */
 /* 例: tooltip.css の内容 */

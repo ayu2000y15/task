@@ -19,18 +19,20 @@ class CalendarController extends Controller
         $this->authorize('viewAny', Project::class);
         $filters = [
             'project_id' => $request->input('project_id', ''),
-            'character_id' => $request->input('character_id', ''), // ★ 追加
+            'character_id' => $request->input('character_id', ''),
             'assignee' => $request->input('assignee', ''),
             'status' => $request->input('status', ''),
             'search' => $request->input('search', ''),
         ];
 
-        // TaskService を使った絞り込みを適用 (character_id も考慮)
-        $projectsQuery = Project::with(['tasks' => function ($query) use ($filters) {
-            app(TaskService::class)->applyAssigneeFilter($query, $filters['assignee']);
-            app(TaskService::class)->applyCharacterFilter($query, $filters['character_id']); // Character filter
-            app(TaskService::class)->applyStatusFilter($query, $filters['status']);
-            app(TaskService::class)->applySearchFilter($query, $filters['search']);
+        // ▼▼▼ 変更点: tasks.assignees もEager Loadingする ▼▼▼
+        $projectsQuery = Project::with(['tasks' => function ($query) {
+            $query->with(['character', 'assignees']); // ネストしたリレーションをロード
+        }, 'tasks' => function ($query) use ($filters, $taskService) {
+            $taskService->applyAssigneeFilter($query, $filters['assignee']);
+            $taskService->applyCharacterFilter($query, $filters['character_id']);
+            $taskService->applyStatusFilter($query, $filters['status']);
+            $taskService->applySearchFilter($query, $filters['search']);
         }]);
 
 
@@ -38,56 +40,49 @@ class CalendarController extends Controller
             $projectsQuery->where('id', $filters['project_id']);
         }
 
+        $projectsQuery->whereHas('tasks', function ($query) use ($filters, $taskService) {
+            $taskService->applyAssigneeFilter($query, $filters['assignee']);
+            $taskService->applyCharacterFilter($query, $filters['character_id']);
+            $taskService->applyStatusFilter($query, $filters['status']);
+            $taskService->applySearchFilter($query, $filters['search']);
+        });
+
         $projects = $projectsQuery->get();
 
         $events = [];
 
         foreach ($projects as $project) {
-            $events[] = [
-                'id' => 'project_' . $project->id,
-                'title' => $project->title,
-                'start' => $project->start_date->format('Y-m-d'),
-                'end' => $project->end_date->addDay()->format('Y-m-d'),
-                'color' => $project->color,
-                'textColor' => '#ffffff',
-                'allDay' => true,
-                'url' => route('projects.show', $project),
-                'classNames' => ['project-event'],
-                'extendedProps' => [
-                    'type' => 'project',
-                    'description' => $project->description
-                ]
-            ];
-
             foreach ($project->tasks as $task) {
                 if ($task->is_folder) {
                     continue;
                 }
 
-                $taskColor = $task->color;
-                switch ($task->status) {
-                    case 'completed':
-                        $taskColor = '#28a745';
-                        break;
-                    case 'in_progress':
-                        $taskColor = '#007bff';
-                        break;
-                    case 'on_hold':
-                        $taskColor = '#ffc107';
-                        break;
-                    case 'cancelled':
-                        $taskColor = '#dc3545';
-                        break;
+                $isAllDay = true;
+                $start = null;
+                $end = null;
+
+                if ($task->start_date) {
+                    if ($task->start_date->format('H:i:s') === '00:00:00') {
+                        $isAllDay = true;
+                        $start = $task->start_date->format('Y-m-d');
+                        $end = $task->end_date ? $task->end_date->addDay()->format('Y-m-d') : null;
+                    } else {
+                        $isAllDay = false;
+                        $start = $task->start_date->toIso8601String();
+                        $end = $task->end_date ? $task->end_date->toIso8601String() : null;
+                    }
                 }
+
+                $taskColor = $project->color;
 
                 $events[] = [
                     'id' => 'task_' . $task->id,
                     'title' => $task->name,
-                    'start' => $task->start_date ? $task->start_date->format('Y-m-d') : null,
-                    'end' => $task->end_date ? $task->end_date->addDay()->format('Y-m-d') : null,
+                    'start' => $start,
+                    'end' => $end,
                     'color' => $taskColor,
                     'textColor' => '#ffffff',
-                    'allDay' => true,
+                    'allDay' => $isAllDay,
                     'url' => route('projects.tasks.edit', [$project, $task]),
                     'classNames' => [
                         'task-event',
@@ -96,11 +91,14 @@ class CalendarController extends Controller
                     'extendedProps' => [
                         'type' => $task->is_milestone ? 'milestone' : 'task',
                         'description' => $task->description,
-                        'assignee' => $task->assignee,
+                        // ▼▼▼ 変更点: extendedPropsに担当者名を追加 ▼▼▼
+                        'assignee_names' => $task->assignees->isNotEmpty() ? $task->assignees->pluck('name')->join(', ') : null,
                         'progress' => $task->progress,
                         'status' => $task->status,
                         'project_id' => $project->id,
-                        'project_title' => $project->title
+                        'project_title' => $project->title,
+                        'project_color' => $project->color,
+                        'character_name' => $task->character->name ?? null,
                     ]
                 ];
             }
@@ -117,8 +115,8 @@ class CalendarController extends Controller
                 'title' => $holiday->name,
                 'start' => $holiday->date->format('Y-m-d'),
                 'end' => $holiday->date->format('Y-m-d'),
-                'color' => '#ffe6e6',
-                'textColor' => '#cc0000',
+                'display' => 'background',
+                'color' => '#ffcdd2',
                 'allDay' => true,
                 'classNames' => ['holiday-event'],
                 'extendedProps' => [
@@ -142,7 +140,7 @@ class CalendarController extends Controller
         ];
 
         $allProjects = Project::orderBy('title')->get();
-        // フィルター用にキャラクター一覧も取得
+
         $charactersForFilter = collect();
         if (!empty($filters['project_id'])) {
             $projectWithChars = Project::with('characters')->find($filters['project_id']);
@@ -156,7 +154,7 @@ class CalendarController extends Controller
             'events' => json_encode($events),
             'filters' => $filters,
             'allProjects' => $allProjects,
-            'charactersForFilter' => $charactersForFilter, // ★ 追加
+            'charactersForFilter' => $charactersForFilter,
             'allAssignees' => $allAssignees,
             'statusOptions' => $statusOptions,
         ]);

@@ -10,6 +10,8 @@ import { Calendar } from "@fullcalendar/core";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import listPlugin from "@fullcalendar/list";
 import interactionPlugin from "@fullcalendar/interaction";
+import TomSelect from "tom-select";
+window.TomSelect = TomSelect;
 
 window.Alpine = Alpine;
 Alpine.plugin(collapse);

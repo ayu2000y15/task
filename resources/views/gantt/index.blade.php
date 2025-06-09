@@ -36,13 +36,9 @@
             :show-date-range-filter="true" />
     </div>
 
-    @if ($projects->isEmpty() || $projects->every(function ($project) {
-        return $project->tasks()->whereNull('character_id')->doesntExist() &&
-               $project->characters()->whereHas('tasks')->doesntExist() &&
-               $project->tasks()->whereNotNull('character_id')->whereNull('parent_id')->doesntExist();
-    }))
+    @if ($projects->isEmpty())
         <div class="bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4 rounded-md shadow-sm dark:bg-blue-700 dark:text-blue-100 dark:border-blue-300" role="alert">
-            表示する工程がありません。フィルター条件を変更するか、新規衣装案件/工程を作成してください。
+            表示する案件がありません。フィルター条件を変更するか、新規衣装案件を作成してください。
         </div>
     @else
         <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
@@ -51,12 +47,10 @@
                 <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 border-collapse" id="ganttTable" :class="{ 'details-hidden': !detailsVisible }">
                     <thead class="gantt-header text-xs text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         <tr>
-                            <th rowspan="2" class="gantt-sticky-col px-3 py-3 align-top font-medium" style="min-width: 300px;">工程</th>
-                            <th rowspan="2" class="detail-column px-3 py-3 align-top font-medium" style="min-width: 100px;">担当者</th>
-                            <th rowspan="2" class="detail-column px-3 py-3 align-top font-medium" style="min-width: 70px;">工数</th>
-                            <th rowspan="2" class="detail-column px-3 py-3 align-top font-medium" style="min-width: 100px;">開始日</th>
-                            <th rowspan="2" class="detail-column px-3 py-3 align-top font-medium" style="min-width: 100px;">終了日</th>
-                            <th rowspan="2" class="detail-column px-3 py-3 align-top font-medium" style="min-width: 120px;">ステータス</th>
+                            <th rowspan="2" class="gantt-sticky-col px-3 py-3 align-top font-medium" style="min-width: 300px;">案件</th>
+                            <th rowspan="2" class="detail-column px-3 py-3 align-top font-medium" style="min-width: 70px;">開始日</th>
+                            <th rowspan="2" class="detail-column px-3 py-3 align-top font-medium" style="min-width: 70px;">終了日</th>
+                            <th rowspan="2" class="detail-column px-3 py-3 align-top font-medium" style="min-width: 80px;">ステータス</th>
                             @php
                                 $months = [];
                                 foreach ($dates as $dateInfo) {
@@ -100,154 +94,99 @@
                     </thead>
                     <tbody class="divide-y divide-gray-200 dark:divide-gray-700 text-sm">
                         @foreach($projects as $project)
-                            @if($project->tasks()->whereNull('character_id')->whereNull('parent_id')->exists() || $project->characters()->whereHas('tasks')->exists() || $project->tasks()->whereNotNull('character_id')->whereNull('parent_id')->exists())
-                                <tr class="project-header project-{{ $project->id }}-tasks task-level-0 bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700">
-                                    <td class="gantt-sticky-col px-3 py-2.5">
-                                        <div class="flex justify-between items-start">
-                                            <div class="flex items-start gantt-task-name-container">
-                                                <span class="toggle-children cursor-pointer mr-2 mt-px" data-project-id="{{ $project->id }}">
-                                                    <i class="fas fa-chevron-down"></i>
-                                                </span>
-                                                <div class="w-5 h-5 flex-shrink-0 flex items-center justify-center rounded text-white text-xs font-bold mr-2 mt-px"
-                                                    style="background-color: {{ $project->color }};">
-                                                    {{ mb_substr($project->title, 0, 1) }}
-                                                </div>
-                                                <a href="{{ route('projects.show', $project) }}" class="font-medium text-gray-800 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400 gantt-task-name-link">{{ $project->title }}</a>
-                                                @if($project->is_favorite)
-                                                    <i class="fas fa-star text-yellow-400 ml-2"></i>
-                                                @endif
+                            <tr class="project-header project-{{ $project->id }}-tasks task-level-0 bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700">
+                                <td class="gantt-sticky-col px-3 py-2.5">
+                                    <div class="flex justify-between items-start">
+                                        <div class="flex items-start gantt-task-name-container">
+                                            <div class="w-5 h-5 flex-shrink-0 flex items-center justify-center rounded text-white text-xs font-bold mr-2 mt-px"
+                                                style="background-color: {{ $project->color }};">
+                                                {{ mb_substr($project->title, 0, 1) }}
                                             </div>
-                                            <div class="task-actions flex space-x-1 flex-shrink-0">
-                                                <a href="{{ route('projects.tasks.create', $project) }}"
-                                                    class="p-1 text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300" title="工程追加">
-                                                    <i class="fas fa-plus"></i>
-                                                </a>
-                                                <a href="{{ route('projects.edit', $project) }}" class="p-1 text-yellow-500 hover:text-yellow-700 dark:text-yellow-400 dark:hover:text-yellow-300" title="編集">
-                                                    <i class="fas fa-edit"></i>
-                                                </a>
-                                            </div>
+                                            <a href="{{ route('projects.show', $project) }}" class="font-medium text-gray-800 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400 gantt-task-name-link">{{ $project->title }}</a>
+                                            @if($project->is_favorite)
+                                                <i class="fas fa-star text-yellow-400 ml-2"></i>
+                                            @endif
                                         </div>
-                                    </td>
-                                    <td class="detail-column px-3 py-2.5 text-gray-500 dark:text-gray-400">&nbsp;</td> {{-- 担当者 --}}
-                                    <td class="detail-column px-3 py-2.5 text-gray-500 dark:text-gray-400">&nbsp;</td> {{-- 工数 --}}
-                                    <td class="detail-column px-3 py-2.5 text-gray-500 dark:text-gray-400">&nbsp;</td> {{-- 開始日 --}}
-                                    <td class="detail-column px-3 py-2.5 text-gray-500 dark:text-gray-400">&nbsp;</td> {{-- 完了日 --}}
-                                    <td class="detail-column px-3 py-2.5 text-gray-500 dark:text-gray-400">&nbsp;</td> {{-- ステータス --}}
+                                        <div class="task-actions flex space-x-1 flex-shrink-0">
+                                            <a href="{{ route('projects.tasks.create', $project) }}"
+                                                class="p-1 text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300" title="工程追加">
+                                                <i class="fas fa-plus"></i>
+                                            </a>
+                                            <a href="{{ route('projects.edit', $project) }}" class="p-1 text-yellow-500 hover:text-yellow-700 dark:text-yellow-400 dark:hover:text-yellow-300" title="編集">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="detail-column px-3 py-2.5 text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                                    {{ $project->start_date ? $project->start_date->format('n/j') : '-' }}
+                                </td>
+                                <td class="detail-column px-3 py-2.5 text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                                    {{ $project->end_date ? $project->end_date->format('n/j') : '-' }}
+                                </td>
+                                <td class="detail-column px-3 py-2.5 text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                                    {{ $statusOptions[$project->status] ?? $project->status }}
+                                </td>
 
+                                @php
+                                    $projectStartDate = $project->start_date?->format('Y-m-d');
+                                    $projectEndDate = $project->end_date?->format('Y-m-d');
+                                    $startPosition = -1;
+                                    $projectLength = 0;
+
+                                    if ($projectStartDate && $projectEndDate) {
+                                        foreach ($dates as $index => $dateInfoLoop) {
+                                            $currentDate = $dateInfoLoop['date']->format('Y-m-d');
+                                            if ($currentDate === $projectStartDate)
+                                                $startPosition = $index;
+                                            if ($currentDate >= $projectStartDate && $currentDate <= $projectEndDate)
+                                                $projectLength++;
+                                        }
+                                    }
+                                @endphp
+
+                                @for($i = 0; $i < count($dates); $i++)
                                     @php
-                                        $projectStartDate = $project->start_date?->format('Y-m-d');
-                                        $projectEndDate = $project->end_date?->format('Y-m-d');
-                                        $startPosition = -1;
-                                        $projectLength = 0;
+                                        $dateStr = $dates[$i]['date']->format('Y-m-d');
+                                        $isHoliday = isset($holidays[$dateStr]);
+                                        $cellClasses = [];
+                                        if ($dates[$i]['is_saturday'])
+                                            $cellClasses[] = 'saturday';
+                                        elseif ($dates[$i]['is_sunday'] || $isHoliday) $cellClasses[] = 'sunday';
+                                        if ($dates[$i]['date']->isSameDay($today)) $cellClasses[] = 'today';
 
-                                        if ($projectStartDate && $projectEndDate) {
-                                            foreach ($dates as $index => $dateInfoLoop) {
-                                                $currentDate = $dateInfoLoop['date']->format('Y-m-d');
-                                                if ($currentDate === $projectStartDate)
-                                                    $startPosition = $index;
-                                                if ($currentDate >= $projectStartDate && $currentDate <= $projectEndDate)
-                                                    $projectLength++;
+                                        $style = '';
+                                        $hasBar = $startPosition >= 0 && $i >= ($startPosition) && $i < ($startPosition + $projectLength);
+                                        if ($hasBar) {
+                                            $cellClasses[] = 'has-bar';
+                                            // HEX to RGBA conversion
+                                            $color = ltrim($project->color ?? '#6c757d', '#');
+                                            $rgb = strlen($color) == 6 ? sscanf($color, "%2x%2x%2x") : (strlen($color) == 3 ? sscanf(str_repeat(substr($color,0,1),2).str_repeat(substr($color,1,1),2).str_repeat(substr($color,2,1),2), "%2x%2x%2x") : [108, 117, 125]);
+
+                                            $rgbaColor = sprintf('rgba(%d, %d, %d, 0.7)', $rgb[0], $rgb[1], $rgb[2]);
+                                            if ($dates[$i]['date']->isSameDay($today)) {
+                                                // 今日の場合、背景色を重ねて両方見えるようにする
+                                                $style = "background-image: linear-gradient({$rgbaColor}, {$rgbaColor});";
+                                            } else {
+                                                $style = "background-color: {$rgbaColor};";
                                             }
                                         }
                                     @endphp
-
-                                    @for($i = 0; $i < count($dates); $i++)
-                                        @php
-                                            $dateStr = $dates[$i]['date']->format('Y-m-d');
-                                            $isHoliday = isset($holidays[$dateStr]);
-                                            $cellClasses = [];
-                                            if ($dates[$i]['is_saturday'])
-                                                $cellClasses[] = 'saturday';
-                                            elseif ($dates[$i]['is_sunday'] || $isHoliday) $cellClasses[] = 'sunday';
-                                            if ($dates[$i]['date']->isSameDay($today)) $cellClasses[] = 'today';
-
-                                            $style = '';
-                                            $hasBar = $startPosition >= 0 && $i >= ($startPosition) && $i < ($startPosition + $projectLength);
-                                            if ($hasBar) {
-                                                $cellClasses[] = 'has-bar';
-                                                // HEX to RGBA conversion
-                                                $color = ltrim($project->color ?? '#6c757d', '#');
-                                                $rgb = strlen($color) == 6 ? sscanf($color, "%2x%2x%2x") : (strlen($color) == 3 ? sscanf(str_repeat(substr($color,0,1),2).str_repeat(substr($color,1,1),2).str_repeat(substr($color,2,1),2), "%2x%2x%2x") : [108, 117, 125]);
-
-                                                $rgbaColor = sprintf('rgba(%d, %d, %d, 0.7)', $rgb[0], $rgb[1], $rgb[2]);
-                                                if ($dates[$i]['date']->isSameDay($today)) {
-                                                    // 今日の場合、背景色を重ねて両方見えるようにする
-                                                    $style = "background-image: linear-gradient({$rgbaColor}, {$rgbaColor});";
-                                                } else {
-                                                    $style = "background-color: {$rgbaColor};";
-                                                }
-                                            }
-                                        @endphp
-                                        <td class="gantt-cell {{ implode(' ', $cellClasses) }} p-0 relative border-x border-gray-200 dark:border-gray-700" data-date="{{ $dateStr }}" style="{{ $style }}">
-                                            @if($hasBar)
-                                                {{-- gantt-bar div is removed --}}
-                                                <div class="gantt-tooltip" style="top: -50px; left: 50%; transform: translateX(-50%);">
-                                                    <div class="gantt-tooltip-content">
-                                                        {{ $project->title }}<br>
-                                                        期間: {{ $project->start_date->format('n/j') }} 〜
-                                                        {{ $project->end_date->format('n/j') }}
-                                                    </div>
-                                                    <div class="gantt-tooltip-arrow"></div>
+                                    <td class="gantt-cell {{ implode(' ', $cellClasses) }} p-0 relative border-x border-gray-200 dark:border-gray-700" data-date="{{ $dateStr }}" style="{{ $style }}">
+                                        @if($hasBar)
+                                            {{-- gantt-bar div is removed --}}
+                                            <div class="gantt-tooltip" style="top: -50px; left: 50%; transform: translateX(-50%);">
+                                                <div class="gantt-tooltip-content">
+                                                    {{ $project->title }}<br>
+                                                    期間: {{ $project->start_date->format('n/j') }} 〜
+                                                    {{ $project->end_date->format('n/j') }}
                                                 </div>
-                                            @endif
-                                        </td>
-                                    @endfor
-                                </tr>
-                                {{-- 案件全体の工程 (キャラクターに紐づかない) --}}
-                                @php
-                                    $projectLevelTasks = $project->tasks
-                                        ->whereNull('character_id')
-                                        ->whereNull('parent_id')
-                                        ->sortBy(function ($task, $key) {
-                                            // [is_null(start_date), start_date, name] の順でソート
-                                            return [$task->start_date === null, $task->start_date, $task->name];
-                                        });
-                                @endphp
-                                @include('gantt.partials.task_rows', ['tasks' => $projectLevelTasks, 'project' => $project, 'dates' => $dates, 'holidays' => $holidays, 'today' => $today, 'level' => 0, 'parent_character_id' => null])
-
-                                {{-- キャラクターごとの工程 --}}
-                                @foreach($project->characters->sortBy('name') as $character)
-                                    @php
-                                        $characterTasks = $character->tasks
-                                            ->whereNull('parent_id')
-                                            ->sortBy(function ($task, $key) {
-                                                return [$task->start_date === null, $task->start_date, $task->name];
-                                            });
-                                    @endphp
-                                    <tr class="character-header project-{{ $project->id }}-tasks task-level-0 bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700"
-                                        data-project-id-for-toggle="{{ $project->id }}">
-                                        <td class="gantt-sticky-col px-3 py-2.5">
-                                            <div class="flex items-start" style="padding-left: 20px;">
-                                                <span class="toggle-children cursor-pointer mr-2 mt-px" data-character-id="{{ $character->id }}"
-                                                    data-project-id-of-char="{{ $project->id }}">
-                                                    <i class="fas fa-chevron-down"></i>
-                                                </span>
-                                                <i class="fas fa-user-circle text-sky-500 mr-2 mt-px text-base"></i>
-                                                <span class="font-medium text-gray-800 dark:text-gray-100">{{ $character->name }}</span>
+                                                <div class="gantt-tooltip-arrow"></div>
                                             </div>
-                                        </td>
-                                        <td class="detail-column px-3 py-2.5 text-gray-500 dark:text-gray-400">&nbsp;</td>
-                                        <td class="detail-column px-3 py-2.5 text-gray-500 dark:text-gray-400">&nbsp;</td>
-                                        <td class="detail-column px-3 py-2.5 text-gray-500 dark:text-gray-400">&nbsp;</td>
-                                        <td class="detail-column px-3 py-2.5 text-gray-500 dark:text-gray-400">&nbsp;</td>
-                                        <td class="detail-column px-3 py-2.5 text-gray-500 dark:text-gray-400">&nbsp;</td>
-                                        @for($i = 0; $i < count($dates); $i++)
-                                            @php
-                                                $dateStr = $dates[$i]['date']->format('Y-m-d');
-                                                $isHoliday = isset($holidays[$dateStr]);
-                                                $cellClasses = [];
-                                                if ($dates[$i]['is_saturday'])
-                                                    $cellClasses[] = 'saturday';
-                                                elseif ($dates[$i]['is_sunday'] || $isHoliday) $cellClasses[] = 'sunday';
-                                                if ($dates[$i]['date']->isSameDay($today))
-                                                    $cellClasses[] = 'today';
-                                            @endphp
-                                            <td class="gantt-cell {{ implode(' ', $cellClasses) }} p-0 border-x border-gray-200 dark:border-gray-700" data-date="{{ $dateStr }}">&nbsp;</td>
-                                        @endfor
-                                    </tr>
-                                    @include('gantt.partials.task_rows', ['tasks' => $characterTasks, 'project' => $project, 'character' => $character, 'dates' => $dates, 'holidays' => $holidays, 'today' => $today, 'level' => 1, 'parent_character_id' => $character->id])
-                                @endforeach
-                            @endif
+                                        @endif
+                                    </td>
+                                @endfor
+                            </tr>
                         @endforeach
                     </tbody>
                 </table>

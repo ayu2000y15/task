@@ -101,7 +101,6 @@ function initializeTaskCheckboxes() {
                 .then((response) => {
                     if (response.data.success)
                         updateTaskRowUI(row, newStatus, newProgress);
-                    // ... (omitting rollback for brevity, can be added back)
                 });
         });
     });
@@ -151,84 +150,125 @@ function initializeTaskStatusUpdater() {
     });
 }
 
-function initializeEditableAssignee() {
-    const container = document.querySelector("[data-assignee-options]");
+function initializeEditableMultipleAssignees() {
+    const container = document.getElementById("assignee-data-container");
     if (!container) {
+        console.warn("担当者選択肢のデータコンテナが見つかりません。");
         return;
     }
 
-    const assigneeOptions = JSON.parse(container.dataset.assigneeOptions);
+    let assigneeOptions = [];
+    try {
+        assigneeOptions = JSON.parse(container.dataset.assigneeOptions);
+    } catch (e) {
+        console.error("担当者選択肢のJSON解析に失敗しました。", e);
+        return;
+    }
 
-    document
-        .querySelectorAll('.editable-cell[data-field="assignee"]')
-        .forEach((cell) => {
-            cell.addEventListener("click", function handleAssigneeCellClick() {
-                if (cell.querySelector("select")) {
+    document.querySelectorAll(".editable-cell-assignees").forEach((cell) => {
+        cell.addEventListener("click", function (event) {
+            // 既に編集中の場合は何もしない
+            if (cell.querySelector(".ts-control")) {
+                return;
+            }
+
+            const parentRow = cell.closest("tr");
+            if (!parentRow) return;
+
+            const taskId = parentRow.dataset.taskId;
+            const projectId = parentRow.dataset.projectId;
+            const currentAssigneeIds = JSON.parse(
+                cell.dataset.currentAssignees || "[]"
+            );
+            const badgeContainer = cell.querySelector(
+                ".assignee-badge-container"
+            );
+
+            // 元の表示を隠す
+            if (badgeContainer) badgeContainer.style.display = "none";
+
+            // Tom Select用のselect要素を作成
+            const select = document.createElement("select");
+            select.setAttribute("multiple", "multiple");
+            cell.appendChild(select);
+
+            const tomSelectInstance = new TomSelect(select, {
+                options: assigneeOptions,
+                items: currentAssigneeIds,
+                valueField: "id",
+                labelField: "name",
+                searchField: "name",
+                plugins: ["remove_button"],
+                create: false,
+                placeholder: "担当者を選択...",
+                onBlur: function () {
+                    // 少し遅れてblurイベントを処理し、選択肢のクリックを可能にする
+                    setTimeout(() => {
+                        saveChanges(this);
+                    }, 150);
+                },
+            });
+
+            const saveChanges = (instance) => {
+                // インスタンスが既に破棄されている場合は何もしない
+                if (!instance.wrapper) return;
+
+                const newAssigneeIds = instance.items;
+
+                // 変更がなければ何もしない
+                const sortedOld = [...currentAssigneeIds].sort();
+                const sortedNew = [...newAssigneeIds].sort();
+                if (JSON.stringify(sortedOld) === JSON.stringify(sortedNew)) {
+                    // 元の表示に戻してTomSelectを破棄
+                    if (badgeContainer) badgeContainer.style.display = "flex";
+                    instance.destroy();
+                    select.remove();
                     return;
                 }
 
-                const parentRow = cell.closest("tr");
-                if (!parentRow) return;
+                axios
+                    .post(`/projects/${projectId}/tasks/${taskId}/assignee`, {
+                        assignees: newAssigneeIds,
+                    })
+                    .then((response) => {
+                        if (response.data.success) {
+                            // サーバーから返されたHTMLでバッジを更新
+                            if (badgeContainer) {
+                                badgeContainer.innerHTML =
+                                    response.data.assigneesHtml;
+                                badgeContainer.style.display = "flex";
+                            }
+                            // data属性も更新
+                            cell.dataset.currentAssignees =
+                                JSON.stringify(newAssigneeIds);
+                        } else {
+                            // エラー時
+                            if (badgeContainer)
+                                badgeContainer.style.display = "flex";
+                            alert(
+                                response.data.message || "更新に失敗しました。"
+                            );
+                        }
+                    })
+                    .catch((error) => {
+                        console.error(
+                            "担当者の更新中にエラーが発生しました:",
+                            error
+                        );
+                        alert("担当者の更新中にエラーが発生しました。");
+                        if (badgeContainer)
+                            badgeContainer.style.display = "flex";
+                    })
+                    .finally(() => {
+                        // TomSelectを破棄
+                        if (instance.wrapper) instance.destroy();
+                        if (select.parentNode) select.remove();
+                    });
+            };
 
-                const taskId = parentRow.dataset.taskId;
-                const projectId = parentRow.dataset.projectId;
-                const currentAssignee =
-                    cell.textContent.trim() === "-"
-                        ? ""
-                        : cell.textContent.trim();
-
-                cell.innerHTML = "";
-
-                const select = document.createElement("select");
-                select.className =
-                    "form-select w-full text-sm p-1 border-blue-500 rounded dark:bg-gray-700 dark:text-gray-200";
-
-                const noneOption = document.createElement("option");
-                noneOption.value = "";
-                noneOption.textContent = "未割り当て";
-                select.appendChild(noneOption);
-
-                assigneeOptions.forEach((name) => {
-                    const option = document.createElement("option");
-                    option.value = name;
-                    option.textContent = name;
-                    if (name === currentAssignee) {
-                        option.selected = true;
-                    }
-                    select.appendChild(option);
-                });
-
-                cell.appendChild(select);
-                select.focus();
-
-                const saveChanges = () => {
-                    const newAssignee = select.value;
-
-                    cell.innerHTML = newAssignee || "-";
-
-                    if (newAssignee !== currentAssignee) {
-                        axios
-                            .post(
-                                `/projects/${projectId}/tasks/${taskId}/assignee`,
-                                {
-                                    assignee: newAssignee,
-                                }
-                            )
-                            .catch((error) => {
-                                console.error(
-                                    "Error updating assignee:",
-                                    error
-                                );
-                                alert("担当者の更新中にエラーが発生しました。");
-                                cell.innerHTML = currentAssignee || "-";
-                            });
-                    }
-                };
-
-                select.addEventListener("change", saveChanges);
-                select.addEventListener("blur", saveChanges);
-            });
+            tomSelectInstance.focus();
         });
+    });
 }
 
 function initializeFolderFileToggle() {
@@ -248,7 +288,7 @@ function initializeFolderFileToggle() {
 try {
     initializeTaskStatusUpdater();
     initializeTaskCheckboxes();
-    initializeEditableAssignee();
+    initializeEditableMultipleAssignees();
     initializeFolderFileToggle();
 } catch (e) {
     console.error("Error during tasks-index.js specific initialization:", e);

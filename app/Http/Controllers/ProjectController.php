@@ -542,8 +542,10 @@ class ProjectController extends Controller
         // 担当者選択プルダウン用に、アクティブなユーザーのリストを取得
         $assigneeOptions = User::where('status', User::STATUS_ACTIVE)
             ->orderBy('name')
-            ->pluck('name', 'id') // pluckの引数を変更
-            ->all();
+            ->get(['id', 'name'])
+            ->map(function ($user) {
+                return ['id' => $user->id, 'name' => $user->name];
+            })->values()->all();
 
         return view('projects.show', compact('project', 'customFormFields', 'availableInventoryItems', 'tasksToList', 'masterFolder', 'completionDataFolders', 'assigneeOptions'));
     }
