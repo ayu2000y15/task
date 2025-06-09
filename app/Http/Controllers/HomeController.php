@@ -20,7 +20,8 @@ class HomeController extends Controller
         $activeProjectCount = Project::where('end_date', '>=', Carbon::today())->count();
         $taskCount = Task::count();
 
-        $recentTasks = Task::whereNotNull('end_date') // end_dateがnullでない工程のみ対象
+        $recentTasks = Task::with(['project', 'character', 'assignees'])
+            ->whereNotNull('end_date')
             ->whereDate('end_date', '>=', Carbon::today())
             ->orderBy('end_date')
             ->where('is_milestone', false)
@@ -28,9 +29,11 @@ class HomeController extends Controller
             ->limit(10)
             ->get();
 
-        $upcomingTasks = Task::whereNotNull('end_date') // end_dateがnullでない工程のみ対象
+        // ▼▼▼【変更】取得期間を7日から2日に修正 ▼▼▼
+        $upcomingTasks = Task::with(['project', 'character', 'assignees'])
+            ->whereNotNull('end_date')
             ->whereDate('end_date', '>=', Carbon::today())
-            ->whereDate('end_date', '<=', Carbon::today()->addDays(7))
+            ->whereDate('end_date', '<=', Carbon::today()->addDays(2))
             ->whereNotIn('status', ['completed', 'cancelled'])
             ->orderBy('end_date')
             ->where('is_milestone', false)
@@ -42,7 +45,8 @@ class HomeController extends Controller
         $sevenDaysAgo = Carbon::now()->subDays(7)->startOfDay();
         $todayEnd = Carbon::now()->endOfDay();
 
-        $todoTasks = Task::whereNull('start_date')
+        $todoTasks = Task::with(['project', 'character', 'assignees'])
+            ->whereNull('start_date')
             ->whereNull('end_date')
             ->whereNotIn('status', ['completed', 'cancelled'])
             ->where('is_milestone', false)
@@ -51,23 +55,23 @@ class HomeController extends Controller
             ->limit(10)
             ->get();
 
-        $inProgressTasks = Task::whereNull('start_date')
+        $inProgressTasks = Task::with(['project', 'character', 'assignees'])
+            ->whereNull('start_date')
             ->whereNull('end_date')
             ->where('status', 'in_progress')
-            // ->whereBetween('updated_at', [$sevenDaysAgo, $todayEnd]) // 例：もし更新日で絞るなら
             ->where('is_milestone', false)
             ->where('is_folder', false)
-            ->orderBy('updated_at', 'desc') // 例：更新が新しい順
+            ->orderBy('updated_at', 'desc')
             ->limit(10)
             ->get();
 
-        $onHoldTasks = Task::whereNull('start_date')
+        $onHoldTasks = Task::with(['project', 'character', 'assignees'])
+            ->whereNull('start_date')
             ->whereNull('end_date')
             ->where('status', 'on_hold')
-            // ->whereBetween('updated_at', [$sevenDaysAgo, $todayEnd]) // 例：もし更新日で絞るなら
             ->where('is_milestone', false)
             ->where('is_folder', false)
-            ->orderBy('updated_at', 'desc') // 例：更新が新しい順
+            ->orderBy('updated_at', 'desc')
             ->limit(10)
             ->get();
 

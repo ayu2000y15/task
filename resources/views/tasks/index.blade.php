@@ -23,13 +23,13 @@
 
             @auth
                 @php
-                    $isFilteringBySelf = isset($filters['assignee']) && $filters['assignee'] === Auth::user()->name;
+                    $isFilteringBySelf = isset($filters['assignee_id']) && $filters['assignee_id'] == Auth::id();
                     $baseClass = 'inline-flex items-center px-4 py-2 border rounded-md font-semibold text-xs uppercase tracking-widest shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-25 transition ease-in-out duration-150';
                     $activeClass = 'bg-blue-600 border-transparent text-white hover:bg-blue-700 focus:ring-blue-500';
                     $inactiveClass = 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 focus:ring-indigo-500';
                 @endphp
                 {{-- ▼▼▼【修正点】URLに close_filters=1 パラメータを追加 ▼▼▼ --}}
-                <a href="{{ route('tasks.index', ['assignee' => Auth::user()->name, 'close_filters' => 1]) }}"
+                <a href="{{ route('tasks.index', ['assignee_id' => Auth::id(), 'close_filters' => 1]) }}"
                    class="{{ $baseClass }} {{ $isFilteringBySelf ? $activeClass : $inactiveClass }}">
                     <i class="fas fa-user-check mr-2"></i>担当:自分
                 </a>
@@ -47,7 +47,7 @@
             :filters="$filters"
             :all-projects="$allProjects"
             :all-characters="$charactersForFilter"
-            :all-assignees="$assignees"
+            :all-assignees="$assigneesForFilter"
             :status-options="$statusOptions"
             :show-due-date-filter="true"
         />

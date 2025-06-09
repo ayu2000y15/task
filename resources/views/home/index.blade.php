@@ -25,11 +25,9 @@
                     <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                         <thead class="bg-gray-50 dark:bg-gray-700">
                             <tr>
-                                <th scope="col" class="pl-4 pr-2 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-12"></th>
-                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider min-w-[250px] sm:min-w-[300px]">工程名</th>
+                                <th scope="col" class="pl-4 pr-2 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider min-w-[250px] sm:min-w-[300px]">案件 / 工程名</th>
                                 <th scope="col" class="hidden sm:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">キャラクター</th>
                                 <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">担当者</th>
-                                <th scope="col" class="hidden sm:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">期限</th>
                                 <th scope="col" class="hidden sm:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-36 min-w-[140px]">ステータス</th>
                                 <th scope="col" class="hidden sm:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">操作</th>
                             </tr>
@@ -37,7 +35,7 @@
                         <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                             @if($recentTasks->isEmpty())
                                 <tr>
-                                    <td colspan="7" class="px-6 py-12 text-center text-sm text-gray-500 dark:text-gray-400">
+                                    <td colspan="6" class="px-6 py-12 text-center text-sm text-gray-500 dark:text-gray-400">
                                         表示する工程がありません
                                     </td>
                                 </tr>
@@ -45,8 +43,24 @@
                                 @foreach($recentTasks as $task)
                                     @php
                                         $hoverClass = !empty($task->description) ? 'task-row-hoverable' : '';
+                                        $rowClass = '';
+
+                                        if ($task->end_date) {
+                                            $appTimezone = config('app.timezone');
+                                            $now = \Carbon\Carbon::now($appTimezone);
+                                            $endDate = $task->end_date->copy()->setTimezone($appTimezone);
+                                            $isCompleted = in_array($task->status, ['completed', 'cancelled']);
+                                            $isPast = $endDate->isPast();
+                                            $isDueSoon = !$isPast && $endDate->lte($now->copy()->addHours(24));
+
+                                            if ($isPast && !$isCompleted) {
+                                                $rowClass = 'bg-red-50 dark:bg-red-900/50';
+                                            } elseif ($isDueSoon && !$isCompleted) {
+                                                $rowClass = 'bg-yellow-50 dark:bg-yellow-700/50';
+                                            }
+                                        }
                                     @endphp
-                                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 {{ $hoverClass }}"
+                                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 {{ $hoverClass }} {{ $rowClass }}"
                                         @if(!empty($task->description))
                                             data-task-description="{{ htmlspecialchars($task->description) }}"
                                         @endif
@@ -54,17 +68,10 @@
                                         data-project-id="{{ $task->project->id }}"
                                         data-progress="{{ $task->progress ?? 0 }}"
                                         >
-                                        <td class="pl-4 pr-2 py-3 whitespace-nowrap align-top">
-                                            <a href="{{ route('projects.show', $task->project) }}" class="flex items-center group">
-                                                <span class="w-6 h-6 flex items-center justify-center rounded text-white text-xs font-bold mr-2 flex-shrink-0" style="background-color: {{ $task->project->color }};">
-                                                    {{ mb_substr($task->project->title, 0, 1) }}
-                                                </span>
-                                            </a>
-                                        </td>
-                                        <td class="px-4 py-3 text-sm text-gray-900 dark:text-gray-100 align-top">
-                                            <div class="flex items-center gap-x-3"> {{-- Adjusted gap-x-3 --}}
+                                        <td class="pl-4 pr-2 py-3 text-sm text-gray-900 dark:text-gray-100 align-top">
+                                            <div class="flex items-center gap-x-3">
                                                 @if(!$task->is_milestone && !$task->is_folder)
-                                                    <div class="flex flex-col items-center">
+                                                    <div class="flex flex-col items-center self-start mt-0.5">
                                                         <span class="text-xs text-gray-500 dark:text-gray-400 mb-1" style="font-size: 0.5rem;">進行中</span>
                                                         <input type="checkbox"
                                                                class="task-status-checkbox task-status-in-progress form-checkbox h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
@@ -89,17 +96,41 @@
                                                         @endif
                                                     </span>
                                                     <div class="min-w-0">
-                                                        <a href="{{ route('projects.tasks.edit', [$task->project, $task]) }}" class="hover:text-blue-600 whitespace-normal break-words inline-block">
+                                                        <a href="{{ route('projects.show', $task->project) }}" class="text-xs font-semibold truncate hover:underline block" style="color: {{ $task->project->color ?? '#6c757d' }};" title="案件: {{ $task->project->title }}">
+                                                            {{ $task->project->title }}
+                                                        </a>
+                                                        <a href="{{ route('projects.tasks.edit', [$task->project, $task]) }}" class="hover:text-blue-600 whitespace-normal break-words inline-block font-medium text-lg">
                                                             {{ $task->name }}
                                                         </a>
                                                         @if (!empty($task->description))
                                                             <i class="far fa-comment-alt ml-1 text-gray-400 dark:text-gray-500 fa-xs" title="メモあり"></i>
                                                         @endif
+
+                                                        @if($task->end_date)
+                                                            @php
+                                                                // 変数はTRタグの上で定義済みのため、ここでは何もしない
+                                                            @endphp
+                                                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                                                <i class="far fa-clock mr-1"></i>
+                                                                <span
+                                                                    @if($isPast && !$isCompleted)
+                                                                        class="text-red-500 font-semibold" title="期限切れ"
+                                                                    @elseif($isDueSoon && !$isCompleted)
+                                                                        class="text-yellow-500 font-semibold" title="期限1日前"
+                                                                    @endif
+                                                                >
+                                                                    {{ $task->end_date->format('n/j H:i') }}
+                                                                </span>
+                                                                <span class="text-gray-400 dark:text-gray-500">
+                                                                    ({{ $task->end_date->diffForHumans() }})
+                                                                </span>
+                                                            </p>
+                                                        @endif
                                                     </div>
                                                 </div>
 
                                                 @if(!$task->is_milestone && !$task->is_folder)
-                                                    <div class="flex flex-col items-center">
+                                                    <div class="flex flex-col items-center self-start mt-0.5">
                                                         <span class="text-xs text-gray-500 dark:text-gray-400 mb-1" style="font-size: 0.5rem;">完了</span>
                                                         <input type="checkbox"
                                                                class="task-status-checkbox task-status-completed form-checkbox h-4 w-4 text-green-600 border-gray-300 rounded focus:ring-green-500 dark:bg-gray-700 dark:border-gray-600"
@@ -111,9 +142,16 @@
                                             </div>
                                         </td>
                                         <td class="hidden sm:table-cell px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 align-top">{{ $task->character->name ?? '-' }}</td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 align-top">{{ $task->assignee ?? '-' }}</td>
-                                        <td class="hidden sm:table-cell px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 align-top">
-                                            {{ optional($task->end_date)->format('n/j H:i') }}
+                                        <td class="px-4 py-3 text-sm text-gray-500 dark:text-gray-400 align-top">
+                                            <div class="flex flex-wrap gap-1">
+                                                @forelse($task->assignees as $assignee)
+                                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-600 dark:text-gray-200">
+                                                        {{ $assignee->name }}
+                                                    </span>
+                                                @empty
+                                                    <span class="text-gray-400">-</span>
+                                                @endforelse
+                                            </div>
                                         </td>
                                         <td class="hidden sm:table-cell px-4 py-3 whitespace-nowrap text-sm align-top">
                                             @if(!$task->is_folder && !$task->is_milestone)
@@ -171,14 +209,33 @@
 
             <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg">
                 <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-                    <h5 class="text-lg font-semibold text-gray-700 dark:text-gray-300">期限間近の工程</h5>
+                    <h5 class="text-lg font-semibold text-gray-700 dark:text-gray-300">期限間近の工程 (2日以内)</h5>
                 </div>
                 <ul class="divide-y divide-gray-200 dark:divide-gray-700">
                     @if($upcomingTasks->isEmpty())
                         <li class="px-6 py-8 text-center text-sm text-gray-500 dark:text-gray-400">表示する工程がありません</li>
                     @else
                         @foreach($upcomingTasks as $task)
-                        <li class="p-4 hover:bg-gray-50 dark:hover:bg-gray-700 {{ !empty($task->description) ? 'task-row-hoverable' : '' }}"
+                        @php
+                            $hoverClass = !empty($task->description) ? 'task-row-hoverable' : '';
+                            $rowClass = '';
+
+                            if ($task->end_date) {
+                                $appTimezone = config('app.timezone');
+                                $now = \Carbon\Carbon::now($appTimezone);
+                                $endDate = $task->end_date->copy()->setTimezone($appTimezone);
+                                $isCompleted = in_array($task->status, ['completed', 'cancelled']);
+                                $isPast = $endDate->isPast();
+                                $isDueSoon = !$isPast && $endDate->lte($now->copy()->addHours(24));
+
+                                if ($isPast && !$isCompleted) {
+                                    $rowClass = 'bg-red-50 dark:bg-red-900/50';
+                                } elseif ($isDueSoon && !$isCompleted) {
+                                    $rowClass = 'bg-yellow-50 dark:bg-yellow-700/50';
+                                }
+                            }
+                        @endphp
+                        <li class="p-4 hover:bg-gray-50 dark:hover:bg-gray-700 {{ $hoverClass }} {{ $rowClass }}"
                             @if(!empty($task->description))
                                 data-task-description="{{ htmlspecialchars($task->description) }}"
                             @endif
@@ -187,7 +244,7 @@
                              data-progress="{{ $task->progress ?? 0 }}"
                             >
                             <div class="flex items-center justify-between">
-                                <div class="min-w-0 flex-1 flex items-center gap-x-3"> {{-- Adjusted gap-x-3 --}}
+                                <div class="min-w-0 flex-1 flex items-center gap-x-3">
                                     @if(!$task->is_milestone && !$task->is_folder)
                                         <div class="flex flex-col items-center self-start mt-0.5">
                                             <span class="text-xs text-gray-500 dark:text-gray-400 mb-1" style="font-size: 0.5rem;">進行中</span>
@@ -198,7 +255,6 @@
                                                    @if($task->status == 'in_progress') checked @endif>
                                         </div>
                                     @endif
-                                    {{-- ステータスアイコンを追加 --}}
                                     <span class="task-status-icon-wrapper mr-1 mt-0.5 flex-shrink-0 self-start">
                                         @if($task->is_milestone) <i class="fas fa-flag text-red-500" title="重要納期"></i>
                                         @elseif($task->is_folder) <i class="fas fa-folder text-blue-500" title="フォルダ"></i>
@@ -213,23 +269,49 @@
                                         @endif
                                     </span>
 
+                                    {{-- ▼▼▼【変更】案件名を追加 ▼▼▼ --}}
                                     <div class="flex-grow min-w-0">
+                                        <p class="text-xs font-semibold truncate" title="案件: {{ $task->project->title }}">
+                                            <a href="{{ route('projects.show', $task->project) }}" class="hover:underline" style="color: {{ $task->project->color ?? '#6c757d' }};">
+                                                {{ $task->project->title }}
+                                            </a>
+                                        </p>
                                         <div>
-                                            {{ $task->name }}
+                                            <a href="{{ route('projects.tasks.edit', [$task->project, $task]) }}" class="hover:text-blue-600">
+                                                {{ $task->name }}
+                                            </a>
                                             @if (!empty($task->description))
                                                 <i class="far fa-comment-alt ml-1 text-gray-400 dark:text-gray-500 fa-xs align-middle" title="メモあり"></i>
                                             @endif
                                         </div>
-                                        <p class="text-xs text-gray-500 dark:text-gray-400 truncate">
-                                            {{ $task->character->name ?? '' }}
-                                            @if(!empty($task->assignee))
-                                                担当: {{ $task->assignee }}
-                                            @endif
+                                        <p class="text-xs text-gray-500 dark:text-gray-400 truncate mt-1">
+                                            <i class="fas fa-dragon fa-fw mr-1 text-gray-400"></i> {{ $task->character->name ?? 'キャラクター未設定' }}
                                         </p>
-                                        <p class="text-xs text-gray-500 dark:text-gray-400">
-                                            期限: {{ optional($task->end_date)->format('n/j H:i') }} ({{ $task->end_date ? $task->end_date->diffForHumans() : '' }})
-                                        </p>
+                                        @if($task->assignees->isNotEmpty())
+                                            <p class="text-xs text-gray-500 dark:text-gray-400 truncate">
+                                                <i class="fas fa-user fa-fw mr-1 text-gray-400"></i> {{ $task->assignees->pluck('name')->join(', ') }}
+                                            </p>
+                                        @endif
+                                        @if($task->end_date)
+                                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                                <i class="far fa-clock fa-fw mr-1 text-gray-400"></i>
+                                                <span
+                                                    @if($isPast && !$isCompleted)
+                                                        class="text-red-500 font-semibold" title="期限切れ"
+                                                    @elseif($isDueSoon && !$isCompleted)
+                                                        class="text-yellow-500 font-semibold" title="期限1日前"
+                                                    @endif
+                                                >
+                                                    {{ $task->end_date->format('n/j H:i') }}
+                                                </span>
+                                                <span class="text-gray-400 dark:text-gray-500">
+                                                    ({{ $task->end_date->diffForHumans() }})
+                                                </span>
+                                            </p>
+                                        @endif
                                     </div>
+                                    {{-- ▲▲▲【変更】ここまで ▲▲▲ --}}
+
                                     @if(!$task->is_milestone && !$task->is_folder)
                                         <div class="flex flex-col items-center self-start mt-0.5">
                                             <span class="text-xs text-gray-500 dark:text-gray-400 mb-1" style="font-size: 0.5rem;">完了</span>
@@ -297,19 +379,6 @@
                                 data-project-id="{{ $task->project->id }}"
                                 data-progress="{{ $task->progress ?? 0 }}"
                                 >
-                                {{-- <span class="task-status-icon-wrapper w-5 h-5 flex items-center justify-center mr-3 mt-1 flex-shrink-0">
-                                     @if($task->is_milestone) <i class="fas fa-flag text-red-500" title="重要納期"></i>
-                                     @elseif($task->is_folder) <i class="fas fa-folder text-blue-500" title="フォルダ"></i>
-                                     @else
-                                         @switch($task->status)
-                                             @case('completed') <i class="fas fa-check-circle text-green-500" title="完了"></i> @break
-                                             @case('in_progress') <i class="fas fa-play-circle text-blue-500" title="進行中"></i> @break
-                                             @case('on_hold') <i class="fas fa-pause-circle text-yellow-500" title="保留中"></i> @break
-                                             @case('cancelled') <i class="fas fa-times-circle text-red-500" title="キャンセル"></i> @break
-                                             @default <i class="far fa-circle text-gray-400" title="未着手"></i>
-                                         @endswitch
-                                     @endif
-                                </span> --}}
                                 <div class="flex-grow min-w-0 flex items-center gap-x-4">
                                     @if(!$task->is_milestone && !$task->is_folder)
                                         <div class="flex flex-col items-center self-start mt-0.5 ">
@@ -333,31 +402,20 @@
                                             @endif
                                         </div>
                                         <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                            {{-- {{ $task->character->name ?? '案件全体' }}
-                                            <span class="mx-1">&bull;</span> --}}
-                                            担当: {{ $task->assignee ?? '-' }}
-                                            {{-- <span class="hidden sm:inline mx-1">&bull;</span> --}}
-                                            {{-- <span class="hidden sm:inline">作成: {{ $task->created_at ? $task->created_at->format('n/j H:i') : '-'}}</span> --}}
+                                            担当: {{ $task->assignees->isNotEmpty() ? $task->assignees->pluck('name')->join(', ') : '-' }}
                                         </p>
                                     </div>
                                     @if(!$task->is_milestone && !$task->is_folder)
                                         <div class="flex flex-col items-center self-start mt-0.5">
                                             <span class="text-xs text-gray-500 dark:text-gray-400 mb-1" style="font-size: 0.5rem;">完了</span>
                                             <input type="checkbox"
-                                                   class="task-status-checkbox task-status-completed form-checkbox h-4 w-4 text-green-600 border-gray-300 rounded focus:ring-green-500 dark:bg-gray-700 dark:border-gray-600"
-                                                   data-action="set-completed"
-                                                   title="完了にする"
-                                                   @if($task->status == 'completed') checked @endif>
+                                                    class="task-status-checkbox task-status-completed form-checkbox h-4 w-4 text-green-600 border-gray-300 rounded focus:ring-green-500 dark:bg-gray-700 dark:border-gray-600"
+                                                    data-action="set-completed"
+                                                    title="完了にする"
+                                                    @if($task->status == 'completed') checked @endif>
                                         </div>
                                     @endif
                                 </div>
-                                {{-- <div class="ml-2 flex-shrink-0">
-                                     @can('update', $task)
-                                        <a href="{{ route('projects.tasks.edit', [$task->project, $task]) }}" class="text-gray-400 hover:text-blue-500 dark:text-gray-500 dark:hover:text-blue-400" title="編集">
-                                            <i class="fas fa-edit"></i>
-                                        </a>
-                                    @endcan
-                                </div> --}}
                             </li>
                             @endforeach
                         @endif

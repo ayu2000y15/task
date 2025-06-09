@@ -20,7 +20,7 @@ class TaskService
         $query = Task::query();
 
         $this->applyProjectFilter($query, $filters['project_id'] ?? null);
-        $this->applyAssigneeFilter($query, $filters['assignee'] ?? null);
+        $this->applyAssigneeFilter($query, $filters['assignee_id'] ?? null);
         $this->applyCharacterFilter($query, $filters['character_id'] ?? null); // ★ 追加
         $this->applyStatusFilter($query, $filters['status'] ?? null);
         $this->applySearchFilter($query, $filters['search'] ?? null);
@@ -43,10 +43,13 @@ class TaskService
     /**
      * 担当者でフィルタリング
      */
-    public function applyAssigneeFilter(Builder|Relation $query, ?string $assignee): void
+    public function applyAssigneeFilter(Builder|Relation $query, ?string $assigneeId): void
     {
-        if ($assignee) {
-            $query->where('assignee', $assignee);
+        if ($assigneeId) {
+            // 'assignees'リレーションが存在し、その中のユーザーIDが一致するタスクを絞り込む
+            $query->whereHas('assignees', function ($q) use ($assigneeId) {
+                $q->where('users.id', $assigneeId);
+            });
         }
     }
 

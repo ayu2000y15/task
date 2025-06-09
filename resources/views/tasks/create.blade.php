@@ -33,7 +33,8 @@
                             <x-select-input label="所属先キャラクター (任意)" name="character_id_for_template"
                                 id="character_id_for_template" :options="$project->characters->pluck('name', 'id')"
                                 :selected="old('character_id_for_template', request('character_id_for_new_task'))"
-                                emptyOptionText="キャラクターを選択してください" required="true"/>
+                                emptyOptionText="キャラクターを選択してください"
+                                :required="!old('apply_template_to_all_characters')" />
                             <div class="mt-2">
                                 <x-input-label for="apply_template_to_all_characters" class="inline-flex items-center">
                                     <input type="checkbox" id="apply_template_to_all_characters" name="apply_template_to_all_characters" value="1" class="rounded dark:bg-gray-900 border-gray-300 dark:border-gray-700 text-indigo-600 shadow-sm focus:ring-indigo-500 dark:focus:ring-indigo-600 dark:focus:ring-offset-gray-800" {{ old('apply_template_to_all_characters') ? 'checked' : '' }}>
@@ -124,7 +125,8 @@
                                     :options="$project->characters->pluck('name', 'id')"
                                     :selected="old('character_id', request('character_id_for_new_task'))"
                                     emptyOptionText="キャラクターを選択してください"
-                                    :hasError="$errors->has('character_id')" required="true"/>
+                                    :hasError="$errors->has('character_id')"
+                                    :required="!old('parent_id') && !old('apply_individual_to_all_characters')" />
                                 <div class="mt-2">
                                     <x-input-label for="apply_individual_to_all_characters" class="inline-flex items-center">
                                         <input type="checkbox" id="apply_individual_to_all_characters" name="apply_individual_to_all_characters" value="1" class="rounded dark:bg-gray-900 border-gray-300 dark:border-gray-700 text-indigo-600 shadow-sm focus:ring-indigo-500 dark:focus:ring-indigo-600 dark:focus:ring-offset-gray-800" {{ old('apply_individual_to_all_characters') ? 'checked' : '' }}>
@@ -176,21 +178,17 @@
                                 </div>
                             </div>
 
-                            <div id="assignee_wrapper_individual">
-                                <x-input-label for="assignee_select_individual" value="担当者" />
-                                <select name="assignee_select" id="assignee_select_individual" class="form-select mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300">
-                                    <option value="">担当者を選択</option>
-                                    @foreach($assigneeOptions as $value => $label)
-                                        <option value="{{ $value }}" {{ $currentAssigneeSelection == $value ? 'selected' : '' }}>{{ $label }}</option>
+                            <div id="assignees_wrapper_individual">
+                                <x-input-label for="assignees_select" value="担当者" />
+                                <select name="assignees[]" id="assignees_select" multiple class="mt-1 block w-full">
+                                    @foreach($assigneeOptions as $id => $name)
+                                        <option value="{{ $id }}" {{ in_array($id, $selectedAssignees) ? 'selected' : '' }}>
+                                            {{ $name }}
+                                        </option>
                                     @endforeach
                                 </select>
-
-                                <div id="assignee_other_wrapper_individual" class="mt-2" style="display: {{ $currentAssigneeSelection == 'other' ? 'block' : 'none' }};">
-                                    <x-input-label for="assignee_other_individual" value="担当者名（その他）" />
-                                    <x-text-input type="text" id="assignee_other_individual" name="assignee_other" class="mt-1 block w-full" :value="$otherAssigneeText" />
-                                </div>
-                                <x-input-error :messages="$errors->get('assignee_other')" class="mt-2" />
-                                <x-input-error :messages="$errors->get('assignee')" class="mt-2" />
+                                <x-input-error :messages="$errors->get('assignees')" class="mt-2" />
+                                <x-input-error :messages="$errors->get('assignees.*')" class="mt-2" />
                             </div>
 
                             <div id="status-field-individual">
@@ -247,18 +245,37 @@
         const endDateInput = document.getElementById('end_date_individual');
         const parentIdSelect = document.getElementById('parent_id_individual');
 
-        const assigneeWrapper = document.getElementById('assignee_wrapper_individual');
-        const assigneeSelect = document.getElementById('assignee_select_individual');
-        const assigneeOtherWrapper = document.getElementById('assignee_other_wrapper_individual');
-        const assigneeOtherInput = document.getElementById('assignee_other_individual');
-
+        const assigneeWrapper = document.getElementById('assignees_wrapper_individual'); // ★ 変更
         const parentIdWrapper = document.getElementById('parent_id_wrapper_individual');
+
+        // ▼▼▼【追記】Tom Selectの初期化 ▼▼▼
+        if (document.getElementById('assignees_select')) {
+            new TomSelect('#assignees_select',{
+                plugins: ['remove_button'],
+                create: false,
+                placeholder: '担当者を検索・選択...'
+            });
+        }
+        // ▲▲▲【追記】ここまで ▲▲▲
 
         function handleParentIdChange() {
             const parentIsSelected = parentIdSelect.value !== '';
             const selectedParentId = parseInt(parentIdSelect.value, 10);
             const parentHasCharacter = characterParentTaskIds.includes(selectedParentId);
 
+            if (characterIdSelectIndividual) {
+                // 親が選択されているか、または「すべて」チェックボックスがオンなら無効化
+                characterIdSelectIndividual.disabled = parentIsSelected || applyIndividualToAllCharsCheckbox.checked;
+                if (parentIsSelected) {
+                    characterIdSelectIndividual.value = '';
+                }
+            }
+            if (applyIndividualToAllCharsCheckbox) {
+                applyIndividualToAllCharsCheckbox.disabled = parentIsSelected;
+                if (parentIsSelected) {
+                    applyIndividualToAllCharsCheckbox.checked = false;
+                }
+            }
             if (characterIdSelectIndividual) {
                 characterIdSelectIndividual.disabled = parentIsSelected;
                 if (parentIsSelected) {
@@ -310,8 +327,7 @@
             if (durationValueInput) durationValueInput.disabled = isDateTimeDisabled;
             if (durationUnitSelect) durationUnitSelect.disabled = isDateTimeDisabled;
             if (endDateInput) endDateInput.disabled = isDateTimeDisabled;
-            if (assigneeSelect) assigneeSelect.disabled = isFolder;
-            if (assigneeOtherInput) assigneeOtherInput.disabled = isFolder;
+
             if (parentIdSelect) parentIdSelect.disabled = isFolder;
 
             if (isFolder) {
@@ -361,34 +377,38 @@
 
         if (applyIndividualToAllCharsCheckbox && characterIdSelectIndividual) {
             applyIndividualToAllCharsCheckbox.addEventListener('change', function() {
+                // 親が選択されていない場合のみ、このチェックボックスがキャラクター選択の有効/無効を制御する
+                if (!parentIdSelect || parentIdSelect.value === '') {
+                        characterIdSelectIndividual.disabled = this.checked;
+                        if (this.checked) {
+                            characterIdSelectIndividual.value = '';
+                        }
+                }
+            });
+        }
+
+        if (applyIndividualToAllCharsCheckbox && characterIdSelectIndividual) {
+            applyIndividualToAllCharsCheckbox.addEventListener('change', function() {
                 // This checkbox is only enabled when parent is not selected.
             });
         }
 
         if (applyTemplateToAllCharsCheckbox && characterIdForTemplateSelect) {
+            // チェックボックスの変更イベントを監視
             applyTemplateToAllCharsCheckbox.addEventListener('change', function() {
+                // チェックされたらキャラクター選択を無効化、そうでなければ有効化
                 characterIdForTemplateSelect.disabled = this.checked;
+                // チェックされた場合、選択されている値をクリアする
                 if (this.checked) {
                     characterIdForTemplateSelect.value = '';
                 }
             });
+
+            // ページ読み込み時（リロード時など）の初期状態を設定
             characterIdForTemplateSelect.disabled = applyTemplateToAllCharsCheckbox.checked;
             if (applyTemplateToAllCharsCheckbox.checked) {
                 characterIdForTemplateSelect.value = '';
             }
-        }
-
-        if (assigneeSelect) {
-            assigneeSelect.addEventListener('change', function() {
-                if (this.value === 'other') {
-                    assigneeOtherWrapper.style.display = 'block';
-                    assigneeOtherInput.setAttribute('required', 'required');
-                } else {
-                    assigneeOtherWrapper.style.display = 'none';
-                    assigneeOtherInput.removeAttribute('required');
-                    assigneeOtherInput.value = '';
-                }
-            });
         }
 
         function calculateEndDate() {

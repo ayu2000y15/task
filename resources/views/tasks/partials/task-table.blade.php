@@ -1,12 +1,16 @@
 {{-- resources/views/tasks/partials/task-table.blade.php --}}
-{{-- OR resources/views/projects/partials/projects-task-table.blade.php --}}
-<table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700" id="{{ $tableId ?? '' }}">
+<table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700" id="{{ $tableId ?? 'default-task-table-fallback' }}">
     <thead class="bg-gray-50 dark:bg-gray-700">
         <tr>
-            <th scope="col" class="sticky top-0 z-10 bg-gray-50 dark:bg-gray-700 pl-4 pr-2 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-12"></th>
-            <th scope="col" class="sticky top-0 z-10 bg-gray-50 dark:bg-gray-700 px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider min-w-[250px] sm:min-w-[300px]">{{ ($isFolderView ?? false) ? 'フォルダ名' : (($isMilestoneView ?? false) ? '重要納期名' : '工程名') }}</th>
+            <th scope="col" class="sticky top-0 z-10 bg-gray-50 dark:bg-gray-700 px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider min-w-[250px] sm:min-w-[300px]">
+                @if(Request::is('projects/*'))
+                    工程名
+                @else
+                    案件 / 工程名
+                @endif
+            </th>
 
-            @if(!($isFolderView ?? false) && !($isMilestoneView ?? false) && !isset($character)) {{-- $characterの存在チェックを projects-task-table.blade.php に合わせて追加 --}}
+            @if(!($isFolderView ?? false) && !($isMilestoneView ?? false) && !(isset($character) && $character))
                 <th scope="col" class="sticky top-0 z-10 bg-gray-50 dark:bg-gray-700 hidden sm:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">キャラクター</th>
             @endif
 
@@ -17,8 +21,6 @@
 
             @if($isMilestoneView ?? false)
                  <th scope="col" class="sticky top-0 z-10 bg-gray-50 dark:bg-gray-700 hidden sm:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">日付</th>
-            @elseif(!($isFolderView ?? false)) {{-- フォルダビューでない場合に終了日を表示 --}}
-                <th scope="col" class="sticky top-0 z-10 bg-gray-50 dark:bg-gray-700 hidden sm:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">終了日時</th>
             @endif
 
             @if(!($isFolderView ?? false) && !($isMilestoneView ?? false))
@@ -39,23 +41,29 @@
     <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
         @forelse($tasksToList as $task)
             @php
-                $rowClass = ''; $now = \Carbon\Carbon::now()->startOfDay(); $daysUntilDue = $task->end_date ? $now->diffInDays($task->end_date, false) : null;
-                if (!($isFolderView ?? false) && $task->end_date && $task->end_date < $now && !in_array($task->status, ['completed', 'cancelled'])) {
+                $rowClass = '';
+                $now = \Carbon\Carbon::now();
+                $in24Hours = \Carbon\Carbon::now()->addHours(24);
+                $isCompleted = in_array($task->status, ['completed', 'cancelled']);
+
+                // Define conditions for styling
+                $isPast = $task->end_date && $task->end_date->isPast();
+                $isDueSoon = $task->end_date && $task->end_date->isBetween($now, $in24Hours);
+
+                // Determine the row class
+                if (!($isFolderView ?? false) && $isPast && !$isCompleted) {
                     $rowClass = 'bg-red-50 dark:bg-red-900/50';
-                } elseif (!($isFolderView ?? false) && !($isMilestoneView ?? false) && $daysUntilDue !== null && $daysUntilDue >= 0 && $daysUntilDue <= 2 && !in_array($task->status, ['completed', 'cancelled'])) {
+                } elseif (!($isFolderView ?? false) && !($isMilestoneView ?? false) && $isDueSoon && !$isCompleted) {
                     $rowClass = 'bg-yellow-50 dark:bg-yellow-700/50';
                 }
+
                 $hoverClass = !empty($task->description) ? 'task-row-hoverable' : '';
-                $level = $task->level ?? 0; // Get task level for indentation
-                // Ensure $task->children is loaded if used for $hasChildren, ideally eager loaded in controller
-                // For example: $hasChildren = $task->relationLoaded('children') ? $task->children->isNotEmpty() : false;
-                // Or ensure children are always eager loaded when this partial is used.
-                // Assuming children relation is loaded:
+                $level = $task->level ?? 0;
                 $hasChildren = $task->children->isNotEmpty();
             @endphp
 
             <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 {{ $rowClass }} {{ $hoverClass }} @if($task->parent_id) child-row child-of-{{ $task->parent_id }} @endif"
-                @if($task->parent_id) style="display:none;" @endif
+                {{-- 変更点1: 子要素の style="display:none;" を削除 --}}
                 data-task-id="{{ $task->id }}"
                 data-project-id="{{ $task->project_id }}"
                 @if(!empty($task->description)) data-task-description="{{ htmlspecialchars($task->description) }}" @endif
@@ -63,19 +71,14 @@
 
                 @if(($isFolderView ?? false) && $task->is_folder)
                     @can('fileView', $task)
-                    <td class="pl-4 pr-2 py-3 whitespace-nowrap align-top">
-                        <a href="{{ route('projects.show', $task->project) }}" class="flex items-center group">
-                            <span class="w-6 h-6 flex items-center justify-center rounded text-white text-xs font-bold mr-2 flex-shrink-0" style="background-color: {{ $task->project->color }};">
-                                {{ mb_substr($task->project->title, 0, 1) }}
-                            </span>
-                        </a>
-                    </td>
+                    {{-- フォルダ表示 --}}
                     <td class="px-4 py-3 text-sm text-gray-900 dark:text-gray-100 align-top">
                         <div class="flex items-start" style="padding-left: {{ $level * 1.5 }}rem;">
-                            <div class="task-toggle-container mr-1" style="width: 1.2em; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 0.125rem;">
+                             <div class="task-toggle-container mr-1" style="width: 1.2em; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 0.125rem;">
                                 @if($hasChildren)
-                                    <a href="#" class="task-toggle-trigger text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" data-task-id="{{ $task->id }}" aria-expanded="false" title="子要素を展開/折りたたむ">
-                                        <i class="fas fa-chevron-right toggle-icon fa-fw"></i>
+                                    {{-- 変更点2&3: aria-expanded と アイコンクラス を変更 --}}
+                                    <a href="javascript:void(0);" class="task-toggle-trigger text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" data-task-id="{{ $task->id }}" aria-expanded="true" title="子要素を展開/折りたたむ">
+                                        <i class="fas fa-chevron-down toggle-icon fa-fw"></i>
                                     </a>
                                 @endif
                             </div>
@@ -126,17 +129,10 @@
                     </td>
                     @endcan
                 @elseif(!($isFolderView ?? false)) {{-- 通常の工程または重要納期の場合 --}}
-                    <td class="pl-4 pr-2 py-3 whitespace-nowrap align-top">
-                        <a href="{{ route('projects.show', $task->project) }}" class="flex items-center group">
-                            <span class="w-6 h-6 flex items-center justify-center rounded text-white text-xs font-bold mr-2 flex-shrink-0" style="background-color: {{ $task->project->color }};">
-                                {{ mb_substr($task->project->title, 0, 1) }}
-                            </span>
-                        </a>
-                    </td>
                     <td class="px-4 py-3 text-sm text-gray-900 dark:text-gray-100 align-top">
                         <div class="flex items-center gap-x-3">
                             @if(!$task->is_milestone && !$task->is_folder)
-                                <div class="flex flex-col items-center">
+                                <div class="flex flex-col items-center self-start mt-0.5">
                                     <span class="text-xs text-gray-500 dark:text-gray-400 mb-1" style="font-size: 0.5rem;">進行中</span>
                                     <input type="checkbox"
                                            class="task-status-checkbox task-status-in-progress form-checkbox h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
@@ -149,8 +145,9 @@
                             <div class="flex items-start flex-grow min-w-0" style="padding-left: {{ $level * 1.5 }}rem;">
                                 <div class="task-toggle-container mr-1" style="width: 1.2em; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 0.125rem;">
                                      @if($hasChildren)
-                                        <a href="#" class="task-toggle-trigger text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" data-task-id="{{ $task->id }}" aria-expanded="false" title="子工程を展開/折りたたむ">
-                                            <i class="fas fa-chevron-right toggle-icon fa-fw"></i>
+                                        {{-- 変更点2&3: aria-expanded と アイコンクラス を変更 --}}
+                                        <a href="javascript:void(0);" class="task-toggle-trigger text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" data-task-id="{{ $task->id }}" aria-expanded="true" title="子工程を展開/折りたたむ">
+                                            <i class="fas fa-chevron-down toggle-icon fa-fw"></i>
                                         </a>
                                     @endif
                                 </div>
@@ -168,10 +165,19 @@
                                     @endif
                                 </span>
                                 <div class="min-w-0">
-                                    <a href="{{ route('projects.tasks.edit', [$task->project, $task]) }}" class="hover:text-blue-600 dark:hover:text-blue-400 whitespace-normal break-words inline-block">
+                                    @if(!Request::is('projects/*'))
+                                    <a href="{{ route('projects.show', $task->project) }}" class="text-xs font-semibold truncate hover:underline block" style="color: {{ $task->project->color ?? '#6c757d' }};" title="案件: {{ $task->project->title }}">
+                                        {{ $task->project->title }}
+                                    </a>
+                                    @endif
+
+                                    <a href="{{ route('projects.tasks.edit', [$task->project, $task]) }}" class="hover:text-blue-600 dark:hover:text-blue-400 whitespace-normal break-words inline-block font-medium text-lg">
                                         {{ $task->name }}
                                         @if(!($isMilestoneView ?? false) && !($isFolderView ?? false) && !empty($task->parent->name) && $task->parent->is_folder) <span class="text-xs text-gray-400 dark:text-gray-500 block"> ({{ $task->parent->name }})</span> @endif
                                     </a>
+                                    @cannot('fileView', $task)
+                                        @if(!($isMilestoneView ?? false) && !($isFolderView ?? false) && !empty($task->parent->name) && $task->parent->is_folder) <span class="text-xs text-gray-400 dark:text-gray-500 block"> ({{ $task->parent->name }})</span> @endif
+                                    @endcannot
                                     @if (!($isFolderView ?? false) && !($isMilestoneView ?? false) && $task->parent && !$task->parent->is_folder)
                                         <span class="text-xs text-gray-500 dark:text-gray-400 block mt-0.5" title="Parent Task: {{ $task->parent->name }}">
                                             <i class="fas fa-level-up-alt fa-rotate-90 fa-xs mr-1 text-gray-400 dark:text-gray-500"></i>{{ \Illuminate\Support\Str::limit($task->parent->name, 30) }}
@@ -180,11 +186,29 @@
                                     @if (!empty($task->description))
                                         <i class="far fa-comment-alt ml-1 text-gray-400 dark:text-gray-500 fa-xs" title="メモあり"></i>
                                     @endif
+
+                                    @if($task->end_date && !$task->is_milestone)
+                                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                        <i class="far fa-clock mr-1"></i>
+                                        <span
+                                            @if($isPast && !$isCompleted)
+                                                class="text-red-500 font-semibold" title="期限切れ"
+                                            @elseif($isDueSoon && !$isCompleted)
+                                                class="text-yellow-500 font-semibold" title="期限1日前"
+                                            @endif
+                                        >
+                                            {{ $task->end_date->format('n/j H:i') }}
+                                        </span>
+                                        <span class="text-gray-400 dark:text-gray-500">
+                                            ({{ $task->end_date->diffForHumans() }})
+                                        </span>
+                                    </p>
+                                    @endif
                                 </div>
                             </div>
 
                             @if(!$task->is_milestone && !$task->is_folder)
-                                <div class="flex flex-col items-center">
+                                <div class="flex flex-col items-center self-start mt-0.5">
                                     <span class="text-xs text-gray-500 dark:text-gray-400 mb-1" style="font-size: 0.5rem;">完了</span>
                                     <input type="checkbox"
                                            class="task-status-checkbox task-status-completed form-checkbox h-4 w-4 text-green-600 border-gray-300 rounded focus:ring-green-500 dark:bg-gray-700 dark:border-gray-600"
@@ -194,62 +218,39 @@
                                 </div>
                             @endif
                         </div>
-                         @if(!($isFolderView ?? false) && !($isMilestoneView ?? false) && $task->end_date && $task->end_date < $now && !in_array($task->status, ['completed', 'cancelled'])) <span class="mt-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-700 dark:text-red-100">期限切れ</span> @endif
-                         @if(!($isFolderView ?? false) && !($isMilestoneView ?? false) && !$task->is_milestone && $daysUntilDue !== null && $daysUntilDue >=0 && $daysUntilDue <= 2 && !in_array($task->status, ['completed', 'cancelled']))
-                            <span class="mt-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-700 dark:text-yellow-100">あと{{ floor($daysUntilDue) }}日</span>
-                         @endif
                     </td>
-                    @if(!($isFolderView ?? false) && !($isMilestoneView ?? false) && !isset($character)) {{-- $characterの存在チェック --}}
+                    @if(!($isFolderView ?? false) && !($isMilestoneView ?? false) && !(isset($character) && $character))
                     <td class="hidden sm:table-cell px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 align-top">{{ $task->character->name ?? '-' }}</td>
                     @endif
 
                     @if(!($isFolderView ?? false) && !($isMilestoneView ?? false))
-                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 align-top">
-                        <div class="editable-cell" data-field="assignee">{{ $task->assignee ?? '-' }}</div>
+                    <td class="px-4 py-3 text-sm text-gray-500 dark:text-gray-400 align-top">
+                        <div class="flex flex-wrap gap-1">
+                            @forelse($task->assignees as $assignee)
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-600 dark:text-gray-200">
+                                    {{ $assignee->name }}
+                                </span>
+                            @empty
+                                <span class="text-gray-400">-</span>
+                            @endforelse
+                        </div>
                     </td>
                     <td class="hidden sm:table-cell px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 align-top">{{ optional($task->start_date)->format('n/j H:i') }}</td>
                     @endif
 
-                    @if($isMilestoneView ?? false) {{-- 重要納期時 --}}
-                    <td class="hidden sm:table-cell px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 align-top">{{ optional($task->start_date)->format('n/j') }}</td> {{-- 日付 --}}
-                    @elseif(!($isFolderView ?? false)) {{-- 通常工程時 --}}
-                    <td class="hidden sm:table-cell px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 align-top"> {{-- 終了日 --}}
-                         @if($task->end_date && $task->end_date < $now && !in_array($task->status, ['completed', 'cancelled']))
-                            <span class="text-red-600 dark:text-red-400">
-                                <i class="fas fa-exclamation-circle mr-1"></i>
-                                {{ $task->end_date->format('n/j H:i') }}
-                            </span>
-                        @elseif(!$task->is_milestone && $daysUntilDue !== null && $daysUntilDue >= 0 && $daysUntilDue <= 2 && !in_array($task->status, ['completed', 'cancelled']))
-                            <span class="text-yellow-600 dark:text-yellow-400">
-                                <i class="fas fa-exclamation-triangle mr-1"></i>
-                                {{ $task->end_date->format('n/j H:i') }}
-                            </span>
-                        @else
-                            {{ optional($task->end_date)->format('n/j H:i') }}
-                        @endif
-                    </td>
+                    @if($isMilestoneView ?? false)
+                    <td class="hidden sm:table-cell px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 align-top">{{ optional($task->start_date)->format('n/j') }}</td>
                     @endif
 
-                    @if(!($isFolderView ?? false) && !($isMilestoneView ?? false)) {{-- 通常工程時 --}}
+                    @if(!($isFolderView ?? false) && !($isMilestoneView ?? false))
                     <td class="hidden sm:table-cell px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 align-top">
-                        @php
-                            $duration = $task->duration;
-                            if($duration == 0) {
-                                $duration = '-';
-                            } else if($duration >= 60) {
-                                $duration = $duration / 60;
-                                $duration = $duration . '時間';
-                            } else {
-                                $duration = $duration . '分';
-                            }
-                        @endphp
-                        {{ $duration }}
+                        {{ $task->formatted_duration ?? '-' }}
                     </td>
                     @endif
 
-                    @if(!($isFolderView ?? false)) {{-- フォルダビューでない場合 (通常工程 or 重要納期) --}}
+                    @if(!($isFolderView ?? false))
                     <td class="hidden sm:table-cell px-4 py-3 whitespace-nowrap text-sm align-top">
-                        @if(!$task->is_milestone && !$task->is_folder) {{-- 重要納期とフォルダでなければステータスselect表示 --}}
+                        @if(!$task->is_milestone && !$task->is_folder)
                         <select class="task-status-select form-select block w-full pl-3 pr-10 py-2 text-base border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md dark:bg-gray-700 dark:text-gray-300" data-task-id="{{ $task->id }}" data-project-id="{{ $task->project_id }}">
                             <option value="not_started" @if($task->status == 'not_started') selected @endif>未着手</option>
                             <option value="in_progress" @if($task->status == 'in_progress') selected @endif>進行中</option>
@@ -258,7 +259,7 @@
                             <option value="cancelled" @if($task->status == 'cancelled') selected @endif>キャンセル</option>
                         </select>
                         @else
-                        <span class="text-sm text-gray-500 dark:text-gray-400">-</span> {{-- 重要納期またはフォルダはステータスなし --}}
+                        <span class="text-sm text-gray-500 dark:text-gray-400">-</span>
                         @endif
                     </td>
                     @endif
@@ -284,63 +285,33 @@
                     </td>
                 @endif
             </tr>
-            @if(($isFolderView ?? false) && $task->is_folder) {{-- This is for the folder's file list, separate from task hierarchy --}}
-                @if($task->files->count() > 0)
-                    @can('fileView', $task)
-                        <tr id="folder-files-{{ $tableId ?? 'default' }}-{{ $task->id }}" class="hidden"> {{-- Ensure tableId has a fallback --}}
-                            <td colspan="5" class="p-0"> {{-- Adjusted colspan if needed based on folder view columns --}}
-                                <div class="pl-[calc(theme(spacing.4)_+_theme(spacing.12))] pr-4 py-3 bg-gray-50 dark:bg-gray-700/50">
-                                    <h6 class="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-2"><i class="fas fa-paperclip mr-1"></i> 添付ファイル</h6>
-                                    @include('tasks.partials.file-list-tailwind', ['files' => $task->files, 'project' => $task->project, 'task' => $task])
-                                </div>
-                            </td>
-                        </tr>
-                    @endcan
-                @endif
+            @if(($isFolderView ?? false) && $task->is_folder && $task->files->count() > 0)
+                 @can('fileView', $task)
+                    <tr id="folder-files-{{ $tableId ?? 'default' }}-{{ $task->id }}" class="hidden">
+                        <td colspan="5" class="p-0">
+                            <div class="pl-[calc(theme(spacing.4)_+_theme(spacing.12))] pr-4 py-3 bg-gray-50 dark:bg-gray-700/50">
+                                <h6 class="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-2"><i class="fas fa-paperclip mr-1"></i> 添付ファイル</h6>
+                                @include('tasks.partials.file-list-tailwind', ['files' => $task->files, 'project' => $task->project, 'task' => $task])
+                            </div>
+                        </td>
+                    </tr>
+                @endcan
             @endif
         @empty
             @php
-                // Colspan calculation logic from projects-task-table.blade.php for consistency
-                $colCount = 6;
-                if (!($isFolderView ?? false) && !($isMilestoneView ?? false) && !isset($character)) $colCount++;
-                if (!($isFolderView ?? false) && !($isMilestoneView ?? false)) $colCount++;
-                if (!($isFolderView ?? false) && !($isMilestoneView ?? false)) $colCount++;
-                if ($isFolderView ?? false) $colCount = 5;
-
-                // Recalculate colspan more directly based on visible headers
-                if ($isFolderView ?? false) {
-                    $colspan = 5; // Icon, Name, Parent, Files, Actions
-                } elseif ($isMilestoneView ?? false) {
-                    // #, Name, Assignee, StartDate(hidden), Date, Status, Actions
-                    // Visible: #, Name, Date, Status, Actions = 5
-                    // Actual columns: #, Name, (no character), Assignee, (no start), Date (milestone), (no duration), Status, Actions
-                    // Let's count headers: #, Name, Date, Status, Actions -> 5
-                    // If including Assignee, StartDate (hidden), that makes it different.
-                    // The original template calculated 6.
-                    // #, 重要納期名, 日付(sm), ステータス(sm), 操作 => 5 headers visible on `sm`
-                    // #, Name, (NO Char), Assignee, StartDate (HIDDEN), Date (YES), (NO Duration), Status (YES), Actions (YES)
-                    // Visible headers: #, Name, Assignee, Date, Status, Actions => 6
-                    $colspan = 6;
-                } else { // Normal Task View
-                    // #, Name, Character, Assignee, Start, End, Duration, Status, Action
-                    $colspan = 6; // Base: #, Name, Assignee, Start, End, Status, Action
-                    if (!isset($character)) $colspan++; // Character column present
-                    $colspan++; // Duration column present
-                    // Original calculation was 9.
-                    // Let's use the template's original logic.
-                     $colspan = 9;
-                     if ($isFolderView ?? false) {
-                         $colspan = 5;
-                     } elseif ($isMilestoneView ?? false) {
-                         $colspan = 6;
-                     }
-                }
+                 $colspan = 7;
+                 if ($isFolderView ?? false) {
+                     $colspan = 5;
+                 } elseif ($isMilestoneView ?? false) {
+                     $colspan = 6;
+                 }
+                 if(isset($character) && $character) $colspan--;
             @endphp
             <tr><td colspan="{{ $colspan }}" class="px-6 py-12 text-center text-sm text-gray-500 dark:text-gray-400">表示する{{ ($isFolderView ?? false) ? 'フォルダ' : (($isMilestoneView ?? false) ? '重要納期' : '工程') }}がありません</td></tr>
         @endforelse
     </tbody>
 </table>
-
+{{-- スクリプトは変更の必要なし --}}
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const toggleTriggers = document.querySelectorAll('.task-toggle-trigger');
@@ -368,16 +339,12 @@ document.addEventListener('DOMContentLoaded', function () {
     function toggleChildRows(parentId, show) {
         const childRows = document.querySelectorAll('tr.child-row.child-of-' + parentId);
         childRows.forEach(row => {
-            // Toggle direct children's display
             row.style.display = show ? '' : 'none';
 
-            // Handle visibility of deeper descendants
-            const currentTaskId = row.dataset.taskId; // ID of the current child row
+            const currentTaskId = row.dataset.taskId;
             const nestedToggleTrigger = document.querySelector('.task-toggle-trigger[data-task-id="' + currentTaskId + '"]');
 
-            if (!show) { // If collapsing the parent (parentId)
-                // If this child (currentTaskId) was an expanded parent itself,
-                // visually collapse its icon and recursively hide its children.
+            if (!show) {
                 if (nestedToggleTrigger && nestedToggleTrigger.getAttribute('aria-expanded') === 'true') {
                     const nestedIcon = nestedToggleTrigger.querySelector('.toggle-icon');
                     if (nestedIcon) {
@@ -385,14 +352,11 @@ document.addEventListener('DOMContentLoaded', function () {
                         nestedIcon.classList.add('fa-chevron-right');
                     }
                     nestedToggleTrigger.setAttribute('aria-expanded', 'false');
-                    // Recursively hide children of this (now hidden) child row
                     toggleChildRows(currentTaskId, false);
                 }
-            } else { // If expanding the parent (parentId)
-                // If this child (currentTaskId) was previously expanded (and now its direct parent is telling it to show),
-                // then its children should also be shown.
+            } else {
                 if (nestedToggleTrigger && nestedToggleTrigger.getAttribute('aria-expanded') === 'true') {
-                    toggleChildRows(currentTaskId, true); // Recursively show children
+                    toggleChildRows(currentTaskId, true);
                 }
             }
         });

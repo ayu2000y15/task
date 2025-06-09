@@ -29,13 +29,14 @@ class TaskController extends Controller
         $filters = [
             'project_id' => $request->input('project_id', ''),
             'character_id' => $request->input('character_id', ''),
-            'assignee' => $request->input('assignee', ''),
+            'assignee_id' => $request->input('assignee_id', ''), // ★ assignee から assignee_id に変更
             'status' => $request->input('status', ''),
             'search' => $request->input('search', ''),
             'due_date' => $request->input('due_date', ''),
         ];
 
-        $query = $taskService->buildFilteredQuery($filters)->with(['project', 'files', 'children', 'character']);
+        // ★ with('assignees') を追加
+        $query = $taskService->buildFilteredQuery($filters)->with(['project', 'files', 'children', 'character', 'assignees']);
         $allTasks = $query->orderByRaw('ISNULL(tasks.parent_id), tasks.parent_id ASC, ISNULL(tasks.start_date), tasks.start_date ASC, tasks.name ASC')->get();
 
         $tasksGroupedByParent = $allTasks->groupBy('parent_id');
@@ -73,7 +74,10 @@ class TaskController extends Controller
                 $charactersForFilter = $projectWithChars->characters()->orderBy('name')->get();
             }
         }
-        $assignees = Task::distinct('assignee')->whereNotNull('assignee')->orderBy('assignee')->pluck('assignee');
+
+        // ★ フィルター用の担当者リストを取得
+        $assigneesForFilter = User::where('status', User::STATUS_ACTIVE)->orderBy('name')->pluck('name', 'id');
+
         $statusOptions = [
             'not_started' => '未着手',
             'in_progress' => '進行中',
@@ -82,18 +86,19 @@ class TaskController extends Controller
             'cancelled' => 'キャンセル',
         ];
 
-        // ▼▼▼【追加】アクティブなユーザーのリストを取得 ▼▼▼
+        // 担当者選択肢（インライン編集用）
         $assigneeOptions = User::where('status', User::STATUS_ACTIVE)
             ->orderBy('name')
-            ->pluck('name')
-            ->all();
-        // ▲▲▲【追加】ここまで ▲▲▲
+            ->get(['id', 'name'])
+            ->map(function ($user) {
+                return ['id' => $user->id, 'name' => $user->name];
+            })->values()->all();
 
         return view('tasks.index', compact(
             'tasks',
             'allProjects',
             'charactersForFilter',
-            'assignees',
+            'assigneesForFilter', // ★ 変更
             'statusOptions',
             'filters',
             'assigneeOptions'
@@ -127,15 +132,11 @@ class TaskController extends Controller
             ->pluck('id')
             ->all();
 
-        // 担当者候補を「アクティブ」なユーザーに限定
-        $users = User::where('status', User::STATUS_ACTIVE)->orderBy('name')->pluck('name')->all();
-        $assigneeOptions = array_combine($users, $users);
-        $assigneeOptions['other'] = 'その他';
+        // ★ 担当者候補を「アクティブ」なユーザーに限定し、IDと名前のペアで取得
+        $assigneeOptions = User::where('status', User::STATUS_ACTIVE)->orderBy('name')->pluck('name', 'id');
+        $selectedAssignees = old('assignees', []); // バリデーション失敗時のための選択済み担当者
 
-        $currentAssigneeSelection = old('assignee_select', '');
-        $otherAssigneeText = old('assignee_other', '');
-
-        return view('tasks.create', compact('project', 'parentTask', 'processTemplates', 'parentTaskOptions', 'characterParentTaskIds', 'assigneeOptions', 'currentAssigneeSelection', 'otherAssigneeText'));
+        return view('tasks.create', compact('project', 'parentTask', 'processTemplates', 'parentTaskOptions', 'characterParentTaskIds', 'assigneeOptions', 'selectedAssignees'));
     }
 
     public function store(Request $request, Project $project): \Illuminate\Http\RedirectResponse
@@ -149,7 +150,11 @@ class TaskController extends Controller
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'character_id' => [
-                'nullable',
+                // 必須条件をrequiredIfで定義
+                Rule::requiredIf(function () use ($request) {
+                    return !$request->filled('parent_id') && !$request->boolean('apply_individual_to_all_characters');
+                }),
+                'nullable', // requiredIfと競合しないようにnullableを追加
                 Rule::exists('characters', 'id')->where(function ($query) use ($project) {
                     return $query->where('project_id', $project->id);
                 }),
@@ -196,6 +201,7 @@ class TaskController extends Controller
             'apply_individual_to_all_characters' => 'nullable|boolean',
             'apply_to_all_character_siblings_of_parent' => 'nullable|boolean',
         ], [
+            'character_id.required' => '親工程が選択されておらず、「すべてのキャラクターへ作成」をチェックしない場合、所属先キャラクターの選択は必須です。',
             'assignee_other.required_if' => '担当者で「その他」を選択した場合は、担当者名の入力は必須です。',
             'start_date.required_if' => '開始日時は必須です（工程または重要納期の場合）。',
             'end_date.required_if' => '工程の場合、工数または終了日時のどちらかは必須です。',
@@ -379,7 +385,7 @@ class TaskController extends Controller
     public function edit(Project $project, Task $task)
     {
         $this->authorize('update', $task);
-        $project->load('characters');
+        $project->load(['characters', 'tasks.assignees']); // ★ assigneesをロード
 
         $files = $task->is_folder ? $task->files()->orderBy('original_name')->get() : collect();
 
@@ -402,25 +408,11 @@ class TaskController extends Controller
             ->pluck('id')
             ->all();
 
-        // 担当者候補を「アクティブ」なユーザーに限定
-        $users = User::where('status', User::STATUS_ACTIVE)->orderBy('name')->pluck('name')->all();
-        $assigneeOptions = array_combine($users, $users);
-        $assigneeOptions['other'] = 'その他';
+        // ★ 担当者候補と選択済み担当者IDを取得
+        $assigneeOptions = User::where('status', User::STATUS_ACTIVE)->orderBy('name')->pluck('name', 'id');
+        $selectedAssignees = old('assignees', $task->assignees->pluck('id')->toArray());
 
-        // 現在の担当者がリストにいるか、その他かを判定
-        if (in_array($task->assignee, $users) || empty($task->assignee)) {
-            $currentAssigneeSelection = $task->assignee;
-            $otherAssigneeText = '';
-        } else {
-            $currentAssigneeSelection = 'other';
-            $otherAssigneeText = $task->assignee;
-        }
-
-        // バリデーション失敗時のold入力を優先
-        $currentAssigneeSelection = old('assignee_select', $currentAssigneeSelection);
-        $otherAssigneeText = old('assignee_other', $otherAssigneeText);
-
-        return view('tasks.edit', compact('project', 'task', 'files', 'parentTaskOptions', 'characterParentTaskIds', 'assigneeOptions', 'currentAssigneeSelection', 'otherAssigneeText'));
+        return view('tasks.edit', compact('project', 'task', 'files', 'parentTaskOptions', 'characterParentTaskIds', 'assigneeOptions', 'selectedAssignees'));
     }
 
 
@@ -433,12 +425,18 @@ class TaskController extends Controller
         elseif ($task->is_folder) $currentTaskType = 'folder';
         elseif (!$task->start_date && !$task->end_date && !$task->is_milestone && !$task->is_folder) $currentTaskType = 'todo_task';
 
-        // ▼▼▼【ここから変更】▼▼▼
+        // ▼▼▼【変更】担当者関連のバリデーションを複数対応に変更 ▼▼▼
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'character_id' => [
-                'nullable',
+                // 必須条件をrequiredIfで定義
+                Rule::requiredIf(function () use ($request, $task) {
+                    return !$task->is_folder
+                        && !$request->filled('parent_id')
+                        && !$request->boolean('apply_edit_to_all_characters_same_name');
+                }),
+                'nullable', // requiredIfと競合しないようにnullableを追加
                 Rule::exists('characters', 'id')->where(function ($query) use ($project) {
                     return $query->where('project_id', $project->id);
                 }),
@@ -473,8 +471,8 @@ class TaskController extends Controller
                 Rule::in(['minutes', 'hours', 'days']),
                 Rule::requiredIf(fn() => $currentTaskType === 'task' && !$request->filled('end_date') && $request->filled('duration_value')),
             ],
-            'assignee_select' => 'nullable|string',
-            'assignee_other' => 'nullable|string|max:255|required_if:assignee_select,other',
+            'assignees' => 'nullable|array',
+            'assignees.*' => 'exists:users,id',
             'parent_id' => 'nullable|exists:tasks,id',
             'status' => [
                 Rule::requiredIf(fn() => $currentTaskType !== 'folder'),
@@ -483,27 +481,23 @@ class TaskController extends Controller
             ],
             'apply_edit_to_all_characters_same_name' => 'nullable|boolean',
         ], [
-            'assignee_other.required_if' => '担当者で「その他」を選択した場合は、担当者名の入力は必須です。',
+            'character_id.required' => '親工程が選択されておらず、「同名工程に反映」をチェックしない場合、所属先キャラクターの選択は必須です。',
             'start_date.required_if' => '開始日時は必須です（工程または重要納期の場合）。',
             'end_date.required_if' => '工程の場合、工数または終了日時のどちらかは必須です。',
             'duration_value.required_if' => '工程の場合、工数または終了日時のどちらかは必須です。',
             'duration_unit.required_if' => '工程で工数を入力する場合、単位は必須です。',
             'status.required_if' => 'ステータスは必須です（フォルダ以外の場合）。',
+            'assignees.*.exists' => '選択された担当者が存在しません。',
         ]);
+        // ▲▲▲【変更】ここまで ▲▲▲
 
-        $assignee = $request->input('assignee_select');
-        if ($assignee === 'other') {
-            $assignee = $request->input('assignee_other');
-        }
-        // ▲▲▲【ここまで変更】▲▲▲
-
-
+        // ▼▼▼【変更】'assignee'を削除 ▼▼▼
         $taskDataForCurrent = [
             'name' => $validated['name'],
             'description' => $validated['description'],
-            'assignee' => $assignee,
             'parent_id' => $request->filled('parent_id') ? $validated['parent_id'] : $task->parent_id,
         ];
+        // ▲▲▲【変更】ここまで ▲▲▲
 
         if ($request->filled('parent_id') && $validated['parent_id']) {
             $parentTaskForChar = Task::find($validated['parent_id']);
@@ -570,6 +564,13 @@ class TaskController extends Controller
 
         $task->fill($taskDataForCurrent);
         $task->save();
+
+        // ▼▼▼【変更】担当者をリレーションで同期 ▼▼▼
+        if (array_key_exists('assignees', $validated)) {
+            $task->assignees()->sync($validated['assignees']);
+        }
+        // ▲▲▲【変更】ここまで ▲▲▲
+
         $message = '工程が更新されました。';
 
         $applyEditToAllCharactersSameName = $request->boolean('apply_edit_to_all_characters_same_name')
@@ -586,7 +587,6 @@ class TaskController extends Controller
                 'duration' => $task->duration,
                 'status' => $task->status,
                 'progress' => $task->progress,
-                'assignee' => $task->assignee,
                 'parent_id' => $task->parent_id,
             ];
             $otherTasks = Task::where('project_id', $project->id)
@@ -602,6 +602,10 @@ class TaskController extends Controller
                 $dataForOtherTask = $attributesToSync;
                 $otherTask->fill($dataForOtherTask);
                 $otherTask->save();
+                // ★ 同名工程にも担当者を同期
+                if (array_key_exists('assignees', $validated)) {
+                    $otherTask->assignees()->sync($validated['assignees']);
+                }
                 $updatedCount++;
             }
             if ($updatedCount > 0) {
@@ -749,17 +753,24 @@ class TaskController extends Controller
     {
         $this->authorize('update', $task);
         $validated = $request->validate([
-            'assignee' => 'nullable|string|max:255',
-        ], [
-            'assignee.max' => '担当者名は255文字以内で入力してください。',
+            'assignees' => 'nullable|array',
+            'assignees.*' => 'sometimes|integer|exists:users,id'
         ]);
 
-        $task->assignee = $validated['assignee'];
-        $task->save(); // これによりTaskモデルのLogsActivityが発火
+        $task->assignees()->sync($validated['assignees'] ?? []);
+
+        activity()
+            ->causedBy(auth()->user())
+            ->performedOn($task)
+            ->log('担当者が更新されました。');
+
+        // 更新後の担当者バッジのHTMLを返す
+        $assigneesHtml = view('tasks.partials.assignee-badges', ['assignees' => $task->fresh()->assignees])->render();
 
         return response()->json([
             'success' => true,
-            'message' => '担当者が更新されました。'
+            'message' => '担当者が更新されました。',
+            'assigneesHtml' => $assigneesHtml
         ]);
     }
 
@@ -886,28 +897,34 @@ class TaskController extends Controller
     public function storeFromTemplate(Request $request, Project $project): \Illuminate\Http\RedirectResponse
     {
         $this->authorize('create', Task::class);
-        Log::info('storeFromTemplate called', $request->all());
+        Log::info('storeFromTemplateメソッド呼び出し', $request->all()); // 日本語化
 
         $validated = $request->validate([
             'process_template_id' => 'required|exists:process_templates,id',
             'template_start_date' => 'required|date_format:Y-m-d\TH:i,Y-m-d\TH:i:s,Y-m-d',
             'parent_id_for_template' => 'nullable|exists:tasks,id',
-            'character_id_for_template' => ['required', 'exists:characters,id', function ($attribute, $value, $fail) use ($project) {
-                if ($value && !$project->characters()->where('id', $value)->exists()) {
-                    $fail('選択されたキャラクターはこの案件に所属していません。');
+            'character_id_for_template' => [
+                Rule::requiredIf(!$request->boolean('apply_template_to_all_characters')),
+                'nullable',
+                'exists:characters,id',
+                function ($attribute, $value, $fail) use ($project) {
+                    if ($value && !$project->characters()->where('id', $value)->exists()) {
+                        $fail('選択されたキャラクターはこの案件に所属していません。');
+                    }
                 }
-            }],
+            ],
             'working_hours_start' => 'required|date_format:H:i',
             'working_hours_end' => 'required|date_format:H:i|after:working_hours_start',
-            'apply_template_to_all_characters' => 'nullable|boolean', // Added
+            'apply_template_to_all_characters' => 'nullable|boolean',
         ], [
+            'character_id_for_template.required' => '「すべてのキャラクターへ適用」をチェックしない場合、所属先キャラクターの選択は必須です。',
             'working_hours_start.required' => '稼働開始時刻は必須です。',
             'working_hours_start.date_format' => '稼働開始時刻はHH:MM形式で入力してください。',
             'working_hours_end.required' => '稼働終了時刻は必須です。',
             'working_hours_end.date_format' => '稼働終了時刻はHH:MM形式で入力してください。',
             'working_hours_end.after' => '稼働終了時刻は開始時刻より後に設定してください。',
         ]);
-        Log::info('Validation passed for storeFromTemplate');
+        Log::info('storeFromTemplateのバリデーション通過'); // 日本語化
 
         $template = ProcessTemplate::with('items')->findOrFail($validated['process_template_id']);
 
@@ -917,18 +934,19 @@ class TaskController extends Controller
         $workableMinutesPerDay = $carbonWorkDayEndTime->diffInMinutes($carbonWorkDayStartTime, true);
 
         if ($workableMinutesPerDay <= 0 && !($carbonWorkDayStartTime->eq($carbonWorkDayEndTime))) {
-            Log::error('Workable minutes per day is not positive', [
+            Log::error('1日の稼働時間が正ではありません', [ // 日本語化
                 'start_time' => $validated['working_hours_start'],
                 'end_time' => $validated['working_hours_end'],
                 'calculated_minutes' => $workableMinutesPerDay
             ]);
             return redirect()->back()->withErrors(['working_hours_end' => '稼働終了時刻は開始時刻より後に適切に設定し、0分以上の稼働時間を確保してください。'])->withInput();
         }
-        Log::info('Workable minutes per day', ['minutes' => $workableMinutesPerDay]);
+        Log::info('1日あたりの稼働分数', ['minutes' => $workableMinutesPerDay]); // 日本語化
 
         $applyToAllCharacters = $request->boolean('apply_template_to_all_characters');
         $parentTaskIdForTemplate = $validated['parent_id_for_template'] ?? null;
         $totalCreatedTasksCount = 0;
+        $skippedTasksCount = 0;
         $firstCreatedTaskNameForLog = null;
 
 
@@ -937,8 +955,7 @@ class TaskController extends Controller
             if ($project->characters()->exists()) {
                 $charactersToProcess = $project->characters;
             } else {
-                // If "apply to all" is checked but no characters exist, create one set of tasks without character_id
-                $charactersToProcess = collect([null]); // Represents a single run with character_id = null
+                $charactersToProcess = collect([null]);
             }
         } else {
             $selectedCharacterId = $validated['character_id_for_template'] ?? null;
@@ -947,11 +964,9 @@ class TaskController extends Controller
                 if ($character) {
                     $charactersToProcess = collect([$character]);
                 } else {
-                    // Character ID provided but not found, should not happen due to validation, but as a fallback:
                     return redirect()->back()->withErrors(['character_id_for_template' => '指定されたキャラクターが見つかりません。'])->withInput();
                 }
             } else {
-                // No specific character selected, and not "apply to all" -> create tasks for project (character_id = null)
                 $charactersToProcess = collect([null]);
             }
         }
@@ -960,48 +975,43 @@ class TaskController extends Controller
             return redirect()->route('projects.show', $project)->with('info', 'テンプレートを適用する対象のキャラクターがいません。');
         }
 
-        foreach ($charactersToProcess as $characterInstance) { // $characterInstance can be a Character model or null
+        foreach ($charactersToProcess as $characterInstance) {
             $characterIdForThisIteration = $characterInstance ? $characterInstance->id : null;
 
-            // Reset $currentTaskProcessingDateTime for each character set from the initial template_start_date
             $currentTaskProcessingDateTime = Carbon::parse($validated['template_start_date']);
-            Log::info('Initial processing date from input for iteration', ['character_id' => $characterIdForThisIteration, 'datetime' => $currentTaskProcessingDateTime->format('Y-m-d H:i:s')]);
+            Log::info('反復処理の初期処理日時（入力値）', ['character_id' => $characterIdForThisIteration, 'datetime' => $currentTaskProcessingDateTime->format('Y-m-d H:i:s')]); // 日本語化
 
-            // Adjust $currentTaskProcessingDateTime to working hours and skip weekends
-            $parsedInputDate = Carbon::parse($validated['template_start_date']); // Use the original template start for time check
-            if (strpos($validated['template_start_date'], 'T') === false && strpos($validated['template_start_date'], ' ') === false) { // Only date, no time
+            $parsedInputDate = Carbon::parse($validated['template_start_date']);
+            if (strpos($validated['template_start_date'], 'T') === false && strpos($validated['template_start_date'], ' ') === false) {
                 $currentTaskProcessingDateTime->setTimeFrom($carbonWorkDayStartTime);
-                Log::info('Time not in input, set to working_hours_start', ['datetime' => $currentTaskProcessingDateTime->format('Y-m-d H:i:s')]);
+                Log::info('入力に時刻なし、稼働開始時刻に設定', ['datetime' => $currentTaskProcessingDateTime->format('Y-m-d H:i:s')]); // 日本語化
             } elseif ($currentTaskProcessingDateTime->copy()->setTime($currentTaskProcessingDateTime->hour, $currentTaskProcessingDateTime->minute)
-                ->lt($parsedInputDate->copy()->setTimeFrom($carbonWorkDayStartTime)) // If original time is before work start
+                ->lt($parsedInputDate->copy()->setTimeFrom($carbonWorkDayStartTime))
             ) {
                 $currentTaskProcessingDateTime->setTimeFrom($carbonWorkDayStartTime);
-                Log::info('Input time before working_hours_start, adjusted', ['datetime' => $currentTaskProcessingDateTime->format('Y-m-d H:i:s')]);
+                Log::info('入力時刻が稼働開始より前のため調整', ['datetime' => $currentTaskProcessingDateTime->format('Y-m-d H:i:s')]); // 日本語化
             }
 
-            // If current processing time (after potential adjustment above) is at or after EOD, move to next working day's start
             if (
                 $currentTaskProcessingDateTime->copy()->setTime($currentTaskProcessingDateTime->hour, $currentTaskProcessingDateTime->minute)
                 ->gte($currentTaskProcessingDateTime->copy()->setTimeFrom($carbonWorkDayEndTime)) && $workableMinutesPerDay > 0
-            ) { // also check workableMinutesPerDay to avoid infinite loop if EOD = SOD
+            ) {
                 $currentTaskProcessingDateTime->addDay()->setTimeFrom($carbonWorkDayStartTime);
-                Log::info('Input time after working_hours_end, moved to next day start', ['datetime' => $currentTaskProcessingDateTime->format('Y-m-d H:i:s')]);
+                Log::info('入力時刻が稼働終了より後のため翌営業日開始に移動', ['datetime' => $currentTaskProcessingDateTime->format('Y-m-d H:i:s')]); // 日本語化
             }
 
-            // Skip weekends
             while ($currentTaskProcessingDateTime->isWeekend()) {
                 $currentTaskProcessingDateTime->addDay()->setTimeFrom($carbonWorkDayStartTime);
-                Log::info('Skipped weekend, new date', ['datetime' => $currentTaskProcessingDateTime->format('Y-m-d H:i:s')]);
+                Log::info('週末をスキップ、新日時', ['datetime' => $currentTaskProcessingDateTime->format('Y-m-d H:i:s')]); // 日本語化
             }
-            Log::info('Final initial processing date for iteration', ['character_id' => $characterIdForThisIteration, 'datetime' => $currentTaskProcessingDateTime->format('Y-m-d H:i:s')]);
+            Log::info('反復処理の最終的な初期処理日時', ['character_id' => $characterIdForThisIteration, 'datetime' => $currentTaskProcessingDateTime->format('Y-m-d H:i:s')]); // 日本語化
 
             foreach ($template->items()->orderBy('order')->get() as $itemIndex => $item) {
-                Log::info("Processing template item: {$item->name} (Order: {$item->order}) for character ID: {$characterIdForThisIteration}");
+                Log::info("テンプレート項目処理中: {$item->name} (順序: {$item->order}), キャラクターID: {$characterIdForThisIteration}"); // 日本語化
                 $taskDurationInMinutes = $item->default_duration ?? 0;
-                Log::info("Item duration in minutes: {$taskDurationInMinutes}");
+                Log::info("項目の工数（分）: {$taskDurationInMinutes}"); // 日本語化
 
                 $actualTaskStartDate = $currentTaskProcessingDateTime->copy();
-                // Ensure actualTaskStartDate is within working hours and not on a weekend
                 if ($actualTaskStartDate->copy()->setTime($actualTaskStartDate->hour, $actualTaskStartDate->minute)
                     ->lt($actualTaskStartDate->copy()->setTimeFrom($carbonWorkDayStartTime))
                 ) {
@@ -1015,7 +1025,7 @@ class TaskController extends Controller
                 while ($actualTaskStartDate->isWeekend()) {
                     $actualTaskStartDate->addDay()->setTimeFrom($carbonWorkDayStartTime);
                 }
-                Log::info("Actual start date for item {$item->name}: " . $actualTaskStartDate->format('Y-m-d H:i:s'));
+                Log::info("項目「{$item->name}」の実際の開始日時: " . $actualTaskStartDate->format('Y-m-d H:i:s')); // 日本語化
 
 
                 $remainingDurationForThisTask = $taskDurationInMinutes;
@@ -1023,104 +1033,118 @@ class TaskController extends Controller
 
                 if ($taskDurationInMinutes <= 0) {
                     $taskCalculatedEndDate = $actualTaskStartDate->copy();
-                    Log::info("Task duration is 0. End date set to start date: " . $taskCalculatedEndDate->format('Y-m-d H:i:s'));
+                    Log::info("タスク工数が0のため、終了日時を開始日時と同じに設定: " . $taskCalculatedEndDate->format('Y-m-d H:i:s')); // 日本語化
                 } else {
-                    if ($workableMinutesPerDay <= 0) { // Cannot process tasks with duration if no workable time
-                        Log::warning("Workable minutes per day is 0, cannot process task '{$item->name}' with duration {$taskDurationInMinutes}. Setting end date to start date.");
+                    if ($workableMinutesPerDay <= 0) {
+                        Log::warning("1日の稼働時間が0分のため、工数のあるタスク「{$item->name}」（工数: {$taskDurationInMinutes}分）を処理できません。終了日時を開始日時と同じにします。"); // 日本語化
                         $taskCalculatedEndDate = $actualTaskStartDate->copy();
-                        $remainingDurationForThisTask = 0; // Mark as processed
+                        $remainingDurationForThisTask = 0;
                     }
                     while ($remainingDurationForThisTask > 0) {
-                        Log::info("Remaining duration for {$item->name}: {$remainingDurationForThisTask} mins. Current calc end date for loop start: " . $taskCalculatedEndDate->format('Y-m-d H:i:s'));
+                        Log::info("「{$item->name}」の残り工数: {$remainingDurationForThisTask} 分。ループ開始時の計算上の終了日時: " . $taskCalculatedEndDate->format('Y-m-d H:i:s')); // 日本語化
 
                         $todayWorkEnd = $taskCalculatedEndDate->copy()->setTimeFrom($carbonWorkDayEndTime);
-                        // Minutes from task's current time on $taskCalculatedEndDate to EOD on that day
                         $minutesAvailableToday = $taskCalculatedEndDate->diffInMinutes($todayWorkEnd, false);
-                        Log::info("Minutes available today ({$taskCalculatedEndDate->format('Y-m-d')} from {$taskCalculatedEndDate->format('H:i')} to {$todayWorkEnd->format('H:i')}): {$minutesAvailableToday}");
+                        Log::info("本日利用可能な分数 ({$taskCalculatedEndDate->format('Y-m-d')} の {$taskCalculatedEndDate->format('H:i')} から {$todayWorkEnd->format('H:i')} まで): {$minutesAvailableToday}"); // 日本語化
 
-                        if ($minutesAvailableToday <= 0) { // No time left today or started at/after EOD
+                        if ($minutesAvailableToday <= 0) {
                             $taskCalculatedEndDate->addDay()->setTimeFrom($carbonWorkDayStartTime);
                             while ($taskCalculatedEndDate->isWeekend()) {
                                 $taskCalculatedEndDate->addDay()->setTimeFrom($carbonWorkDayStartTime);
                             }
-                            Log::info("No time left today or started after EOD. Moved to next working day start: " . $taskCalculatedEndDate->format('Y-m-d H:i:s'));
+                            Log::info("本日の残り時間なし、または稼働終了後に開始。翌営業日の開始時刻に移動: " . $taskCalculatedEndDate->format('Y-m-d H:i:s')); // 日本語化
                             continue;
                         }
 
                         if ($remainingDurationForThisTask <= $minutesAvailableToday) {
                             $taskCalculatedEndDate->addMinutes($remainingDurationForThisTask);
                             $remainingDurationForThisTask = 0;
-                            Log::info("Task fits in current day. New calc end date: " . $taskCalculatedEndDate->format('Y-m-d H:i:s'));
+                            Log::info("タスクは本日中に完了。新しい計算上の終了日時: " . $taskCalculatedEndDate->format('Y-m-d H:i:s')); // 日本語化
                         } else {
-                            $taskCalculatedEndDate->addMinutes($minutesAvailableToday); // Use up all available time today
+                            $taskCalculatedEndDate->addMinutes($minutesAvailableToday);
                             $remainingDurationForThisTask -= $minutesAvailableToday;
-                            Log::info("Task does not fit. Remaining duration: {$remainingDurationForThisTask}. End of day reached: " . $taskCalculatedEndDate->format('Y-m-d H:i:s'));
+                            Log::info("タスクは本日中に完了せず。残り工数: {$remainingDurationForThisTask}。本日の稼働終了時刻に到達: " . $taskCalculatedEndDate->format('Y-m-d H:i:s')); // 日本語化
 
-                            $taskCalculatedEndDate->addDay()->setTimeFrom($carbonWorkDayStartTime); // Move to start of next working day
+                            $taskCalculatedEndDate->addDay()->setTimeFrom($carbonWorkDayStartTime);
                             while ($taskCalculatedEndDate->isWeekend()) {
                                 $taskCalculatedEndDate->addDay()->setTimeFrom($carbonWorkDayStartTime);
                             }
-                            Log::info("Moved to next working day start for remaining duration: " . $taskCalculatedEndDate->format('Y-m-d H:i:s'));
+                            Log::info("残りの工数のため、翌営業日の開始時刻に移動: " . $taskCalculatedEndDate->format('Y-m-d H:i:s')); // 日本語化
                         }
                     }
                 }
 
-                $taskData = [
-                    'name' => $item->name,
-                    'description' => null, // Or $item->description if template items have descriptions
-                    'assignee' => null,    // Or $item->default_assignee
-                    'parent_id' => $parentTaskIdForTemplate,
-                    'character_id' => $characterIdForThisIteration,
-                    'is_milestone' => false, // Template items are assumed to be regular tasks
-                    'is_folder' => false,    // Template items are assumed to be regular tasks
-                    'progress' => 0,
-                    'status' => 'not_started',
-                    'start_date' => $actualTaskStartDate,
-                    'duration' => $taskDurationInMinutes,
-                    'end_date' => $taskCalculatedEndDate,
-                ];
-                Log::info("Task data to be created for {$item->name}", $taskData);
+                $taskExists = Task::where('project_id', $project->id)
+                    ->where('name', $item->name)
+                    ->where('character_id', $characterIdForThisIteration)
+                    ->where('parent_id', $parentTaskIdForTemplate)
+                    ->exists();
 
-                $createdTask = $project->tasks()->create($taskData);
-                if ($totalCreatedTasksCount === 0) { // Capture the name of the very first task created for logging
-                    $firstCreatedTaskNameForLog = $createdTask->name;
+                if ($taskExists) {
+                    $skippedTasksCount++;
+                    Log::info("既存タスクのため作成をスキップ: '{$item->name}'", [ // 日本語化
+                        'character_id' => $characterIdForThisIteration,
+                        'parent_id' => $parentTaskIdForTemplate
+                    ]);
+                } else {
+                    $taskData = [
+                        'name' => $item->name,
+                        'description' => null,
+                        'parent_id' => $parentTaskIdForTemplate,
+                        'character_id' => $characterIdForThisIteration,
+                        'is_milestone' => false,
+                        'is_folder' => false,
+                        'progress' => 0,
+                        'status' => 'not_started',
+                        'start_date' => $actualTaskStartDate,
+                        'duration' => $taskDurationInMinutes,
+                        'end_date' => $taskCalculatedEndDate,
+                    ];
+                    Log::info("作成するタスクデータ: {$item->name}", $taskData); // 日本語化
+
+                    $createdTask = $project->tasks()->create($taskData);
+                    if ($totalCreatedTasksCount === 0) {
+                        $firstCreatedTaskNameForLog = $createdTask->name;
+                    }
+                    $totalCreatedTasksCount++;
                 }
-                $totalCreatedTasksCount++;
 
-                // Set $currentTaskProcessingDateTime for the *next* task to start right after this one ends
                 $currentTaskProcessingDateTime = $taskCalculatedEndDate->copy();
-                // Adjust if it's outside working hours for the next task's start
                 if (
                     $currentTaskProcessingDateTime->copy()->setTime($currentTaskProcessingDateTime->hour, $currentTaskProcessingDateTime->minute)
                     ->gte($currentTaskProcessingDateTime->copy()->setTimeFrom($carbonWorkDayEndTime)) && $workableMinutesPerDay > 0
                 ) {
                     $currentTaskProcessingDateTime->addDay()->setTimeFrom($carbonWorkDayStartTime);
-                    Log::info("Next task start (after EOD adjustment): " . $currentTaskProcessingDateTime->format('Y-m-d H:i:s'));
                 }
                 while ($currentTaskProcessingDateTime->isWeekend()) {
                     $currentTaskProcessingDateTime->addDay()->setTimeFrom($carbonWorkDayStartTime);
-                    Log::info("Next task start (after weekend skip): " . $currentTaskProcessingDateTime->format('Y-m-d H:i:s'));
                 }
-                Log::info("End of loop for item {$item->name}. Next task processing date: " . $currentTaskProcessingDateTime->format('Y-m-d H:i:s'));
+                Log::info("項目「{$item->name}」のループ終了。次のタスクの処理日時: " . $currentTaskProcessingDateTime->format('Y-m-d H:i:s')); // 日本語化
             }
         }
 
-        if ($totalCreatedTasksCount > 0) {
+        $message = "{$totalCreatedTasksCount} 件の工程を一括作成しました。";
+        if ($skippedTasksCount > 0) {
+            $message .= " ({$skippedTasksCount} 件は既に存在したためスキップされました)";
+        }
+
+        if ($totalCreatedTasksCount > 0 || $skippedTasksCount > 0) {
             activity()
                 ->causedBy(auth()->user())
                 ->performedOn($project)
                 ->withProperties([
                     'template_name' => $template->name,
                     'created_tasks_count' => $totalCreatedTasksCount,
-                    'first_task_name' => $firstCreatedTaskNameForLog, // Use the captured name
+                    'skipped_tasks_count' => $skippedTasksCount,
+                    'first_task_name' => $firstCreatedTaskNameForLog,
                     'applied_to_all_characters' => $applyToAllCharacters,
                     'characters_processed_count' => $charactersToProcess->count(),
                 ])
-                ->log("工程テンプレート「{$template->name}」から {$project->title} に " . $totalCreatedTasksCount . " 件の工程が一括作成されました。");
-            Log::info('Activity log created for template application.');
+                ->log("工程テンプレート「{$template->name}」から {$project->title} に工程が適用されました。");
+            Log::info('テンプレート適用のためのアクティビティログ作成完了'); // 日本語化
         }
 
-        return redirect()->route('projects.show', $project)->with('success', 'テンプレートから工程を一括作成しました。');
+        return redirect()->route('projects.show', $project)->with('success', $message);
     }
 
     public function updateDescription(Request $request, Project $project, Task $task): JsonResponse

@@ -178,8 +178,9 @@
                             <x-select-input label="所属先キャラクター" name="character_id" id="character_id_individual_edit"
                                 :options="$project->characters->pluck('name', 'id')"
                                 :selected="old('character_id', $task->character_id)"
-                                emptyOptionText="案件全体 (キャラクター未所属)"
+                                emptyOptionText="キャラクターを選択してください"
                                 :hasError="$errors->has('character_id')"
+                                :required="$taskType !== 'folder' && !old('parent_id', $task->parent_id) && !old('apply_edit_to_all_characters_same_name')"
                                 :disabled="old('apply_edit_to_all_characters_same_name', false) || $taskType === 'folder' || old('parent_id', $task->parent_id) !== null" />
                             <x-input-error :messages="$errors->get('character_id')" class="mt-2" />
 
@@ -269,22 +270,21 @@
                             </div>
                         </div>
 
-                        <div id="assignee_wrapper_individual" {{ $taskType === 'folder' ? 'style="display:none;"' : '' }}>
-                             <x-input-label for="assignee_select_individual" value="担当者" />
-                            <select name="assignee_select" id="assignee_select_individual" class="form-select mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300" {{ $taskType === 'folder' ? 'disabled' : '' }}>
-                                <option value="">担当者を選択</option>
-                                @foreach($assigneeOptions as $value => $label)
-                                    <option value="{{ $value }}" {{ $currentAssigneeSelection == $value ? 'selected' : '' }}>{{ $label }}</option>
+                        {{-- ▼▼▼【変更】担当者選択UI ▼▼▼ --}}
+                        <div id="assignees_wrapper_individual" {{ $taskType === 'folder' ? 'style="display:none;"' : '' }}>
+                            <x-input-label for="assignees_select" value="担当者" />
+                            <select name="assignees[]" id="assignees_select" multiple class="mt-1 block w-full">
+                                @foreach($assigneeOptions as $id => $name)
+                                    <option value="{{ $id }}" {{ in_array($id, $selectedAssignees) ? 'selected' : '' }}>
+                                        {{ $name }}
+                                    </option>
                                 @endforeach
                             </select>
-
-                            <div id="assignee_other_wrapper_individual" class="mt-2" style="display: {{ $currentAssigneeSelection == 'other' ? 'block' : 'none' }};">
-                                <x-input-label for="assignee_other_individual" value="担当者名（その他）" />
-                                <x-text-input type="text" id="assignee_other_individual" name="assignee_other" class="mt-1 block w-full" :value="$otherAssigneeText" :disabled="$taskType === 'folder'" />
-                            </div>
-                            <x-input-error :messages="$errors->get('assignee_other')" class="mt-2" />
-                            <x-input-error :messages="$errors->get('assignee')" class="mt-2" />
+                            <x-input-error :messages="$errors->get('assignees')" class="mt-2" />
+                            <x-input-error :messages="$errors->get('assignees.*')" class="mt-2" />
                         </div>
+                        {{-- ▲▲▲【変更】ここまで ▲▲▲ --}}
+
 
                         <div id="status-field-individual" {{ $taskType === 'folder' ? 'style="display:none;"' : '' }}>
                             <x-select-input label="ステータス" name="status" id="status_individual"
@@ -325,12 +325,18 @@ document.addEventListener('DOMContentLoaded', function () {
     const endDateInput = document.getElementById('end_date_individual');
     const parentIdSelectEdit = document.getElementById('parent_id_individual_edit');
 
-    const assigneeWrapper = document.getElementById('assignee_wrapper_individual');
-    const assigneeSelect = document.getElementById('assignee_select_individual');
-    const assigneeOtherWrapper = document.getElementById('assignee_other_wrapper_individual');
-    const assigneeOtherInput = document.getElementById('assignee_other_individual');
-
+    const assigneeWrapper = document.getElementById('assignees_wrapper_individual'); // ★ 変更
     const parentIdWrapperEdit = document.getElementById('parent_id_wrapper_individual_edit');
+
+    // ▼▼▼【追記】Tom Selectの初期化 ▼▼▼
+    if (document.getElementById('assignees_select')) {
+        new TomSelect('#assignees_select',{
+            plugins: ['remove_button'],
+            create: false,
+            placeholder: '担当者を検索・選択...'
+        });
+    }
+    // ▲▲▲【追記】ここまで ▲▲▲
 
     function handleParentIdChangeForEdit() {
         const parentIsSelected = parentIdSelectEdit.value !== '';

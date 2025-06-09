@@ -464,13 +464,14 @@ class ProjectController extends Controller
                     'tasks.project',
                     'tasks.character',
                     'tasks.files',
+                    'tasks.assignees',
                     'measurements',
                     'materials',
                     'costs'
                 ])->orderBy('name');
             },
             'tasks' => function ($query) { // 案件全体のタスク用
-                $query->with(['children', 'parent', 'project', 'character', 'files']);
+                $query->with(['children', 'parent', 'project', 'character', 'files', 'assignees']);
             }
         ]);
 
@@ -541,9 +542,8 @@ class ProjectController extends Controller
         // 担当者選択プルダウン用に、アクティブなユーザーのリストを取得
         $assigneeOptions = User::where('status', User::STATUS_ACTIVE)
             ->orderBy('name')
-            ->pluck('name')
+            ->pluck('name', 'id') // pluckの引数を変更
             ->all();
-        // ▲▲▲【ここまで追加】▲▲▲
 
         return view('projects.show', compact('project', 'customFormFields', 'availableInventoryItems', 'tasksToList', 'masterFolder', 'completionDataFolders', 'assigneeOptions'));
     }

@@ -98,4 +98,14 @@ class User extends Authenticatable
     {
         $this->notify(new VerifyEmailNotification);
     }
+
+    /**
+     * このユーザーが担当する工程
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
+     */
+    public function tasks(): BelongsToMany
+    {
+        return $this->belongsToMany(Task::class, 'task_user');
+    }
 }

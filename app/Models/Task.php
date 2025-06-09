@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Spatie\Activitylog\Traits\LogsActivity; // ★ 追加
 use Spatie\Activitylog\LogOptions;          // ★ 追加
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Task extends Model
 {
@@ -211,5 +212,15 @@ class Task extends Model
             $parent = $parent->parent;
         }
         return false;
+    }
+
+    /**
+     * 担当者との多対多リレーション
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
+     */
+    public function assignees(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'task_user');
     }
 }

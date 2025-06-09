@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
         integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw=="
         crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @yield('styles')
@@ -73,16 +74,30 @@
                 </div>
                 <ul x-show="openUpcomingTasks" x-transition class="mt-1 space-y-1">
                     @forelse($upcomingTasksForSidebar as $task)
+                        @php
+                            // 期限のハイライト表示用に状態を判定
+                            if ($task->end_date) {
+                                $appTimezone = config('app.timezone');
+                                $now = \Carbon\Carbon::now($appTimezone);
+                                $endDate = $task->end_date->copy()->setTimezone($appTimezone);
+                                $isCompleted = in_array($task->status, ['completed', 'cancelled']);
+                                $isPast = $endDate->isPast();
+                                $isDueSoon = !$isPast && $endDate->lte($now->copy()->addHours(24));
+                            } else {
+                                $isCompleted = in_array($task->status, ['completed', 'cancelled']);
+                                $isPast = false;
+                                $isDueSoon = false;
+                            }
+                        @endphp
                         <li class="px-3 py-3 text-sm rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
                             data-task-id="{{ $task->id }}"
                             data-project-id="{{ $task->project->id }}"
                             data-progress="{{ $task->progress ?? 0 }}"
                             data-status="{{ $task->status }}">
                             <div class="flex items-start justify-between w-full">
-                                {{-- Left part: In-progress checkbox and status icon --}}
                                 <div class="flex items-start flex-shrink-0">
                                     @if(!$task->is_milestone && !$task->is_folder)
-                                        <div class="flex flex-col items-center mr-2 mt-[1px]"> {{-- Wrapper for label + checkbox InProgress --}}
+                                        <div class="flex flex-col items-center mr-2 mt-[1px]">
                                             <span class="text-xs text-gray-500 dark:text-gray-400 mb-0.5" style="font-size: 0.5rem;">進行中</span>
                                             <input type="checkbox"
                                                    class="task-status-checkbox task-status-in-progress form-checkbox h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
@@ -91,9 +106,7 @@
                                                    @if($task->status == 'in_progress') checked @endif>
                                         </div>
                                     @else
-                                        {{-- Placeholder to maintain alignment if checkbox is not present --}}
-                                        {{-- This width should roughly match the "進行中" label and checkbox column --}}
-                                        <div class="w-12 mr-2 mt-[1px]"></div> {{-- Adjust w-12 if necessary --}}
+                                        <div class="w-12 mr-2 mt-[1px]"></div>
                                     @endif
                                     <span class="task-status-icon-wrapper mr-2 mt-[1px] flex-shrink-0">
                                         @if($task->is_milestone) <i class="fas fa-flag text-red-500" title="重要納期"></i>
@@ -110,39 +123,45 @@
                                     </span>
                                 </div>
 
-                                {{-- Middle part: Project name, Task name, assignee, due date --}}
+                                {{-- ▼▼▼【変更】表示をホーム画面と統一 ▼▼▼ --}}
                                 <div class="flex-grow min-w-0 mx-1">
-                                    {{-- 1. 案件名 --}}
                                     <p class="text-xs font-semibold truncate dark:text-gray-300" style="color: {{ $task->project->color ?? '#6c757d' }};" title="案件: {{ $task->project->title }}">
                                         {{ $task->project->title }}
                                     </p>
-                                    {{-- 2. タスク名 --}}
-                                    <span class="font-medium text-gray-800 dark:text-gray-100 whitespace-normal break-words leading-tight" title="タスク: {{ $task->name }}">
+                                    <a href="{{ route('projects.tasks.edit', [$task->project, $task]) }}" class="font-medium text-gray-800 dark:text-gray-100 whitespace-normal break-words leading-tight hover:text-blue-600 dark:hover:text-blue-400" title="タスク: {{ $task->name }}">
                                         {{ $task->name }}
-                                    </span>
-                                    {{-- 3. 担当者 --}}
-                                    @if($task->assignee)
-                                    <p class="text-xs text-gray-500 dark:text-gray-400 truncate" title="担当: {{ $task->assignee }}">
-                                        担当: {{ $task->assignee }}
+                                    </a>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400 truncate mt-1">
+                                        <i class="fas fa-dragon fa-fw mr-1 text-gray-400"></i> {{ $task->character->name ?? 'キャラクター未設定' }}
+                                    </p>
+                                    @if($task->assignees && $task->assignees->isNotEmpty())
+                                    <p class="text-xs text-gray-500 dark:text-gray-400 truncate" title="担当: {{ $task->assignees->pluck('name')->join(', ') }}">
+                                        <i class="fas fa-user fa-fw mr-1 text-gray-400"></i>{{ $task->assignees->pluck('name')->join(', ') }}
                                     </p>
                                     @endif
-                                    {{-- 4. 期限 --}}
-                                    <p class="text-xs text-gray-500 dark:text-gray-400 leading-tight">
-                                        期限: {{ optional($task->end_date)->format('n/j H:i') }}<br>
-                                        @if($task->end_date)
-                                            @if($task->end_date->isPast() && $task->status !== 'completed')
-                                                <span class="text-red-500">({{ $task->end_date->diffForHumans() }})</span>
-                                            @elseif($task->status !== 'completed')
+                                    @if($task->end_date)
+                                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                            <i class="far fa-clock fa-fw mr-1 text-gray-400"></i>
+                                            <span
+                                                @if($isPast && !$isCompleted)
+                                                    class="text-red-500 font-semibold" title="期限切れ"
+                                                @elseif($isDueSoon && !$isCompleted)
+                                                    class="text-yellow-500 font-semibold" title="期限1日前"
+                                                @endif
+                                            >
+                                                {{ $task->end_date->format('n/j H:i') }}
+                                            </span>
+                                            <span class="text-gray-400 dark:text-gray-500" style="font-size: 0.6rem;">
                                                 ({{ $task->end_date->diffForHumans() }})
-                                            @endif
-                                        @endif
-                                    </p>
+                                            </span>
+                                        </p>
+                                    @endif
                                 </div>
+                                {{-- ▲▲▲【変更】ここまで ▲▲▲ --}}
 
-                                {{-- Right part: Completed checkbox --}}
                                 <div class="flex-shrink-0 ml-2">
                                     @if(!$task->is_milestone && !$task->is_folder)
-                                        <div class="flex flex-col items-center mt-[1px]"> {{-- Wrapper for label + checkbox Completed --}}
+                                        <div class="flex flex-col items-center mt-[1px]">
                                             <span class="text-xs text-gray-500 dark:text-gray-400 mb-0.5" style="font-size: 0.5rem;">完了</span>
                                             <input type="checkbox"
                                                    class="task-status-checkbox task-status-completed form-checkbox h-4 w-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
@@ -169,7 +188,6 @@
                 <div x-show="openNormalProjects" x-transition class="mt-1 space-y-1">
                     @forelse($normalProjects as $project)
                     @php
-                        // PHP変数の定義は上記お気に入りと同様なので省略。$projectをループ変数として使用
                         $_projectStatusOptionsSb = ['' => '未設定'] + (\App\Models\Project::PROJECT_STATUS_OPTIONS ?? []);
                         $_projectStatusIconsSb = [
                             'not_started' => 'fa-minus-circle text-gray-400 dark:text-gray-500', 'in_progress' => 'fa-play-circle text-blue-400 dark:text-blue-500',
@@ -221,7 +239,7 @@
 
         <div class="flex flex-col flex-1 md:ml-64">
             <header class="flex items-center justify-between h-16 px-2 sm:px-4 bg-white border-b dark:bg-gray-800 dark:border-gray-700 sticky top-0 z-50">
-                 <div class="flex items-center"> {{-- 左側グループ: ハンバーガーメニュー(モバイルのみ) --}}
+                 <div class="flex items-center">
                     <div class="md:hidden">
                         <button @click="sidebarOpen = !sidebarOpen" class="text-gray-500 dark:text-gray-300 focus:outline-none p-2">
                             <i class="fas fa-bars w-6 h-6"></i>
@@ -229,7 +247,6 @@
                     </div>
                  </div>
 
-                {{-- 中央グループ: メインナビゲーションリンク --}}
                 <nav class="header-main-nav flex items-center overflow-x-auto space-x-1 md:space-x-2 md:flex-grow md:justify-start">
                     @can('viewAny', App\Models\Project::class)
                     <a class="inline-flex items-center p-2 text-sm font-medium rounded-md {{ request()->routeIs('home.*') ? 'text-blue-600 bg-blue-100 dark:text-blue-300 dark:bg-gray-700' : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700' }}"
@@ -263,9 +280,8 @@
                     @endcan
                 </nav>
 
-                {{-- 右側グループ: 管理・ユーザーメニュー --}}
                 <div class="flex items-center space-x-1 sm:space-x-2 pl-1 sm:pl-2">
-                    @can('viewAny', App\Models\ProcessTemplate::class) {{-- このcanは管理メニュー全体を表示するかどうかの大元の権限チェックとして残す --}}
+                    @can('viewAny', App\Models\ProcessTemplate::class)
                     <div x-data="{ adminMenuOpenOnHeader: false }" class="relative">
                         <button @click="adminMenuOpenOnHeader = !adminMenuOpenOnHeader" class="flex items-center px-2 sm:px-3 py-2 text-sm font-medium text-gray-700 rounded-md dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none">
                             <i class="fas fa-cog"></i>
@@ -281,27 +297,21 @@
 
                             $canViewGroup2 = $currentUser->can('viewAny', App\Models\InventoryItem::class);
 
-                            $canViewGroup3 = $currentUser->can('viewAny', App\Models\User::class) || // ユーザー管理
-                                            $currentUser->can('viewAny', App\Models\Role::class) || // 権限設定
-                                            $currentUser->can('viewAny', App\Models\ProcessTemplate::class) || // 工程テンプレート (この@canが外側の条件なので実質true)
-                                            $currentUser->can('viewAny', App\Models\FormFieldDefinition::class); // 案件依頼項目定義
+                            $canViewGroup3 = $currentUser->can('viewAny', App\Models\User::class) ||
+                                            $currentUser->can('viewAny', App\Models\Role::class) ||
+                                            $currentUser->can('viewAny', App\Models\ProcessTemplate::class) ||
+                                            $currentUser->can('viewAny', App\Models\FormFieldDefinition::class);
 
-                            $canViewGroup4 = $currentUser->can('viewAny', Spatie\Activitylog\Models\Activity::class); // 操作ログ閲覧
+                            $canViewGroup4 = $currentUser->can('viewAny', Spatie\Activitylog\Models\Activity::class);
 
-                            $canViewGroup5 = $currentUser->can('viewAny', App\Models\User::class); // 新規ユーザー登録リンク (ユーザー管理権限に依存している場合)
+                            $canViewGroup5 = $currentUser->can('viewAny', App\Models\User::class);
 
-                            // 表示される最初のグループかどうかのフラグ
                             $isFirstVisibleGroup = true;
                         @endphp
 
                         <div x-show="adminMenuOpenOnHeader"
                             @click.away="adminMenuOpenOnHeader = false"
-                            x-transition:enter="transition ease-out duration-100"
-                            x-transition:enter-start="opacity-0 scale-95"
-                            x-transition:enter-end="opacity-100 scale-100"
-                            x-transition:leave="transition ease-in duration-75"
-                            x-transition:leave-start="opacity-100 scale-100"
-                            x-transition:leave-end="opacity-0 scale-95"
+                            x-transition
                             x-data="{ openGroup: null }"
                             class="absolute right-0 mt-2 w-64 bg-white rounded-md shadow-lg dark:bg-gray-700 ring-1 ring-black ring-opacity-5 z-50 overflow-hidden"
                             style="display: none;">
@@ -313,7 +323,7 @@
                                     <span>申請・通知</span>
                                     <i class="fas fa-fw" :class="{'fa-chevron-down': openGroup === 'group1', 'fa-chevron-right': openGroup !== 'group1'}"></i>
                                 </button>
-                                <div x-show="openGroup === 'group1'" x-transition:enter="transition ease-out duration-100" x-transition:enter-start="opacity-0 transform -translate-y-1" x-transition:enter-end="opacity-100 transform translate-y-0" x-transition:leave="transition ease-in duration-75" x-transition:leave-start="opacity-100 transform translate-y-0" x-transition:leave-end="opacity-0 transform -translate-y-1"
+                                <div x-show="openGroup === 'group1'" x-transition
                                     class="bg-gray-50 dark:bg-gray-800">
                                     @can('viewAny', App\Models\ExternalProjectSubmission::class)
                                     <a href="{{ route('admin.external-submissions.index') }}" class="flex justify-between items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
@@ -349,7 +359,7 @@
                                     <span>データ・在庫</span>
                                     <i class="fas fa-fw" :class="{'fa-chevron-down': openGroup === 'group2', 'fa-chevron-right': openGroup !== 'group2'}"></i>
                                 </button>
-                                <div x-show="openGroup === 'group2'" x-transition:enter="transition ease-out duration-100" x-transition:enter-start="opacity-0 transform -translate-y-1" x-transition:enter-end="opacity-100 transform translate-y-0" x-transition:leave="transition ease-in duration-75" x-transition:leave-start="opacity-100 transform translate-y-0" x-transition:leave-end="opacity-0 transform -translate-y-1"
+                                <div x-show="openGroup === 'group2'" x-transition
                                     class="bg-gray-50 dark:bg-gray-800">
                                     @can('viewAny', App\Models\InventoryItem::class)
                                         <a href="{{ route('admin.inventory.index') }}" class="flex justify-between items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
@@ -371,7 +381,7 @@
                                     <span>設定</span>
                                     <i class="fas fa-fw" :class="{'fa-chevron-down': openGroup === 'group3', 'fa-chevron-right': openGroup !== 'group3'}"></i>
                                 </button>
-                                <div x-show="openGroup === 'group3'" x-transition:enter="transition ease-out duration-100" x-transition:enter-start="opacity-0 transform -translate-y-1" x-transition:enter-end="opacity-100 transform translate-y-0" x-transition:leave="transition ease-in duration-75" x-transition:leave-start="opacity-100 transform translate-y-0" x-transition:leave-end="opacity-0 transform -translate-y-1"
+                                <div x-show="openGroup === 'group3'" x-transition
                                     class="bg-gray-50 dark:bg-gray-800">
                                     @can('viewAny', App\Models\User::class)
                                         <a href="{{ route('admin.users.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">ユーザー管理</a>
@@ -382,7 +392,7 @@
                                     @can('viewAny', App\Models\ProcessTemplate::class)
                                         <a href="{{ route('admin.process-templates.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">工程テンプレート</a>
                                     @endcan
-                                    @can('manageMeasurements', $project) {{-- 適切なモデル名とPolicyを確認 --}}
+                                    @can('manageMeasurements', $project)
                                         <a href="{{ route('admin.measurement-templates.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">採寸テンプレート</a>
                                     @endcan
                                     @can('viewAny', App\Models\FormFieldDefinition::class)
@@ -400,7 +410,7 @@
                                     <span>ログ</span>
                                     <i class="fas fa-fw" :class="{'fa-chevron-down': openGroup === 'group4', 'fa-chevron-right': openGroup !== 'group4'}"></i>
                                 </button>
-                                <div x-show="openGroup === 'group4'" x-transition:enter="transition ease-out duration-100" x-transition:enter-start="opacity-0 transform -translate-y-1" x-transition:enter-end="opacity-100 transform translate-y-0" x-transition:leave="transition ease-in duration-75" x-transition:leave-start="opacity-100 transform translate-y-0" x-transition:leave-end="opacity-0 transform -translate-y-1"
+                                <div x-show="openGroup === 'group4'" x-transition
                                     class="bg-gray-50 dark:bg-gray-800">
                                     @can('viewAny', Spatie\Activitylog\Models\Activity::class)
                                         <a href="{{ route('admin.logs.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">操作ログ閲覧</a>
@@ -417,14 +427,14 @@
                                     <span>リンクコピー</span>
                                     <i class="fas fa-fw" :class="{'fa-chevron-down': openGroup === 'group5', 'fa-chevron-right': openGroup !== 'group5'}"></i>
                                 </button>
-                                <div x-show="openGroup === 'group5'" x-transition:enter="transition ease-out duration-100" x-transition:enter-start="opacity-0 transform -translate-y-1" x-transition:enter-end="opacity-100 transform translate-y-0" x-transition:leave="transition ease-in duration-75" x-transition:leave-start="opacity-100 transform translate-y-0" x-transition:leave-end="opacity-0 transform -translate-y-1"
+                                <div x-show="openGroup === 'group5'" x-transition
                                     class="bg-gray-50 dark:bg-gray-800">
-                                    @can('viewAny', App\Models\User::class) {{-- 新規ユーザー登録リンクの表示権限 --}}
+                                    @can('viewAny', App\Models\User::class)
                                     <a href="javascript:void(0)" onclick="copyLink(this)" data-copy-value="{{ url('/register') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
                                         新規ユーザー登録リンク
                                     </a>
                                     @endcan
-                                    @can('viewAny', App\Models\ExternalProjectSubmission::class) {{-- 新規ユーザー登録リンクの表示権限 --}}
+                                    @can('viewAny', App\Models\ExternalProjectSubmission::class)
                                     <a href="javascript:void(0)" onclick="copyLink(this)" data-copy-value="{{ url('/costume-request') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
                                         案件依頼リンク
                                     </a>
@@ -439,7 +449,6 @@
                     @endcan
 
                     @auth
-                    {{-- ユーザーメニュー (変更なし) --}}
                     <div x-data="{ userMenuOpen: false }" class="relative">
                         <button @click="userMenuOpen = !userMenuOpen" class="flex items-center text-sm font-medium text-gray-700 rounded-md dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none p-2">
                             <span class="hidden sm:inline">{{ Auth::user()->name }}</span>
@@ -456,19 +465,17 @@
 
                             @can('viewAny', App\Models\Task::class)
                                 @php
-                                    // 現在のルートが 'tasks.index' で、かつ 'assignee' クエリがログインユーザー名と一致するか判定
                                     $isMyTasksActive = request()->routeIs('tasks.index') && request()->query('assignee') === Auth::user()->name;
                                 @endphp
-                                <a href="{{ route('tasks.index', ['assignee' => Auth::user()->name, 'close_filters' => 1]) }}"
+                                <a href="{{ route('tasks.index', ['assignee_id' => Auth::id(), 'close_filters' => 1]) }}"
                                    class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 {{ $isMyTasksActive ? 'bg-gray-100 dark:bg-gray-600 font-semibold' : '' }}">
                                     担当工程一覧
                                 </a>
                             @endcan
 
-                            @can('tools.viewAnyPage') {{-- ツール一覧ページへのアクセス権限 --}}
+                            @can('tools.viewAnyPage')
                             <a href="{{ route('tools.index') }}"
                                class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 {{ request()->routeIs('tools.index') || request()->routeIs('tools.sales.*') ? 'bg-gray-100 dark:bg-gray-600 font-semibold' : '' }}">
-                                {{-- <i class="fas fa-tools fa-fw mr-2 w-4 text-center"></i> --}}
                                 ツール一覧
                             </a>
                             @endcan
@@ -503,7 +510,6 @@
         </div>
     </div>
 
-    {{-- Global Modals and Tooltips --}}
     <div id="taskDescriptionTooltip"
          class="fixed z-[100] hidden rounded-md bg-gray-900 px-3 py-1.5 text-xs font-medium text-white shadow-lg whitespace-pre-wrap dark:bg-gray-700 max-w-xs"
          role="tooltip">
@@ -537,20 +543,16 @@
                     alert("コピーしました : \n" + textToCopy);
                 }).catch(err => {
                     console.error('navigator.clipboard.writeText failed: ', err);
-                    // フォールバック処理 (textareaを使用)
                     fallbackCopyUsingExecCommand(textToCopy);
                 });
             } else {
-                // navigator.clipboard APIがサポートされていない場合のフォールバック (textareaを使用)
                 console.warn('navigator.clipboard.writeText is not available. Using fallback.');
                 fallbackCopyUsingExecCommand(textToCopy);
             }
         }
-        // execCommand fallback for copyLink
         function fallbackCopyUsingExecCommand(text) {
             const textArea = document.createElement("textarea");
             textArea.value = text;
-            // Avoid scrolling to bottom
             textArea.style.top = "0";
             textArea.style.left = "0";
             textArea.style.position = "fixed";
@@ -571,6 +573,7 @@
             document.body.removeChild(textArea);
         }
     </script>
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
 
 </body>
 </html>
