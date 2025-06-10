@@ -114,7 +114,7 @@
                                 ID</th>
                             <th scope="col"
                                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                品名 (品番/色番)</th>
+                                品名 [品番/色番]</th>
                             <th scope="col"
                                 class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                                 現在在庫数</th>
@@ -158,12 +158,12 @@
                                     @endif
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                                    <div class="font-medium text-gray-900 dark:text-white text-lg">{{ $item->name }}</div>
-                                    @if($item->product_number || $item->color_number)
-                                        <p class="text-xs inventory-table-subtext">
-                                            {{ $item->product_number ?? '品番なし' }} / {{ $item->color_number ?? '色番なし' }}
-                                        </p>
-                                    @endif
+                                    <div class="font-medium text-gray-900 dark:text-white text-lg">
+                                        {{ $item->name }}
+                                        @if($item->product_number || $item->color_number)
+                                                <span class="text-xs">[ {{ $item->product_number ?? 'なし' }} / {{ $item->color_number ?? 'なし' }} ]</span>
+                                        @endif
+                                    </div>
                                     @if($item->description)
                                         <p class="text-xs inventory-table-subtext truncate" title="{{ $item->description }}">
                                             {!! Str::limit(nl2br($item->description), 30) !!}</p>
@@ -187,8 +187,8 @@
                                         @foreach($supplierLines as $line)
                                             <p>
                                                 @if(preg_match('/^(https?:\/\/|www\.)\S+/i', trim($line)))
-                                                    <a class="text-blue-600" href="{{ (Str::startsWith(trim($line), 'www.') ? 'http://' : '') . trim($line) }}"
-                                                        target="_blank" rel="noopener noreferrer" style="text-decoration: underline;">
+                                                    <a class="text-blue-600 hover:underline" href="{{ (Str::startsWith(trim($line), 'www.') ? 'http://' : '') . trim($line) }}"
+                                                        target="_blank" rel="noopener noreferrer" >
                                                         {{ trim($line) }}
                                                     </a>
                                                 @else

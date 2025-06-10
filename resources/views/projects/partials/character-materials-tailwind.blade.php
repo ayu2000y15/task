@@ -16,7 +16,7 @@
                         購入</th>
                     <th scope="col"
                         class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        材料名 (在庫品目)</th>
+                        材料名 [品番/色番] (在庫品目)</th>
                     <th scope="col"
                         class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         必要量</th>
@@ -55,7 +55,7 @@
                         <td class="px-4 py-1.5 whitespace-nowrap text-gray-700 dark:text-gray-200 material-name">
                             {{ $material->inventoryItem->name ?? $material->name }}
                             @if($material->inventoryItem)
-                                <span class="text-xs">[品番:{{ $material->inventoryItem->product_number ?? 'なし'}}, 色番: {{ $material->inventoryItem->color_number ?? 'なし' }}]</span>
+                                <span class="text-xs">[ {{ $material->inventoryItem->product_number ?? 'なし'}} / {{ $material->inventoryItem->color_number ?? 'なし' }} ]</span>
                                 <span class="text-xs text-gray-400">(在庫品)</span>
                             @endif
                         </td>

@@ -72,7 +72,7 @@
                     <thead class="bg-gray-50 dark:bg-gray-700">
                         <tr>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">申請ID</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">品名</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">品名 [品番/色番]</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">申請数</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">申請者</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">ステータス</th>
@@ -88,7 +88,8 @@
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
                                     @if($order->inventoryItem)
                                         <a href="{{ route('admin.inventory.edit', $order->inventoryItem) }}" class="hover:underline" title="在庫品目「{{ $order->inventoryItem->name }}」を編集">
-                                            {{ $order->inventoryItem->name . ' ( ' . ($order->inventoryItem->product_number ?? '品番なし') . '/' . ($order->inventoryItem->color_number ?? '色番なし') . ' ) ' }}
+                                            {{ $order->inventoryItem->name }}
+                                            <span class="text-xs">[ {{$order->inventoryItem->product_number ?? 'なし'}} / {{$order->inventoryItem->color_number ?? 'なし'}} ]</span>
                                         </a>
                                     @else
                                         品目情報なし
