@@ -5,6 +5,7 @@
         <i class="fas fa-info-circle mr-1"></i>
         材料は在庫品目から選択または入力が可能です。<br>
         　在庫品目を選択すると、在庫品目の単価が自動的に設定されます。<br>
+        　単価は追加時に計算されたものから変動しませんのでご注意ください。
     </div>
     <div class="overflow-x-auto">
         <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
@@ -16,9 +17,6 @@
                     <th scope="col"
                         class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         材料名 (在庫品目)</th>
-                    <th scope="col"
-                        class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        単位</th>
                     <th scope="col"
                         class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         必要量</th>
@@ -56,10 +54,10 @@
                         </td>
                         <td class="px-4 py-1.5 whitespace-nowrap text-gray-700 dark:text-gray-200 material-name">
                             {{ $material->inventoryItem->name ?? $material->name }}
-                            @if($material->inventoryItem) <span class="text-xs text-gray-400">(在庫品)</span> @endif
-                        </td>
-                        <td class="px-4 py-1.5 whitespace-nowrap text-gray-700 dark:text-gray-200 material-unit">
-                            {{ $material->unit ?? optional($material->inventoryItem)->unit }}
+                            @if($material->inventoryItem)
+                                <span class="text-xs">[品番:{{ $material->inventoryItem->product_number ?? 'なし'}}, 色番: {{ $material->inventoryItem->color_number ?? 'なし' }}]</span>
+                                <span class="text-xs text-gray-400">(在庫品)</span>
+                            @endif
                         </td>
                         <td class="px-4 py-1.5 whitespace-nowrap text-gray-700 dark:text-gray-200 material-quantity_needed">
                             @php
@@ -76,7 +74,7 @@
                                     }
                                 }
                             @endphp
-                            {{ number_format($qtyNeeded, $decimalsQty) }}
+                            {{ number_format($qtyNeeded, $decimalsQty) }} {{ $material->unit ?? optional($material->inventoryItem)->unit }}
                         </td>
                         <td class="px-4 py-1.5 whitespace-nowrap text-gray-700 dark:text-gray-200 material-price">
                             {{ !is_null($material->price) ? number_format($material->price) . '円' : '-' }}
@@ -160,7 +158,7 @@
                         @endphp
                         @foreach($availableInventoryItems as $item)
                             <option value="{{ $item->id }}" data-unit="{{ $item->unit }}" data-name="{{ $item->name }}" data-avg_price="{{ $item->average_unit_price }}">
-                                {{ $item->name }} (単位: {{ $item->unit }}, 在庫: {{ number_format($item->quantity, (in_array(strtolower($item->unit), ['m'])) ? (fmod($item->quantity, 1) !== 0.00 ? 1:0) : 0) }})
+                                {{ $item->name }} (品番:{{ $item->product_number ?? 'なし' }}, 色番:{{ $item->color_number ?? 'なし'}}, 在庫: {{ number_format($item->quantity, (in_array(strtolower($item->unit), ['m'])) ? (fmod($item->quantity, 1) !== 0.00 ? 1:0) : 0) }}, 単位: {{ $item->unit }})
                             </option>
                         @endforeach
                     </select>

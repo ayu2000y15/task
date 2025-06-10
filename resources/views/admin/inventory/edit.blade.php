@@ -165,6 +165,18 @@
                     </div>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
                         <div>
+                            <x-input-label for="product_number" value="品番" />
+                            <x-text-input id="product_number" name="product_number" type="text" class="mt-1 block w-full" :value="old('product_number', $inventoryItem->product_number)" :hasError="$errors->has('product_number')" />
+                            <x-input-error :messages="$errors->get('product_number')" class="mt-2" />
+                        </div>
+                        <div>
+                            <x-input-label for="color_number" value="色番" />
+                            <x-text-input id="color_number" name="color_number" type="text" class="mt-1 block w-full" :value="old('color_number', $inventoryItem->color_number)" :hasError="$errors->has('color_number')" />
+                            <x-input-error :messages="$errors->get('color_number')" class="mt-2" />
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div>
                             <x-input-label for="unit" value="単位" :required="true" />
                             <x-text-input id="unit" name="unit" type="text" class="mt-1 block w-full"
                                 :value="old('unit', $inventoryItem->unit)" required :hasError="$errors->has('unit')" placeholder="例: m, 個, 袋, 箱" />

@@ -41,6 +41,11 @@
         <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
             <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-200">在庫品目一覧</h1>
             <div class="flex items-center space-x-2">
+                <x-secondary-button @click="filtersOpen = !filtersOpen">
+                    <i class="fas fa-filter mr-1"></i>フィルター
+                    <span x-show="filtersOpen" style="display:none;"><i class="fas fa-chevron-up fa-xs ml-2"></i></span>
+                    <span x-show="!filtersOpen"><i class="fas fa-chevron-down fa-xs ml-2"></i></span>
+                </x-secondary-button>
                 @can('viewAny', App\Models\InventoryLog::class)
                     <x-secondary-button as="a" href="{{ route('admin.inventory-logs.index') }}">
                         <i class="fas fa-history mr-2"></i>在庫変動ログ
@@ -61,6 +66,16 @@
                         <x-input-label for="filter_item_name" value="品名" />
                         <x-text-input id="filter_item_name" name="inventory_item_name" type="text" class="mt-1 block w-full"
                             :value="request('inventory_item_name')" placeholder="品名で検索" />
+                    </div>
+                    <div>
+                        <x-input-label for="filter_product_number" value="品番" />
+                        <x-text-input id="filter_product_number" name="product_number" type="text" class="mt-1 block w-full"
+                            :value="request('product_number')" placeholder="品番で検索" />
+                    </div>
+                    <div>
+                        <x-input-label for="filter_color_number" value="色番" />
+                        <x-text-input id="filter_color_number" name="color_number" type="text" class="mt-1 block w-full"
+                            :value="request('color_number')" placeholder="色番で検索" />
                     </div>
                     <div>
                         <x-input-label for="filter_supplier" value="仕入先" />
@@ -99,7 +114,7 @@
                                 ID</th>
                             <th scope="col"
                                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                品名</th>
+                                品名 (品番/色番)</th>
                             <th scope="col"
                                 class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                                 現在在庫数</th>
@@ -133,9 +148,7 @@
                                 }
                             @endphp
                             <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 {{ $rowHighlightClass }}">
-                                <td class="px-6 py-4 whitespace-nowrap text-sm inventory-table-subtext">{{ $item->id }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                                    {{-- ★ 警告アイコンの追加 --}}
+                                <td class="px-6 py-4 whitespace-nowrap text-sm inventory-table-subtext">{{ $item->id }}
                                     @if($isOutOfStock)
                                         <i class="fas fa-exclamation-circle warning-icon-out mr-1"
                                             title="在庫切れ (発注点 {{ $item->minimum_stock_level }}{{ $item->unit }})"></i>
@@ -143,7 +156,14 @@
                                         <i class="fas fa-exclamation-triangle warning-icon-low mr-1"
                                             title="在庫僅少 (発注点 {{ $item->minimum_stock_level }}{{ $item->unit }})"></i>
                                     @endif
-                                    {{ $item->name }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                                    <div class="font-medium text-gray-900 dark:text-white text-lg">{{ $item->name }}</div>
+                                    @if($item->product_number || $item->color_number)
+                                        <p class="text-xs inventory-table-subtext">
+                                            {{ $item->product_number ?? '品番なし' }} / {{ $item->color_number ?? '色番なし' }}
+                                        </p>
+                                    @endif
                                     @if($item->description)
                                         <p class="text-xs inventory-table-subtext truncate" title="{{ $item->description }}">
                                             {!! Str::limit(nl2br($item->description), 30) !!}</p>

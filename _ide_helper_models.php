@@ -396,6 +396,8 @@ namespace App\Models{
  *
  * @property int $id
  * @property string $name 品名
+ * @property string|null $product_number
+ * @property string|null $color_number
  * @property string|null $description 説明
  * @property string $unit 単位 (例: m, 個, 袋)
  * @property numeric $total_cost 総原価
@@ -409,12 +411,14 @@ namespace App\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|InventoryItem newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|InventoryItem newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|InventoryItem query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|InventoryItem whereColorNumber($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|InventoryItem whereCreatedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|InventoryItem whereDescription($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|InventoryItem whereId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|InventoryItem whereLastStockedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|InventoryItem whereMinimumStockLevel($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|InventoryItem whereName($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|InventoryItem whereProductNumber($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|InventoryItem whereQuantity($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|InventoryItem whereSupplier($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|InventoryItem whereTotalCost($value)

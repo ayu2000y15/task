@@ -13,10 +13,36 @@ use Illuminate\Support\Facades\DB;
 
 class InventoryController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
+        $query = InventoryItem::query();
 
-        $inventoryItems = InventoryItem::orderBy('name')->paginate(20);
+        // 検索機能
+        if ($request->filled('inventory_item_name')) {
+            $query->where('name', 'like', '%' . $request->input('inventory_item_name') . '%');
+        }
+        if ($request->filled('product_number')) { // ★品番での絞り込み
+            $query->where('product_number', 'like', '%' . $request->input('product_number') . '%');
+        }
+        if ($request->filled('color_number')) { // ★色番での絞り込み
+            $query->where('color_number', 'like', '%' . $request->input('color_number') . '%');
+        }
+        if ($request->filled('supplier')) {
+            $query->where('supplier', 'like', '%' . $request->input('supplier') . '%');
+        }
+        if ($request->filled('stock_status')) {
+            $status = $request->input('stock_status');
+            if ($status === 'out') {
+                $query->where('quantity', '<=', 0);
+            } elseif ($status === 'low') {
+                $query->whereColumn('quantity', '<', 'minimum_stock_level')->where('quantity', '>', 0);
+            } elseif ($status === 'ok') {
+                $query->whereColumn('quantity', '>=', 'minimum_stock_level');
+            }
+        }
+
+        $inventoryItems = $query->orderBy('name')->paginate(20)->appends($request->except('page'));
+
         return view('admin.inventory.index', compact('inventoryItems'));
     }
 
@@ -32,6 +58,8 @@ class InventoryController extends Controller
 
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:inventory_items,name',
+            'product_number' => 'nullable|string|max:255',
+            'color_number' => 'nullable|string|max:255',
             'description' => 'nullable|string|max:1000',
             'unit' => 'required|string|max:50',
             'quantity' => 'required|numeric|min:0',
@@ -81,6 +109,8 @@ class InventoryController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:inventory_items,name,' . $inventoryItem->id,
+            'product_number' => 'nullable|string|max:255',
+            'color_number' => 'nullable|string|max:255',
             'description' => 'nullable|string|max:1000',
             'unit' => 'required|string|max:50',
             'total_cost' => 'nullable|numeric|min:0', // ★ total_cost をバリデーション

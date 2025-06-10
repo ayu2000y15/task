@@ -88,7 +88,7 @@
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
                                     @if($order->inventoryItem)
                                         <a href="{{ route('admin.inventory.edit', $order->inventoryItem) }}" class="hover:underline" title="在庫品目「{{ $order->inventoryItem->name }}」を編集">
-                                            {{ $order->inventoryItem->name }}
+                                            {{ $order->inventoryItem->name . ' ( ' . ($order->inventoryItem->product_number ?? '品番なし') . '/' . ($order->inventoryItem->color_number ?? '色番なし') . ' ) ' }}
                                         </a>
                                     @else
                                         品目情報なし
