@@ -187,8 +187,8 @@
                                         @foreach($supplierLines as $line)
                                             <p>
                                                 @if(preg_match('/^(https?:\/\/|www\.)\S+/i', trim($line)))
-                                                    <a href="{{ (Str::startsWith(trim($line), 'www.') ? 'http://' : '') . trim($line) }}"
-                                                        target="_blank" rel="noopener noreferrer">
+                                                    <a class="text-blue-600" href="{{ (Str::startsWith(trim($line), 'www.') ? 'http://' : '') . trim($line) }}"
+                                                        target="_blank" rel="noopener noreferrer" style="text-decoration: underline;">
                                                         {{ trim($line) }}
                                                     </a>
                                                 @else
