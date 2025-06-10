@@ -153,7 +153,7 @@
                         <div class="absolute top-0 h-full border-r-2 border-dashed border-blue-700 dark:border-blue-400"
                              style="left: {{ $targetCostMarkerPosition }}%;"
                              title="目標コスト: {{ number_format($targetCost) }}円">
-                             <span class="absolute -top-5 left-1/2 -translate-x-1/2 text-xs text-blue-700 dark:text-blue-400 whitespace-nowrap bg-white dark:bg-gray-800 px-1 rounded shadow">目標</span>
+                             <span class="absolute -top-5 left-1/2 -translate-x-1/2 text-xs text-blue-700 dark:text-blue-400 whitespace-nowrap bg-white dark:bg-gray-800 px-1 rounded shadow">目標:{{ number_format($targetCost) }}円</span>
                         </div>
                     @elseif($targetCost > 0 && $targetCost > $budget)
                         <div class="absolute top-0 h-full border-r-2 border-dashed border-orange-500 dark:border-orange-400"
