@@ -192,7 +192,7 @@
                             <textarea id="body_editor" name="body" class="tinymce-content mt-1 block w-full">{{ old('body') }}</textarea>
                             <x-input-error :messages="$errors->get('body')" class="mt-2" />
                             <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">メンションするには `@` を入力して候補から選択、タグ付けするには
-                                `#タグ名` と入力します。</p>
+                                `[タグ名]` と入力します。</p>
                         </div>
 
                         <hr class="dark:border-gray-600">

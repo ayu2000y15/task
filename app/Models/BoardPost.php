@@ -63,8 +63,8 @@ class BoardPost extends Model
         $body = preg_replace_callback('/\[([^\]]+?)\]/u', function ($matches) {
             $tag = $matches[1];
             $url = route('community.posts.index', ['tag' => $tag]);
-            $badgeClass = "tag-badge inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-800 transition no-underline";
-            return "<a href=\"{$url}\" class=\"{$badgeClass}\"><i class=\"tag-badge fas fa-tag mr-1\"></i>{$tag}</a>";
+            $badgeClass = "inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-800 transition no-underline";
+            return "<a href=\"{$url}\" class=\"{$badgeClass}\"><i class=\"fas fa-tag mr-1\"></i>{$tag}</a>";
         }, $body);
 
         // @ユーザー名 を検索し、バッジに置換
@@ -73,12 +73,12 @@ class BoardPost extends Model
 
             if ($mention === 'all') {
                 // @all 専用のバッジ
-                $badgeClass = "mention-badge inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300 no-underline font-bold";
-                return "<span class=\"{$badgeClass}\"><i class=\"mention-badge fas fa-bullhorn mr-1\"></i>all</span>";
+                $badgeClass = "inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300 no-underline font-bold";
+                return "<span class=\"{$badgeClass}\"><i class=\"fas fa-bullhorn mr-1\"></i>all</span>";
             } else {
                 // 通常のメンションバッジ
-                $badgeClass = "mention-badge inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-300 no-underline";
-                return "<span class=\"{$badgeClass}\"><i class=\"mention-badge fas fa-at mr-1\"></i>{$mention}</span>";
+                $badgeClass = "inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300 no-underline font-bold";
+                return "<span class=\"{$badgeClass}\"><i class=\"fas fa-at mr-1\"></i>{$mention}</span>";
             }
         }, $body);
 
