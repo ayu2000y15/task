@@ -52,43 +52,141 @@ class InventoryController extends Controller
         return view('admin.inventory.create');
     }
 
+    // 一括登録フォーム表示
+    public function bulkCreate()
+    {
+        return view('admin.inventory.bulk-create');
+    }
+
+    // 一括登録処理
+    public function bulkStore(Request $request)
+    {
+        $validated = $request->validate([
+            'base_name' => 'required|string|max:255',
+            'description' => 'nullable|string|max:1000',
+            'unit' => 'required|string|max:50',
+            'minimum_stock_level' => 'required|numeric|min:0',
+            'supplier' => 'nullable|string|max:255',
+            'last_stocked_at' => 'nullable|date',
+            'variants' => 'required|array|min:1|max:20', // 最大20件まで
+            'variants.*.product_number' => 'nullable|string|max:255',
+            'variants.*.color_number' => 'nullable|string|max:255',
+            'variants.*.quantity' => 'required|numeric|min:0',
+            'variants.*.total_cost' => 'nullable|numeric|min:0',
+        ], [
+            'variants.required' => 'バリエーションを最低1つは入力してください。',
+            'variants.min' => 'バリエーションを最低1つは入力してください。',
+            'variants.max' => 'バリエーションは最大20件まで登録できます。',
+            'variants.*.quantity.required' => '在庫数は必須です。',
+            'variants.*.quantity.numeric' => '在庫数は数値で入力してください。',
+            'variants.*.quantity.min' => '在庫数は0以上で入力してください。',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $createdItems = [];
+
+            foreach ($validated['variants'] as $index => $variant) {
+                // 品番と色番の組み合わせが既存のものと重複していないかチェック
+                $existingItem = InventoryItem::where('name', $validated['base_name'])
+                    ->where('product_number', $variant['product_number'])
+                    ->where('color_number', $variant['color_number'])
+                    ->first();
+
+                if ($existingItem) {
+                    throw new \Exception("品名「{$validated['base_name']}」、品番「{$variant['product_number']}」、色番「{$variant['color_number']}」の組み合わせは既に登録されています。");
+                }
+
+                // 在庫品目を作成
+                $itemData = [
+                    'name' => $validated['base_name'],
+                    'product_number' => $variant['product_number'],
+                    'color_number' => $variant['color_number'],
+                    'description' => $validated['description'],
+                    'unit' => $validated['unit'],
+                    'quantity' => $variant['quantity'],
+                    'total_cost' => $variant['total_cost'] ?? 0,
+                    'minimum_stock_level' => $validated['minimum_stock_level'],
+                    'supplier' => $validated['supplier'],
+                    'last_stocked_at' => $validated['last_stocked_at'],
+                ];
+
+                $inventoryItem = InventoryItem::create($itemData);
+                $createdItems[] = $inventoryItem;
+
+                // 初期在庫登録に伴うInventoryLogの記録
+                if ($inventoryItem->quantity > 0) {
+                    InventoryLog::create([
+                        'inventory_item_id' => $inventoryItem->id,
+                        'user_id' => Auth::id(),
+                        'change_type' => 'initial_stock',
+                        'quantity_change' => $inventoryItem->quantity,
+                        'quantity_before_change' => 0,
+                        'quantity_after_change' => $inventoryItem->quantity,
+                        'unit_price_at_change' => $inventoryItem->quantity > 0 ? ($inventoryItem->total_cost / $inventoryItem->quantity) : 0,
+                        'total_price_at_change' => $inventoryItem->total_cost,
+                        'notes' => '一括登録による初期在庫設定',
+                    ]);
+                }
+
+                // アクティビティログ
+                activity()
+                    ->performedOn($inventoryItem)
+                    ->causedBy(Auth::user())
+                    ->withProperties([
+                        'action' => 'bulk_create',
+                        'batch_index' => $index + 1,
+                        'total_items' => count($validated['variants'])
+                    ])
+                    ->log("在庫品目「{$inventoryItem->name}」（品番: {$inventoryItem->product_number}, 色番: {$inventoryItem->color_number}）が一括登録されました。");
+            }
+
+            DB::commit();
+
+            return redirect()->route('admin.inventory.index')
+                ->with('success', count($createdItems) . '件の在庫品目を一括登録しました。');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Bulk inventory creation failed: ' . $e->getMessage(), [
+                'request_data' => $request->all(),
+                'exception' => $e
+            ]);
+            return back()->with('error', '一括登録中にエラーが発生しました: ' . $e->getMessage())->withInput();
+        }
+    }
+
     public function store(Request $request)
     {
-
-
         $validated = $request->validate([
-            'name' => 'required|string|max:255|unique:inventory_items,name',
+            'name' => 'required|string|max:255',
             'product_number' => 'nullable|string|max:255',
             'color_number' => 'nullable|string|max:255',
             'description' => 'nullable|string|max:1000',
             'unit' => 'required|string|max:50',
             'quantity' => 'required|numeric|min:0',
-            'total_cost' => 'nullable|numeric|min:0', // ★ total_cost のバリデーション追加
+            'total_cost' => 'nullable|numeric|min:0',
             'minimum_stock_level' => 'required|numeric|min:0',
             'supplier' => 'nullable|string|max:255',
             'last_stocked_at' => 'nullable|date',
         ]);
 
-        // total_cost が入力されていない場合は0をセット
         $validated['total_cost'] = $validated['total_cost'] ?? 0;
 
         $inventoryItem = InventoryItem::create($validated);
 
-        // ★ 初期在庫登録に伴うInventoryLogの記録 (任意)
         if ($inventoryItem->quantity > 0) {
             InventoryLog::create([
                 'inventory_item_id' => $inventoryItem->id,
-                'user_id' => Auth::id(), // 操作者ID
-                'change_type' => 'initial_stock', // 変動種別: 初期在庫
-                'quantity_change' => $inventoryItem->quantity, // 変動量は初期在庫数
-                'quantity_before_change' => 0, // 初期登録なので変動前は0
-                'quantity_after_change' => $inventoryItem->quantity, // 変動後は初期在庫数
-                'unit_price_at_change' => $inventoryItem->quantity > 0 ? ($inventoryItem->total_cost / $inventoryItem->quantity) : 0, // 初期平均単価
-                'total_price_at_change' => $inventoryItem->total_cost, // 初期総コスト
+                'user_id' => Auth::id(),
+                'change_type' => 'initial_stock',
+                'quantity_change' => $inventoryItem->quantity,
+                'quantity_before_change' => 0,
+                'quantity_after_change' => $inventoryItem->quantity,
+                'unit_price_at_change' => $inventoryItem->quantity > 0 ? ($inventoryItem->total_cost / $inventoryItem->quantity) : 0,
+                'total_price_at_change' => $inventoryItem->total_cost,
                 'notes' => '新規在庫品目登録による初期在庫設定',
             ]);
         }
-
 
         return redirect()->route('admin.inventory.index')->with('success', '在庫品目を登録しました。');
     }
@@ -108,7 +206,7 @@ class InventoryController extends Controller
     public function update(Request $request, InventoryItem $inventoryItem)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255|unique:inventory_items,name,' . $inventoryItem->id,
+            'name' => 'required|string|max:255,' . $inventoryItem->id,
             'product_number' => 'nullable|string|max:255',
             'color_number' => 'nullable|string|max:255',
             'description' => 'nullable|string|max:1000',

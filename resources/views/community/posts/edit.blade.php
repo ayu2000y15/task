@@ -179,7 +179,7 @@
 
         <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-6">投稿編集</h1>
 
-        <div class="max-w-4xl mx-auto bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
+        <div class="max-w-4xl mx-auto bg-white dark:bg-gray-800 shadow-md rounded-lg ">
             <div class="p-6 sm:p-8">
                 <form action="{{ route('community.posts.update', $post) }}" method="POST">
                     @csrf
@@ -196,6 +196,8 @@
                             <textarea id="body_editor_edit" name="body"
                                 class="tinymce-content mt-1 block w-full">{{ old('body', $post->body) }}</textarea>
                             <x-input-error :messages="$errors->get('body')" class="mt-2" />
+                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">メンションするには `@` を入力して候補から選択、タグ付けするには
+                                `[タグ名]` と入力します。</p>
                         </div>
 
                         <hr class="dark:border-gray-600">

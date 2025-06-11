@@ -175,7 +175,7 @@
 
         <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-6">新規投稿作成</h1>
 
-        <div class="max-w-4xl mx-auto bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
+        <div class="max-w-4xl mx-auto bg-white dark:bg-gray-800 shadow-md rounded-lg ">
             <div class="p-6 sm:p-8">
                 <form action="{{ route('community.posts.store') }}" method="POST">
                     @csrf

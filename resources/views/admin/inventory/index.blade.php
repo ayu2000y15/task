@@ -52,9 +52,15 @@
                     </x-secondary-button>
                 @endcan
                 @can('create', App\Models\InventoryItem::class)
-                    <x-primary-button as="a" href="{{ route('admin.inventory.create') }}">
-                        <i class="fas fa-plus mr-2"></i>新規在庫品目登録
-                    </x-primary-button>
+                    {{-- <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-200">在庫管理</h1> --}}
+                    <div class="flex space-x-2">
+                        <x-primary-button as="a" href="{{ route('admin.inventory.create') }}">
+                            <i class="fas fa-plus mr-2"></i> 新規登録
+                        </x-primary-button>
+                        <x-secondary-button as="a" href="{{ route('admin.inventory.bulk-create') }}" class="bg-green-600 hover:bg-green-700 text-white" style="background-color: green;" >
+                            <i class="fas fa-layer-group mr-2"></i> 一括登録
+                        </x-secondary-button>
+                    </div>
                 @endcan
             </div>
         </div>

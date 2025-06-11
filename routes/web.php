@@ -183,9 +183,13 @@ Route::middleware('auth')->group(function () {
         // --- ここまで管理者向けフィードバック機能 ---
 
         // 在庫管理
+        Route::get('inventory/bulk-create', [InventoryController::class, 'bulkCreate'])->name('inventory.bulk-create');
+        Route::post('inventory/bulk-store', [InventoryController::class, 'bulkStore'])->name('inventory.bulk-store');
+
         Route::resource('inventory', InventoryController::class)->parameters(['inventory' => 'inventoryItem']);
         Route::post('inventory/{inventoryItem}/stock-in', [InventoryController::class, 'stockIn'])->name('inventory.stockIn');
         Route::post('inventory/{inventoryItem}/adjust', [InventoryController::class, 'adjustStock'])->name('inventory.adjustStock');
+
 
         // 在庫発注申請
         Route::resource('stock-orders', StockOrderController::class);

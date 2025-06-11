@@ -537,7 +537,8 @@
                                     class="text-sm text-gray-500 dark:text-gray-400 ml-2">{{ $comment->created_at->diffForHumans() }}</span>
                             </div>
                             <div class="flex items-center space-x-3">
-                                <button class="reply-to-comment-btn text-sm text-gray-500 hover:text-blue-500" title="返信する"><i
+                                <button onclick="location.href = '#reactions-container'; return false;"
+                                    class="reply-to-comment-btn text-sm text-gray-500 hover:text-blue-500" title="返信する"><i
                                         class="fas fa-reply"></i></button>
                                 @can('update', $comment)
                                     <button class="edit-comment-btn text-gray-400 hover:text-blue-500" title="編集"><i
