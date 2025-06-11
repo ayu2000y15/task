@@ -14,6 +14,8 @@ use App\Http\Controllers\CostController;
 use App\Http\Controllers\CharacterController;
 use App\Http\Controllers\ExternalFormController;
 use App\Http\Controllers\TrackingController;
+use App\Http\Controllers\BoardPostController;
+use App\Http\Controllers\BoardCommentController;
 
 // フィードバック機能で追加するコントローラー
 use App\Http\Controllers\Admin\ProcessTemplateController;
@@ -111,6 +113,26 @@ Route::middleware('auth')->group(function () {
     Route::get('/feedback/create', [UserFeedbackController::class, 'create'])->name('user_feedbacks.create');
     Route::post('/feedback', [UserFeedbackController::class, 'store'])->name('user_feedbacks.store');
     // --- ここまでユーザー向けフィードバック機能 ---
+
+    // -------------------------------------------------------------------------
+    // 社内掲示板
+    // -------------------------------------------------------------------------
+    Route::prefix('community')->name('community.')->middleware(['can:viewAny,App\Models\BoardPost'])->group(function () {
+        Route::resource('posts', BoardPostController::class);
+
+        // コメント投稿
+        Route::post('posts/{post}/comments', [BoardCommentController::class, 'store'])->name('posts.comments.store');
+        // メンション用のユーザー検索ルート
+        Route::get('/users/search', [BoardPostController::class, 'searchUsers'])->name('users.search');
+        // 画像アップロード (TinyMCE用)
+        Route::post('posts/upload-image', [BoardPostController::class, 'uploadImage'])->name('posts.uploadImage');
+        // コメント更新・削除・リアクション用のルート
+        Route::patch('comments/{comment}', [BoardCommentController::class, 'update'])->name('comments.update');
+        Route::delete('comments/{comment}', [BoardCommentController::class, 'destroy'])->name('comments.destroy');
+        Route::post('comments/{comment}/reactions', [BoardCommentController::class, 'toggleReaction'])->name('comments.toggleReaction');
+        // リアクション用のルート
+        Route::post('posts/{post}/reactions', [BoardPostController::class, 'toggleReaction'])->name('posts.toggleReaction');
+    });
 
     Route::prefix('admin')->name('admin.')->middleware(['can:viewAny,App\Models\ProcessTemplate'])->group(function () { // 管理者用などのミドルウェアを想定
         Route::resource('form-definitions', FormFieldDefinitionController::class)

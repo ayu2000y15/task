@@ -9,6 +9,7 @@ use App\View\Composers\UnreadFeedbackComposer;
 use App\View\Composers\PendingStockOrdersComposer; // ★ 追加: 新しいコンポーザをuse
 use App\View\Composers\InventoryAlertComposer; // ★ 追加: 新しいコンポーザをuse
 use App\View\Composers\NewExternalSubmissionsComposer; // ★ 追加: 新しいコンポーザをuse
+use App\View\Composers\UnreadBoardPostComposer;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -30,5 +31,6 @@ class AppServiceProvider extends ServiceProvider
         View::composer(['layouts.app', 'admin.*'], PendingStockOrdersComposer::class);
         View::composer(['layouts.app', 'admin.*'], InventoryAlertComposer::class); // ★ 追加
         View::composer('layouts.app', NewExternalSubmissionsComposer::class);
+        View::composer('layouts.app', UnreadBoardPostComposer::class);
     }
 }

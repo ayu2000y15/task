@@ -13,6 +13,7 @@
         "laravel/framework": "^12.0",
         "laravel/tinker": "^2.10.1",
         "league/csv": "^9.23",
+        "mews/purifier": "^3.4",
         "spatie/laravel-activitylog": "^4.10",
         "symfony/css-selector": "^7.3",
         "symfony/dom-crawler": "^7.3",

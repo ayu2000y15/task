@@ -1,0 +1,206 @@
+@extends('layouts.app')
+
+@section('title', '社内掲示板')
+
+@section('content')
+    <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {{-- ヘッダー：タイトルと新規作成ボタン --}}
+        <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+            <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-200">社内掲示板</h1>
+            <div>
+                @can('create', App\Models\BoardPost::class)
+                    <x-primary-button as="a" href="{{ route('community.posts.create') }}">
+                        <i class="fas fa-plus mr-1"></i> 新規投稿作成
+                    </x-primary-button>
+                @endcan
+            </div>
+        </div>
+
+        {{-- タグ絞り込み表示 --}}
+        @if(request('tag'))
+            <div class="mb-6 p-4 bg-purple-50 dark:bg-purple-900/50 border-l-4 border-purple-400 dark:border-purple-500">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-tag text-purple-500 dark:text-purple-400"></i>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm text-purple-700 dark:text-purple-200">
+                            タグ「<strong>{{ request('tag') }}</strong>」で絞り込み中。
+                            <a href="{{ route('community.posts.index') }}"
+                                class="font-medium underline hover:text-purple-600 dark:hover:text-purple-100 ml-2">絞り込みを解除</a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        @endif
+
+        {{-- 投稿一覧テーブル --}}
+        <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-700">
+                    <tr>
+                        <th scope="col"
+                            class="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            タイトル
+                        </th>
+                        <th scope="col"
+                            class="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            閲覧範囲
+                        </th>
+                        {{-- ▼▼▼【ここから追加】▼▼▼ --}}
+                        <th scope="col"
+                            class="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            タグ
+                        </th>
+                        {{-- ▲▲▲【ここまで】▲▲▲ --}}
+                        <th scope="col"
+                            class="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            投稿者
+                        </th>
+                        <th scope="col"
+                            class="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            最終更新日時
+                        </th>
+                        <th scope="col"
+                            class="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            コメント
+                        </th>
+                        <th scope="col"
+                            class="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider min-w-[180px]">
+                            操作
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    @forelse ($posts as $post)
+                        @can('view', $post)
+                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                <td
+                                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100 relative">
+                                    {{-- 未読または既読の状態に応じてバッジを表示 --}}
+                                    @if ($unreadPostIds->contains($post->id))
+                                        <span
+                                            class="absolute top-1.5 left-2 inline-block px-1.5 py-0.5 text-xs font-bold text-white bg-red-500 rounded-full"
+                                            style="font-size: 0.6rem; line-height: 1;">NEW</span>
+                                    @elseif ($readPostIds->contains($post->id))
+                                        <span
+                                            class="absolute top-1.5 left-2 inline-block px-1.5 py-0.5 text-xs font-semibold text-gray-600 bg-gray-200 dark:text-gray-300 dark:bg-gray-600 rounded-full"
+                                            style="font-size: 0.6rem; line-height: 1;">既読</span>
+                                    @endif
+
+                                    {{-- タイトル本体。バッジの分だけ左に余白を設ける --}}
+                                    <a href="{{ route('community.posts.show', $post) }}"
+                                        class="block pl-10 text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-200 hover:underline">
+                                        {{ Str::limit($post->title, 50) }}
+                                    </a>
+                                </td>
+
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                    <div class="flex items-center space-x-2">
+                                        @if ($post->role)
+                                            <span
+                                                class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200"
+                                                title="ロール: {{ $post->role->display_name ?? $post->role->name }}">
+                                                <i class="fas fa-users mr-1 mt-0.5"></i>
+                                                {{ Str::limit($post->role->display_name ?? $post->role->name, 10) }}
+                                            </span>
+                                        @endif
+
+                                        @if ($post->readableUsers->isNotEmpty())
+                                            <span
+                                                class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                                                title="指定ユーザー: {{ $post->readableUsers->pluck('name')->join(', ') }}">
+                                                <i class="fas fa-user-check mr-1 mt-0.5"></i>
+                                                個別指定 ({{ $post->readableUsers->count() }})
+                                            </span>
+                                        @endif
+
+                                        @if (!$post->role && $post->readableUsers->isEmpty())
+                                            <span
+                                                class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-700 dark:text-green-100">
+                                                <i class="fas fa-globe-asia mr-1 mt-0.5"></i>
+                                                全公開
+                                            </span>
+                                        @endif
+                                    </div>
+                                </td>
+                                {{-- ▼▼▼【ここから追加】▼▼▼ --}}
+                                <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+                                    @if($post->tags->isNotEmpty())
+                                        <div class="flex flex-wrap items-center gap-1">
+                                            @foreach($post->tags->take(2) as $tag) {{-- 表示数を2つに制限 --}}
+                                                <a href="{{ route('community.posts.index', ['tag' => $tag->name]) }}"
+                                                    class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-800 transition no-underline">
+                                                    <i class="fas fa-tag mr-1"></i>
+                                                    {{ Str::limit($tag->name, 10) }}
+                                                </a>
+                                            @endforeach
+                                            @if($post->tags->count() > 2)
+                                                <span class="px-2 py-0.5 text-xs text-gray-400 dark:text-gray-500"
+                                                    title="{{ $post->tags->slice(2)->pluck('name')->join(', ') }}">+{{ $post->tags->count() - 2 }}</span>
+                                            @endif
+                                        </div>
+                                    @endif
+                                </td>
+                                {{-- ▲▲▲【ここまで】▲▲▲ --}}
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                    {{ $post->user->name ?? 'N/A' }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                    {{ $post->updated_at->format('Y/m/d H:i') }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                    <i class="far fa-comment-dots mr-1"></i>
+                                    {{ $post->comments_count ?? $post->comments->count() }}
+                                    @if($unreadCommentPostIds->contains($post->id))
+                                        <span class="px-2 py-0.5 text-xs font-bold text-white bg-orange-500 rounded-full">未読あり</span>
+                                    @endif
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                    <div class="flex items-center space-x-2">
+                                        <x-secondary-button as="a" href="{{ route('community.posts.show', $post) }}"
+                                            class="py-1 px-3 text-xs">
+                                            <i class="fas fa-eye mr-1"></i>詳細
+                                        </x-secondary-button>
+
+                                        @can('update', $post)
+                                            <x-secondary-button as="a" href="{{ route('community.posts.edit', $post) }}"
+                                                class="py-1 px-3 text-xs">
+                                                <i class="fas fa-edit mr-1"></i>編集
+                                            </x-secondary-button>
+                                        @endcan
+
+                                        @can('delete', $post)
+                                            <form action="{{ route('community.posts.destroy', $post) }}" method="POST"
+                                                class="inline-block" onsubmit="return confirm('本当に投稿「{{ $post->title }}」を削除しますか？');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <x-danger-button type="submit" class="py-1 px-3 text-xs">
+                                                    <i class="fas fa-trash mr-1"></i>削除
+                                                </x-danger-button>
+                                            </form>
+                                        @endcan
+                                    </div>
+                                </td>
+                            </tr>
+                        @endcan
+                    @empty
+                        <tr>
+                            {{-- ▼▼▼【変更】colspanを7に修正 ▼▼▼ --}}
+                            <td colspan="7" class="px-6 py-12 text-center text-sm text-gray-500 dark:text-gray-400">
+                                投稿はまだありません。
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+
+        {{-- ページネーションリンク --}}
+        @if ($posts->hasPages())
+            <div class="mt-4">
+                {{ $posts->links() }}
+            </div>
+        @endif
+    </div>
+@endsection

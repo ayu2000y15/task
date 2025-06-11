@@ -108,4 +108,14 @@ class User extends Authenticatable
     {
         return $this->belongsToMany(Task::class, 'task_user');
     }
+
+    /**
+     * このユーザーが投稿した掲示板の投稿
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
+    public function boardPosts(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(\App\Models\BoardPost::class);
+    }
 }

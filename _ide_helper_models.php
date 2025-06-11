@@ -40,6 +40,177 @@ namespace App\Models{
  * 
  *
  * @property int $id
+ * @property int $board_post_id
+ * @property int $user_id
+ * @property int|null $parent_id
+ * @property string $body
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \Spatie\Activitylog\Models\Activity> $activities
+ * @property-read int|null $activities_count
+ * @property-read \App\Models\BoardPost $boardPost
+ * @property-read string $formatted_body
+ * @property-read BoardComment|null $parent
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\BoardCommentReaction> $reactions
+ * @property-read int|null $reactions_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, BoardComment> $replies
+ * @property-read int|null $replies_count
+ * @property-read \App\Models\User $user
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardComment newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardComment newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardComment query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardComment whereBoardPostId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardComment whereBody($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardComment whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardComment whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardComment whereParentId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardComment whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardComment whereUserId($value)
+ */
+	class BoardComment extends \Eloquent {}
+}
+
+namespace App\Models{
+/**
+ * 
+ *
+ * @property int $id
+ * @property int $comment_id
+ * @property int $user_id
+ * @property string $emoji
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\User $user
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardCommentReaction newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardCommentReaction newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardCommentReaction query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardCommentReaction whereCommentId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardCommentReaction whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardCommentReaction whereEmoji($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardCommentReaction whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardCommentReaction whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardCommentReaction whereUserId($value)
+ */
+	class BoardCommentReaction extends \Eloquent {}
+}
+
+namespace App\Models{
+/**
+ * 
+ *
+ * @property int $id
+ * @property int $user_id
+ * @property int $comment_id
+ * @property string|null $read_at
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardCommentRead newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardCommentRead newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardCommentRead query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardCommentRead whereCommentId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardCommentRead whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardCommentRead whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardCommentRead whereReadAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardCommentRead whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardCommentRead whereUserId($value)
+ */
+	class BoardCommentRead extends \Eloquent {}
+}
+
+namespace App\Models{
+/**
+ * 
+ *
+ * @property int $id
+ * @property int $user_id
+ * @property int|null $role_id
+ * @property string $title
+ * @property string $body
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \Spatie\Activitylog\Models\Activity> $activities
+ * @property-read int|null $activities_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\BoardComment> $comments
+ * @property-read int|null $comments_count
+ * @property-read string $formatted_body
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\BoardPostReaction> $reactions
+ * @property-read int|null $reactions_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\User> $readableUsers
+ * @property-read int|null $readable_users_count
+ * @property-read \App\Models\Role|null $role
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Tag> $tags
+ * @property-read int|null $tags_count
+ * @property-read \App\Models\User $user
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardPost newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardPost newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardPost query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardPost whereBody($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardPost whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardPost whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardPost whereRoleId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardPost whereTitle($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardPost whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardPost whereUserId($value)
+ */
+	class BoardPost extends \Eloquent {}
+}
+
+namespace App\Models{
+/**
+ * 
+ *
+ * @property int $id
+ * @property int $board_post_id
+ * @property int $user_id
+ * @property string $emoji
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \Spatie\Activitylog\Models\Activity> $activities
+ * @property-read int|null $activities_count
+ * @property-read \App\Models\BoardPost $boardPost
+ * @property-read \App\Models\User $user
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardPostReaction newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardPostReaction newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardPostReaction query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardPostReaction whereBoardPostId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardPostReaction whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardPostReaction whereEmoji($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardPostReaction whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardPostReaction whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardPostReaction whereUserId($value)
+ */
+	class BoardPostReaction extends \Eloquent {}
+}
+
+namespace App\Models{
+/**
+ * 
+ *
+ * @property int $id
+ * @property int $user_id
+ * @property int $board_post_id
+ * @property string|null $read_at
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\User $user
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardPostRead newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardPostRead newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardPostRead query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardPostRead whereBoardPostId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardPostRead whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardPostRead whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardPostRead whereReadAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardPostRead whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BoardPostRead whereUserId($value)
+ */
+	class BoardPostRead extends \Eloquent {}
+}
+
+namespace App\Models{
+/**
+ * 
+ *
+ * @property int $id
  * @property int $project_id
  * @property string $name
  * @property string|null $description
@@ -965,6 +1136,27 @@ namespace App\Models{
  * 
  *
  * @property int $id
+ * @property string $name
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\BoardPost> $posts
+ * @property-read int|null $posts_count
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Tag newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Tag newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Tag query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Tag whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Tag whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Tag whereName($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Tag whereUpdatedAt($value)
+ */
+	class Tag extends \Eloquent {}
+}
+
+namespace App\Models{
+/**
+ * 
+ *
+ * @property int $id
  * @property int $project_id
  * @property int|null $character_id
  * @property int|null $parent_id
@@ -1055,6 +1247,7 @@ namespace App\Models{
  * @property int $id
  * @property string $name
  * @property string $email
+ * @property string|null $access_id
  * @property \Illuminate\Support\Carbon|null $email_verified_at
  * @property string $status
  * @property string $password
@@ -1063,6 +1256,8 @@ namespace App\Models{
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \Spatie\Activitylog\Models\Activity> $activities
  * @property-read int|null $activities_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\BoardPost> $boardPosts
+ * @property-read int|null $board_posts_count
  * @property-read \Illuminate\Notifications\DatabaseNotificationCollection<int, \Illuminate\Notifications\DatabaseNotification> $notifications
  * @property-read int|null $notifications_count
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Role> $roles
@@ -1073,6 +1268,7 @@ namespace App\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereAccessId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereCreatedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereEmail($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereEmailVerifiedAt($value)

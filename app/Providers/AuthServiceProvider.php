@@ -28,8 +28,11 @@ use App\Models\InventoryLog; // ★ 追加
 use App\Policies\InventoryLogPolicy; // ★ 追加
 use App\Models\ExternalProjectSubmission; // ★ 追加
 use App\Policies\ExternalProjectSubmissionPolicy; // ★ 追加
-use App\Models\SalesTool;
+use App\Models\BoardPost;
 use App\Policies\SalesToolPolicy;
+use App\Policies\BoardPostPolicy;
+use App\Models\BoardComment;
+use App\Policies\BoardCommentPolicy;
 
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
@@ -57,6 +60,10 @@ class AuthServiceProvider extends ServiceProvider
         ExternalProjectSubmission::class => ExternalProjectSubmissionPolicy::class, // ★ 追加
 
         SalesTool::class => SalesToolPolicy::class,
+
+        BoardPost::class => BoardPostPolicy::class,
+        BoardComment::class => BoardCommentPolicy::class,
+
     ];
 
 

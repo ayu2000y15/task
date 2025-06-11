@@ -40,6 +40,7 @@ class RegisteredUserController extends Controller
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
+            'access_id' => $request->name,
         ]);
 
         $staffRole = Role::where('name', 'staff')->first();

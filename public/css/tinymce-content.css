@@ -1,0 +1,111 @@
+/* .tinymce-content内の要素にのみスタイルを適用 */
+
+/* 段落 */
+.tinymce-content p {
+    margin: 0 0 1em 0; /* ブラウザのデフォルトに近いマージン */
+}
+
+/* 見出し */
+.tinymce-content h1 {
+    font-size: 2em; /* 32px */
+    font-weight: bold;
+    margin: 0.67em 0;
+}
+.tinymce-content h2 {
+    font-size: 1.5em; /* 24px */
+    font-weight: bold;
+    margin: 0.83em 0;
+}
+.tinymce-content h3 {
+    font-size: 1.17em; /* 18.72px */
+    font-weight: bold;
+    margin: 1em 0;
+}
+.tinymce-content h4 {
+    font-size: 1em; /* 16px */
+    font-weight: bold;
+    margin: 1.33em 0;
+}
+.tinymce-content h5 {
+    font-size: 0.83em; /* 13.28px */
+    font-weight: bold;
+    margin: 1.67em 0;
+}
+.tinymce-content h6 {
+    font-size: 0.67em; /* 10.72px */
+    font-weight: bold;
+    margin: 2.33em 0;
+}
+
+/* リスト */
+.tinymce-content ul {
+    list-style: disc outside; /* ブラウザのデフォルト箇条書き */
+    margin: 1em 0;
+    padding-left: 40px; /* 標準的なインデント */
+}
+.tinymce-content ol {
+    list-style: decimal outside; /* ブラウザのデフォルト番号付きリスト */
+    margin: 1em 0;
+    padding-left: 40px;
+}
+.tinymce-content li {
+    margin-bottom: 0.5em; /* リスト項目間の間隔 */
+}
+
+/* 強調 */
+.tinymce-content strong {
+    font-weight: bold;
+}
+.tinymce-content em {
+    font-style: italic;
+}
+
+/* 引用 */
+.tinymce-content blockquote {
+    margin: 1em 40px; /* 標準的なインデント */
+    font-style: italic; /* 多くのブラウザでのデフォルト */
+}
+
+/* コード */
+.tinymce-content code {
+    font-family: "Courier New", Courier, monospace; /* 標準的な等幅フォント */
+    font-size: 1em;
+}
+.tinymce-content pre {
+    font-family: "Courier New", Courier, monospace;
+    margin: 1em 0;
+    padding: 1em;
+    background: #f0f0f0; /* 軽い背景色でコードブロックを区別 */
+    white-space: pre-wrap; /* 折り返し対応 */
+}
+
+/* テーブル */
+.tinymce-content table {
+    border-collapse: collapse; /* ブラウザのデフォルト */
+    margin: 1em 0;
+}
+.tinymce-content th,
+.tinymce-content td {
+    border: 1px solid #000; /* シンプルなボーダー */
+    padding: 0.4em; /* 標準的なパディング */
+}
+.tinymce-content th {
+    font-weight: bold;
+    text-align: left;
+}
+
+/* 画像 */
+.tinymce-content img {
+    max-width: 100%; /* レスポンシブ対応 */
+    height: auto;
+    display: inline; /* インライン要素として扱い、テキストの改行を防止 */
+    vertical-align: baseline; /* 画像の下に余白が生じないように */
+    margin: 0 0.5em 0 0; /* 右側に少し間隔を設けてテキストが自然に流れるように */
+}
+
+/* 水平線 */
+.tinymce-content hr {
+    border: none;
+    border-top: 1px solid #000; /* シンプルな水平線 */
+    margin: 1em 0;
+}

@@ -45,6 +45,34 @@
         .header-main-nav a {
             flex-shrink: 0;
         }
+
+        /* ▼▼▼【ここから追加】メンション候補のスタイル ▼▼▼ */
+        #mention-suggestions-container .mention-suggestion-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        #mention-suggestions-container .mention-suggestion-item:last-child {
+            border-bottom: none;
+        }
+        /* 通常のアイテムのスタイル */
+        .dark #mention-suggestions-container .mention-suggestion-item {
+            border-bottom-color: #4b5563;
+        }
+        /* ホバー時のスタイル */
+        #mention-suggestions-container .mention-suggestion-item:hover {
+            background-color: #f3f4f6;
+        }
+        .dark #mention-suggestions-container .mention-suggestion-item:hover {
+            background-color: #374151;
+        }
+        /* 選択中のアイテムのスタイル */
+        #mention-suggestions-container .mention-suggestion-item.is-selected {
+            background-color: #dbeafe;
+        }
+        .dark #mention-suggestions-container .mention-suggestion-item.is-selected {
+            background-color: #1e40af;
+        }
     </style>
 </head>
 <body class="font-sans antialiased text-gray-900 bg-gray-100 dark:text-gray-100 dark:bg-gray-900">
@@ -278,6 +306,17 @@
                         <i class="fas fa-tshirt"></i><span class="hidden md:inline ml-2">衣装案件</span>
                     </a>
                     @endcan
+
+                    @can('viewAny', App\Models\BoardPost::class)
+                    <a class="relative inline-flex items-center p-2 text-sm font-medium rounded-md {{ request()->routeIs('community.*') ? 'text-blue-600 bg-blue-100 dark:text-blue-300 dark:bg-gray-700' : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700' }}"
+                        href="{{ route('community.posts.index') }}" title="社内掲示板">
+                        <i class="fas fa-comments"></i>
+                        <span class="hidden md:inline ml-2">掲示板</span>
+                        @if(isset($unreadMentionsCountGlobal) && $unreadMentionsCountGlobal > 0)
+                            <span class="absolute top-1 right-0 -mt-1 -mr-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-xs text-white">{{ $unreadMentionsCountGlobal }}</span>
+                        @endif
+                    </a>
+                    @endcan
                 </nav>
 
                 <div class="flex items-center space-x-1 sm:space-x-2 pl-1 sm:pl-2">
@@ -459,6 +498,16 @@
                             x-transition
                             class="absolute right-0 mt-2 w-48 py-1 bg-white rounded-md shadow-lg dark:bg-gray-700 ring-1 ring-black ring-opacity-5 z-50"
                             style="display: none;">
+                            @can('viewAny', App\Models\BoardPost::class)
+                                <a href="{{ route('community.posts.index') }}"
+                                class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
+                                    <span>社内掲示板</span>
+                                    {{-- View Composerから渡された変数でバッジ表示 --}}
+                                    @if(isset($unreadMentionsCountGlobal) && $unreadMentionsCountGlobal > 0)
+                                        <span class="ml-auto inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-blue-500 rounded-full">{{ $unreadMentionsCountGlobal }}</span>
+                                    @endif
+                                </a>
+                            @endcan
                             @can('create', App\Models\Feedback::class)
                             <a href="{{ route('user_feedbacks.create') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">フィードバックを送信</a>
                             @endcan
@@ -576,6 +625,9 @@
 <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
 <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.14/index.global.min.js'></script>
 
+<div id="mention-suggestions-container" class="fixed z-[10000] border bg-white dark:bg-gray-700 shadow-lg rounded-md" style="display: none;">
+    {{-- 候補リストがここに動的に挿入されます --}}
+</div>
 
 </body>
 </html>
