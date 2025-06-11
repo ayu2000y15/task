@@ -96,10 +96,10 @@
                                 </td>
 
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                    <div class="flex items-center space-x-2">
+                                    <div class="flex flex-wrap items-center gap-1">
                                         @if ($post->role)
                                             <span
-                                                class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200"
+                                                class="px-2 inline-flex items-center text-xs leading-5 font-semibold rounded-full bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200"
                                                 title="ロール: {{ $post->role->display_name ?? $post->role->name }}">
                                                 <i class="fas fa-users mr-1 mt-0.5"></i>
                                                 {{ Str::limit($post->role->display_name ?? $post->role->name, 10) }}
@@ -108,7 +108,7 @@
 
                                         @if ($post->readableUsers->isNotEmpty())
                                             <span
-                                                class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                                                class="px-2 y-1 inline-flex items-center text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
                                                 title="指定ユーザー: {{ $post->readableUsers->pluck('name')->join(', ') }}">
                                                 <i class="fas fa-user-check mr-1 mt-0.5"></i>
                                                 個別指定 ({{ $post->readableUsers->count() }})
@@ -117,7 +117,7 @@
 
                                         @if (!$post->role && $post->readableUsers->isEmpty())
                                             <span
-                                                class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-700 dark:text-green-100">
+                                                class="px-2 inline-flex items-center text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-700 dark:text-green-100">
                                                 <i class="fas fa-globe-asia mr-1 mt-0.5"></i>
                                                 全公開
                                             </span>
@@ -125,7 +125,7 @@
                                     </div>
                                 </td>
                                 {{-- ▼▼▼【ここから追加】▼▼▼ --}}
-                                <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                                     @if($post->tags->isNotEmpty())
                                         <div class="flex flex-wrap items-center gap-1">
                                             @foreach($post->tags->take(2) as $tag) {{-- 表示数を2つに制限 --}}
