@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\Auth; // Authファサードを追加
 use App\Models\InventoryLog;      // InventoryLogモデルを追加
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+
 
 class InventoryController extends Controller
 {
@@ -63,13 +65,13 @@ class InventoryController extends Controller
     {
         $validated = $request->validate([
             'base_name' => 'required|string|max:255',
+            'product_number' => 'nullable|string|max:255',
             'description' => 'nullable|string|max:1000',
             'unit' => 'required|string|max:50',
             'minimum_stock_level' => 'required|numeric|min:0',
             'supplier' => 'nullable|string|max:255',
             'last_stocked_at' => 'nullable|date',
             'variants' => 'required|array|min:1|max:20', // 最大20件まで
-            'variants.*.product_number' => 'nullable|string|max:255',
             'variants.*.color_number' => 'nullable|string|max:255',
             'variants.*.quantity' => 'required|numeric|min:0',
             'variants.*.total_cost' => 'nullable|numeric|min:0',
@@ -89,18 +91,18 @@ class InventoryController extends Controller
             foreach ($validated['variants'] as $index => $variant) {
                 // 品番と色番の組み合わせが既存のものと重複していないかチェック
                 $existingItem = InventoryItem::where('name', $validated['base_name'])
-                    ->where('product_number', $variant['product_number'])
+                    ->where('product_number', $validated['product_number'])
                     ->where('color_number', $variant['color_number'])
                     ->first();
 
                 if ($existingItem) {
-                    throw new \Exception("品名「{$validated['base_name']}」、品番「{$variant['product_number']}」、色番「{$variant['color_number']}」の組み合わせは既に登録されています。");
+                    throw new \Exception("品名「{$validated['base_name']}」、品番「{$validated['product_number']}」、色番「{$variant['color_number']}」の組み合わせは既に登録されています。");
                 }
 
                 // 在庫品目を作成
                 $itemData = [
                     'name' => $validated['base_name'],
-                    'product_number' => $variant['product_number'],
+                    'product_number' => $validated['product_number'],
                     'color_number' => $variant['color_number'],
                     'description' => $validated['description'],
                     'unit' => $validated['unit'],

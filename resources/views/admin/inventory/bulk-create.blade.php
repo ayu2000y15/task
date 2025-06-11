@@ -35,6 +35,14 @@
                             </div>
 
                             <div>
+                                <x-input-label for="product_number" value="品番" />
+                                <x-text-input id="product_number" name="product_number" type="text"
+                                    class="mt-1 block w-full" :value="old('product_number')"
+                                    :hasError="$errors->has('product_number')" placeholder="例: ABC-123" />
+                                <x-input-error :messages="$errors->get('product_number')" class="mt-2" />
+                            </div>
+
+                            <div>
                                 <x-input-label for="description" value="説明" />
                                 <x-textarea-input id="description" name="description" class="mt-1 block w-full" rows="3"
                                     :hasError="$errors->has('description')"
@@ -103,16 +111,7 @@
                                         </button>
                                     </div>
 
-                                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                                        <div>
-                                            <label class="block font-medium text-sm text-gray-700 dark:text-gray-300"
-                                                x-bind:for="`variant_product_number_${index}`">品番</label>
-                                            <input type="text" x-bind:id="`variant_product_number_${index}`"
-                                                x-bind:name="`variants[${index}][product_number]`"
-                                                class="border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow-sm mt-1 block w-full"
-                                                x-model="variant.product_number" placeholder="例: ABC-123" />
-                                        </div>
-
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                         <div>
                                             <label class="block font-medium text-sm text-gray-700 dark:text-gray-300"
                                                 x-bind:for="`variant_color_number_${index}`">色番</label>
@@ -177,7 +176,7 @@
         function bulkInventoryForm() {
             return {
                 variants: {!! json_encode(old('variants', [
-        ['product_number' => '', 'color_number' => '', 'quantity' => 0, 'total_cost' => 0]
+        ['color_number' => '', 'quantity' => 0, 'total_cost' => 0]
     ])) !!},
 
                 addVariant() {
