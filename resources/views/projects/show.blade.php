@@ -47,6 +47,26 @@
         .dropzone-custom-style .dz-remove {
             @apply absolute top-1 right-1 bg-red-600/80 hover:bg-red-700/90 text-white rounded-full w-[18px] h-[18px] text-xs leading-[18px] text-center font-bold no-underline cursor-pointer opacity-100 z-30;
         }
+
+        /* ★ ドラッグ中の行のスタイル */
+        .sortable-ghost {
+            background-color: #dbeafe; /* bg-blue-100 */
+            opacity: 0.5;
+        }
+        /* ★ ドラッグハンドルのカーソル */
+        .drag-handle {
+            cursor: move;
+        }
+        /* ★ ヘッダーソートのカーソル */
+        .sortable-header {
+            cursor: pointer;
+        }
+        .sortable-header:hover {
+            background-color: #f3f4f6; /* bg-gray-100 */
+        }
+        .dark .sortable-header:hover {
+             background-color: #374151; /* dark:bg-gray-700 */
+        }
     </style>
 @endpush
 @section('content')
@@ -753,6 +773,8 @@
 @push('scripts')
 {{-- Dropzone.jsライブラリを読み込みます --}}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dropzone/5.9.3/min/dropzone.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+
 
 {{-- Dropzoneの自動検出を、DOM読み込みより「前」に無効化します --}}
 <script>
@@ -844,8 +866,115 @@
             window.setupTaskToggle('project-tasks-table');
         }
 
-        // 完成データ用Dropzoneとファイル削除の初期化処理
         const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+        // --- ★ 並び替え & ソート機能 ---
+
+        // SortableJSの初期化
+        document.querySelectorAll('.sortable-list').forEach(list => {
+            new Sortable(list, {
+                animation: 150,
+                ghostClass: 'sortable-ghost',
+                handle: '.drag-handle', // ドラッグハンドルを指定
+            });
+        });
+
+        // 「並び順を保存」ボタンのイベントリスナー
+        document.querySelectorAll('.save-order-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const targetListSelector = this.dataset.targetList;
+                const url = this.dataset.url;
+                const list = document.querySelector(targetListSelector);
+
+                if (!list) return;
+
+                const sortableInstance = Sortable.get(list);
+                const ids = sortableInstance.toArray();
+
+                // ローディング表示
+                this.disabled = true;
+                this.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>保存中...';
+
+                fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken
+                    },
+                    body: JSON.stringify({ ids: ids })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        // ここで成功時のトースト通知などを表示するとより良い
+                        alert(data.message);
+                    } else {
+                        alert('エラー: ' + (data.message || '並び順の保存に失敗しました。'));
+                    }
+                })
+                .catch(err => {
+                    console.error('Save order error:', err);
+                    alert('通信エラーが発生しました。');
+                })
+                .finally(() => {
+                    // ボタンを元に戻す
+                    this.disabled = false;
+                    this.innerHTML = '<i class="fas fa-save mr-2"></i>並び順を保存';
+                });
+            });
+        });
+
+        // テーブルヘッダーのソート機能
+        document.querySelectorAll('.sortable-header').forEach(header => {
+            header.addEventListener('click', function() {
+                const tableBody = this.closest('table').querySelector('tbody');
+                if (!tableBody.rows.length) return;
+
+                const rows = Array.from(tableBody.querySelectorAll('tr'));
+                const cellIndex = this.cellIndex;
+                const sortType = this.dataset.sortType || 'string';
+
+                // 現在のソート方向を取得・トグル
+                let direction = this.dataset.sortDirection === 'desc' ? 'asc' : 'desc';
+
+                // 他のヘッダーのソート状態をリセット
+                this.closest('thead').querySelectorAll('.sortable-header').forEach(h => {
+                    h.removeAttribute('data-sort-direction');
+                    h.querySelector('.sort-icon').className = 'fas fa-sort sort-icon text-gray-400';
+                });
+
+                // 現在のヘッダーのソート状態をセット
+                this.dataset.sortDirection = direction;
+                this.querySelector('.sort-icon').className = `fas fa-sort-${direction === 'asc' ? 'up' : 'down'} sort-icon`;
+
+                // 行の並び替え
+                rows.sort((a, b) => {
+                    const cellA = a.cells[cellIndex];
+                    const cellB = b.cells[cellIndex];
+
+                    const valA = cellA.dataset.sortValue || cellA.textContent.trim();
+                    const valB = cellB.dataset.sortValue || cellB.textContent.trim();
+
+                    let comparison = 0;
+                    if (sortType === 'numeric') {
+                        comparison = (parseFloat(valA) || 0) - (parseFloat(valB) || 0);
+                    } else if (sortType === 'date') {
+                        comparison = new Date(valA) - new Date(b);
+                    } else {
+                        comparison = valA.localeCompare(valB, 'ja', { numeric: true });
+                    }
+
+                    return direction === 'asc' ? comparison : -comparison;
+                });
+
+                // DOMにソート後の行を再追加
+                tableBody.append(...rows);
+            });
+        });
+
+        // // 完成データ用Dropzoneとファイル削除の初期化処理
+        // const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
         document.querySelectorAll('.completion-dropzone').forEach(dropzoneElement => {
             const projectId = dropzoneElement.dataset.projectId;

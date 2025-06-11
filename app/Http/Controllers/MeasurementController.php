@@ -33,6 +33,10 @@ class MeasurementController extends Controller
         // unitをフォームから受け取らないため、デフォルト値を設定するかDBのデフォルトに任せる
         // $validated['unit'] = $validated['unit'] ?? 'cm'; // 例えば常にcmとする場合
 
+        // ★ 新規作成時にdisplay_orderを設定
+        $maxOrder = $character->measurements()->max('display_order');
+        $validated['display_order'] = $maxOrder + 1;
+
         $measurement = $character->measurements()->create($validated);
 
         // ★ ログ記録: 採寸データ作成 (MeasurementモデルのLogsActivityが発火)
@@ -110,5 +114,26 @@ class MeasurementController extends Controller
             'success' => true,
             'message' => '採寸データを削除しました。'
         ]);
+    }
+
+    /**
+     * ★ 採寸データの並び順を更新
+     */
+    public function updateOrder(Request $request, Project $project, Character $character)
+    {
+        $this->authorize('manageMeasurements', $project);
+
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'integer|exists:measurements,id',
+        ]);
+
+        foreach ($request->ids as $index => $id) {
+            Measurement::where('id', $id)
+                ->where('character_id', $character->id) // 不正なID更新を防ぐ
+                ->update(['display_order' => $index]);
+        }
+
+        return response()->json(['success' => true, 'message' => '採寸項目の並び順を更新しました。']);
     }
 }

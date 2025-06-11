@@ -220,6 +220,9 @@ export function redrawCostRow(characterId, costData, isUpdate, projectData) {
     actionsHtml += "</div>";
 
     const newRowCellsHtml = `
+        <td class="px-2 py-1.5 whitespace-nowrap text-center text-gray-400 drag-handle">
+            <i class="fas fa-grip-vertical"></i>
+        </td>
         <td class="px-4 py-1.5 whitespace-nowrap text-gray-700 dark:text-gray-200 cost-cost_date">${escapeHtml(
             dateDisplay
         )}</td>

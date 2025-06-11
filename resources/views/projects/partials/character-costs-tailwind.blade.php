@@ -13,19 +13,25 @@
         <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
             <thead class="bg-gray-50 dark:bg-gray-700">
                 <tr>
-                    <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">日付</th>
-                    <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">種別</th>
-                    <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">金額</th>
-                    <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">内容</th>
+                    {{-- ★ ドラッグハンドル用の列を追加 --}}
+                    <th scope="col" class="px-2 py-2 w-10"></th>
+                    <th scope="col" class="sortable-header px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider" data-sort-by="date" data-sort-type="date">日付 <i class="fas fa-sort sort-icon text-gray-400 ml-1"></i></th>
+                    <th scope="col" class="sortable-header px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider" data-sort-by="type">種別 <i class="fas fa-sort sort-icon text-gray-400 ml-1"></i></th>
+                    <th scope="col" class="sortable-header px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider" data-sort-by="amount" data-sort-type="numeric">金額 <i class="fas fa-sort sort-icon text-gray-400 ml-1"></i></th>
+                    <th scope="col" class="sortable-header px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider" data-sort-by="description">内容 <i class="fas fa-sort sort-icon text-gray-400 ml-1"></i></th>
                     <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">備考</th>
                     <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-20"> {{-- ★ 幅調整 --}}
                         操作</th>
                 </tr>
             </thead>
-            <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700 character-costs-list" data-character-id="{{ $character->id }}">
-                @forelse($character->costs()->orderBy('cost_date', 'desc')->orderBy('id', 'desc')->get() as $cost)
-                    <tr id="cost-row-{{ $cost->id }}">
-                        <td class="px-4 py-1.5 whitespace-nowrap text-gray-700 dark:text-gray-200 cost-cost_date">{{ $cost->cost_date->format('Y/m/d') }}</td>
+            {{-- ★ tbodyにIDとクラスを追加 --}}
+            <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700 character-costs-list sortable-list" data-character-id="{{ $character->id }}" id="cost-sortable-{{ $character->id }}">
+                @forelse($character->costs()->orderBy('display_order')->orderBy('id', 'desc')->get() as $cost)
+                    {{-- ★ trにdata-idを追加 --}}
+                    <tr id="cost-row-{{ $cost->id }}" data-id="{{ $cost->id }}">
+                        {{-- ★ ドラッグハンドルを追加 --}}
+                        <td class="px-2 py-1.5 whitespace-nowrap text-center text-gray-400 drag-handle"><i class="fas fa-grip-vertical"></i></td>
+                        <td class="px-4 py-1.5 whitespace-nowrap text-gray-700 dark:text-gray-200 cost-cost_date" data-sort-value="{{ $cost->cost_date->toDateString() }}">{{ $cost->cost_date->format('Y/m/d') }}</td>
                         <td class="px-4 py-1.5 whitespace-nowrap cost-type">
                             <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full
                                 @switch($cost->type)
@@ -36,7 +42,7 @@
                                 {{ $cost->type }}
                             </span>
                         </td>
-                        <td class="px-4 py-1.5 whitespace-nowrap text-gray-700 dark:text-gray-200 cost-amount">{{ number_format($cost->amount) }}円</td>
+                        <td class="px-4 py-1.5 whitespace-nowrap text-gray-700 dark:text-gray-200 cost-amount" data-sort-value="{{ $cost->amount }}">{{ number_format($cost->amount) }}円</td>
                         <td class="px-4 py-1.5 whitespace-nowrap break-words text-gray-700 dark:text-gray-200 cost-item_description" style="min-width: 120px;">{{ $cost->item_description }}</td>
                         <td class="px-4 py-1.5 text-gray-700 dark:text-gray-200 break-words text-left leading-tight cost-notes" style="min-width: 150px;">
                             {!! nl2br(e($cost->notes)) ?: '-' !!}
@@ -68,11 +74,22 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="6" class="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">登録されているコストはありません。</td></tr>
+                    <tr><td colspan="7" class="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">登録されているコストはありません。</td></tr>
                 @endforelse
             </tbody>
         </table>
     </div>
+
+    {{-- ★ 並び順保存ボタンを追加 --}}
+    @if($character->costs->isNotEmpty())
+    <div class="flex justify-start mt-4">
+        <button type="button" class="save-order-btn inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition ease-in-out duration-150"
+                data-target-list="#cost-sortable-{{ $character->id }}"
+                data-url="{{ route('projects.characters.costs.updateOrder', [$project, $character]) }}">
+            <i class="fas fa-save mr-2"></i>並び順を保存
+        </button>
+    </div>
+    @endif
 
     @can('manageCosts', $project)
     <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">

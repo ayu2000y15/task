@@ -60,6 +60,9 @@ class MaterialController extends Controller
 
         DB::beginTransaction();
         try {
+            // ★ 新規作成時にdisplay_orderを設定
+            $maxOrder = $character->materials()->max('display_order');
+
             $baseMaterialData = [
                 'name' => $validated['name'],
                 'unit' => $validated['unit'],
@@ -69,6 +72,7 @@ class MaterialController extends Controller
                 'notes' => $validated['notes'],
                 'status' => $statusToSet,
                 'inventory_item_id' => $inventoryItemId,
+                'display_order' => $maxOrder + 1, // ★ display_orderを追加
             ];
 
             if ($isManualInput && isset($validated['price']) && $quantityNeeded > 0) {
@@ -479,6 +483,27 @@ class MaterialController extends Controller
             Log::error('Material delete failed: ' . $e->getMessage(), ['material_id' => $material->id, 'exception' => $e]);
             return response()->json(['success' => false, 'message' => '材料の削除中にエラーが発生しました。'], 500);
         }
+    }
+
+    /**
+     * ★ 材料データの並び順を更新
+     */
+    public function updateOrder(Request $request, Project $project, Character $character)
+    {
+        $this->authorize('manageMaterials', $project);
+
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'integer|exists:materials,id',
+        ]);
+
+        foreach ($request->ids as $index => $id) {
+            Material::where('id', $id)
+                ->where('character_id', $character->id)
+                ->update(['display_order' => $index]);
+        }
+
+        return response()->json(['success' => true, 'message' => '材料の並び順を更新しました。']);
     }
 
     private function handleInventoryDecrement(Material $material, Project $project, Character $character, string $logNotesPrefix = "材料として使用")

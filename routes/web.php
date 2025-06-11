@@ -92,17 +92,21 @@ Route::middleware('auth')->group(function () {
     Route::post('/projects/{project}/characters/{character}/measurement-templates', [MeasurementTemplateController::class, 'storeForCharacter'])->name('projects.characters.measurement-templates.store');
     Route::get('/measurement-templates/{measurement_template}/load', [MeasurementTemplateController::class, 'load'])->name('measurement-templates.load');
     Route::delete('/measurement-templates/{measurement_template}', [MeasurementTemplateController::class, 'destroy'])->name('measurement-templates.destroy');
+    Route::post('/projects/{project}/characters/{character}/measurements/update-order', [MeasurementController::class, 'updateOrder'])->name('projects.characters.measurements.updateOrder');
 
 
     // 材料データ (案件詳細ページ内で処理)
     Route::post('/projects/{project}/characters/{character}/materials', [MaterialController::class, 'store'])->name('projects.characters.materials.store');
     Route::put('/projects/{project}/characters/{character}/materials/{material}', [MaterialController::class, 'update'])->name('projects.characters.materials.update');
     Route::delete('/projects/{project}/characters/{character}/materials/{material}', [MaterialController::class, 'destroy'])->name('projects.characters.materials.destroy');
+    Route::post('/projects/{project}/characters/{character}/materials/update-order', [MaterialController::class, 'updateOrder'])->name('projects.characters.materials.updateOrder');
+
 
     // コストデータ (案件詳細ページ内で処理)
     Route::post('/projects/{project}/characters/{character}/costs', [CostController::class, 'store'])->name('projects.characters.costs.store');
     Route::put('/projects/{project}/characters/{character}/costs/{cost}', [CostController::class, 'update'])->name('projects.characters.costs.update');
     Route::delete('/projects/{project}/characters/{character}/costs/{cost}', [CostController::class, 'destroy'])->name('projects.characters.costs.destroy');
+    Route::post('/projects/{project}/characters/{character}/costs/update-order', [CostController::class, 'updateOrder'])->name('projects.characters.costs.updateOrder');
 
     // キャラクター管理 (案件詳細ページ内で処理の起点、編集は別ページ)
     Route::resource('projects.characters', CharacterController::class)->except(['index', 'show', 'create'])->shallow();

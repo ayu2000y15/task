@@ -13,6 +13,7 @@ class Measurement extends Model
     use HasFactory, LogsActivity; // ★ LogsActivity トレイトを追加
 
     protected $fillable = [
+        'display_order',
         'character_id',
         'item',
         'value',

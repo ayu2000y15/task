@@ -11,18 +11,20 @@
         <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
             <thead class="bg-gray-50 dark:bg-gray-700">
                 <tr>
+                    {{-- ★ ドラッグハンドル用の列を追加 --}}
+                    <th scope="col" class="px-2 py-2 w-10"></th>
                     <th scope="col"
                         class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-16">
                         購入</th>
                     <th scope="col"
-                        class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        材料名 [品番/色番] (在庫品目)</th>
+                        class="sortable-header px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider" data-sort-by="name">
+                        材料名 [品番/色番] (在庫品目) <i class="fas fa-sort sort-icon text-gray-400 ml-1"></i></th>
                     <th scope="col"
-                        class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        必要量</th>
+                        class="sortable-header px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider" data-sort-by="quantity" data-sort-type="numeric">
+                        必要量 <i class="fas fa-sort sort-icon text-gray-400 ml-1"></i></th>
                     <th scope="col"
-                        class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        合計参考価格</th>
+                        class="sortable-header px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider" data-sort-by="price" data-sort-type="numeric">
+                        合計参考価格 <i class="fas fa-sort sort-icon text-gray-400 ml-1"></i></th>
                     <th scope="col"
                         class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         備考</th>
@@ -31,9 +33,13 @@
                         操作</th>
                 </tr>
             </thead>
-            <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                @forelse($character->materials as $material)
-                    <tr id="material-row-{{ $material->id }}">
+            {{-- ★ tbodyにIDとクラスを追加 --}}
+            <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700 sortable-list" id="material-sortable-{{ $character->id }}">
+                @forelse($character->materials()->orderBy('display_order')->orderBy('id')->get() as $material)
+                    {{-- ★ trにdata-idを追加 --}}
+                    <tr id="material-row-{{ $material->id }}" data-id="{{ $material->id }}">
+                        {{-- ★ ドラッグハンドルを追加 --}}
+                        <td class="px-2 py-1.5 whitespace-nowrap text-center text-gray-400 drag-handle"><i class="fas fa-grip-vertical"></i></td>
                         <td class="px-3 py-1.5 whitespace-nowrap">
                             @can('manageMaterials', $project)
                                 @if($material->inventory_item_id)
@@ -59,7 +65,7 @@
                                 <span class="text-xs text-gray-400">(在庫品)</span>
                             @endif
                         </td>
-                        <td class="px-4 py-1.5 whitespace-nowrap text-gray-700 dark:text-gray-200 material-quantity_needed">
+                        <td class="px-4 py-1.5 whitespace-nowrap text-gray-700 dark:text-gray-200 material-quantity_needed" data-sort-value="{{ $material->quantity_needed }}">
                             @php
                                 $qtyNeeded = $material->quantity_needed;
                                 $unitLower = strtolower($material->unit ?? optional($material->inventoryItem)->unit);
@@ -76,7 +82,7 @@
                             @endphp
                             {{ number_format($qtyNeeded, $decimalsQty) }} {{ $material->unit ?? optional($material->inventoryItem)->unit }}
                         </td>
-                        <td class="px-4 py-1.5 whitespace-nowrap text-gray-700 dark:text-gray-200 material-price">
+                        <td class="px-4 py-1.5 whitespace-nowrap text-gray-700 dark:text-gray-200 material-price" data-sort-value="{{ $material->price ?? 0 }}">
                             {{ !is_null($material->price) ? number_format($material->price) . '円' : '-' }}
                         </td>
                         <td class="px-4 py-1.5 text-gray-700 dark:text-gray-200 break-words text-left leading-tight material-notes"
@@ -118,13 +124,24 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" class="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                        <td colspan="8" class="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
                             登録されている材料はありません。</td>
                     </tr>
                 @endforelse
             </tbody>
         </table>
     </div>
+
+    {{-- ★ 並び順保存ボタンを追加 --}}
+    @if($character->materials->isNotEmpty())
+    <div class="flex justify-start mt-4">
+        <button type="button" class="save-order-btn inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition ease-in-out duration-150"
+                data-target-list="#material-sortable-{{ $character->id }}"
+                data-url="{{ route('projects.characters.materials.updateOrder', [$project, $character]) }}">
+            <i class="fas fa-save mr-2"></i>並び順を保存
+        </button>
+    </div>
+    @endif
 
 @can('manageMaterials', $project)
     <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">

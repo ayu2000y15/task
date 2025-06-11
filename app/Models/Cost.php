@@ -13,6 +13,7 @@ class Cost extends Model
     use HasFactory, LogsActivity;
 
     protected $fillable = [
+        'display_order',
         'character_id',
         'item_description',
         'amount',

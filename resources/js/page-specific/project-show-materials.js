@@ -445,6 +445,9 @@ export function redrawMaterialRow(
     qtyNeededDisplay = Number(qty).toFixed(decimalsQty);
 
     const newRowCellsHtml = `
+        <td class="px-2 py-1.5 whitespace-nowrap text-center text-gray-400 drag-handle">
+            <i class="fas fa-grip-vertical"></i>
+        </td>
         <td class="px-3 py-1.5 whitespace-nowrap">${statusHtml}</td>
         <td class="px-4 py-1.5 whitespace-nowrap text-gray-700 dark:text-gray-200 material-name">
             ${escapeHtml(itemNameDisplay)} ${
@@ -454,11 +457,9 @@ export function redrawMaterialRow(
     }
         </td>
         <td class="px-4 py-1.5 whitespace-nowrap text-gray-700 dark:text-gray-200 material-unit">${escapeHtml(
-            itemUnitDisplay
+            qtyNeededDisplay + " " + itemUnitDisplay
         )}</td>
-        <td class="px-4 py-1.5 whitespace-nowrap text-gray-700 dark:text-gray-200 material-quantity_needed">${escapeHtml(
-            qtyNeededDisplay
-        )}</td>
+
         <td class="px-4 py-1.5 whitespace-nowrap text-gray-700 dark:text-gray-200 material-price">${totalPriceDisplay}</td>
         <td class="px-4 py-1.5 text-gray-700 dark:text-gray-200 break-words text-left leading-tight material-notes" style="min-width: 150px;">${notesDisplay}</td>
         <td class="px-3 py-1.5 whitespace-nowrap text-right">${actionsHtml}</td>

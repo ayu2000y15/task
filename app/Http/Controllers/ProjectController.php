@@ -465,9 +465,15 @@ class ProjectController extends Controller
                     'tasks.character',
                     'tasks.files',
                     'tasks.assignees',
-                    'measurements',
-                    'materials',
-                    'costs'
+                    'measurements' => function ($query) {
+                        $query->orderBy('display_order');
+                    },
+                    'materials' => function ($query) {
+                        $query->orderBy('display_order');
+                    },
+                    'costs' => function ($query) {
+                        $query->orderBy('display_order');
+                    }
                 ])->orderBy('name');
             },
             'tasks' => function ($query) { // 案件全体のタスク用

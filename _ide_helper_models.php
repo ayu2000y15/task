@@ -248,6 +248,7 @@ namespace App\Models{
  * 
  *
  * @property int $id
+ * @property int $display_order 表示順
  * @property int $character_id
  * @property string $item_description
  * @property string $amount
@@ -266,6 +267,7 @@ namespace App\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Cost whereCharacterId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Cost whereCostDate($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Cost whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Cost whereDisplayOrder($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Cost whereId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Cost whereItemDescription($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Cost whereNotes($value)
@@ -692,6 +694,7 @@ namespace App\Models{
  * 
  *
  * @property int $id
+ * @property int $display_order 表示順
  * @property int $character_id
  * @property int|null $inventory_item_id
  * @property string $name
@@ -713,6 +716,7 @@ namespace App\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Material query()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Material whereCharacterId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Material whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Material whereDisplayOrder($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Material whereId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Material whereInventoryItemId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Material whereName($value)
@@ -733,6 +737,7 @@ namespace App\Models{
  * 
  *
  * @property int $id
+ * @property int $display_order 表示順
  * @property int $character_id
  * @property string $item
  * @property string $value
@@ -748,6 +753,7 @@ namespace App\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Measurement query()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Measurement whereCharacterId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Measurement whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Measurement whereDisplayOrder($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Measurement whereId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Measurement whereItem($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Measurement whereNotes($value)

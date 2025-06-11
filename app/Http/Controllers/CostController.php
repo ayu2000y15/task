@@ -32,7 +32,14 @@ class CostController extends Controller
             ], 422); // Unprocessable Entity
         }
 
-        $cost = $character->costs()->create($validator->validated());
+        $validated = $validator->validated();
+
+        // ★ 新規作成時にdisplay_orderを設定
+        $maxOrder = $character->costs()->max('display_order');
+        $validated['display_order'] = $maxOrder + 1;
+
+        $cost = $character->costs()->create($validated);
+
 
         // ★ ログ記録: コスト作成 (CostモデルのLogsActivityが発火)
 
@@ -127,5 +134,26 @@ class CostController extends Controller
             'message' => $successMessage,
             'material_status_updated' => $materialStatusUpdated, // ★ 材料ステータスも更新されたかフラグを返す
         ]);
+    }
+
+    /**
+     * ★ コストデータの並び順を更新
+     */
+    public function updateOrder(Request $request, Project $project, Character $character)
+    {
+        $this->authorize('manageCosts', $project);
+
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'integer|exists:costs,id',
+        ]);
+
+        foreach ($request->ids as $index => $id) {
+            Cost::where('id', $id)
+                ->where('character_id', $character->id)
+                ->update(['display_order' => $index]);
+        }
+
+        return response()->json(['success' => true, 'message' => 'コストの並び順を更新しました。']);
     }
 }

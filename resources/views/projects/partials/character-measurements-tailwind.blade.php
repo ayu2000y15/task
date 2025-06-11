@@ -10,6 +10,7 @@
         <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
             <thead class="bg-gray-50 dark:bg-gray-700">
                 <tr>
+                    <th scope="col" class="px-2 py-2 w-10"></th>
                     <th scope="col"
                         class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         項目</th>
@@ -24,13 +25,16 @@
                         操作</th>
                 </tr>
             </thead>
-            <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700" id="measurement-table-body-{{ $character->id }}">
+            <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700 sortable-list" id="measurement-sortable-{{ $character->id }}">
                 @forelse($character->measurements as $measurement)
-                    <tr id="measurement-row-{{ $measurement->id }}">
+                    <tr id="measurement-row-{{ $measurement->id }}" data-id="{{ $measurement->id }}">
+                        <td class="px-2 py-1.5 whitespace-nowrap text-center text-gray-400 drag-handle">
+                            <i class="fas fa-grip-vertical"></i>
+                        </td>
                         <td class="px-4 py-1.5 whitespace-nowrap text-gray-700 dark:text-gray-200 measurement-item">
                             {{ $measurement->item }}
                         </td>
-                        <td class="px-4 py-1.5 whitespace-nowrap text-gray-700 dark:text-gray-200 measurement-value">
+                        <td class="px-4 py-1.5 whitespace-nowrap text-gray-700 dark:text-gray-200 measurement-value" data-sort-value="{{ floatval($measurement->value) }}">
                             {{ $measurement->value }}
                         </td>
                         <td class="px-4 py-1.5 text-gray-700 dark:text-gray-200 break-words text-left leading-tight measurement-notes"
@@ -72,6 +76,16 @@
             </tbody>
         </table>
     </div>
+    {{-- ★ 並び順保存ボタンを追加 --}}
+    @if($character->measurements->isNotEmpty())
+    <div class="flex justify-start">
+        <button type="button" class="save-order-btn inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition ease-in-out duration-150"
+                data-target-list="#measurement-sortable-{{ $character->id }}"
+                data-url="{{ route('projects.characters.measurements.updateOrder', [$project, $character]) }}">
+            <i class="fas fa-save mr-2"></i>並び順を保存
+        </button>
+    </div>
+    @endif
 
     @can('manageMeasurements', $project) {{-- 適切な権限名に変更 --}}
         <div x-data="{ expanded: false }" class="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700" id="measurement-template-load-section-{{ $character->id }}">

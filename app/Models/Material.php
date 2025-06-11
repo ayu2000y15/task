@@ -13,6 +13,7 @@ class Material extends Model
     use HasFactory, LogsActivity;
 
     protected $fillable = [
+        'display_order',
         'character_id',
         'inventory_item_id',
         'name',
