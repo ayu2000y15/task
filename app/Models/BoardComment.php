@@ -70,7 +70,7 @@ class BoardComment extends Model
                 return "<span class=\"{$badgeClass}\"><i class=\"fas fa-bullhorn mr-1\"></i>all</span>";
             } else {
                 // 通常のメンションバッジ
-                $badgeClass = "inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-300 no-underline";
+                $badgeClass = "inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300 no-underline";
                 return "<span class=\"{$badgeClass}\"><i class=\"fas fa-at mr-1\"></i>{$mention}</span>";
             }
         }, $cleanBody);
