@@ -252,7 +252,7 @@
                         const parentId = commentContainer.id.split('-')[1];
                         const authorName = commentContainer.querySelector('.font-semibold').textContent;
                         document.getElementById('comment_parent_id').value = parentId;
-                        document.getElementById('replying-to-user').textContent = authorName;
+                        document.getElementById('replying-to-user').textContent = authorName + "さん [#" + parentId + "]";
                         document.getElementById('replying-to-indicator').style.display = 'block';
                         mainCommentForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
                         const mainCommentEditor = tinymce.get('comment_body_editor');
@@ -503,7 +503,7 @@
                 <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg mb-6">
                     <div class="text-sm text-gray-600 dark:text-gray-400 px-6 pt-4" id="replying-to-indicator"
                         style="display:none;">
-                        <span id="replying-to-user"></span> さんへ返信中...
+                        <span id="replying-to-user"></span> へ返信中...
                         <button type="button" id="cancel-reply-btn" class="ml-2 text-blue-500 hover:underline">[キャンセル]</button>
                     </div>
                     <form action="{{ route('community.posts.comments.store', $post) }}" method="POST" class="p-6">
