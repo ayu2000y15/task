@@ -120,7 +120,12 @@
                 <div>
                     <x-input-label for="cost_amount_input-{{ $character->id }}" value="金額(円)" :required="true"/>
                     <x-text-input type="number" name="amount" id="cost_amount_input-{{ $character->id }}" class="form-input mt-1 block w-full text-sm rounded-md border-gray-300 shadow-sm dark:bg-gray-900 dark:border-gray-600 dark:text-gray-200 focus:border-indigo-500 focus:ring-indigo-500" required min="0"/>
-                </div>
+                    <div
+                        class="p-2 my-1 text-xs bg-red-50 text-red-700 border border-red-200 rounded-md dark:bg-red-700/30 dark:text-red-200 dark:border-red-500">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        税抜きで登録すること
+                    </div>
+                    </div>
                 <div>
                     <x-input-label for="cost_item_description_input-{{ $character->id }}" value="内容" :required="true"/>
                     <x-textarea-input name="item_description" id="cost_item_description_input-{{ $character->id }}" class="form-input mt-1 block w-full text-sm rounded-md border-gray-300 shadow-sm dark:bg-gray-900 dark:border-gray-600 dark:text-gray-200 leading-tight" rows="1" required></x-textarea-input>

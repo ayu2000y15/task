@@ -13,7 +13,6 @@
     rateFormOpen: false
     }">
 
-    {{-- ▼▼▼【ここから修正】ヘッダーと開閉ボタンを設置 ▼▼▼ --}}
     <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
         <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-200">作業実績一覧 (管理者用)</h1>
         <div class="flex items-center space-x-2">
@@ -26,6 +25,11 @@
                 <i class="fas fa-filter mr-1"></i>フィルター
                 <span x-show="filtersOpen" style="display:none;"><i class="fas fa-chevron-up fa-xs ml-2"></i></span>
                 <span x-show="!filtersOpen"><i class="fas fa-chevron-down fa-xs ml-2"></i></span>
+            </x-secondary-button>
+            <x-secondary-button
+                onclick="window.location.href='{{ route('admin.work-records.by-project') }}'"
+                class="!bg-green-600 hover:!bg-green-700 dark:!bg-green-700 dark:hover:!bg-green-800 !text-white !border-transparent">
+                <i class="fas fa-briefcase mr-1"></i>案件別明細
             </x-secondary-button>
         </div>
     </div>
@@ -154,8 +158,7 @@
                 <h3 class="text-lg font-semibold">
                     合計作業時間 (フィルタ後):
                     <span class="text-blue-600 dark:text-blue-400">
-                        {{ floor($totalSeconds / 3600) }}時間 {{ floor(($totalSeconds % 3600) / 60) }}分
-                        {{ $totalSeconds % 60 }}秒
+                        {{ gmdate('H:i:s', $totalSeconds) }}
                     </span>
                 </h3>
             </div>
@@ -211,9 +214,9 @@
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                                     {{ $log->task->name ?? '-' }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                    {{ $log->start_time->format('Y/m/d H:i:s') }}</td>
+                                    {{ $log->start_time->format('m/d H:i:s') }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                    {{ optional($log->end_time)->format('Y/m/d H:i:s') }}</td>
+                                    {{ optional($log->end_time)->format('m/d H:i:s') }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                                     @php
                                         $duration = $log->effective_duration;
@@ -221,7 +224,7 @@
                                         $minutes = floor(($duration % 3600) / 60);
                                         $seconds = $duration % 60;
                                     @endphp
-                                    {{ $hours }}時間 {{ $minutes }}分 {{ $seconds }}秒
+                                    {{ gmdate('H:i:s', $log->effective_duration) }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                                     @if($log->user->hourly_rate)

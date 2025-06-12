@@ -57,8 +57,9 @@
                         <x-primary-button as="a" href="{{ route('admin.inventory.create') }}">
                             <i class="fas fa-plus mr-2"></i> 新規登録
                         </x-primary-button>
-                        <x-secondary-button as="a" href="{{ route('admin.inventory.bulk-create') }}" class="bg-green-600 hover:bg-green-700 text-white" style="background-color: green;" >
-                            <i class="fas fa-layer-group mr-2"></i> 一括登録
+                        <x-secondary-button as="a" href="{{ route('admin.inventory.bulk-create') }}"
+                        class="!bg-green-600 hover:!bg-green-700 dark:!bg-green-700 dark:hover:!bg-green-800 !text-white !border-transparent">
+                        <i class="fas fa-layer-group mr-2"></i> 一括登録
                         </x-secondary-button>
                     </div>
                 @endcan

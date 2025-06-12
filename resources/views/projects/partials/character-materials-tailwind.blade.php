@@ -208,11 +208,17 @@
                     <x-input-error :messages="$errors->get('quantity_needed')" class="mt-2" />
                 </div>
                 <div class="sm:col-span-2">
+
                     <x-input-label for="material_price_display-{{ $character->id }}" value="合計参考価格(円)" :required="true"/>
                     <x-text-input type="text" id="material_price_display-{{ $character->id }}"
                         class="form-input mt-1 block w-full text-sm rounded-md border-gray-300 shadow-sm bg-gray-100 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-400"
                         placeholder="自動計算/手入力" readonly />
                     <x-input-error :messages="$errors->get('price')" class="mt-2" />
+                    <div
+                        class="p-2 my-1 text-xs bg-red-50 text-red-700 border border-red-200 rounded-md dark:bg-red-700/30 dark:text-red-200 dark:border-red-500">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        税抜きで登録すること
+                    </div>
                 </div>
             </div>
 
