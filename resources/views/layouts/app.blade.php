@@ -109,7 +109,7 @@
             {{-- 期限間近の工程セクション --}}
             <div>
                 <div @click="openUpcomingTasks = !openUpcomingTasks" class="flex items-center justify-between px-3 py-2 text-xs font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md cursor-pointer">
-                    <span>期限間近[2日以内] ({{ $upcomingTasksForSidebar->count() }})</span>
+                    <span>期限間近 [2日以内] ({{ $upcomingTasksForSidebar->count() }})</span>
                     <i class="fas fa-fw text-xs" :class="{'fa-chevron-down': openUpcomingTasks, 'fa-chevron-right': !openUpcomingTasks}"></i>
                 </div>
                 <ul x-show="openUpcomingTasks" x-transition class="mt-1 space-y-1">
@@ -222,7 +222,7 @@
             {{-- 衣装案件セクション --}}
             <div>
                 <div @click="openNormalProjects = !openNormalProjects" class="flex items-center justify-between px-3 py-2 text-xs font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md cursor-pointer">
-                    <span>衣装案件(進行中) ({{ $activeProjects->count() }})</span>
+                    <span>衣装案件（進行中） ({{ $activeProjects->count() }})</span>
                     <i class="fas fa-fw text-xs" :class="{'fa-chevron-down': openNormalProjects, 'fa-chevron-right': !openNormalProjects}"></i>
                 </div>
                 <div x-show="openNormalProjects" x-transition class="mt-1 space-y-1">
