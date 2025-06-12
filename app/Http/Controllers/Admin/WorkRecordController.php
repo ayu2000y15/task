@@ -238,7 +238,7 @@ class WorkRecordController extends Controller
                 }
 
                 $breakSeconds = $attendanceSeconds - $actualWorkSeconds;
-                $dailySalary = $user->hourly_rate > 0 ? ($totalEffectiveSeconds / 3600) * $user->hourly_rate : 0;
+                $dailySalary = $user->hourly_rate > 0 ? ($actualWorkSeconds / 3600) * $user->hourly_rate : 0;
 
                 $monthTotalActualWorkSeconds += $actualWorkSeconds;
                 $monthTotalEffectiveSeconds += $totalEffectiveSeconds;

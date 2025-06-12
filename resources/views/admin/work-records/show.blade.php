@@ -43,6 +43,11 @@
                 </a>
             </div>
         </div>
+        <div
+            class="p-2 my-1 text-xs bg-yellow-50 text-yellow-700 border border-yellow-200 rounded-md dark:bg-yellow-700/30 dark:text-yellow-200 dark:border-yellow-500">
+            <i class="fas fa-info-circle mr-1"></i>
+            日給合計は「実働時間 × 時給」で計算されます。
+        </div>
 
         {{-- 月次リスト --}}
         <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
@@ -151,6 +156,7 @@
                     <tfoot class="bg-gray-100 dark:bg-gray-700 sticky bottom-0">
                         <tr class="border-t-2 border-gray-300 dark:border-gray-600 font-bold">
                             <td class="px-6 py-3 text-left" colspan="4">月の合計</td>
+                            <td class="px-6 py-3"></td>
                             <td class="px-6 py-3 text-left whitespace-nowrap">
                                 {{ gmdate('H:i:s', $monthTotalActualWorkSeconds) }}
                             </td>
