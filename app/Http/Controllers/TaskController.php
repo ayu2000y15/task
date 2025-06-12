@@ -36,7 +36,7 @@ class TaskController extends Controller
         ];
 
         // ★ with('assignees') を追加
-        $query = $taskService->buildFilteredQuery($filters)->with(['project', 'files', 'children', 'character', 'assignees']);
+        $query = $taskService->buildFilteredQuery($filters)->with(['project', 'files', 'children', 'character', 'assignees', 'workLogs']);
         $allTasks = $query->orderByRaw('ISNULL(tasks.parent_id), tasks.parent_id ASC, ISNULL(tasks.start_date), tasks.start_date ASC, tasks.name ASC')->get();
 
         $tasksGroupedByParent = $allTasks->groupBy('parent_id');
@@ -151,9 +151,9 @@ class TaskController extends Controller
             'description' => 'nullable|string',
             'character_id' => [
                 // 必須条件をrequiredIfで定義
-                Rule::requiredIf(function () use ($request) {
-                    return !$request->filled('parent_id') && !$request->boolean('apply_individual_to_all_characters');
-                }),
+                // Rule::requiredIf(function () use ($request) {
+                //     return !$request->filled('parent_id') && !$request->boolean('apply_individual_to_all_characters');
+                // }),
                 'nullable', // requiredIfと競合しないようにnullableを追加
                 Rule::exists('characters', 'id')->where(function ($query) use ($project) {
                     return $query->where('project_id', $project->id);
@@ -201,7 +201,7 @@ class TaskController extends Controller
             'apply_individual_to_all_characters' => 'nullable|boolean',
             'apply_to_all_character_siblings_of_parent' => 'nullable|boolean',
         ], [
-            'character_id.required' => '親工程が選択されておらず、「すべてのキャラクターへ作成」をチェックしない場合、所属先キャラクターの選択は必須です。',
+            // 'character_id.required' => '親工程が選択されておらず、「すべてのキャラクターへ作成」をチェックしない場合、所属先キャラクターの選択は必須です。',
             'assignee_other.required_if' => '担当者で「その他」を選択した場合は、担当者名の入力は必須です。',
             'start_date.required_if' => '開始日時は必須です（工程または重要納期の場合）。',
             'end_date.required_if' => '工程の場合、工数または終了日時のどちらかは必須です。',
@@ -431,11 +431,11 @@ class TaskController extends Controller
             'description' => 'nullable|string',
             'character_id' => [
                 // 必須条件をrequiredIfで定義
-                Rule::requiredIf(function () use ($request, $task) {
-                    return !$task->is_folder
-                        && !$request->filled('parent_id')
-                        && !$request->boolean('apply_edit_to_all_characters_same_name');
-                }),
+                // Rule::requiredIf(function () use ($request, $task) {
+                //     return !$task->is_folder
+                //         && !$request->filled('parent_id')
+                //         && !$request->boolean('apply_edit_to_all_characters_same_name');
+                // }),
                 'nullable', // requiredIfと競合しないようにnullableを追加
                 Rule::exists('characters', 'id')->where(function ($query) use ($project) {
                     return $query->where('project_id', $project->id);
@@ -481,7 +481,7 @@ class TaskController extends Controller
             ],
             'apply_edit_to_all_characters_same_name' => 'nullable|boolean',
         ], [
-            'character_id.required' => '親工程が選択されておらず、「同名工程に反映」をチェックしない場合、所属先キャラクターの選択は必須です。',
+            // 'character_id.required' => '親工程が選択されておらず、「同名工程に反映」をチェックしない場合、所属先キャラクターの選択は必須です。',
             'start_date.required_if' => '開始日時は必須です（工程または重要納期の場合）。',
             'end_date.required_if' => '工程の場合、工数または終了日時のどちらかは必須です。',
             'duration_value.required_if' => '工程の場合、工数または終了日時のどちらかは必須です。',
@@ -904,7 +904,7 @@ class TaskController extends Controller
             'template_start_date' => 'required|date_format:Y-m-d\TH:i,Y-m-d\TH:i:s,Y-m-d',
             'parent_id_for_template' => 'nullable|exists:tasks,id',
             'character_id_for_template' => [
-                Rule::requiredIf(!$request->boolean('apply_template_to_all_characters')),
+                // Rule::requiredIf(!$request->boolean('apply_template_to_all_characters')),
                 'nullable',
                 'exists:characters,id',
                 function ($attribute, $value, $fail) use ($project) {
@@ -917,7 +917,7 @@ class TaskController extends Controller
             'working_hours_end' => 'required|date_format:H:i|after:working_hours_start',
             'apply_template_to_all_characters' => 'nullable|boolean',
         ], [
-            'character_id_for_template.required' => '「すべてのキャラクターへ適用」をチェックしない場合、所属先キャラクターの選択は必須です。',
+            // 'character_id_for_template.required' => '「すべてのキャラクターへ適用」をチェックしない場合、所属先キャラクターの選択は必須です。',
             'working_hours_start.required' => '稼働開始時刻は必須です。',
             'working_hours_start.date_format' => '稼働開始時刻はHH:MM形式で入力してください。',
             'working_hours_end.required' => '稼働終了時刻は必須です。',

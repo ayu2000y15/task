@@ -33,8 +33,8 @@
                             <x-select-input label="所属先キャラクター (任意)" name="character_id_for_template"
                                 id="character_id_for_template" :options="$project->characters->pluck('name', 'id')"
                                 :selected="old('character_id_for_template', request('character_id_for_new_task'))"
-                                emptyOptionText="キャラクターを選択してください"
-                                :required="!old('apply_template_to_all_characters')" />
+                                emptyOptionText="案件全体へ適用する"/>
+                                {{-- :required="!old('apply_template_to_all_characters')" /> --}}
                             <div class="mt-2">
                                 <x-input-label for="apply_template_to_all_characters" class="inline-flex items-center">
                                     <input type="checkbox" id="apply_template_to_all_characters" name="apply_template_to_all_characters" value="1" class="rounded dark:bg-gray-900 border-gray-300 dark:border-gray-700 text-indigo-600 shadow-sm focus:ring-indigo-500 dark:focus:ring-indigo-600 dark:focus:ring-offset-gray-800" {{ old('apply_template_to_all_characters') ? 'checked' : '' }}>
@@ -124,9 +124,9 @@
                                 <x-select-input label="所属先キャラクター" name="character_id" id="character_id_individual"
                                     :options="$project->characters->pluck('name', 'id')"
                                     :selected="old('character_id', request('character_id_for_new_task'))"
-                                    emptyOptionText="キャラクターを選択してください"
-                                    :hasError="$errors->has('character_id')"
-                                    :required="!old('parent_id') && !old('apply_individual_to_all_characters')" />
+                                    emptyOptionText="案件全体へ工程を追加する"
+                                    :hasError="$errors->has('character_id')"/>
+                                    {{-- :required="!old('parent_id') && !old('apply_individual_to_all_characters')" /> --}}
                                 <div class="mt-2">
                                     <x-input-label for="apply_individual_to_all_characters" class="inline-flex items-center">
                                         <input type="checkbox" id="apply_individual_to_all_characters" name="apply_individual_to_all_characters" value="1" class="rounded dark:bg-gray-900 border-gray-300 dark:border-gray-700 text-indigo-600 shadow-sm focus:ring-indigo-500 dark:focus:ring-indigo-600 dark:focus:ring-offset-gray-800" {{ old('apply_individual_to_all_characters') ? 'checked' : '' }}>

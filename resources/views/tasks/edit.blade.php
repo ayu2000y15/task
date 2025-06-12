@@ -180,7 +180,7 @@
                                 :selected="old('character_id', $task->character_id)"
                                 emptyOptionText="キャラクターを選択してください"
                                 :hasError="$errors->has('character_id')"
-                                :required="$taskType !== 'folder' && !old('parent_id', $task->parent_id) && !old('apply_edit_to_all_characters_same_name')"
+                                {{-- :required="$taskType !== 'folder' && !old('parent_id', $task->parent_id) && !old('apply_edit_to_all_characters_same_name')" --}}
                                 :disabled="old('apply_edit_to_all_characters_same_name', false) || $taskType === 'folder' || old('parent_id', $task->parent_id) !== null" />
                             <x-input-error :messages="$errors->get('character_id')" class="mt-2" />
 
