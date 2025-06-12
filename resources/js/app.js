@@ -24,6 +24,8 @@ import {
 } from "./features/global-tooltips.js";
 import "./features/file-deleter.js";
 
+import { initializeWorkTimers } from "./features/work-timer.js";
+
 if (document.getElementById("feedback-table")) {
     import("./page-specific/admin-feedbacks-index.js").catch((error) =>
         console.error("Error loading admin-feedbacks-index.js:", error)
@@ -38,6 +40,8 @@ document.addEventListener("DOMContentLoaded", () => {
         "closePreviewModalBtnGlobal",
         "preview-image"
     );
+    // ★ 追加: タイマー機能の初期化
+    initializeWorkTimers();
 
     // --- Page-specific JavaScript ---
     if (

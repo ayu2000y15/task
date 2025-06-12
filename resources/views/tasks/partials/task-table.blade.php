@@ -3,6 +3,12 @@
     <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700" id="{{ $tableId ?? 'default-task-table-fallback' }}">
         <thead class="bg-gray-50 dark:bg-gray-700">
             <tr>
+
+                <th scope="col" class="sticky top-0 z-10 bg-gray-50 dark:bg-gray-700 px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider min-w-[200px]">
+                    時間記録
+                </th>
+
+
                 <th scope="col" class="sticky top-0 z-10 bg-gray-50 dark:bg-gray-700 px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider min-w-[250px] sm:min-w-[300px]">
                     @if(Request::is('projects/*'))
                         工程名
@@ -104,6 +110,7 @@
                         </td>
                         <td class="hidden sm:table-cell px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 align-top">{{ $task->parent->name ?? '-' }}</td>
                         <td class="hidden sm:table-cell px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 align-top"><i class="fas fa-file mr-1"></i> {{ $task->files->count() }}</td>
+
                         <td class="px-3 py-3 whitespace-nowrap text-sm font-medium align-top">
                             <div class="flex items-center space-x-1">
                                 @can('update', $task)
@@ -128,6 +135,28 @@
                         </td>
                         @endcan
                     @elseif(!($isFolderView ?? false)) {{-- 通常の工程または重要納期の場合 --}}
+                        <td class="px-4 py-3 align-top">
+                            @if(!$task->is_folder && !$task->is_milestone)
+                                @php
+                                    // ログイン中のユーザーがこのタスクの担当者かチェック
+                                    $isAssigned = $task->assignees->contains('id', Auth::id());
+                                @endphp
+                                @if($isAssigned)
+                                    <div class="timer-controls"
+                                    data-task-id="{{ $task->id }}"
+                                    data-task-status="{{ $task->status }}"
+                                    data-is-paused="{{ $task->is_paused ? 'true' : 'false' }}">
+                                        {{-- JavaScriptがこの中身を生成します --}}
+                                    </div>
+                                @else
+                                    {{-- 担当者でなければハイフンを表示 --}}
+                                    <span class="text-xs text-gray-400 dark:text-gray-500">-</span>
+                                @endif
+                            @else
+                                {{-- フォルダやマイルストーンにはタイマー不要 --}}
+                                <span class="text-xs text-gray-400 dark:text-gray-500">-</span>
+                            @endif
+                        </td>
                         <td class="px-4 py-3 text-sm text-gray-900 dark:text-gray-100 align-top">
                             <div class="flex items-center gap-x-3">
                                 @if(!$task->is_milestone && !$task->is_folder)
@@ -265,6 +294,7 @@
                             @endif
                         </td>
                         @endif
+
                         <td class="px-3 py-3 whitespace-nowrap text-sm font-medium align-top">
                             <div class="flex items-center space-x-1">
                                 @can('update', $task)

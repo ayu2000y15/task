@@ -31,6 +31,11 @@ use App\Http\Controllers\Admin\StockOrderController;
 use App\Http\Controllers\Admin\InventoryLogController;
 use App\Http\Controllers\Admin\MeasurementTemplateController;
 
+use App\Http\Controllers\WorkLogController;
+use App\Http\Controllers\WorkRecordController;
+use App\Http\Controllers\LeaveController;
+use App\Http\Controllers\Admin\WorkRecordController as AdminWorkRecordController;
+
 
 use App\Http\Controllers\ToolController;
 use App\Http\Controllers\SalesToolController;
@@ -138,6 +143,16 @@ Route::middleware('auth')->group(function () {
         Route::post('posts/{post}/reactions', [BoardPostController::class, 'toggleReaction'])->name('posts.toggleReaction');
     });
 
+    // 時間記録のアクション
+    Route::post('/work-logs/start', [WorkLogController::class, 'start'])->name('work-logs.start');
+    Route::post('/work-logs/{workLog}/stop', [WorkLogController::class, 'stop'])->name('work-logs.stop');
+
+    // 作業実績ページ
+    Route::get('/my-work-records', [WorkRecordController::class, 'index'])->name('work-records.index');
+
+    // 休暇管理
+    Route::resource('leaves', LeaveController::class);
+
     Route::prefix('admin')->name('admin.')->middleware(['can:viewAny,App\Models\ProcessTemplate'])->group(function () { // 管理者用などのミドルウェアを想定
         Route::resource('form-definitions', FormFieldDefinitionController::class)
             ->parameters(['form-definitions' => 'formFieldDefinition'])
@@ -210,6 +225,11 @@ Route::middleware('auth')->group(function () {
         Route::get('/external-submissions/{submission}', [ExternalFormController::class, 'show'])->name('external-submissions.show'); // 詳細表示用
 
         Route::get('/external-requests', [ExternalFormController::class, 'index'])->name('external-requests.index');
+
+        // 作業実績管理
+        Route::get('/work-records', [AdminWorkRecordController::class, 'index'])->name('work-records.index');
+        Route::post('/work-records/update-rate', [AdminWorkRecordController::class, 'updateUserRate'])->name('work-records.update-rate');
+        Route::get('/work-records/{user}', [AdminWorkRecordController::class, 'show'])->name('work-records.show');
     });
 
     // -------------------------------------------------------------------------

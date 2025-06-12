@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Spatie\Activitylog\Traits\LogsActivity; // ★ 追加
 use Spatie\Activitylog\LogOptions;          // ★ 追加
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Task extends Model
 {
@@ -100,6 +101,69 @@ class Task extends Model
     public function children()
     {
         return $this->hasMany(Task::class, 'parent_id');
+    }
+
+    /**
+     * ▼▼▼【ここを追加】is_pausedをJSONに含めるように追記 ▼▼▼
+     *
+     * @var array
+     */
+    protected $appends = ['is_paused'];
+    /**
+     * この工程の作業ログ
+     */
+    public function workLogs(): HasMany
+    {
+        return $this->hasMany(WorkLog::class);
+    }
+
+    /**
+     * ▼▼▼【ここを追加】タスクが一時停止中かどうかを判定するアクセサ ▼▼▼
+     *
+     * @return bool
+     */
+    public function getIsPausedAttribute(): bool
+    {
+        // ログインしていない場合は常にfalse
+        if (!auth()->check()) {
+            return false;
+        }
+        $currentUser = auth()->user();
+
+        // 完了・キャンセル済みタスクは「一時停止中」ではない
+        if (in_array($this->status, ['completed', 'cancelled'])) {
+            return false;
+        }
+
+        // 'workLogs' リレーションが読み込まれているか確認
+        if (!$this->relationLoaded('workLogs')) {
+            return false;
+        }
+
+        // 【修正点】ログインユーザーに絞って判定
+        $userWorkLogs = $this->workLogs->where('user_id', $currentUser->id);
+
+        // ログインユーザーの実行中のログがある場合は「一時停止中」ではない
+        if ($userWorkLogs->where('status', 'active')->isNotEmpty()) {
+            return false;
+        }
+
+        // ログインユーザーの最新のログを取得
+        $lastLog = $userWorkLogs->sortByDesc('id')->first();
+
+        // 最新のログが存在し、かつステータスが 'stopped' の場合に「一時停止中」と判断
+        return $lastLog && $lastLog->status === 'stopped';
+    }
+
+    /**
+     * 特定のユーザーのこのタスクにおける現在アクティブな作業ログを取得
+     */
+    public function getActiveWorkLogForUser(User $user)
+    {
+        return $this->workLogs()
+            ->where('user_id', $user->id)
+            ->whereIn('status', ['active', 'paused'])
+            ->first();
     }
 
     /**

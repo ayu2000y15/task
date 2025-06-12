@@ -1189,9 +1189,12 @@ namespace App\Models{
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\TaskFile> $files
  * @property-read int|null $files_count
  * @property-read string|null $formatted_duration
+ * @property-read bool $is_paused
  * @property-read mixed $level
  * @property-read Task|null $parent
  * @property-read \App\Models\Project $project
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\WorkLog> $workLogs
+ * @property-read int|null $work_logs_count
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Task newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Task newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Task query()
@@ -1256,10 +1259,14 @@ namespace App\Models{
  * @property string|null $access_id
  * @property \Illuminate\Support\Carbon|null $email_verified_at
  * @property string $status
+ * @property string|null $hourly_rate
  * @property string $password
  * @property string|null $remember_token
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\WorkLog|null $activeWorkLog
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\WorkLog> $activeWorkLogs
+ * @property-read int|null $active_work_logs_count
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \Spatie\Activitylog\Models\Activity> $activities
  * @property-read int|null $activities_count
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\BoardPost> $boardPosts
@@ -1270,6 +1277,8 @@ namespace App\Models{
  * @property-read int|null $roles_count
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Task> $tasks
  * @property-read int|null $tasks_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\WorkLog> $workLogs
+ * @property-read int|null $work_logs_count
  * @method static \Database\Factories\UserFactory factory($count = null, $state = [])
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User newQuery()
@@ -1278,6 +1287,7 @@ namespace App\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereCreatedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereEmail($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereEmailVerifiedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereHourlyRate($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereName($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User wherePassword($value)
@@ -1286,5 +1296,43 @@ namespace App\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereUpdatedAt($value)
  */
 	class User extends \Eloquent {}
+}
+
+namespace App\Models{
+/**
+ * 
+ *
+ * @property int $id
+ * @property int $user_id
+ * @property int $task_id
+ * @property \Illuminate\Support\Carbon|null $start_time
+ * @property \Illuminate\Support\Carbon|null $end_time
+ * @property string|null $paused_at
+ * @property int $total_paused_duration
+ * @property string $status
+ * @property string|null $memo
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \Spatie\Activitylog\Models\Activity> $activities
+ * @property-read int|null $activities_count
+ * @property-read int $effective_duration
+ * @property-read \App\Models\Task $task
+ * @property-read \App\Models\User $user
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|WorkLog newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|WorkLog newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|WorkLog query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|WorkLog whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|WorkLog whereEndTime($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|WorkLog whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|WorkLog whereMemo($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|WorkLog wherePausedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|WorkLog whereStartTime($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|WorkLog whereStatus($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|WorkLog whereTaskId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|WorkLog whereTotalPausedDuration($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|WorkLog whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|WorkLog whereUserId($value)
+ */
+	class WorkLog extends \Eloquent {}
 }
 

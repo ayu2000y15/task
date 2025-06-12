@@ -413,6 +413,22 @@
                             @php if($canViewGroup2) $isFirstVisibleGroup = false; @endphp
                             @endif
 
+                            @can('viewAny', App\Models\WorkLog::class) {{-- Policyを作成後、権限を設定 --}}
+
+                            <div class="group-item @if(!$isFirstVisibleGroup) border-t border-gray-200 dark:border-gray-600 @endif">
+                                <button @click="openGroup = (openGroup === 'groupWork' ? null : 'groupWork')"
+                                        class="w-full flex justify-between items-center px-4 py-3 text-sm font-medium text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none">
+                                    <span>勤怠管理</span>
+                                    <i class="fas fa-fw" :class="{'fa-chevron-down': openGroup === 'groupWork', 'fa-chevron-right': openGroup !== 'groupWork'}"></i>
+                                </button>
+                                <div x-show="openGroup === 'groupWork'" x-transition class="bg-gray-50 dark:bg-gray-800">
+                                    @can('viewAny', App\Models\WorkLog::class) {{-- Policyを作成後、権限を設定 --}}
+                                    <a href="{{ route('admin.work-records.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">作業実績一覧</a>
+                                    @endcan
+                                </div>
+                            </div>
+                            @endcan
+
                             @if ($canViewGroup3)
                             <div class="group-item @if(!$isFirstVisibleGroup) border-t border-gray-200 dark:border-gray-600 @endif">
                                 <button @click="openGroup = (openGroup === 'group3' ? null : 'group3')"
@@ -517,14 +533,23 @@
                                     $isMyTasksActive = request()->routeIs('tasks.index') && request()->query('assignee') === Auth::user()->name;
                                 @endphp
                                 <a href="{{ route('tasks.index', ['assignee_id' => Auth::id(), 'close_filters' => 1]) }}"
-                                   class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 {{ $isMyTasksActive ? 'bg-gray-100 dark:bg-gray-600 font-semibold' : '' }}">
+                                    class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 {{ $isMyTasksActive ? 'bg-gray-100 dark:bg-gray-600 font-semibold' : '' }}">
                                     担当工程一覧
                                 </a>
                             @endcan
 
+                            <a href="{{ route('work-records.index') }}"
+                                class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 {{ request()->routeIs('work-records.index') ? 'bg-gray-100 dark:bg-gray-600 font-semibold' : '' }}">
+                                作業実績登録
+                            </a>
+                            <a href="{{ route('leaves.index') }}"
+                                class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 {{ request()->routeIs('leaves.index') ? 'bg-gray-100 dark:bg-gray-600 font-semibold' : '' }}">
+                                休暇カレンダー
+                            </a>
+
                             @can('tools.viewAnyPage')
                             <a href="{{ route('tools.index') }}"
-                               class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 {{ request()->routeIs('tools.index') || request()->routeIs('tools.sales.*') ? 'bg-gray-100 dark:bg-gray-600 font-semibold' : '' }}">
+                                class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 {{ request()->routeIs('tools.index') || request()->routeIs('tools.sales.*') ? 'bg-gray-100 dark:bg-gray-600 font-semibold' : '' }}">
                                 ツール一覧
                             </a>
                             @endcan
@@ -576,6 +601,13 @@
 
     @yield('scripts')
     @stack('scripts')
+
+    @php
+        $activeWorkLogsForScript = Auth::check() ? Auth::user()->activeWorkLogs()->with('task')->get() : collect();
+    @endphp
+    <script id="running-work-logs-data" type="application/json">
+        {!! $activeWorkLogsForScript->toJson() !!}
+    </script>
 
     <script>
         function copyLink(buttonElement) {

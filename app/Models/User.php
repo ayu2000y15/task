@@ -10,6 +10,7 @@ use App\Notifications\ResetPasswordNotification;
 use App\Notifications\VerifyEmailNotification;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class User extends Authenticatable
 {
@@ -32,11 +33,34 @@ class User extends Authenticatable
         'access_id',
         'last_access',
         'status', // statusカラムをfillableに追加
+        'hourly_rate',
     ];
     protected $hidden = [
         'password',
         'remember_token',
     ];
+
+    /**
+     * このユーザーの作業ログ
+     */
+    public function workLogs(): HasMany
+    {
+        return $this->hasMany(WorkLog::class);
+    }
+
+    /**
+     * このユーザーの現在アクティブな（実行中または一時停止中）作業ログ
+     */
+    public function activeWorkLog()
+    {
+        return $this->hasOne(WorkLog::class)->whereIn('status', ['active', 'paused']);
+    }
+
+    public function activeWorkLogs()
+    {
+        // 'status' が 'active' のものだけを取得するように修正
+        return $this->hasMany(WorkLog::class)->where('status', 'active');
+    }
 
     // アクティビティログのオプション設定
     public function getActivitylogOptions(): LogOptions
