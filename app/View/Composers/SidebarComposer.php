@@ -3,36 +3,45 @@
 namespace App\View\Composers;
 
 use Illuminate\View\View;
-use App\Models\Project; // Projectモデルをuse
-use App\Models\Task;    // Taskモデルを追加
+use App\Models\Project;
+use App\Models\Task;
 use Illuminate\Support\Facades\Auth;
-use Carbon\Carbon;      // Carbonを追加
+use Carbon\Carbon;
 
 class SidebarComposer
 {
     /**
      * Bind data to the view.
-     *
-     * @param  \Illuminate\View\View  $view
-     * @return void
      */
     public function compose(View $view)
     {
         $favoriteProjects = collect();
-        $normalProjects = collect();
-        $upcomingTasksForSidebar = collect(); // 期限間近の工程を初期化
+        // ▼▼▼【変更箇所-START】▼▼▼
+        $activeProjects = collect();
+        $archivedProjects = collect();
+        // ▲▲▲【変更箇所-END】▲▲▲
+        $upcomingTasksForSidebar = collect();
 
         if (Auth::check()) {
             $favoriteProjects = Project::where('is_favorite', true)
-                // ->where('user_id', Auth::id()) // もしユーザーごとの案件なら
-                ->orderBy('title')
-                ->get();
-            $normalProjects = Project::where('is_favorite', false)
-                // ->where('user_id', Auth::id()) // もしユーザーごとの案件なら
                 ->orderBy('title')
                 ->get();
 
-            // 期限間近の工程を取得 (例: 2日以内、最大10件)
+            // ▼▼▼【変更箇所-START】▼▼▼
+            // is_favorite = false のプロジェクトを全て取得
+            $allNormalProjects = Project::where('is_favorite', false)
+                ->orderBy('title')
+                ->get();
+
+            // 完了・キャンセルのステータスを定義
+            $archivedStatus = ['completed', 'cancelled'];
+
+            // ステータスを元に、プロジェクトを2つのコレクションに分割する
+            list($archivedProjects, $activeProjects) = $allNormalProjects->partition(function ($project) use ($archivedStatus) {
+                return in_array($project->status, $archivedStatus);
+            });
+            // ▲▲▲【変更箇所-END】▲▲▲
+
             $upcomingTasksForSidebar = Task::whereNotNull('end_date')
                 ->whereDate('end_date', '>=', Carbon::today())
                 ->whereDate('end_date', '<=', Carbon::today()->addDays(2))
@@ -40,10 +49,13 @@ class SidebarComposer
                 ->where('is_milestone', false)
                 ->where('is_folder', false)
                 ->orderBy('end_date')
-                ->with('project') // プロジェクト情報を Eager load
+                ->with('project')
                 ->get();
         }
 
-        $view->with(compact('favoriteProjects', 'normalProjects', 'upcomingTasksForSidebar'));
+        // ▼▼▼【変更箇所-START】▼▼▼
+        // viewに渡す変数を変更
+        $view->with(compact('favoriteProjects', 'activeProjects', 'archivedProjects', 'upcomingTasksForSidebar'));
+        // ▲▲▲【変更箇所-END】▲▲▲
     }
 }

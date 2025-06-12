@@ -14,59 +14,88 @@ class WorkRecordController extends Controller
     /**
      * Display a listing of the resource.
      */
+    // app/Http/Controllers/Admin/WorkRecordController.php
+
     public function index(Request $request)
     {
-        // ポリシーでアクセス権をチェック
         $this->authorize('viewAny', WorkLog::class);
 
-        // --- 期間別サマリーの計算 ---
+        // --- 期間別サマリー (変更なし) ---
         $now = Carbon::now();
-
         $summaryDateStrings = [
             'today' => $now->format('n/j'),
             'week' => $now->copy()->startOfWeek()->format('n/j') . ' - ' . $now->copy()->endOfWeek()->format('n/j'),
             'month' => $now->format('Y年n月'),
         ];
-
         $todayLogs = $this->getLogsForPeriod($now->copy()->startOfDay(), $now->copy()->endOfDay());
         $weekLogs = $this->getLogsForPeriod($now->copy()->startOfWeek(), $now->copy()->endOfWeek());
         $monthLogs = $this->getLogsForPeriod($now->copy()->startOfMonth(), $now->copy()->endOfMonth());
-
         $todaySummary = $this->calculateSummary($todayLogs);
         $weekSummary = $this->calculateSummary($weekLogs);
         $monthSummary = $this->calculateSummary($monthLogs);
 
-        $query = WorkLog::with(['user', 'task.project', 'task.character'])
-            ->where('status', 'stopped')
-            ->orderBy('start_time', 'desc');
+        // --- ▼▼▼【ここからクエリとソート処理を修正】▼▼▼ ---
 
+        // ソート可能な列を定義
+        $sortableColumns = [
+            'user' => 'users.name',
+            'project' => 'projects.title',
+            'character' => 'characters.name',
+            'task' => 'tasks.name',
+            'start_time' => 'work_logs.start_time',
+            'end_time' => 'work_logs.end_time',
+            'duration' => \DB::raw('TIMESTAMPDIFF(SECOND, work_logs.start_time, work_logs.end_time)'),
+            'salary' => \DB::raw('(TIMESTAMPDIFF(SECOND, work_logs.start_time, work_logs.end_time) / 3600 * users.hourly_rate)'),
+        ];
+
+        // リクエストからソート情報を取得（デフォルトは開始日時の降順）
+        $sort = $request->query('sort', 'start_time');
+        $direction = $request->query('direction', 'desc');
+
+        // 不正な列名でのソートを防ぐ
+        if (!array_key_exists($sort, $sortableColumns)) {
+            $sort = 'start_time';
+            $direction = 'desc';
+        }
+
+        $query = WorkLog::query()
+            ->join('users', 'work_logs.user_id', '=', 'users.id')
+            ->join('tasks', 'work_logs.task_id', '=', 'tasks.id')
+            ->leftJoin('projects', 'tasks.project_id', '=', 'projects.id')
+            ->leftJoin('characters', 'tasks.character_id', '=', 'characters.id')
+            ->select('work_logs.*') // work_logsの全カラムを選択
+            ->where('work_logs.status', 'stopped');
+
+        // フィルター処理 (変更なし)
         if ($request->filled('user_id')) {
-            $query->where('user_id', $request->user_id);
+            $query->where('work_logs.user_id', $request->user_id);
         }
-
         if ($request->filled('project_id')) {
-            $query->whereHas('task', function ($q) use ($request) {
-                $q->where('project_id', $request->project_id);
-            });
+            $query->where('tasks.project_id', $request->project_id);
         }
-
         $startDate = $request->filled('start_date') ? Carbon::parse($request->start_date)->startOfDay() : null;
         $endDate = $request->filled('end_date') ? Carbon::parse($request->end_date)->endOfDay() : null;
-
         if ($startDate && $endDate) {
-            $query->whereBetween('start_time', [$startDate, $endDate]);
+            $query->whereBetween('work_logs.start_time', [$startDate, $endDate]);
         } elseif ($startDate) {
-            $query->where('start_time', '>=', $startDate);
+            $query->where('work_logs.start_time', '>=', $startDate);
         } elseif ($endDate) {
-            $query->where('start_time', '<=', $endDate);
+            $query->where('work_logs.start_time', '<=', $endDate);
         }
 
-        // 注意：ページネーションの影響を受けないように、クエリをクローンしてから合計時間を計算
+        // フィルタ後の合計時間を計算
         $totalSecondsQuery = clone $query;
-        $workLogs = $query->paginate(50)->withQueryString();
+        $totalSeconds = $totalSecondsQuery->sum(\DB::raw('TIMESTAMPDIFF(SECOND, work_logs.start_time, work_logs.end_time)'));
 
-        $totalSeconds = $totalSecondsQuery->sum(\DB::raw('TIMESTAMPDIFF(SECOND, start_time, end_time)'));
+        // ソートを適用
+        $query->orderBy($sortableColumns[$sort], $direction);
+        if ($sort !== 'start_time') {
+            $query->orderBy('work_logs.start_time', 'desc'); // 第2ソートキー
+        }
 
+        $workLogs = $query->with(['user', 'task.project', 'task.character'])->paginate(50)->withQueryString();
+
+        // フィルタリング用の選択肢 (変更なし)
         $users = User::orderBy('name')->get();
         $projects = Project::orderBy('title')->get();
 
@@ -78,7 +107,9 @@ class WorkRecordController extends Controller
             'todaySummary',
             'weekSummary',
             'monthSummary',
-            'summaryDateStrings'
+            'summaryDateStrings',
+            'sort',
+            'direction' // ソート情報をビューに渡す
         ));
     }
 

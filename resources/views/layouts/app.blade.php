@@ -76,7 +76,7 @@
     </style>
 </head>
 <body class="font-sans antialiased text-gray-900 bg-gray-100 dark:text-gray-100 dark:bg-gray-900">
-    <div x-data="{ sidebarOpen: false }">
+    <div x-data="{ sidebarOpen: localStorage.getItem('sidebarOpen') === 'true' }" x-init="$watch('sidebarOpen', value => localStorage.setItem('sidebarOpen', value))">
         <div x-show="sidebarOpen" class="fixed inset-0 z-20 bg-black opacity-50 md:hidden" @click="sidebarOpen = false" style="display: none;"></div>
 
         <aside
@@ -87,7 +87,19 @@
         </div>
 
         {{-- サイドバーナビゲーション --}}
-        <nav class="px-2 py-4" x-data="{ openFavorites: true, openNormalProjects: true, openUpcomingTasks: true }">
+        <nav class="px-2 py-4"
+        x-data="{
+            openFavorites: localStorage.getItem('openFavorites') === null ? true : localStorage.getItem('openFavorites') === 'true',
+            openNormalProjects: localStorage.getItem('openNormalProjects') === null ? true : localStorage.getItem('openNormalProjects') === 'true',
+            openUpcomingTasks: localStorage.getItem('openUpcomingTasks') === null ? true : localStorage.getItem('openUpcomingTasks') === 'true',
+            openArchivedProjects: localStorage.getItem('openArchivedProjects') === null ? false : localStorage.getItem('openArchivedProjects') === 'true'
+        }"
+        x-init="
+            $watch('openFavorites', value => localStorage.setItem('openFavorites', value));
+            $watch('openNormalProjects', value => localStorage.setItem('openNormalProjects', value));
+            $watch('openUpcomingTasks', value => localStorage.setItem('openUpcomingTasks', value));
+            $watch('openArchivedProjects', value => localStorage.setItem('openArchivedProjects', value));
+        ">
             @can('create', App\Models\Project::class)
             <a href="{{ route('projects.create') }}" class="flex items-center px-3 py-2 mb-3 text-sm font-medium text-gray-700 transition-colors duration-200 rounded-md dark:text-gray-200 hover:bg-gray-800 hover:text-white dark:hover:bg-blue-600">
                 <i class="fas fa-plus w-5 h-5 mr-2"></i> 新規衣装案件
@@ -208,13 +220,13 @@
             </div>
 
             {{-- 衣装案件セクション --}}
-            <div class="mb-3">
+            <div>
                 <div @click="openNormalProjects = !openNormalProjects" class="flex items-center justify-between px-3 py-2 text-xs font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md cursor-pointer">
-                    <span>衣装案件 ({{ $normalProjects->count() }})</span>
+                    <span>衣装案件(進行中) ({{ $activeProjects->count() }})</span>
                     <i class="fas fa-fw text-xs" :class="{'fa-chevron-down': openNormalProjects, 'fa-chevron-right': !openNormalProjects}"></i>
                 </div>
                 <div x-show="openNormalProjects" x-transition class="mt-1 space-y-1">
-                    @forelse($normalProjects as $project)
+                    @forelse($activeProjects as $project)
                     @php
                         $_projectStatusOptionsSb = ['' => '未設定'] + (\App\Models\Project::PROJECT_STATUS_OPTIONS ?? []);
                         $_projectStatusIconsSb = [
@@ -258,6 +270,61 @@
                     </a>
                     @empty
                         <p class="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">衣装案件はありません</p>
+                    @endforelse
+                </div>
+            </div>
+
+            {{-- 衣装案件（完了・キャンセル）セクション --}}
+            <div>
+                <div @click="openArchivedProjects = !openArchivedProjects" class="flex items-center justify-between px-3 py-2 text-xs font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md cursor-pointer">
+                    <span>衣装案件（完了・キャンセル） ({{ $archivedProjects->count() }})</span>
+                    <i class="fas fa-fw text-xs" :class="{'fa-chevron-down': openArchivedProjects, 'fa-chevron-right': !openArchivedProjects}"></i>
+                </div>
+                <div x-show="openArchivedProjects" x-transition class="mt-1 space-y-1">
+                    @forelse($archivedProjects as $project)
+                    @php
+                        $_projectStatusOptionsSb = ['' => '未設定'] + (\App\Models\Project::PROJECT_STATUS_OPTIONS ?? []);
+                        $_projectStatusIconsSb = [
+                            'not_started' => 'fa-minus-circle text-gray-400 dark:text-gray-500', 'in_progress' => 'fa-play-circle text-blue-400 dark:text-blue-500',
+                            'completed'   => 'fa-check-circle text-green-400 dark:text-green-500', 'on_hold'     => 'fa-pause-circle text-yellow-400 dark:text-yellow-500',
+                            'cancelled'   => 'fa-times-circle text-red-400 dark:text-red-500', '' => 'fa-question-circle text-gray-400 dark:text-gray-500',
+                        ];
+                        $_currentProjectStatusSb = $project->status ?? '';
+                        $_projectStatusTooltipSb = $_projectStatusOptionsSb[$_currentProjectStatusSb] ?? $_currentProjectStatusSb;
+                        $_projectStatusIconClassSb = $_projectStatusIconsSb[$_currentProjectStatusSb] ?? $_projectStatusIconsSb[''];
+                        $_deliveryFlagValueSb = $project->delivery_flag ?? '0';
+                        $_deliveryIconSb = $_deliveryFlagValueSb == '1' ? 'fa-check-circle text-green-400 dark:text-green-500' : 'fa-truck text-yellow-400 dark:text-yellow-500';
+                        $_deliveryTooltipSb = $_deliveryFlagValueSb == '1' ? '納品済み' : '未納品';
+                        $_paymentFlagOptionsSb = ['' => '未設定'] + (\App\Models\Project::PAYMENT_FLAG_OPTIONS ?? []);
+                        $_paymentFlagIconsSb = [
+                            'Pending'        => 'fa-clock text-yellow-400 dark:text-yellow-500', 'Processing'     => 'fa-hourglass-half text-blue-400 dark:text-blue-500',
+                            'Completed'      => 'fa-check-circle text-green-400 dark:text-green-500', 'Partially Paid' => 'fa-adjust text-orange-400 dark:text-orange-500',
+                            'Overdue'        => 'fa-exclamation-triangle text-red-400 dark:text-red-500', 'Cancelled'      => 'fa-ban text-gray-400 dark:text-gray-500',
+                            'Refunded'       => 'fa-undo text-purple-400 dark:text-purple-500', 'On Hold'        => 'fa-pause-circle text-indigo-400 dark:text-indigo-500',
+                            ''               => 'fa-question-circle text-gray-400 dark:text-gray-500',
+                        ];
+                        $_currentPaymentFlagSb = $project->payment_flag ?? '';
+                        $_paymentFlagTooltipSb = $_paymentFlagOptionsSb[$_currentPaymentFlagSb] ?? $_currentPaymentFlagSb;
+                        $_paymentFlagIconClassSb = $_paymentFlagIconsSb[$_currentPaymentFlagSb] ?? $_paymentFlagIconsSb[''];
+                    @endphp
+                    <a href="{{ route('projects.show', $project) }}"
+                    class="block px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 {{ (request()->is('projects/'.$project->id.'*') || (isset($currentProject) && $currentProject->id == $project->id)) ? 'bg-blue-500 text-white dark:bg-blue-600' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700' }}">
+                        <div class="project-link-content">
+                            <div class="project-title-group">
+                                <span class="flex items-center justify-center w-5 h-5 mr-2 text-xs font-bold text-white rounded flex-shrink-0" style="background-color: {{ $project->color ?? '#6c757d' }};">
+                                    {{ mb_substr($project->title, 0, 1) }}
+                                </span>
+                                <span class="project-title-text" title="{{ $project->title }}">{{ $project->title }}</span>
+                            </div>
+                            <div class="project-status-icons-sidebar text-xs">
+                                @if($project->status)<span title="案件ステータス: {{ $_projectStatusTooltipSb }}"><i class="fas {{ $_projectStatusIconClassSb }}"></i></span>@endif
+                                <span title="納品状況: {{ $_deliveryTooltipSb }}"><i class="fas {{ $_deliveryIconSb }}"></i></span>
+                                @if($project->payment_flag)<span title="支払い状況: {{ $_paymentFlagTooltipSb }}"><i class="fas {{ $_paymentFlagIconClassSb }}"></i></span>@endif
+                            </div>
+                        </div>
+                    </a>
+                    @empty
+                        <p class="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">完了・キャンセルの案件はありません</p>
                     @endforelse
                 </div>
             </div>

@@ -11,9 +11,9 @@
                     @endif
                 </th>
 
-                @if(!($isFolderView ?? false) && !($isMilestoneView ?? false) && !(isset($character) && $character))
+                {{-- @if(!($isFolderView ?? false) && !($isMilestoneView ?? false) && !(isset($character) && $character))
                     <th scope="col" class="sticky top-0 z-10 bg-gray-50 dark:bg-gray-700 hidden sm:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">キャラクター</th>
-                @endif
+                @endif --}}
 
                 @if(!($isFolderView ?? false) && !($isMilestoneView ?? false))
                     <th scope="col" class="sticky top-0 z-10 bg-gray-50 dark:bg-gray-700 px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider" style="min-width:120px;">担当者</th>
@@ -217,9 +217,9 @@
                                 @endif
                             </div>
                         </td>
-                        @if(!($isFolderView ?? false) && !($isMilestoneView ?? false) && !(isset($character) && $character))
+                        {{-- @if(!($isFolderView ?? false) && !($isMilestoneView ?? false) && !(isset($character) && $character))
                         <td class="hidden sm:table-cell px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 align-top">{{ $task->character->name ?? '-' }}</td>
-                        @endif
+                        @endif --}}
 
                         @if(!($isFolderView ?? false) && !($isMilestoneView ?? false))
                         <td class="px-4 py-3 text-sm text-gray-500 dark:text-gray-400 align-top editable-cell-assignees cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/50"

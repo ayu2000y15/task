@@ -54,7 +54,6 @@ class WorkLogController extends Controller
     {
         $this->authorize('update', $workLog);
 
-        // 'pause' (一時停止) または 'complete' (完了) のどちらかを受け取る
         $request->validate(['action_type' => 'required|string|in:pause,complete']);
 
         return DB::transaction(function () use ($workLog, $request) {
@@ -62,42 +61,27 @@ class WorkLogController extends Controller
                 return response()->json(['error' => 'この作業記録は実行中ではありません。'], 400);
             }
 
-            $now = Carbon::now();
-
-            // デバッグログ1: 保存前の値を確認
-            Log::info('WorkLog Stop Action - Before Save:', [
-                'workLog_id' => $workLog->id,
-                'start_time_from_object' => $workLog->start_time->toDateTimeString(),
-                'time_to_be_set_as_end_time' => $now->toDateTimeString(),
-            ]);
-
-            // 作業ログを終了状態にする
+            // 作業ログを終了
             $workLog->end_time = Carbon::now();
-            $workLog->status = 'stopped'; // どちらの場合も 'stopped' にする
+            $workLog->status = 'stopped';
             $workLog->memo = $request->input('memo');
             $workLog->save();
 
-            $workLog->refresh();
-
-            // デバッグログ2: 保存後の値を確認
-            Log::info('WorkLog Stop Action - After Save:', [
-                'workLog_id' => $workLog->id,
-                'start_time_after_refresh' => $workLog->start_time->toDateTimeString(),
-                'end_time_after_refresh' => optional($workLog->end_time)->toDateTimeString(),
-            ]);
-
             $message = '作業を一時停止しました。';
 
-            // 「完了」の場合のみ、工程自体のステータスを更新
+            // 「完了」の場合のみ、工程のステータスを更新
             if ($request->action_type === 'complete') {
                 $task = $workLog->task;
                 $task->status = 'completed';
                 $task->progress = 100;
                 $task->save();
                 $message = '作業を終了し、工程を完了にしました。';
+                // 完了時はログ情報を返さない（UIを「開始」状態にするため）
+                return response()->json(['success' => true, 'message' => $message, 'work_log' => null]);
             }
 
-            return response()->json(['success' => true, 'message' => $message]);
+            // 「一時停止」の場合は更新されたログ情報を返す
+            return response()->json(['success' => true, 'message' => $message, 'work_log' => $workLog->load('task')]);
         });
     }
 }

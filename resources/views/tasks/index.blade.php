@@ -126,3 +126,70 @@
     </div>
 </div>
 @endsection
+
+{{-- resources/views/tasks/index.blade.php の末尾に追加 --}}
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const tableContainer = document.getElementById('task-table-container'); // テーブル全体を囲むコンテナのID
+
+    // イベントデリゲーションでソートリンクのクリックを捕捉
+    tableContainer.addEventListener('click', function(event) {
+        const link = event.target.closest('a.sortable-link');
+
+        // クリックされたのがソートリンクでなければ何もしない
+        if (!link) {
+            return;
+        }
+
+        // 本来のリンク遷移をキャンセル
+        event.preventDefault();
+
+        const url = link.href;
+
+        // ローディング表示（任意）
+        const tableBody = document.getElementById('task-table-body');
+        if(tableBody) {
+            tableBody.style.opacity = '0.5';
+        }
+
+        // Ajaxリクエストを送信
+        fetch(url, {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest', // LaravelがAjaxリクエストと判断するために必要
+                'Accept': 'application/json',
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            // サーバーから返されたHTMLでテーブル部分を書き換える
+            if (tableBody) {
+                // tbodyだけを入れ替えるのではなく、
+                // a.sortable-linkを含むtheadも更新する必要があるため、
+                // task-table.blade.phpを囲んだdiv(#task-table-body)ごと入れ替える
+                tableBody.innerHTML = data.html;
+            }
+
+            // ブラウザのURLを更新して、リロードしてもソート順が維持されるようにする
+            window.history.pushState({}, '', url);
+        })
+        .catch(error => {
+            console.error('Sort request failed:', error);
+            alert('データの並び替えに失敗しました。');
+        })
+        .finally(() => {
+            // ローディング解除
+             if(tableBody) {
+                tableBody.style.opacity = '1';
+            }
+        });
+    });
+});
+</script>
+@endpush

@@ -335,6 +335,11 @@
                             <span class="ml-auto text-sm text-gray-700 dark:text-gray-300">{{ $projectStatusTooltip }}</span>
                         @endcannot
                     </div>
+                    <div
+                        class="p-2 text-xs bg-yellow-50 text-yellow-700 border border-yellow-200 rounded-md dark:bg-yellow-700/30 dark:text-yellow-200 dark:border-yellow-500">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        案件ステータスは「納品済み」、かつ「支払完了」とならないと完了になりません。
+                    </div>
 
                     {{-- プロジェクト固有の form_definitions に基づく追加情報 (案件依頼項目) --}}
                     @can('viewAny', App\Models\FormFieldDefinition::class)

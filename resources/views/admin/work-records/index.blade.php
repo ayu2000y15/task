@@ -9,7 +9,7 @@
 @section('content')
 <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8"
     x-data="{
-    filtersOpen: {{ count(array_filter(request()->except('page'))) > 0 ? 'true' : 'false' }},
+    filtersOpen: {{ count(array_filter(request()->except(['page', 'sort', 'direction']))) > 0 ? 'true' : 'false' }},
     rateFormOpen: false
     }">
 
@@ -170,36 +170,17 @@
                 <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                     <thead class="bg-gray-50 dark:bg-gray-700">
                         <tr>
-                            <th scope="col"
-                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                作業者</th>
-                            <th scope="col"
-                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                案件</th>
-                            <th scope="col"
-                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                    キャラクター</th>
-                            <th scope="col"
-                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                工程</th>
-                            <th scope="col"
-                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                開始日時</th>
-                            <th scope="col"
-                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                終了日時</th>
-                            <th scope="col"
-                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                作業時間</th>
-                            <th scope="col"
-                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                時給</th>
-                            <th scope="col"
-                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                概算給与</th>
-                            <th scope="col"
-                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                メモ</th>
+                            @include('admin.work-records.partials.sortable-th', ['label' => '作業者', 'sortKey' => 'user', 'currentSort' => $sort, 'currentDirection' => $direction])
+                            @include('admin.work-records.partials.sortable-th', ['label' => '案件', 'sortKey' => 'project', 'currentSort' => $sort, 'currentDirection' => $direction])
+                            @include('admin.work-records.partials.sortable-th', ['label' => 'キャラクター', 'sortKey' => 'character', 'currentSort' => $sort, 'currentDirection' => $direction])
+                            @include('admin.work-records.partials.sortable-th', ['label' => '工程', 'sortKey' => 'task', 'currentSort' => $sort, 'currentDirection' => $direction])
+                            @include('admin.work-records.partials.sortable-th', ['label' => '開始日時', 'sortKey' => 'start_time', 'currentSort' => $sort, 'currentDirection' => $direction])
+                            @include('admin.work-records.partials.sortable-th', ['label' => '終了日時', 'sortKey' => 'end_time', 'currentSort' => $sort, 'currentDirection' => $direction])
+                            @include('admin.work-records.partials.sortable-th', ['label' => '作業時間', 'sortKey' => 'duration', 'currentSort' => $sort, 'currentDirection' => $direction])
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">時給</th>
+                            @include('admin.work-records.partials.sortable-th', ['label' => '概算給与', 'sortKey' => 'salary', 'currentSort' => $sort, 'currentDirection' => $direction])
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">メモ</th>
+
                         </tr>
                     </thead>
                     <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">

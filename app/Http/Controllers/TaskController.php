@@ -22,40 +22,63 @@ class TaskController extends Controller
     /**
      * 工程一覧を表示
      */
-    public function index(Request $request, TaskService $taskService)
+    public function index(Request $request, TaskService $taskService) // 引数の変更なし
     {
         $this->authorize('viewAny', Task::class);
 
         $filters = [
             'project_id' => $request->input('project_id', ''),
             'character_id' => $request->input('character_id', ''),
-            'assignee_id' => $request->input('assignee_id', ''), // ★ assignee から assignee_id に変更
+            'assignee_id' => $request->input('assignee_id', ''),
             'status' => $request->input('status', ''),
             'search' => $request->input('search', ''),
             'due_date' => $request->input('due_date', ''),
         ];
 
-        // ★ with('assignees') を追加
+        // ▼▼▼【ここから変更】▼▼▼
+        $sortBy = $request->input('sort_by', 'start_date'); // デフォルトは開始日時
+        $sortOrder = $request->input('sort_order', 'asc');   // デフォルトは昇順
+        $orderableColumns = ['name', 'project_title', 'character_name', 'start_date', 'status'];
+        if (!in_array($sortBy, $orderableColumns)) {
+            $sortBy = 'start_date';
+        }
+
+        // クエリビルド（DBでのソートは行わないため、既存のまま）
         $query = $taskService->buildFilteredQuery($filters)->with(['project', 'files', 'children', 'character', 'assignees', 'workLogs']);
-        $allTasks = $query->orderByRaw('ISNULL(tasks.parent_id), tasks.parent_id ASC, ISNULL(tasks.start_date), tasks.start_date ASC, tasks.name ASC')->get();
+        $allTasks = $query->get();
 
         $tasksGroupedByParent = $allTasks->groupBy('parent_id');
         $hierarchicallySortedTasks = collect();
 
-        $appendTasksRecursively = function ($parentId, $tasksGroupedByParent, &$hierarchicallySortedTasks) use (&$appendTasksRecursively) {
+        // 再帰的にタスクをソートしながら追加する関数
+        $appendTasksRecursively = function ($parentId, $tasksGroupedByParent, &$hierarchicallySortedTasks) use (&$appendTasksRecursively, $sortBy, $sortOrder) {
             $keyForGrouping = $parentId === null ? '' : $parentId;
 
             if (!$tasksGroupedByParent->has($keyForGrouping)) {
                 return;
             }
 
-            $childrenOfCurrentParent = $tasksGroupedByParent->get($keyForGrouping)
-                ->sortBy(function ($task) {
-                    return [
-                        $task->start_date === null ? PHP_INT_MAX : $task->start_date->getTimestamp(),
-                        $task->name
-                    ];
-                });
+            $childrenOfCurrentParent = $tasksGroupedByParent->get($keyForGrouping);
+
+            // ソートロジックを動的に適用
+            $sortClosure = function ($task) use ($sortBy) {
+                switch ($sortBy) {
+                    case 'project_title':
+                        return $task->project->title ?? '';
+                    case 'character_name':
+                        return $task->character->name ?? '';
+                        // start_date, name, status などは直接プロパティとしてアクセス
+                    default:
+                        // NULLの場合にソートが崩れないように、デフォルト値を与える
+                        return $task->{$sortBy} ?? '';
+                }
+            };
+
+            if ($sortOrder === 'desc') {
+                $childrenOfCurrentParent = $childrenOfCurrentParent->sortByDesc($sortClosure);
+            } else {
+                $childrenOfCurrentParent = $childrenOfCurrentParent->sortBy($sortClosure);
+            }
 
             foreach ($childrenOfCurrentParent as $task) {
                 $hierarchicallySortedTasks->push($task);
@@ -65,6 +88,7 @@ class TaskController extends Controller
 
         $appendTasksRecursively(null, $tasksGroupedByParent, $hierarchicallySortedTasks);
         $tasks = $hierarchicallySortedTasks;
+        // ▲▲▲【ここまで変更】▲▲▲
 
         $allProjects = Project::orderBy('title')->get();
         $charactersForFilter = collect();
@@ -75,7 +99,6 @@ class TaskController extends Controller
             }
         }
 
-        // ★ フィルター用の担当者リストを取得
         $assigneesForFilter = User::where('status', User::STATUS_ACTIVE)->orderBy('name')->pluck('name', 'id');
 
         $statusOptions = [
@@ -86,7 +109,6 @@ class TaskController extends Controller
             'cancelled' => 'キャンセル',
         ];
 
-        // 担当者選択肢（インライン編集用）
         $assigneeOptions = User::where('status', User::STATUS_ACTIVE)
             ->orderBy('name')
             ->get(['id', 'name'])
@@ -94,14 +116,38 @@ class TaskController extends Controller
                 return ['id' => $user->id, 'name' => $user->name];
             })->values()->all();
 
+        // ▼▼▼【ここから追加】▼▼▼
+        // Ajaxリクエストの場合、テーブル部分のHTMLをJSONで返す
+        if ($request->ajax()) {
+            // task-table.blade.php に渡す変数を定義
+            $tasksToList = $tasks;
+            $tableId = 'task-table-index'; // テーブルに固有のIDを付与
+
+            // 必要な変数を渡してパーシャルビューをレンダリング
+            $html = view('tasks.partials.task-table', compact(
+                'tasksToList',
+                'assigneeOptions',
+                'sortBy',
+                'sortOrder',
+                'tableId'
+            ))->render();
+
+            return response()->json(['html' => $html]);
+        }
+        // ▲▲▲【ここまで追加】▲▲▲
+
         return view('tasks.index', compact(
             'tasks',
             'allProjects',
             'charactersForFilter',
-            'assigneesForFilter', // ★ 変更
+            'assigneesForFilter',
             'statusOptions',
             'filters',
-            'assigneeOptions'
+            'assigneeOptions',
+            // ▼▼▼【ここから追加】▼▼▼
+            'sortBy',
+            'sortOrder'
+            // ▲▲▲【ここまで追加】▲▲▲
         ));
     }
 

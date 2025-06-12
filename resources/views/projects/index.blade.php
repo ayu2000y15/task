@@ -42,6 +42,71 @@
                                     〜 {{ $project->end_date->format('Y/m/d') }}</p>
                             </div>
 
+                            {{-- 期間表示の下に追加するコード --}}
+                            <div class="mt-3 flex flex-wrap gap-2 items-center text-xs">
+                                @php
+                                    // 案件ステータスの定義
+                                    $statusOptions = \App\Models\Project::PROJECT_STATUS_OPTIONS ?? [];
+                                    $statusLabel = $statusOptions[$project->status] ?? '未設定';
+                                    $statusColorClasses = [
+                                        'not_started' => 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
+                                        'in_progress' => 'bg-blue-100 text-blue-800 dark:bg-blue-700 dark:text-blue-200',
+                                        'completed' => 'bg-green-100 text-green-800 dark:bg-green-700 dark:text-green-200',
+                                        'on_hold' => 'bg-yellow-100 text-yellow-800 dark:bg-yellow-700 dark:text-yellow-200',
+                                        'cancelled' => 'bg-red-100 text-red-800 dark:bg-red-700 dark:text-red-200',
+                                        '' => 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
+                                    ];
+                                    $statusColor = $statusColorClasses[$project->status ?? ''] ?? $statusColorClasses[''];
+
+                                    // 納品状況の定義
+                                    $deliveryLabel = $project->delivery_flag == '1' ? '納品済み' : '未納品';
+                                    $deliveryColor = $project->delivery_flag == '1'
+                                        ? 'bg-green-100 text-green-800 dark:bg-green-700 dark:text-green-200'
+                                        : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-700 dark:text-yellow-200';
+
+                                    // 支払い状況の定義
+                                    $paymentOptions = \App\Models\Project::PAYMENT_FLAG_OPTIONS ?? [];
+                                    $paymentLabel = $paymentOptions[$project->payment_flag] ?? '未設定';
+                                    $paymentColorClasses = [
+                                        'Pending' => 'bg-yellow-100 text-yellow-800 dark:bg-yellow-700 dark:text-yellow-200',
+                                        'Processing' => 'bg-blue-100 text-blue-800 dark:bg-blue-700 dark:text-blue-200',
+                                        'Completed' => 'bg-green-100 text-green-800 dark:bg-green-700 dark:text-green-200',
+                                        'Partially Paid' => 'bg-orange-100 text-orange-800 dark:bg-orange-700 dark:text-orange-200',
+                                        'Overdue' => 'bg-red-100 text-red-800 dark:bg-red-700 dark:text-red-200',
+                                        'Cancelled' => 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
+                                        'Refunded' => 'bg-purple-100 text-purple-800 dark:bg-purple-700 dark:text-purple-200',
+                                        'On Hold' => 'bg-indigo-100 text-indigo-800 dark:bg-indigo-700 dark:text-indigo-200',
+                                        '' => 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
+                                    ];
+                                    $paymentColor = $paymentColorClasses[$project->payment_flag ?? ''] ?? $paymentColorClasses[''];
+                                @endphp
+
+                                {{-- 納品状況バッジ --}}
+                                <span title="納品状況"
+                                    class="inline-flex items-center font-medium px-2 py-1 rounded-md {{ $deliveryColor }}">
+                                    <i class="fas fa-truck mr-1.5"></i>
+                                    {{ $deliveryLabel }}
+                                </span>
+
+                                {{-- 支払い状況バッジ --}}
+                                @if($project->payment_flag)
+                                    <span title="支払い状況"
+                                        class="inline-flex items-center font-medium px-2 py-1 rounded-md {{ $paymentColor }}">
+                                        <i class="fas fa-yen-sign mr-1.5"></i>
+                                        {{ $paymentLabel }}
+                                    </span>
+                                @endif
+
+                                {{-- 案件ステータスバッジ --}}
+                                @if($project->status)
+                                    <span title="案件ステータス"
+                                        class="inline-flex items-center font-medium px-2 py-1 rounded-md {{ $statusColor }}">
+                                        <i class="fas fa-tasks mr-1.5"></i>
+                                        {{ $statusLabel }}
+                                    </span>
+                                @endif
+                            </div>
+
                             <div>
                                 <small class="text-gray-500 dark:text-gray-400">工程:</small>
                                 <div class="flex justify-between text-sm text-gray-700 dark:text-gray-300">
