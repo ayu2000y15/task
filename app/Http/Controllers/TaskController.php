@@ -45,6 +45,11 @@ class TaskController extends Controller
 
         // クエリビルド（DBでのソートは行わないため、既存のまま）
         $query = $taskService->buildFilteredQuery($filters)->with(['project', 'files', 'children', 'character', 'assignees', 'workLogs']);
+
+        $query->whereHas('project', function ($q) {
+            $q->whereNotIn('status', ['completed', 'cancelled']);
+        });
+
         $allTasks = $query->get();
 
         $tasksGroupedByParent = $allTasks->groupBy('parent_id');
