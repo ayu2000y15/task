@@ -146,14 +146,14 @@
                             <div id="task-fields-individual" class="space-y-4">
                                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-4">
                                     <div>
-                                        <x-input-label for="start_date_individual" value="開始日時" />
+                                        <x-input-label for="start_date_individual" value="開始日時" required/>
                                         <x-text-input type="datetime-local" id="start_date_individual" name="start_date"
                                             class="mt-1 block w-full" :value="old('start_date', now()->format('Y-m-d\TH:i'))"
                                             :hasError="$errors->has('start_date')" />
                                         <x-input-error :messages="$errors->get('start_date')" class="mt-2" />
                                     </div>
                                     <div>
-                                        <x-input-label for="duration_value" value="工数" />
+                                        <x-input-label for="duration_value" value="工数" required/>
                                         <div class="flex items-center mt-1 space-x-2">
                                             <x-text-input type="number" id="duration_value" name="duration_value" class="block w-1/2"
                                                 :value="old('duration_value', 1)" min="0" step="any"
@@ -169,12 +169,17 @@
                                         <x-input-error :messages="$errors->get('duration_unit')" class="mt-2" />
                                     </div>
                                     <div>
-                                        <x-input-label for="end_date_individual" value="終了日時" />
+                                        <x-input-label for="end_date_individual" value="終了日時" required/>
                                         <x-text-input type="datetime-local" id="end_date_individual" name="end_date"
                                             class="mt-1 block w-full" :value="old('end_date')"
                                             :hasError="$errors->has('end_date')" />
                                         <x-input-error :messages="$errors->get('end_date')" class="mt-2" />
                                     </div>
+                                </div>
+                                <div
+                                    class="p-2 text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded-md dark:bg-blue-700/30 dark:text-blue-200 dark:border-blue-500">
+                                    <i class="fas fa-info-circle mr-1"></i>
+                                    工数の1日は8時間として計算しています。
                                 </div>
                             </div>
 
@@ -411,47 +416,47 @@
             }
         }
 
-        function calculateEndDate() {
-            if (!startDateInput || !durationValueInput || !durationUnitSelect || !endDateInput || endDateInput.disabled) {
-                return;
-            }
-            const startDateValue = startDateInput.value;
-            const duration = parseFloat(durationValueInput.value);
-            const unit = durationUnitSelect.value;
-            if (startDateValue && !isNaN(duration) && duration >= 0 && unit) {
-                const start = new Date(startDateValue);
-                let minutesToAdd = 0;
-                if (unit === 'days') {
-                    minutesToAdd = duration * 24 * 60;
-                } else if (unit === 'hours') {
-                    minutesToAdd = duration * 60;
-                } else if (unit === 'minutes') {
-                    minutesToAdd = duration;
-                }
-                const end = new Date(start.getTime() + minutesToAdd * 60000);
-                if (!isNaN(end.getTime())) {
-                    const year = end.getFullYear();
-                    const month = ('0' + (end.getMonth() + 1)).slice(-2);
-                    const day = ('0' + end.getDate()).slice(-2);
-                    const hours = ('0' + end.getHours()).slice(-2);
-                    const minutes = ('0' + end.getMinutes()).slice(-2);
-                    endDateInput.value = `${year}-${month}-${day}T${hours}:${minutes}`;
-                } else {
-                    endDateInput.value = '';
-                }
-            } else {
-                endDateInput.value = '';
-            }
-        }
+        // function calculateEndDate() {
+        //     if (!startDateInput || !durationValueInput || !durationUnitSelect || !endDateInput || endDateInput.disabled) {
+        //         return;
+        //     }
+        //     const startDateValue = startDateInput.value;
+        //     const duration = parseFloat(durationValueInput.value);
+        //     const unit = durationUnitSelect.value;
+        //     if (startDateValue && !isNaN(duration) && duration >= 0 && unit) {
+        //         const start = new Date(startDateValue);
+        //         let minutesToAdd = 0;
+        //         if (unit === 'days') {
+        //             minutesToAdd = duration * 24 * 60;
+        //         } else if (unit === 'hours') {
+        //             minutesToAdd = duration * 60;
+        //         } else if (unit === 'minutes') {
+        //             minutesToAdd = duration;
+        //         }
+        //         const end = new Date(start.getTime() + minutesToAdd * 60000);
+        //         if (!isNaN(end.getTime())) {
+        //             const year = end.getFullYear();
+        //             const month = ('0' + (end.getMonth() + 1)).slice(-2);
+        //             const day = ('0' + end.getDate()).slice(-2);
+        //             const hours = ('0' + end.getHours()).slice(-2);
+        //             const minutes = ('0' + end.getMinutes()).slice(-2);
+        //             endDateInput.value = `${year}-${month}-${day}T${hours}:${minutes}`;
+        //         } else {
+        //             endDateInput.value = '';
+        //         }
+        //     } else {
+        //         endDateInput.value = '';
+        //     }
+        // }
 
-        if (startDateInput && durationValueInput && durationUnitSelect && endDateInput) {
-            startDateInput.addEventListener('change', calculateEndDate);
-            durationValueInput.addEventListener('input', calculateEndDate);
-            durationUnitSelect.addEventListener('change', calculateEndDate);
-            if(startDateInput.value && !startDateInput.disabled) {
-                calculateEndDate();
-            }
-        }
+        // if (startDateInput && durationValueInput && durationUnitSelect && endDateInput) {
+        //     startDateInput.addEventListener('change', calculateEndDate);
+        //     durationValueInput.addEventListener('input', calculateEndDate);
+        //     durationUnitSelect.addEventListener('change', calculateEndDate);
+        //     if(startDateInput.value && !startDateInput.disabled) {
+        //         calculateEndDate();
+        //     }
+        // }
     });
     </script>
 @endpush

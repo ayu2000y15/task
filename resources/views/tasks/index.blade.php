@@ -7,13 +7,13 @@
     // フィルターパネルを開くかどうかの条件を定義
     // 基本：フィルターが何か設定されていれば開く
     // 例外：「担当:自分」ボタンから遷移した場合（close_filters=1 がURLにある場合）は、フィルターが設定されていても閉じる
-    $shouldFiltersBeOpen = array_filter($filters) && !request()->has('close_filters');
+    $shouldFiltersBeOpen = array_filter(Arr::except($filters, ['hide_completed'])) && !request()->has('close_filters');
 @endphp
 <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8" x-data="{ filtersOpen: {{ $shouldFiltersBeOpen ? 'true' : 'false' }} }">
     <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
         <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-200">工程一覧</h1>
 
-        <div class="flex space-x-2">
+        <div class="flex items-center flex-wrap gap-2">
             <button
                 class="inline-flex items-center px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md font-semibold text-xs text-gray-700 dark:text-gray-200 uppercase tracking-widest shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 disabled:opacity-25 transition ease-in-out duration-150"
                 type="button" x-on:click="filtersOpen = !filtersOpen">
@@ -31,10 +31,32 @@
                 @endphp
                 {{-- ▼▼▼【修正点】URLに close_filters=1 パラメータを追加 ▼▼▼ --}}
                 <a href="{{ route('tasks.index', ['assignee_id' => Auth::id(), 'close_filters' => 1]) }}"
-                   class="{{ $baseClass }} {{ $isFilteringBySelf ? $activeClass : $inactiveClass }}">
+                    class="{{ $baseClass }} {{ $isFilteringBySelf ? $activeClass : $inactiveClass }}">
                     <i class="fas fa-user-check mr-2"></i>担当:自分
                 </a>
             @endauth
+
+            @php
+                $hideCompletedParams = request()->query();
+                $isHidingCompleted = $filters['hide_completed'] ?? false;
+
+                if ($isHidingCompleted) {
+                    // 現在「非表示」状態なので、「表示する」ためのリンクを作成
+                    unset($hideCompletedParams['hide_completed']);
+                    $buttonText = '完了を表示';
+                    $buttonIcon = 'fa-eye';
+                    $buttonClass = $activeClass; // アクティブなスタイルを適用
+                } else {
+                    // 現在「表示」状態なので、「非表示にする」ためのリンクを作成
+                    $hideCompletedParams['hide_completed'] = 1;
+                    $buttonText = '完了を非表示';
+                    $buttonIcon = 'fa-eye-slash';
+                    $buttonClass = $inactiveClass; // 非アクティブなスタイルを適用
+                }
+            @endphp
+            <a href="{{ route('tasks.index', $hideCompletedParams) }}" class="{{ $baseClass }} {{ $buttonClass }}">
+                <i class="fas {{ $buttonIcon }} mr-2"></i>{{ $buttonText }}
+            </a>
 
             @can('create', App\Models\Project::class)
             <x-primary-button class="ml-2" onclick="location.href='{{ route('projects.create') }}'"><i class="fas fa-plus mr-1"></i>新規衣装案件</x-primary-button>
@@ -44,7 +66,8 @@
     <div
         class="p-2 text-xs bg-yellow-50 text-yellow-700 border border-yellow-200 rounded-md dark:bg-yellow-700/30 dark:text-yellow-200 dark:border-yellow-500">
         <i class="fas fa-info-circle mr-1"></i>
-        案件ステータスが「完了」、または「キャンセル」の場合は表示されません。
+        案件ステータスが「完了」、または「キャンセル」の場合は表示されません。<br>
+        　工数の1日は8時間として計算しています。
     </div>
 
     <div x-show="filtersOpen" x-collapse class="mb-6">
@@ -133,7 +156,6 @@
 </div>
 @endsection
 
-{{-- resources/views/tasks/index.blade.php の末尾に追加 --}}
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function () {

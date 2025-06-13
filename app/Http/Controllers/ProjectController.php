@@ -14,6 +14,7 @@ use Illuminate\Support\Arr;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Storage;
 use App\Models\InventoryItem;
+use Illuminate\Database\Eloquent\Collection;
 
 class ProjectController extends Controller
 {
@@ -450,112 +451,132 @@ class ProjectController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Project $project)
+    public function show(Request $request, Project $project)
     {
         $this->authorize('view', $project);
-        $customFormFields = $this->getProjectCustomFieldDefinitions($project);
 
-        // 必要なリレーションをイーガーロード
-        $project->load([
-            'characters' => function ($query) {
-                $query->with([
-                    'tasks.children', // キャラクターごとのタスクの子供もロード
-                    'tasks.parent',
-                    'tasks.project',
-                    'tasks.character',
-                    'tasks.files',
-                    'tasks.assignees',
-                    'measurements' => function ($query) {
-                        $query->orderBy('display_order');
-                    },
-                    'materials' => function ($query) {
-                        $query->orderBy('display_order');
-                    },
-                    'costs' => function ($query) {
-                        $query->orderBy('display_order');
-                    }
-                ])->orderBy('name');
-            },
-            'tasks' => function ($query) { // 案件全体のタスク用
-                $query->with(['children', 'parent', 'project', 'character', 'files', 'assignees']);
-            }
-        ]);
-
-        // --- 階層ソート用の共通ヘルパー関数 ---
         $appendTasksRecursively = function ($parentId, $tasksGroupedByParent, &$sortedTasksList) use (&$appendTasksRecursively) {
             $keyForGrouping = $parentId === null ? '' : $parentId;
-
             if (!$tasksGroupedByParent->has($keyForGrouping)) {
                 return;
             }
-
             $childrenOfCurrentParent = $tasksGroupedByParent->get($keyForGrouping)
-                ->sortBy(function ($task) { // 同階層内のソート順
-                    return [
-                        $task->start_date === null ? PHP_INT_MAX : $task->start_date->getTimestamp(),
-                        $task->name
-                    ];
+                ->sortBy(function ($task) {
+                    return [$task->start_date === null ? PHP_INT_MAX : $task->start_date->getTimestamp(), $task->name];
                 });
-
             foreach ($childrenOfCurrentParent as $task) {
                 $sortedTasksList->push($task);
                 $appendTasksRecursively($task->id, $tasksGroupedByParent, $sortedTasksList);
             }
         };
-        // --- ヘルパー関数ここまで ---
 
-        // 案件全体のタスクリストの階層ソート
-        $allProjectTasks = $project->tasks;
-        $tasksGroupedByParentForProject = $allProjectTasks->groupBy('parent_id');
-        $hierarchicallySortedProjectTasks = collect();
-        $appendTasksRecursively(null, $tasksGroupedByParentForProject, $hierarchicallySortedProjectTasks);
-        $tasksToList = $hierarchicallySortedProjectTasks; // 案件全体のタスクリスト
+        if ($request->ajax()) {
+            $hideCompleted = $request->boolean('hide_completed');
+            $context = $request->input('context', 'project');
+            $character = null;
+            $tasksToList = collect();
+            $tableId = 'project-tasks-table';
+            $matchingTaskIds = collect();
 
-        // 各キャラクターのタスクリストを階層ソート
-        foreach ($project->characters as $character) {
-            $characterTasksCollection = $character->tasks; // これは Collection インスタンス
-            if (!($characterTasksCollection instanceof Collection)) {
-                $characterTasksCollection = collect($characterTasksCollection); // 念のため
+            if ($context === 'character' && $request->has('character_id')) {
+                // キャラクターの工程表を更新する場合 (変更なし)
+                $character = $project->characters()->with(['tasks.children', 'tasks.parent'])->find($request->input('character_id'));
+                if ($character) {
+                    $allCharacterTasks = $character->tasks;
+                    $tasksForHierarchy = $allCharacterTasks;
+                    $matchingTaskIds = $allCharacterTasks->pluck('id');
+                    if ($hideCompleted) {
+                        $matchingTasks = $allCharacterTasks->where('status', '!=', 'completed');
+                        $matchingTaskIds = $matchingTasks->pluck('id');
+                        $requiredTaskIds = collect();
+                        if ($matchingTaskIds->isNotEmpty()) {
+                            $allTasksLookup = $allCharacterTasks->keyBy('id');
+                            $tasksToProcess = $matchingTaskIds->toArray();
+                            $processedIds = collect();
+                            while (!empty($tasksToProcess)) {
+                                $currentId = array_pop($tasksToProcess);
+                                if ($processedIds->contains($currentId)) continue;
+                                $requiredTaskIds->push($currentId);
+                                $processedIds->push($currentId);
+                                $task = $allTasksLookup->get($currentId);
+                                if ($task && $task->parent_id) array_push($tasksToProcess, $task->parent_id);
+                            }
+                        }
+                        $tasksForHierarchy = $allCharacterTasks->whereIn('id', $requiredTaskIds->unique());
+                    }
+                    $tasksGrouped = $tasksForHierarchy->groupBy('parent_id');
+                    $sortedList = collect();
+                    $appendTasksRecursively(null, $tasksGrouped, $sortedList);
+                    $tasksToList = $hideCompleted ? $sortedList->filter(fn($task) => $matchingTaskIds->contains($task->id)) : $sortedList;
+                    $tableId = 'character-tasks-table-' . $character->id;
+                }
+            } else {
+                // ▼▼▼【ここから修正】案件全体の工程表を更新する場合のロジックを修正 ▼▼▼
+                $allProjectTasks = $project->tasksWithoutCharacter()->with(['children', 'parent', 'project', 'character', 'files', 'assignees'])->get();
+                $tasksForHierarchy = $allProjectTasks;
+                $matchingTaskIds = $allProjectTasks->pluck('id');
+
+                if ($hideCompleted) {
+                    $matchingTasks = $allProjectTasks->where('status', '!=', 'completed');
+                    $matchingTaskIds = $matchingTasks->pluck('id');
+                    $requiredTaskIds = collect();
+                    if ($matchingTaskIds->isNotEmpty()) {
+                        $allTasksLookup = $allProjectTasks->keyBy('id');
+                        $tasksToProcess = $matchingTaskIds->toArray();
+                        $processedIds = collect();
+                        while (!empty($tasksToProcess)) {
+                            $currentId = array_pop($tasksToProcess);
+                            if ($processedIds->contains($currentId)) continue;
+                            $requiredTaskIds->push($currentId);
+                            $processedIds->push($currentId);
+                            $task = $allTasksLookup->get($currentId);
+                            if ($task && $task->parent_id) array_push($tasksToProcess, $task->parent_id);
+                        }
+                    }
+                    $tasksForHierarchy = $allProjectTasks->whereIn('id', $requiredTaskIds->unique());
+                }
+
+                $tasksGrouped = $tasksForHierarchy->groupBy('parent_id');
+                $sortedList = collect();
+                $appendTasksRecursively(null, $tasksGrouped, $sortedList);
+
+                $tasksToList = $hideCompleted ? $sortedList->filter(fn($task) => $matchingTaskIds->contains($task->id)) : $sortedList;
+                $tableId = 'project-tasks-table';
+                // ▲▲▲【ここまで修正】▲▲▲
             }
+
+            $assigneeOptions = User::where('status', User::STATUS_ACTIVE)->orderBy('name')->get(['id', 'name'])->map(fn($user) => ['id' => $user->id, 'name' => $user->name])->values()->all();
+            $viewData = compact('tasksToList', 'tableId', 'project', 'assigneeOptions', 'hideCompleted', 'character');
+            $html = view('projects.partials.projects-task-table', $viewData)->render();
+            return response()->json(['html' => $html]);
+        }
+
+        // --- 通常のページ読み込み時のデータ準備 ---
+        $project->load([
+            'characters' => function ($query) {
+                $query->with(['tasks.children', 'tasks.parent', 'tasks.project', 'tasks.character', 'tasks.files', 'tasks.assignees', 'measurements' => fn($query) => $query->orderBy('display_order'), 'materials' => fn($query) => $query->orderBy('display_order'), 'costs' => fn($query) => $query->orderBy('display_order')])->orderBy('name');
+            },
+            'tasks' => function ($query) {
+                $query->with(['children', 'parent', 'project', 'character', 'files', 'assignees']);
+            }
+        ]);
+        $tasksToList = $project->tasksWithoutCharacter()->orderByRaw('ISNULL(start_date), start_date ASC, name ASC')->get();
+        foreach ($project->characters as $character) {
+            $characterTasksCollection = $character->tasks;
+            if (!($characterTasksCollection instanceof Collection)) $characterTasksCollection = collect($characterTasksCollection);
             $tasksGroupedForCharacter = $characterTasksCollection->groupBy('parent_id');
             $sortedCharacterTasks = collect();
             $appendTasksRecursively(null, $tasksGroupedForCharacter, $sortedCharacterTasks);
-            $character->sorted_tasks = $sortedCharacterTasks; // ソート済みリストをキャラクターオブジェクトに一時的に追加
+            $character->sorted_tasks = $sortedCharacterTasks;
         }
-
-        // ▼▼▼【変更点】完成データフォルダの処理 ▼▼▼
+        $customFormFields = $this->getProjectCustomFieldDefinitions($project);
         $completionDataMasterFolderName = '_project_completion_data_';
-        $masterFolder = $project->tasks()
-            ->where('name', $completionDataMasterFolderName)
-            ->where('is_folder', true)
-            ->firstOrCreate(
-                ['name' => $completionDataMasterFolderName, 'project_id' => $project->id],
-                ['is_folder' => true, 'parent_id' => null, 'character_id' => null]
-            );
-
-        $completionDataFolders = Task::where('parent_id', $masterFolder->id)
-            ->where('is_folder', true)
-            ->with('files')
-            ->orderBy('name')
-            ->get();
-        // ▲▲▲【変更点】ここまで ▲▲▲
-
-
-        $availableInventoryItems = InventoryItem::where('quantity',  '>', 0)
-            ->orderBy('name')->get();
-
-        // ▼▼▼【ここから追加】▼▼▼
-        // 担当者選択プルダウン用に、アクティブなユーザーのリストを取得
-        $assigneeOptions = User::where('status', User::STATUS_ACTIVE)
-            ->orderBy('name')
-            ->get(['id', 'name'])
-            ->map(function ($user) {
-                return ['id' => $user->id, 'name' => $user->name];
-            })->values()->all();
-
+        $masterFolder = $project->tasks()->where('name', $completionDataMasterFolderName)->where('is_folder', true)->firstOrCreate(['name' => $completionDataMasterFolderName, 'project_id' => $project->id], ['is_folder' => true, 'parent_id' => null, 'character_id' => null]);
+        $completionDataFolders = Task::where('parent_id', $masterFolder->id)->where('is_folder', true)->with('files')->orderBy('name')->get();
+        $availableInventoryItems = InventoryItem::where('quantity',  '>', 0)->orderBy('name')->get();
+        $assigneeOptions = User::where('status', User::STATUS_ACTIVE)->orderBy('name')->get(['id', 'name'])->map(fn($user) => ['id' => $user->id, 'name' => $user->name])->values()->all();
         return view('projects.show', compact('project', 'customFormFields', 'availableInventoryItems', 'tasksToList', 'masterFolder', 'completionDataFolders', 'assigneeOptions'));
     }
-
     /**
      * 案件詳細ページで完成データ用のフォルダを作成します。
      */

@@ -232,7 +232,7 @@
                         <div id="task-fields-individual" class="space-y-4" {{ $taskType === 'folder' ? 'style="display:none;"' : '' }}>
                             <div class="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-4">
                                 <div>
-                                    <x-input-label for="start_date_individual" value="開始日時" />
+                                    <x-input-label for="start_date_individual" value="開始日時" required/>
                                     <x-text-input type="datetime-local" id="start_date_individual" name="start_date"
                                         class="mt-1 block w-full"
                                         :value="old('start_date', optional($task->start_date)->format('Y-m-d\TH:i'))"
@@ -241,7 +241,7 @@
                                     <x-input-error :messages="$errors->get('start_date')" class="mt-2" />
                                 </div>
                                 <div>
-                                    <x-input-label for="duration_value" value="工数" />
+                                    <x-input-label for="duration_value" value="工数" required/>
                                     <div class="flex items-center mt-1 space-x-2">
                                         <x-text-input type="number" id="duration_value" name="duration_value" class="block w-1/2"
                                             :value="$displayDurationValue" min="0" step="any"
@@ -259,7 +259,7 @@
                                     <x-input-error :messages="$errors->get('duration_unit')" class="mt-2" />
                                 </div>
                                 <div>
-                                    <x-input-label for="end_date_individual" value="終了日時" />
+                                    <x-input-label for="end_date_individual" value="終了日時" required/>
                                     <x-text-input type="datetime-local" id="end_date_individual" name="end_date"
                                         class="mt-1 block w-full"
                                         :value="old('end_date', optional($task->end_date)->format('Y-m-d\TH:i'))"
@@ -267,6 +267,11 @@
                                         :hasError="$errors->has('end_date')" />
                                     <x-input-error :messages="$errors->get('end_date')" class="mt-2" />
                                 </div>
+                            </div>
+                            <div
+                                class="p-2 text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded-md dark:bg-blue-700/30 dark:text-blue-200 dark:border-blue-500">
+                                <i class="fas fa-info-circle mr-1"></i>
+                                工数の1日は8時間として計算しています。
                             </div>
                         </div>
 
@@ -420,47 +425,117 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    function calculateEndDate() {
-        if (!startDateInput || startDateInput.disabled ||
-            !durationValueInput || durationValueInput.disabled ||
-            !durationUnitSelect || durationUnitSelect.disabled ||
-            !endDateInput || endDateInput.disabled) {
-            return;
-        }
-        const startDateValue = startDateInput.value;
-        const duration = parseFloat(durationValueInput.value);
-        const unit = durationUnitSelect.value;
-        if (startDateValue && !isNaN(duration) && duration >= 0 && unit) {
-            const start = new Date(startDateValue);
-            let minutesToAdd = 0;
-            if (unit === 'days') {
-                minutesToAdd = duration * 24 * 60;
-            } else if (unit === 'hours') {
-                minutesToAdd = duration * 60;
-            } else if (unit === 'minutes') {
-                minutesToAdd = duration;
-            }
-            const end = new Date(start.getTime() + minutesToAdd * 60000);
-            if (!isNaN(end.getTime())) {
-                const year = end.getFullYear();
-                const month = ('0' + (end.getMonth() + 1)).slice(-2);
-                const day = ('0' + end.getDate()).slice(-2);
-                const hours = ('0' + end.getHours()).slice(-2);
-                const minutes = ('0' + end.getMinutes()).slice(-2);
-                endDateInput.value = `${year}-${month}-${day}T${hours}:${minutes}`;
-            }
-        }
-    }
+    // function calculateEndDate() {
+    //     if (!startDateInput || startDateInput.disabled ||
+    //         !durationValueInput || durationValueInput.disabled ||
+    //         !durationUnitSelect || durationUnitSelect.disabled ||
+    //         !endDateInput || endDateInput.disabled) {
+    //         return;
+    //     }
+    //     const startDateValue = startDateInput.value;
+    //     const duration = parseFloat(durationValueInput.value);
+    //     const unit = durationUnitSelect.value;
+    //     if (startDateValue && !isNaN(duration) && duration >= 0 && unit) {
+    //         const start = new Date(startDateValue);
+    //         let minutesToAdd = 0;
+    //         if (unit === 'days') {
+    //             minutesToAdd = duration * 24 * 60;
+    //         } else if (unit === 'hours') {
+    //             minutesToAdd = duration * 60;
+    //         } else if (unit === 'minutes') {
+    //             minutesToAdd = duration;
+    //         }
+    //         const end = new Date(start.getTime() + minutesToAdd * 60000);
+    //         if (!isNaN(end.getTime())) {
+    //             const year = end.getFullYear();
+    //             const month = ('0' + (end.getMonth() + 1)).slice(-2);
+    //             const day = ('0' + end.getDate()).slice(-2);
+    //             const hours = ('0' + end.getHours()).slice(-2);
+    //             const minutes = ('0' + end.getMinutes()).slice(-2);
+    //             endDateInput.value = `${year}-${month}-${day}T${hours}:${minutes}`;
+    //         }
+    //     }
+    // }
 
-    if (startDateInput && durationValueInput && durationUnitSelect && endDateInput) {
-        startDateInput.addEventListener('change', calculateEndDate);
-        durationValueInput.addEventListener('input', calculateEndDate);
-        durationUnitSelect.addEventListener('change', calculateEndDate);
-    }
+    // if (startDateInput && durationValueInput && durationUnitSelect && endDateInput) {
+    //     startDateInput.addEventListener('change', calculateEndDate);
+    //     durationValueInput.addEventListener('input', calculateEndDate);
+    //     durationUnitSelect.addEventListener('change', calculateEndDate);
+    // }
 
-    if (taskType === 'folder' && document.getElementById('file-upload-dropzone-edit')) {
-        // ... (Dropzoneの初期化コードは変更なし) ...
-    }
+    // if (taskType === 'folder' && document.getElementById('file-upload-dropzone-edit')) {
+    //     const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    //     const projectId = document.getElementById('task-form-page').dataset.projectId;
+    //     const taskId = document.getElementById('task-form-page').dataset.taskId;
+
+    //     const myDropzone = new Dropzone("#file-upload-dropzone-edit", {
+    //         url: `/projects/${projectId}/tasks/${taskId}/files`,
+    //         paramName: "file",
+    //         maxFilesize: 100,
+    //         acceptedFiles: "image/*,application/pdf,.doc,.docx,.xls,.xlsx,.zip,.txt",
+    //         addRemoveLinks: false,
+    //         headers: { 'X-CSRF-TOKEN': csrfToken },
+    //         dictDefaultMessage: "<p class='mb-2'>ここにファイルをドラッグ＆ドロップ</p><p class='mb-3 text-xs text-gray-500 dark:text-gray-400'>または</p><button type='button' class='dz-button-bootstrap'><i class='fas fa-folder-open mr-1'></i>ファイルを選択</button>",
+    //         init: function() {
+    //             this.on("success", function(file, response) {
+    //                 if (response.success && response.html) {
+    //                     document.getElementById('file-list-edit').innerHTML = response.html;
+    //                     initializeDynamicDeleteButtons();
+    //                 }
+    //                 this.removeFile(file);
+    //             });
+    //             this.on("error", function(file, message) {
+    //                 let errorMessage = "アップロードに失敗しました。";
+    //                 if (typeof message === 'string') {
+    //                     errorMessage += message;
+    //                 } else if (message.error) {
+    //                     errorMessage += message.error;
+    //                 } else if (message.message) {
+    //                     errorMessage += message.message;
+    //                 }
+    //                 alert(errorMessage);
+    //                 this.removeFile(file);
+    //             });
+    //         }
+    //     });
+
+    //     function initializeDynamicDeleteButtons() {
+    //         document.querySelectorAll('.folder-file-delete-btn').forEach(button => {
+    //             const newButton = button.cloneNode(true);
+    //             button.parentNode.replaceChild(newButton, button);
+
+    //             newButton.addEventListener('click', function(e) {
+    //                 e.preventDefault();
+    //                 if (!confirm('このファイルを削除しますか？')) return;
+
+    //                 const url = this.dataset.url;
+    //                 const fileId = this.dataset.fileId;
+
+    //                 fetch(url, {
+    //                     method: 'DELETE',
+    //                     headers: {
+    //                         'X-CSRF-TOKEN': csrfToken,
+    //                         'Accept': 'application/json'
+    //                     }
+    //                 })
+    //                 .then(response => response.json())
+    //                 .then(data => {
+    //                     if (data.success) {
+    //                         const fileItem = document.getElementById(`folder-file-item-${fileId}`);
+    //                         if (fileItem) fileItem.remove();
+    //                     } else {
+    //                         alert('ファイルの削除に失敗しました: ' + (data.message || '不明なエラー'));
+    //                     }
+    //                 })
+    //                 .catch(error => {
+    //                     console.error('Error deleting file:', error);
+    //                     alert('ファイルの削除中にエラーが発生しました。');
+    //                 });
+    //             });
+    //         });
+    //     }
+    //     initializeDynamicDeleteButtons();
+    // }
 });
 </script>
 @endpush

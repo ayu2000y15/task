@@ -22,10 +22,11 @@ class TaskController extends Controller
     /**
      * 工程一覧を表示
      */
-    public function index(Request $request, TaskService $taskService) // 引数の変更なし
+    public function index(Request $request, TaskService $taskService)
     {
         $this->authorize('viewAny', Task::class);
 
+        // ▼▼▼【変更点1】'hide_completed' をフィルター条件に追加 ▼▼▼
         $filters = [
             'project_id' => $request->input('project_id', ''),
             'character_id' => $request->input('character_id', ''),
@@ -33,29 +34,81 @@ class TaskController extends Controller
             'status' => $request->input('status', ''),
             'search' => $request->input('search', ''),
             'due_date' => $request->input('due_date', ''),
+            'hide_completed' => $request->boolean('hide_completed'), // booleanとして取得
         ];
 
-        // ▼▼▼【ここから変更】▼▼▼
-        $sortBy = $request->input('sort_by', 'start_date'); // デフォルトは開始日時
-        $sortOrder = $request->input('sort_order', 'asc');   // デフォルトは昇順
+        $sortBy = $request->input('sort_by', 'start_date');
+        $sortOrder = $request->input('sort_order', 'asc');
         $orderableColumns = ['name', 'project_title', 'character_name', 'start_date', 'status'];
         if (!in_array($sortBy, $orderableColumns)) {
             $sortBy = 'start_date';
         }
 
-        // クエリビルド（DBでのソートは行わないため、既存のまま）
-        $query = $taskService->buildFilteredQuery($filters)->with(['project', 'files', 'children', 'character', 'assignees', 'workLogs']);
+        // 1. まずフィルター条件に直接一致するタスクのIDを取得
+        $matchingTaskIdsQuery = $taskService->buildFilteredQuery($filters);
 
-        $query->whereHas('project', function ($q) {
-            $q->whereNotIn('status', ['completed', 'cancelled']);
-        });
+        // ▼▼▼【変更点2】「完了を非表示」が有効な場合、クエリに条件を追記 ▼▼▼
+        if ($filters['hide_completed']) {
+            // statusが'completed'でないタスクのみを対象にする
+            $matchingTaskIdsQuery->where('status', '!=', 'completed');
+        }
 
-        $allTasks = $query->get();
+        $matchingTaskIds = $matchingTaskIdsQuery->pluck('id');
+
+        // 2. 一致したタスクとそのすべての祖先タスクのIDを取得する
+        // (このセクションは変更なし)
+        $requiredTaskIds = collect();
+        if ($matchingTaskIds->isNotEmpty()) {
+            $allTasksLookup = Task::query()
+                ->select('id', 'parent_id')
+                ->whereHas('project', function ($q) {
+                    $q->whereNotIn('status', ['completed', 'cancelled']);
+                })
+                ->get()
+                ->keyBy('id');
+
+            $tasksToProcess = $matchingTaskIds->toArray();
+            $processedIds = collect();
+
+            while (!empty($tasksToProcess)) {
+                $currentId = array_pop($tasksToProcess);
+
+                if ($processedIds->contains($currentId)) {
+                    continue;
+                }
+
+                $requiredTaskIds->push($currentId);
+                $processedIds->push($currentId);
+
+                $task = $allTasksLookup->get($currentId);
+                if ($task && $task->parent_id) {
+                    array_push($tasksToProcess, $task->parent_id);
+                }
+            }
+        }
+        $requiredTaskIds = $requiredTaskIds->unique();
+
+        // 3. 必要なタスクIDを使って、改めてタスク情報を取得する
+        // (このセクションは変更なし)
+        $query = Task::with(['project', 'files', 'children', 'character', 'assignees', 'workLogs']);
+
+        if (array_filter($filters)) {
+            if ($requiredTaskIds->isEmpty()) {
+                $allTasks = collect();
+            } else {
+                $allTasks = $query->whereIn('id', $requiredTaskIds)->get();
+            }
+        } else {
+            $query->whereHas('project', function ($q) {
+                $q->whereNotIn('status', ['completed', 'cancelled']);
+            });
+            $allTasks = $query->get();
+        }
 
         $tasksGroupedByParent = $allTasks->groupBy('parent_id');
         $hierarchicallySortedTasks = collect();
 
-        // 再帰的にタスクをソートしながら追加する関数
+        // (再帰関数 appendTasksRecursively は変更なし)
         $appendTasksRecursively = function ($parentId, $tasksGroupedByParent, &$hierarchicallySortedTasks) use (&$appendTasksRecursively, $sortBy, $sortOrder) {
             $keyForGrouping = $parentId === null ? '' : $parentId;
 
@@ -65,16 +118,13 @@ class TaskController extends Controller
 
             $childrenOfCurrentParent = $tasksGroupedByParent->get($keyForGrouping);
 
-            // ソートロジックを動的に適用
             $sortClosure = function ($task) use ($sortBy) {
                 switch ($sortBy) {
                     case 'project_title':
                         return $task->project->title ?? '';
                     case 'character_name':
-                        return $task->character->name ?? '';
-                        // start_date, name, status などは直接プロパティとしてアクセス
+                        return $eagerLoadedTask->character->name ?? '';
                     default:
-                        // NULLの場合にソートが崩れないように、デフォルト値を与える
                         return $task->{$sortBy} ?? '';
                 }
             };
@@ -92,9 +142,17 @@ class TaskController extends Controller
         };
 
         $appendTasksRecursively(null, $tasksGroupedByParent, $hierarchicallySortedTasks);
-        $tasks = $hierarchicallySortedTasks;
-        // ▲▲▲【ここまで変更】▲▲▲
 
+        // (最終的なタスクを絞り込むロジックは変更なし)
+        if (array_filter($filters)) {
+            $tasks = $hierarchicallySortedTasks->filter(function ($task) use ($matchingTaskIds) {
+                return $matchingTaskIds->contains($task->id);
+            });
+        } else {
+            $tasks = $hierarchicallySortedTasks;
+        }
+
+        // (ビューに値を渡す部分は変更なし)
         $allProjects = Project::orderBy('title')->get();
         $charactersForFilter = collect();
         if (!empty($filters['project_id'])) {
@@ -121,14 +179,10 @@ class TaskController extends Controller
                 return ['id' => $user->id, 'name' => $user->name];
             })->values()->all();
 
-        // ▼▼▼【ここから追加】▼▼▼
-        // Ajaxリクエストの場合、テーブル部分のHTMLをJSONで返す
         if ($request->ajax()) {
-            // task-table.blade.php に渡す変数を定義
             $tasksToList = $tasks;
-            $tableId = 'task-table-index'; // テーブルに固有のIDを付与
+            $tableId = 'task-table-index';
 
-            // 必要な変数を渡してパーシャルビューをレンダリング
             $html = view('tasks.partials.task-table', compact(
                 'tasksToList',
                 'assigneeOptions',
@@ -139,7 +193,6 @@ class TaskController extends Controller
 
             return response()->json(['html' => $html]);
         }
-        // ▲▲▲【ここまで追加】▲▲▲
 
         return view('tasks.index', compact(
             'tasks',
@@ -149,10 +202,8 @@ class TaskController extends Controller
             'statusOptions',
             'filters',
             'assigneeOptions',
-            // ▼▼▼【ここから追加】▼▼▼
             'sortBy',
             'sortOrder'
-            // ▲▲▲【ここまで追加】▲▲▲
         ));
     }
 
@@ -196,29 +247,19 @@ class TaskController extends Controller
 
         $taskTypeInput = $request->input('is_milestone_or_folder', 'task');
 
-        // ▼▼▼【ここから変更】▼▼▼
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'character_id' => [
-                // 必須条件をrequiredIfで定義
-                // Rule::requiredIf(function () use ($request) {
-                //     return !$request->filled('parent_id') && !$request->boolean('apply_individual_to_all_characters');
-                // }),
-                'nullable', // requiredIfと競合しないようにnullableを追加
-                Rule::exists('characters', 'id')->where(function ($query) use ($project) {
-                    return $query->where('project_id', $project->id);
-                }),
-            ],
+            'character_id' => ['nullable', Rule::exists('characters', 'id')->where('project_id', $project->id)],
             'start_date' => [
                 Rule::requiredIf(fn() => in_array($taskTypeInput, ['milestone', 'task'])),
                 'nullable',
-                'date_format:Y-m-d\TH:i,Y-m-d\TH:i:s'
+                'date'
             ],
             'end_date' => [
                 'nullable',
-                'date_format:Y-m-d\TH:i,Y-m-d\TH:i:s',
-                Rule::requiredIf(fn() => $taskTypeInput === 'task' && !$request->filled('duration_value')),
+                'date',
+                Rule::requiredIf(fn() => $taskTypeInput === 'task'),
                 Rule::prohibitedIf(fn() => $taskTypeInput === 'milestone'),
                 function ($attribute, $value, $fail) use ($request) {
                     if ($request->filled('start_date') && $request->filled($attribute)) {
@@ -232,60 +273,63 @@ class TaskController extends Controller
                 'nullable',
                 'numeric',
                 'min:0',
-                Rule::requiredIf(fn() => $taskTypeInput === 'task' && !$request->filled('end_date')),
+                Rule::requiredIf(fn() => $taskTypeInput === 'task'),
+                function ($attribute, $value, $fail) use ($request) {
+                    if ($request->filled('start_date') && $request->filled('end_date') && $request->filled('duration_unit')) {
+                        $startDate = Carbon::parse($request->input('start_date'));
+                        $endDate = Carbon::parse($request->input('end_date'));
+                        $diffInMinutes = $startDate->diffInMinutes($endDate);
+                        $durationValue = (float)$value;
+                        $durationUnit = $request->input('duration_unit');
+                        $inputDurationInMinutes = 0;
+                        switch ($durationUnit) {
+                            case 'days':
+                                $inputDurationInMinutes = $durationValue * 8 * 60;
+                                break;
+                            case 'hours':
+                                $inputDurationInMinutes = $durationValue * 60;
+                                break;
+                            case 'minutes':
+                                $inputDurationInMinutes = $durationValue;
+                                break;
+                        }
+                        if (round($inputDurationInMinutes) > $diffInMinutes) {
+                            $fail('工数が開始日時と終了日時の期間を超えています。');
+                        }
+                    }
+                },
             ],
             'duration_unit' => [
                 'nullable',
                 'string',
                 Rule::in(['minutes', 'hours', 'days']),
-                Rule::requiredIf(fn() => $taskTypeInput === 'task' && !$request->filled('end_date') && $request->filled('duration_value')),
+                Rule::requiredIf(fn() => $taskTypeInput === 'task' && $request->filled('duration_value')),
             ],
-            'assignee_select' => 'nullable|string',
-            'assignee_other' => 'nullable|string|max:255|required_if:assignee_select,other',
+            'assignees' => 'nullable|array',
+            'assignees.*' => 'exists:users,id',
             'parent_id' => ['nullable', Rule::exists('tasks', 'id')->where('is_folder', false)],
-            'is_milestone_or_folder' => 'required|in:milestone,folder,task,todo_task',
-            'status' => [
-                Rule::requiredIf(fn() => !in_array($taskTypeInput, ['folder'])),
-                'nullable',
-                Rule::in(['not_started', 'in_progress', 'completed', 'on_hold', 'cancelled'])
-            ],
+            'status' => ['nullable', Rule::in(['not_started', 'in_progress', 'completed', 'on_hold', 'cancelled'])],
             'apply_individual_to_all_characters' => 'nullable|boolean',
             'apply_to_all_character_siblings_of_parent' => 'nullable|boolean',
         ], [
-            // 'character_id.required' => '親工程が選択されておらず、「すべてのキャラクターへ作成」をチェックしない場合、所属先キャラクターの選択は必須です。',
-            'assignee_other.required_if' => '担当者で「その他」を選択した場合は、担当者名の入力は必須です。',
-            'start_date.required_if' => '開始日時は必須です（工程または重要納期の場合）。',
-            'end_date.required_if' => '工程の場合、工数または終了日時のどちらかは必須です。',
-            'duration_value.required_if' => '工程の場合、工数または終了日時のどちらかは必須です。',
-            'duration_unit.required_if' => '工程で工数を入力する場合、単位は必須です。',
-            'status.required_if' => 'ステータスは必須です（フォルダ以外の場合）。',
+            'duration_value.required_if' => '工程の場合、工数は必須です。',
+            'duration_value.min' => '工数には0以上の値を入力してください。',
         ]);
-
-        $assignee = $request->input('assignee_select');
-        if ($assignee === 'other') {
-            $assignee = $request->input('assignee_other');
-        }
-        // ▲▲▲【ここまで変更】▲▲▲
 
         $isFolder = $taskTypeInput === 'folder';
         $isMilestone = $taskTypeInput === 'milestone';
         $isTodoTask = $taskTypeInput === 'todo_task';
 
-        $applyToAllCharacters = $request->boolean('apply_individual_to_all_characters')
-            && !$isFolder
-            && !$request->filled('parent_id');
-
-        $applyToCharacterSiblings = $request->boolean('apply_to_all_character_siblings_of_parent')
-            && !$isFolder
-            && $request->filled('parent_id');
+        $applyToAllCharacters = $request->boolean('apply_individual_to_all_characters') && !$isFolder && !$request->filled('parent_id');
+        $applyToCharacterSiblings = $request->boolean('apply_to_all_character_siblings_of_parent') && !$isFolder && $request->filled('parent_id');
 
         $baseTaskData = [
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
-            'assignee' => $assignee, // 変更
             'is_milestone' => $isMilestone,
             'is_folder' => $isFolder,
             'progress' => 0,
+            'status' => $validated['status'] ?? 'not_started',
         ];
 
         if ($isFolder || $isTodoTask) {
@@ -299,50 +343,37 @@ class TaskController extends Controller
             $baseTaskData['start_date'] = $startDate;
             $baseTaskData['end_date'] = $startDate ? $startDate->copy() : null;
             $baseTaskData['duration'] = 0;
-            $baseTaskData['status'] = $validated['status'] ?? 'not_started';
         } else {
-            $startDate = Carbon::parse($validated['start_date']);
-            $endDate = $request->filled('end_date') ? Carbon::parse($validated['end_date']) : null;
-            $durationValue = $request->filled('duration_value') ? (float)$validated['duration_value'] : null;
-            $durationUnit = $request->filled('duration_unit') ? $validated['duration_unit'] : null;
-
-            $baseTaskData['start_date'] = $startDate;
-            $baseTaskData['status'] = $validated['status'] ?? 'not_started';
-
-            if ($endDate && $endDate->greaterThanOrEqualTo($startDate)) {
-                $baseTaskData['end_date'] = $endDate;
-                $baseTaskData['duration'] = $startDate->diffInMinutes($endDate);
-            } elseif ($durationValue !== null && $durationUnit !== null) {
-                $calculatedDurationInMinutes = 0;
-                switch ($durationUnit) {
-                    case 'days':
-                        $calculatedDurationInMinutes = $durationValue * 24 * 60;
-                        break;
-                    case 'hours':
-                        $calculatedDurationInMinutes = $durationValue * 60;
-                        break;
-                    case 'minutes':
-                        $calculatedDurationInMinutes = $durationValue;
-                        break;
-                }
-                $baseTaskData['duration'] = $calculatedDurationInMinutes;
-                $baseTaskData['end_date'] = $startDate->copy()->addMinutes($calculatedDurationInMinutes);
-            } else {
-                $baseTaskData['duration'] = 0;
-                $baseTaskData['end_date'] = $startDate->copy();
+            $durationValue = (float)$validated['duration_value'];
+            $durationUnit = $validated['duration_unit'];
+            $calculatedDurationInMinutes = 0;
+            switch ($durationUnit) {
+                case 'days':
+                    $calculatedDurationInMinutes = $durationValue * 8 * 60;
+                    break;
+                case 'hours':
+                    $calculatedDurationInMinutes = $durationValue * 60;
+                    break;
+                case 'minutes':
+                    $calculatedDurationInMinutes = $durationValue;
+                    break;
             }
+            $baseTaskData['start_date'] = Carbon::parse($validated['start_date']);
+            $baseTaskData['end_date'] = Carbon::parse($validated['end_date']);
+            $baseTaskData['duration'] = $calculatedDurationInMinutes;
         }
 
+        $createdTasks = []; // ▼▼▼ 作成されたタスクを格納する配列を初期化 ▼▼▼
         $message = '工程が作成されました。';
         $createdTasksCount = 0;
 
         if ($applyToAllCharacters && $project->characters()->exists()) {
-            $baseTaskData['parent_id'] = null;
             foreach ($project->characters as $character) {
                 $taskDataForCharacter = $baseTaskData;
                 $taskDataForCharacter['character_id'] = $character->id;
                 $task = new Task($taskDataForCharacter);
                 $project->tasks()->save($task);
+                $createdTasks[] = $task; // ★ 作成したタスクを配列に追加
                 $createdTasksCount++;
             }
             if ($createdTasksCount > 0) {
@@ -356,29 +387,23 @@ class TaskController extends Controller
                 $taskDataForOriginalParent = $baseTaskData;
                 $taskDataForOriginalParent['parent_id'] = $originalParentTask->id;
                 $taskDataForOriginalParent['character_id'] = $originalParentTask->character_id;
-
                 $mainCreatedTask = new Task($taskDataForOriginalParent);
                 $project->tasks()->save($mainCreatedTask);
+                $createdTasks[] = $mainCreatedTask; // ★ 作成したタスクを配列に追加
                 $createdTasksCount++;
-                $message = '工程が作成されました。';
 
                 if ($originalParentTask->character_id) {
                     $siblingCharacters = $project->characters()->where('id', '!=', $originalParentTask->character_id)->get();
                     $additionalCreatedCount = 0;
                     foreach ($siblingCharacters as $siblingCharacter) {
-                        $siblingParentTask = Task::where('project_id', $project->id)
-                            ->where('character_id', $siblingCharacter->id)
-                            ->where('name', $originalParentTask->name)
-                            ->where('is_folder', false)
-                            ->first();
-
+                        $siblingParentTask = Task::where('project_id', $project->id)->where('character_id', $siblingCharacter->id)->where('name', $originalParentTask->name)->where('is_folder', false)->first();
                         if ($siblingParentTask) {
                             $taskDataForSibling = $baseTaskData;
                             $taskDataForSibling['parent_id'] = $siblingParentTask->id;
                             $taskDataForSibling['character_id'] = $siblingCharacter->id;
-
                             $task = new Task($taskDataForSibling);
                             $project->tasks()->save($task);
+                            $createdTasks[] = $task; // ★ 作成したタスクを配列に追加
                             $additionalCreatedCount++;
                         }
                     }
@@ -386,38 +411,20 @@ class TaskController extends Controller
                         $message = "工程が作成され、さらに {$additionalCreatedCount} 件の関連キャラクターの同名親工程にも作成されました。";
                     }
                 }
-            } else {
-                $taskData = $baseTaskData;
-                $taskData['parent_id'] = $originalParentId;
-                $taskData['character_id'] = $originalParentTask ? $originalParentTask->character_id : null;
-                $task = new Task($taskData);
-                $project->tasks()->save($task);
-                $createdTasksCount++;
-                if (!$originalParentTask) {
-                    $message = '工程が作成されましたが、指定された親工程が見つかりませんでした。';
-                } else if ($originalParentTask->is_folder) {
-                    $message = '工程が作成されましたが、フォルダを親に指定する一括作成は現在サポートされていません。';
-                }
             }
         } else {
             $taskData = $baseTaskData;
             $parentId = $request->input('parent_id');
             $taskData['parent_id'] = $parentId;
-
             if ($parentId) {
                 $parentTaskForChar = Task::find($parentId);
                 $taskData['character_id'] = $parentTaskForChar ? $parentTaskForChar->character_id : null;
             } else {
                 $taskData['character_id'] = ($isFolder) ? null : ($validated['character_id'] ?? null);
             }
-
-            if ($request->boolean('apply_individual_to_all_characters') && !$project->characters()->exists() && !$parentId) {
-                $taskData['character_id'] = null;
-                $message = '工程が作成されました（案件にキャラクターが存在しないため、キャラクター未所属となります）。';
-            }
-
             $task = new Task($taskData);
             $project->tasks()->save($task);
+            $createdTasks[] = $task; // ★ 作成したタスクを配列に追加
             $createdTasksCount++;
         }
 
@@ -427,12 +434,21 @@ class TaskController extends Controller
             $taskData['character_id'] = null;
             $task = new Task($taskData);
             $project->tasks()->save($task);
+            // フォルダには担当者をつけないので配列には追加しない
             $message = 'フォルダが作成されました。';
+        }
+
+        // ▼▼▼【ここが修正の核心】作成された全てのタスクに担当者を同期 ▼▼▼
+        if (!empty($createdTasks) && isset($validated['assignees'])) {
+            foreach ($createdTasks as $task) {
+                if (!$task->is_folder) { // フォルダには担当者を割り当てない
+                    $task->assignees()->sync($validated['assignees']);
+                }
+            }
         }
 
         return redirect()->route('projects.show', $project)->with('success', $message);
     }
-
     public function edit(Project $project, Task $task)
     {
         $this->authorize('update', $task);
@@ -471,36 +487,25 @@ class TaskController extends Controller
     {
         $this->authorize('update', $task);
 
-        $currentTaskType = 'task';
-        if ($task->is_milestone) $currentTaskType = 'milestone';
-        elseif ($task->is_folder) $currentTaskType = 'folder';
-        elseif (!$task->start_date && !$task->end_date && !$task->is_milestone && !$task->is_folder) $currentTaskType = 'todo_task';
+        $currentTaskType = 'task'; //
+        if ($task->is_milestone) $currentTaskType = 'milestone'; //
+        elseif ($task->is_folder) $currentTaskType = 'folder'; //
+        elseif (!$task->start_date && !$task->end_date && !$task->is_milestone && !$task->is_folder) $currentTaskType = 'todo_task'; //
 
-        // ▼▼▼【変更】担当者関連のバリデーションを複数対応に変更 ▼▼▼
+        // バリデーションルールを修正
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'character_id' => [
-                // 必須条件をrequiredIfで定義
-                // Rule::requiredIf(function () use ($request, $task) {
-                //     return !$task->is_folder
-                //         && !$request->filled('parent_id')
-                //         && !$request->boolean('apply_edit_to_all_characters_same_name');
-                // }),
-                'nullable', // requiredIfと競合しないようにnullableを追加
-                Rule::exists('characters', 'id')->where(function ($query) use ($project) {
-                    return $query->where('project_id', $project->id);
-                }),
-            ],
-            'start_date' => [
+            'name' => 'required|string|max:255', //
+            'description' => 'nullable|string', //
+            'character_id' => ['nullable', Rule::exists('characters', 'id')->where('project_id', $project->id)], //
+            'start_date' => [ //
                 Rule::requiredIf(fn() => in_array($currentTaskType, ['milestone', 'task'])),
                 'nullable',
-                'date_format:Y-m-d\TH:i,Y-m-d\TH:i:s'
+                'date'
             ],
-            'end_date' => [
+            'end_date' => [ //
                 'nullable',
-                'date_format:Y-m-d\TH:i,Y-m-d\TH:i:s',
-                Rule::requiredIf(fn() => $currentTaskType === 'task' && !$request->filled('duration_value')),
+                'date',
+                Rule::requiredIf(fn() => $currentTaskType === 'task'),
                 Rule::prohibitedIf(fn() => $currentTaskType === 'milestone'),
                 function ($attribute, $value, $fail) use ($request) {
                     if ($request->filled('start_date') && $request->filled($attribute)) {
@@ -510,51 +515,67 @@ class TaskController extends Controller
                     }
                 },
             ],
-            'duration_value' => [
+            'duration_value' => [ //
                 'nullable',
                 'numeric',
                 'min:0',
-                Rule::requiredIf(fn() => $currentTaskType === 'task' && !$request->filled('end_date')),
+                Rule::requiredIf(fn() => $currentTaskType === 'task'),
+                function ($attribute, $value, $fail) use ($request) {
+                    if ($request->filled('start_date') && $request->filled('end_date') && $request->filled('duration_unit')) {
+                        $startDate = Carbon::parse($request->input('start_date'));
+                        $endDate = Carbon::parse($request->input('end_date'));
+                        $diffInMinutes = $startDate->diffInMinutes($endDate);
+
+                        $durationValue = (float)$value;
+                        $durationUnit = $request->input('duration_unit');
+
+                        $inputDurationInMinutes = 0;
+                        switch ($durationUnit) {
+                            case 'days':
+                                $inputDurationInMinutes = $durationValue * 8 * 60;
+                                break; // 1日8時間で計算
+                            case 'hours':
+                                $inputDurationInMinutes = $durationValue * 60;
+                                break;
+                            case 'minutes':
+                                $inputDurationInMinutes = $durationValue;
+                                break;
+                        }
+
+                        if (round($inputDurationInMinutes) > $diffInMinutes) {
+                            $fail('工数が開始日時と終了日時の期間を超えています。');
+                        }
+                    }
+                },
             ],
-            'duration_unit' => [
+            'duration_unit' => [ //
                 'nullable',
                 'string',
                 Rule::in(['minutes', 'hours', 'days']),
-                Rule::requiredIf(fn() => $currentTaskType === 'task' && !$request->filled('end_date') && $request->filled('duration_value')),
+                Rule::requiredIf(fn() => $currentTaskType === 'task' && $request->filled('duration_value')),
             ],
-            'assignees' => 'nullable|array',
-            'assignees.*' => 'exists:users,id',
-            'parent_id' => 'nullable|exists:tasks,id',
-            'status' => [
-                Rule::requiredIf(fn() => $currentTaskType !== 'folder'),
-                'nullable',
-                Rule::in(['not_started', 'in_progress', 'completed', 'on_hold', 'cancelled'])
-            ],
-            'apply_edit_to_all_characters_same_name' => 'nullable|boolean',
+            'assignees' => 'nullable|array', //
+            'assignees.*' => 'exists:users,id', //
+            'parent_id' => 'nullable|exists:tasks,id', //
+            'status' => ['nullable', Rule::in(['not_started', 'in_progress', 'completed', 'on_hold', 'cancelled'])], //
+            'apply_edit_to_all_characters_same_name' => 'nullable|boolean', //
         ], [
-            // 'character_id.required' => '親工程が選択されておらず、「同名工程に反映」をチェックしない場合、所属先キャラクターの選択は必須です。',
-            'start_date.required_if' => '開始日時は必須です（工程または重要納期の場合）。',
-            'end_date.required_if' => '工程の場合、工数または終了日時のどちらかは必須です。',
-            'duration_value.required_if' => '工程の場合、工数または終了日時のどちらかは必須です。',
-            'duration_unit.required_if' => '工程で工数を入力する場合、単位は必須です。',
-            'status.required_if' => 'ステータスは必須です（フォルダ以外の場合）。',
+            'end_date.required_if' => '工程の場合、終了日時は必須です。',
+            'duration_value.required_if' => '工程の場合、工数は必須です。',
             'assignees.*.exists' => '選択された担当者が存在しません。',
         ]);
-        // ▲▲▲【変更】ここまで ▲▲▲
 
-        // ▼▼▼【変更】'assignee'を削除 ▼▼▼
         $taskDataForCurrent = [
-            'name' => $validated['name'],
-            'description' => $validated['description'],
-            'parent_id' => $request->filled('parent_id') ? $validated['parent_id'] : $task->parent_id,
+            'name' => $validated['name'], //
+            'description' => $validated['description'], //
+            'parent_id' => $request->filled('parent_id') ? $validated['parent_id'] : $task->parent_id, //
         ];
-        // ▲▲▲【変更】ここまで ▲▲▲
 
-        if ($request->filled('parent_id') && $validated['parent_id']) {
+        if ($request->filled('parent_id') && $validated['parent_id']) { //
             $parentTaskForChar = Task::find($validated['parent_id']);
             $taskDataForCurrent['character_id'] = $parentTaskForChar->character_id;
         } elseif ($currentTaskType !== 'folder') {
-            $taskDataForCurrent['character_id'] = (array_key_exists('character_id', $validated) && $validated['character_id'] !== '') ? $validated['character_id'] : $task->character_id;
+            $taskDataForCurrent['character_id'] = (array_key_exists('character_id', $validated) && $validated['character_id'] !== '') ? $validated['character_id'] : $task->character_id; //
         } else {
             $taskDataForCurrent['character_id'] = null;
         }
@@ -565,62 +586,46 @@ class TaskController extends Controller
             $taskDataForCurrent['end_date'] = $task->end_date;
             $taskDataForCurrent['duration'] = $task->duration;
         } elseif ($currentTaskType === 'milestone') {
-            $startDate = $request->filled('start_date') ? Carbon::parse($validated['start_date']) : $task->start_date;
+            $startDate = $request->filled('start_date') ? Carbon::parse($validated['start_date']) : $task->start_date; //
             $taskDataForCurrent['start_date'] = $startDate;
             $taskDataForCurrent['end_date'] = $startDate ? $startDate->copy() : null;
             $taskDataForCurrent['duration'] = 0;
-            $taskDataForCurrent['status'] = $validated['status'] ?? $task->status;
+            $taskDataForCurrent['status'] = $validated['status'] ?? $task->status; //
         } elseif ($currentTaskType === 'todo_task') {
             $taskDataForCurrent['start_date'] = null;
             $taskDataForCurrent['end_date'] = null;
             $taskDataForCurrent['duration'] = null;
-            $taskDataForCurrent['status'] = $validated['status'] ?? $task->status;
-        } else {
-            $startDate = $request->filled('start_date') ? Carbon::parse($validated['start_date']) : $task->start_date;
-            $endDate = $request->filled('end_date') ? Carbon::parse($validated['end_date']) : null;
-            $durationValue = $request->filled('duration_value') ? (float)$validated['duration_value'] : null;
-            $durationUnit = $request->filled('duration_unit') ? $validated['duration_unit'] : null;
+            $taskDataForCurrent['status'] = $validated['status'] ?? $task->status; //
+        } else { // 'task' の場合
+            $startDate = Carbon::parse($validated['start_date']); //
+            $endDate = Carbon::parse($validated['end_date']); //
+            $durationValue = (float)$validated['duration_value']; //
+            $durationUnit = $validated['duration_unit']; //
 
-            $taskDataForCurrent['start_date'] = $startDate;
-            $taskDataForCurrent['status'] = $validated['status'] ?? $task->status;
-
-            if ($startDate && $endDate && $endDate->greaterThanOrEqualTo($startDate)) {
-                $taskDataForCurrent['end_date'] = $endDate;
-                $taskDataForCurrent['duration'] = $startDate->diffInMinutes($endDate);
-            } elseif ($startDate && $durationValue !== null && $durationUnit !== null) {
-                $calculatedDurationInMinutes = 0;
-                switch ($durationUnit) {
-                    case 'days':
-                        $calculatedDurationInMinutes = $durationValue * 24 * 60;
-                        break;
-                    case 'hours':
-                        $calculatedDurationInMinutes = $durationValue * 60;
-                        break;
-                    case 'minutes':
-                        $calculatedDurationInMinutes = $durationValue;
-                        break;
-                }
-                $taskDataForCurrent['duration'] = $calculatedDurationInMinutes;
-                $taskDataForCurrent['end_date'] = $startDate->copy()->addMinutes($calculatedDurationInMinutes);
-            } elseif ($startDate) {
-                $currentDuration = $task->duration ?? 0;
-                $taskDataForCurrent['duration'] = $currentDuration;
-                $taskDataForCurrent['end_date'] = $startDate->copy()->addMinutes($currentDuration);
-            } else {
-                $taskDataForCurrent['start_date'] = null;
-                $taskDataForCurrent['end_date'] = null;
-                $taskDataForCurrent['duration'] = null;
+            $calculatedDurationInMinutes = 0;
+            switch ($durationUnit) {
+                case 'days':
+                    $calculatedDurationInMinutes = $durationValue * 8 * 60;
+                    break;
+                case 'hours':
+                    $calculatedDurationInMinutes = $durationValue * 60;
+                    break;
+                case 'minutes':
+                    $calculatedDurationInMinutes = $durationValue;
+                    break;
             }
+            $taskDataForCurrent['start_date'] = $startDate;
+            $taskDataForCurrent['end_date'] = $endDate;
+            $taskDataForCurrent['duration'] = $calculatedDurationInMinutes;
+            $taskDataForCurrent['status'] = $validated['status'] ?? $task->status; //
         }
 
         $task->fill($taskDataForCurrent);
         $task->save();
 
-        // ▼▼▼【変更】担当者をリレーションで同期 ▼▼▼
-        if (array_key_exists('assignees', $validated)) {
-            $task->assignees()->sync($validated['assignees']);
+        if (array_key_exists('assignees', $validated)) { //
+            $task->assignees()->sync($validated['assignees']); //
         }
-        // ▲▲▲【変更】ここまで ▲▲▲
 
         $message = '工程が更新されました。';
 

@@ -1059,6 +1059,55 @@
 
         // 初期ロード時にファイル削除ボタンを初期化
         initializeDynamicDeleteButtons();
+
+        //「完了を表示/非表示」のAJAX処理
+        document.body.addEventListener('click', function(event) {
+            const toggleButton = event.target.closest('[id^="toggle-completed-tasks-btn-"]');
+            if (!toggleButton) {
+                return;
+            }
+
+            event.preventDefault();
+
+            const containerId = toggleButton.dataset.containerId;
+            const container = document.getElementById(containerId);
+            const url = toggleButton.href;
+
+            if (!container) {
+                console.error('Target container not found:', containerId);
+                return;
+            }
+
+            // ローディング表示
+            container.style.opacity = '0.5';
+
+            fetch(url, {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json',
+                }
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Network response was not ok.');
+                return response.json();
+            })
+            .then(data => {
+                if (data.html) {
+                    container.innerHTML = data.html;
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching updated task list:', error);
+                alert('工程リストの更新に失敗しました。');
+            })
+            .finally(() => {
+                // 【重要】成功・失敗にかかわらずローディング表示を解除
+                if (container) {
+                    container.style.opacity = '1';
+                }
+            });
+        });
     });
 </script>
 @endpush

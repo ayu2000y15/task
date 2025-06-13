@@ -151,122 +151,137 @@ function initializeTaskStatusUpdater() {
 }
 
 function initializeEditableMultipleAssignees() {
-    const container = document.getElementById("assignee-data-container");
-    if (!container) {
+    // ▼▼▼【ここから修正】▼▼▼
+    // IDが 'assignee-data-container-' で始まる全てのコンテナを取得
+    const containers = document.querySelectorAll(
+        '[id^="assignee-data-container"]'
+    );
+
+    if (containers.length === 0) {
+        // コンテナが一つもなければ、警告を出して処理を終了
         console.warn("担当者選択肢のデータコンテナが見つかりません。");
         return;
     }
 
-    let assigneeOptions = [];
-    try {
-        assigneeOptions = JSON.parse(container.dataset.assigneeOptions);
-    } catch (e) {
-        console.error("担当者選択肢のJSON解析に失敗しました。", e);
-        return;
-    }
-
-    document.querySelectorAll(".editable-cell-assignees").forEach((cell) => {
-        cell.addEventListener("click", function (event) {
-            // 既に編集中の場合は何もしない
-            if (cell.querySelector(".ts-control")) {
-                return;
-            }
-
-            const parentRow = cell.closest("tr");
-            if (!parentRow) return;
-
-            const taskId = parentRow.dataset.taskId;
-            const projectId = parentRow.dataset.projectId;
-            const currentAssigneeIds = JSON.parse(
-                cell.dataset.currentAssignees || "[]"
+    // 見つかった各コンテナに対して処理を実行
+    containers.forEach((container) => {
+        let assigneeOptions = [];
+        try {
+            // 各コンテナから担当者オプションのデータを取得
+            assigneeOptions = JSON.parse(container.dataset.assigneeOptions);
+        } catch (e) {
+            console.error(
+                "担当者選択肢のJSON解析に失敗しました。",
+                e,
+                container
             );
-            const badgeContainer = cell.querySelector(
-                ".assignee-badge-container"
-            );
+            return; // このコンテナの処理をスキップ
+        }
 
-            // 元の表示を隠す
-            if (badgeContainer) badgeContainer.style.display = "none";
+        // 現在のコンテナ内にある編集可能セルのみを対象にする
+        const editableCells = container.querySelectorAll(
+            ".editable-cell-assignees"
+        );
 
-            // Tom Select用のselect要素を作成
-            const select = document.createElement("select");
-            select.setAttribute("multiple", "multiple");
-            cell.appendChild(select);
-
-            const tomSelectInstance = new TomSelect(select, {
-                options: assigneeOptions,
-                items: currentAssigneeIds,
-                valueField: "id",
-                labelField: "name",
-                searchField: "name",
-                plugins: ["remove_button"],
-                create: false,
-                placeholder: "担当者を選択...",
-                onBlur: function () {
-                    // 少し遅れてblurイベントを処理し、選択肢のクリックを可能にする
-                    setTimeout(() => {
-                        saveChanges(this);
-                    }, 150);
-                },
-            });
-
-            const saveChanges = (instance) => {
-                // インスタンスが既に破棄されている場合は何もしない
-                if (!instance.wrapper) return;
-
-                const newAssigneeIds = instance.items;
-
-                // 変更がなければ何もしない
-                const sortedOld = [...currentAssigneeIds].sort();
-                const sortedNew = [...newAssigneeIds].sort();
-                if (JSON.stringify(sortedOld) === JSON.stringify(sortedNew)) {
-                    // 元の表示に戻してTomSelectを破棄
-                    if (badgeContainer) badgeContainer.style.display = "flex";
-                    instance.destroy();
-                    select.remove();
+        editableCells.forEach((cell) => {
+            cell.addEventListener("click", function (event) {
+                // 既に編集中の場合は何もしない
+                if (cell.querySelector(".ts-control")) {
                     return;
                 }
 
-                axios
-                    .post(`/projects/${projectId}/tasks/${taskId}/assignee`, {
-                        assignees: newAssigneeIds,
-                    })
-                    .then((response) => {
-                        if (response.data.success) {
-                            // サーバーから返されたHTMLでバッジを更新
-                            if (badgeContainer) {
-                                badgeContainer.innerHTML =
-                                    response.data.assigneesHtml;
-                                badgeContainer.style.display = "flex";
-                            }
-                            // data属性も更新
-                            cell.dataset.currentAssignees =
-                                JSON.stringify(newAssigneeIds);
-                        } else {
-                            // エラー時
-                            if (badgeContainer)
-                                badgeContainer.style.display = "flex";
-                            alert(
-                                response.data.message || "更新に失敗しました。"
-                            );
-                        }
-                    })
-                    .catch((error) => {
-                        console.error(
-                            "担当者の更新中にエラーが発生しました:",
-                            error
-                        );
-                        alert("担当者の更新中にエラーが発生しました。");
+                const parentRow = cell.closest("tr");
+                if (!parentRow) return;
+
+                const taskId = parentRow.dataset.taskId;
+                const projectId = parentRow.dataset.projectId;
+                const currentAssigneeIds = JSON.parse(
+                    cell.dataset.currentAssignees || "[]"
+                );
+                const badgeContainer = cell.querySelector(
+                    ".assignee-badge-container"
+                );
+
+                if (badgeContainer) badgeContainer.style.display = "none";
+
+                const select = document.createElement("select");
+                select.setAttribute("multiple", "multiple");
+                cell.appendChild(select);
+
+                const tomSelectInstance = new TomSelect(select, {
+                    options: assigneeOptions,
+                    items: currentAssigneeIds,
+                    valueField: "id",
+                    labelField: "name",
+                    searchField: "name",
+                    plugins: ["remove_button"],
+                    create: false,
+                    placeholder: "担当者を選択...",
+                    onBlur: function () {
+                        setTimeout(() => {
+                            saveChanges(this);
+                        }, 150);
+                    },
+                });
+
+                const saveChanges = (instance) => {
+                    if (!instance.wrapper) return;
+
+                    const newAssigneeIds = instance.items;
+
+                    const sortedOld = [...currentAssigneeIds].sort();
+                    const sortedNew = [...newAssigneeIds].sort();
+                    if (
+                        JSON.stringify(sortedOld) === JSON.stringify(sortedNew)
+                    ) {
                         if (badgeContainer)
                             badgeContainer.style.display = "flex";
-                    })
-                    .finally(() => {
-                        // TomSelectを破棄
-                        if (instance.wrapper) instance.destroy();
-                        if (select.parentNode) select.remove();
-                    });
-            };
+                        instance.destroy();
+                        select.remove();
+                        return;
+                    }
 
-            tomSelectInstance.focus();
+                    axios
+                        .post(
+                            `/projects/${projectId}/tasks/${taskId}/assignee`,
+                            {
+                                assignees: newAssigneeIds,
+                            }
+                        )
+                        .then((response) => {
+                            if (response.data.success) {
+                                if (badgeContainer) {
+                                    badgeContainer.innerHTML =
+                                        response.data.assigneesHtml;
+                                    badgeContainer.style.display = "flex";
+                                }
+                                cell.dataset.currentAssignees =
+                                    JSON.stringify(newAssigneeIds);
+                            } else {
+                                if (badgeContainer)
+                                    badgeContainer.style.display = "flex";
+                                alert(
+                                    response.data.message ||
+                                        "更新に失敗しました。"
+                                );
+                            }
+                        })
+                        .catch((error) => {
+                            console.error(
+                                "担当者の更新中にエラーが発生しました:",
+                                error
+                            );
+                            alert("担当者の更新中にエラーが発生しました。");
+                            if (badgeContainer)
+                                badgeContainer.style.display = "flex";
+                        })
+                        .finally(() => {
+                            if (instance.wrapper) instance.destroy();
+                            if (select.parentNode) select.remove();
+                        });
+                };
+                tomSelectInstance.focus();
+            });
         });
     });
 }
