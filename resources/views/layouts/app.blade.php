@@ -607,12 +607,12 @@
 
                             <a href="{{ route('work-records.index') }}"
                                 class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 {{ request()->routeIs('work-records.index') ? 'bg-gray-100 dark:bg-gray-600 font-semibold' : '' }}">
-                                作業実績登録
+                                作業実績
                             </a>
-                            <a href="{{ route('leaves.index') }}"
+                            {{-- <a href="{{ route('leaves.index') }}"
                                 class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 {{ request()->routeIs('leaves.index') ? 'bg-gray-100 dark:bg-gray-600 font-semibold' : '' }}">
                                 休暇カレンダー
-                            </a>
+                            </a> --}}
 
                             @can('tools.viewAnyPage')
                             <a href="{{ route('tools.index') }}"
