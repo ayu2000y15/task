@@ -37,23 +37,26 @@ class SalesCampaignMail extends Mailable implements ShouldQueue
         $this->baseBodyHtml = $htmlContent;
         $this->sentEmailRecordId = $sentEmailRecordId;
         $this->recipientEmail = $recipientEmail;
-        // 送信ごとにユニークなIDを生成 (SentEmailLogとバウンスメールの紐付けに使用)
         $this->messageIdentifier = $this->sentEmailRecordId . '_' . Str::uuid()->toString();
 
+        // Subscriberに紐づくManagedContactの情報を取得
+        $contact = $subscriber->managedContact;
+
         // 購読者データをプレースホルダー置換用に配列として保持
+        // ManagedContactが存在する場合、その情報を使用する
         $this->subscriberData = [
-            'email' => $subscriber->email,
-            'name' => $subscriber->name,
-            'company_name' => $subscriber->company_name,
-            'postal_code' => $subscriber->postal_code,
-            'address' => $subscriber->address,
-            'phone_number' => $subscriber->phone_number,
-            'fax_number' => $subscriber->fax_number,
-            'url' => $subscriber->url,
-            'representative_name' => $subscriber->representative_name,
-            'establishment_date' => $subscriber->establishment_date ? $subscriber->establishment_date->format('Y年n月j日') : null,
-            'industry' => $subscriber->industry,
-            // 'job_title' => $subscriber->job_title, // 必要であれば追加
+            'email' => $subscriber->email, // Subscriberモデルが持つメールアドレスを正とする
+            'name' => $contact ? $contact->name : null,
+            'company_name' => $contact ? $contact->company_name : null,
+            'postal_code' => $contact ? $contact->postal_code : null,
+            'address' => $contact ? $contact->address : null,
+            'phone_number' => $contact ? $contact->phone_number : null,
+            'fax_number' => $contact ? $contact->fax_number : null,
+            'url' => $contact ? $contact->url : null,
+            'representative_name' => $contact ? $contact->representative_name : null,
+            // 日付が設定されている場合のみフォーマットする
+            'establishment_date' => ($contact && $contact->establishment_date) ? $contact->establishment_date->format('Y年n月j日') : null,
+            'industry' => $contact ? $contact->industry : null,
         ];
     }
 
