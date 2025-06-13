@@ -31,12 +31,12 @@
                     合計作業時間: <span class="text-blue-600 dark:text-blue-400">{{ floor($totalSeconds / 3600) }}時間
                         {{ floor(($totalSeconds % 3600) / 60) }}分</span>
                 </h3>
-                @if(Auth::user()->hourly_rate)
+                {{-- @if(Auth::user()->hourly_rate)
                     <h4 class="text-md font-medium mt-2">
                         概算給与: <span
                             class="text-green-600 dark:text-green-400">¥{{ number_format(($totalSeconds / 3600) * Auth::user()->hourly_rate, 0) }}</span>
                     </h4>
-                @endif
+                @endif --}}
             </div>
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
