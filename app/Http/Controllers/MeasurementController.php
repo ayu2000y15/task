@@ -123,10 +123,10 @@ class MeasurementController extends Controller
     {
         $this->authorize('manageMeasurements', $project);
 
-        $request->validate([
-            'ids' => 'required|array',
-            'ids.*' => 'integer|exists:measurements,id',
-        ]);
+        // $request->validate([
+        //     'ids' => 'required|array',
+        //     'ids.*' => 'integer|exists:measurements,id',
+        // ]);
 
         foreach ($request->ids as $index => $id) {
             Measurement::where('id', $id)

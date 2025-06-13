@@ -214,7 +214,7 @@
         const saveStatusDiv = section.querySelector(`#save-template-status-${characterId}`);
 
         const measurementForm = section.querySelector(`#measurement-form-${characterId}`);
-        const measurementTableBody = section.querySelector(`#measurement-table-body-${characterId}`);
+        const measurementTableBody = section.querySelector(`#measurement-sortable-${characterId}`); // <- IDを修正
 
         const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 

@@ -143,10 +143,10 @@ class CostController extends Controller
     {
         $this->authorize('manageCosts', $project);
 
-        $request->validate([
-            'ids' => 'required|array',
-            'ids.*' => 'integer|exists:costs,id',
-        ]);
+        // $request->validate([
+        //     'ids' => 'required|array',
+        //     'ids.*' => 'integer|exists:costs,id',
+        // ]);
 
         foreach ($request->ids as $index => $id) {
             Cost::where('id', $id)

@@ -492,10 +492,10 @@ class MaterialController extends Controller
     {
         $this->authorize('manageMaterials', $project);
 
-        $request->validate([
-            'ids' => 'required|array',
-            'ids.*' => 'integer|exists:materials,id',
-        ]);
+        // $request->validate([
+        //     'ids' => 'required|array',
+        //     'ids.*' => 'integer|exists:materials,id',
+        // ]);
 
         foreach ($request->ids as $index => $id) {
             Material::where('id', $id)
