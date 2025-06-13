@@ -82,31 +82,66 @@
                         @if(request('keyword'))
                             <input type="hidden" name="keyword" value="{{ request('keyword') }}">
                         @endif
-                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                            @php
+                                // プルダウンの選択肢を定義
+                                $blankOptions = [
+                                    '' => '指定なし',
+                                    'is_null' => '空欄のみ',
+                                    'is_not_null' => '空欄以外',
+                                ];
+                            @endphp
+
+                            {{-- 会社名 --}}
                             <div>
                                 <x-input-label for="filter_company_name" value="会社名" />
                                 <x-text-input id="filter_company_name" name="filter_company_name" type="text"
                                     class="mt-1 block w-full" :value="$filterValues['filter_company_name'] ?? ''"
                                     placeholder="株式会社〇〇" />
+                                <x-select-input id="blank_filter_company_name" name="blank_filter_company_name" class="mt-1 block w-full"
+                                    :options="$blankOptions" :selected="$filterValues['blank_filter_company_name'] ?? ''" />
                             </div>
+
+                            {{-- 郵便番号 --}}
                             <div>
                                 <x-input-label for="filter_postal_code" value="郵便番号" />
                                 <x-text-input id="filter_postal_code" name="filter_postal_code" type="text"
                                     class="mt-1 block w-full" :value="$filterValues['filter_postal_code'] ?? ''"
                                     placeholder="123-4567" />
+                                <x-select-input id="blank_filter_postal_code" name="blank_filter_postal_code" class="mt-1 block w-full"
+                                    :options="$blankOptions" :selected="$filterValues['blank_filter_postal_code'] ?? ''" />
                             </div>
+
+                            {{-- 住所 --}}
                             <div>
                                 <x-input-label for="filter_address" value="住所" />
                                 <x-text-input id="filter_address" name="filter_address" type="text"
                                     class="mt-1 block w-full" :value="$filterValues['filter_address'] ?? ''"
                                     placeholder="東京都..." />
+                                <x-select-input id="blank_filter_address" name="blank_filter_address" class="mt-1 block w-full"
+                                    :options="$blankOptions" :selected="$filterValues['blank_filter_address'] ?? ''" />
                             </div>
+
+                            {{-- 業種 --}}
                             <div>
                                 <x-input-label for="filter_industry" value="業種" />
                                 <x-text-input id="filter_industry" name="filter_industry" type="text"
                                     class="mt-1 block w-full" :value="$filterValues['filter_industry'] ?? ''"
                                     placeholder="ITサービス" />
+                                <x-select-input id="blank_filter_industry" name="blank_filter_industry" class="mt-1 block w-full"
+                                    :options="$blankOptions" :selected="$filterValues['blank_filter_industry'] ?? ''" />
                             </div>
+
+                            {{-- 備考 --}}
+                            <div>
+                                <x-input-label for="filter_notes" value="備考" />
+                                <x-text-input id="filter_notes" name="filter_notes" type="text" class="mt-1 block w-full"
+                                    :value="$filterValues['filter_notes'] ?? ''" />
+                                <x-select-input id="blank_filter_notes" name="blank_filter_notes" class="mt-1 block w-full"
+                                    :options="$blankOptions" :selected="$filterValues['blank_filter_notes'] ?? ''" />
+                            </div>
+
+                            {{-- (日付とステータスのフィルターは変更なし) --}}
                             <div>
                                 <x-input-label for="filter_establishment_date_from" value="設立年月日 (From)" />
                                 <x-text-input id="filter_establishment_date_from" name="filter_establishment_date_from"
@@ -118,11 +153,6 @@
                                 <x-text-input id="filter_establishment_date_to" name="filter_establishment_date_to"
                                     type="date" class="mt-1 block w-full"
                                     :value="$filterValues['filter_establishment_date_to'] ?? ''" />
-                            </div>
-                            <div>
-                                <x-input-label for="filter_notes" value="備考" />
-                                <x-text-input id="filter_notes" name="filter_notes" type="text" class="mt-1 block w-full"
-                                    :value="$filterValues['filter_notes'] ?? ''" />
                             </div>
                             <div>
                                 <x-input-label for="filter_status" value="ステータス" />
@@ -146,54 +176,63 @@
         </div>
 
         {{-- CSVインポートセクション --}}
-        <div class="my-8 bg-white dark:bg-gray-800 shadow-md rounded-lg p-4 sm:p-6">
-            <h2 class="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4 border-b dark:border-gray-700 pb-3">
-                <i class="fas fa-file-csv mr-2 text-green-600 dark:text-green-400"></i> CSVファイルから連絡先をインポート
+        <div class="my-8 bg-white dark:bg-gray-800 shadow-md rounded-lg" x-data="{ csvImportOpen: false }">
+            <h2 @click="csvImportOpen = !csvImportOpen"
+                class="text-lg font-semibold text-gray-700 dark:text-gray-200 p-4 sm:p-6 cursor-pointer flex justify-between items-center">
+                <span>
+                    <i class="fas fa-file-csv mr-2 text-green-600 dark:text-green-400"></i> CSVファイルから連絡先をインポート
+                </span>
+                <span>
+                    <i class="fas fa-chevron-down transition-transform" :class="{'rotate-180': csvImportOpen}"></i>
+                </span>
             </h2>
-            <form action="{{ route('tools.sales.managed-contacts.importCsv') }}" method="POST"
-                enctype="multipart/form-data">
-                @csrf
-                <div class="space-y-4">
-                    <div>
-                        <x-input-label for="csv_file" value="CSVファイルを選択" :required="true" />
-                        <input type="file" name="csv_file" id="csv_file" required accept=".csv, text/csv" class="mt-1 block w-full text-sm text-gray-900 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer bg-gray-50 dark:bg-gray-700 focus:outline-none focus:border-indigo-500 focus:ring-indigo-500
-                                                          file:mr-4 file:py-2 file:px-4
-                                                          file:rounded-md file:border-0
-                                                          file:text-sm file:font-semibold
-                                                          file:bg-indigo-100 dark:file:bg-indigo-700 file:text-indigo-600 dark:file:text-indigo-300
-                                                          hover:file:bg-indigo-200 dark:hover:file:bg-indigo-600" />
-                        <x-input-error :messages="$errors->get('csv_file')" class="mt-2" />
+            <div x-show="csvImportOpen" x-collapse class="p-4 sm:p-6 border-t dark:border-gray-700">
+                <form action="{{ route('tools.sales.managed-contacts.importCsv') }}" method="POST"
+                    enctype="multipart/form-data">
+                    @csrf
+                    <div class="space-y-4">
+                        <div>
+                            <x-input-label for="csv_file" value="CSVファイルを選択" :required="true" />
+                            <input type="file" name="csv_file" id="csv_file" required accept=".csv, text/csv"
+                                class="mt-1 block w-full text-sm text-gray-900 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer bg-gray-50 dark:bg-gray-700 focus:outline-none focus:border-indigo-500 focus:ring-indigo-500
+                                                                    file:mr-4 file:py-2 file:px-4
+                                                                    file:rounded-md file:border-0
+                                                                    file:text-sm file:font-semibold
+                                                                    file:bg-indigo-100 dark:file:bg-indigo-700 file:text-indigo-600 dark:file:text-indigo-300
+                                                                    hover:file:bg-indigo-200 dark:hover:file:bg-indigo-600" />
+                            <x-input-error :messages="$errors->get('csv_file')" class="mt-2" />
+                        </div>
+                        <div class="text-xs text-gray-600 dark:text-gray-400 space-y-1">
+                            <p>
+                                CSVファイルの1行目はヘッダー行（列名）である必要があります。ファイルのエンコーディングはUTF-8を推奨します。<br>
+                                <strong>必須列: メールアドレス。</strong>その他は任意です。列の順番は問いません。
+                            </p>
+                            <p class="font-medium pt-1">認識可能なヘッダー名の例（大文字・小文字は区別しません。各項目、下記のいずれかが含まれていれば読み込まれます）：</p>
+                            <ul class="list-disc list-inside pl-2 space-y-0.5">
+                                <li><strong>メールアドレス</strong>: 「メールアドレス」「Email」「email_address」「メール」</li>
+                                <li><strong>名前</strong>: 「名前」 「氏名」 「Name」 「フルネーム」</li>
+                                <li><strong>会社名</strong>: 「会社名」 「Company Name」 「法人名」 「所属」</li>
+                                <li><strong>郵便番号</strong>: 「郵便番号」 「Postal Code」 「郵便」</li>
+                                <li><strong>住所</strong>: 「住所」 「Address」</li>
+                                <li><strong>電話番号</strong>: 「電話番号」 「Phone Number」 「電話」</li>
+                                <li><strong>FAX番号</strong>: 「FAX番号」 「FAX Number」 「FAX」</li>
+                                <li><strong>URL</strong>: 「URL」 「Website」 「ウェブサイト」</li>
+                                <li><strong>代表者名</strong>: 「代表者名」 「Representative Name」 「代表」</li>
+                                <li><strong>設立年月日</strong>: 「設立年月日」 「Establishment Date」 「設立日」 (例: 2000-01-30 or 2000/01/30)
+                                </li>
+                                <li><strong>業種</strong>: 「業種」 「Industry」</li>
+                                <li><strong>備考</strong>: 「備考」 「Notes」 「メモ」</li>
+                                <li><strong>ステータス</strong>: 「ステータス」 「Status」 (値の例: active, do_not_contact, archived)</li>
+                            </ul>
+                        </div>
+                        <div class="flex justify-end">
+                            <x-primary-button type="submit">
+                                <i class="fas fa-file-import mr-2"></i> インポート実行
+                            </x-primary-button>
+                        </div>
                     </div>
-                    <div class="text-xs text-gray-600 dark:text-gray-400 space-y-1">
-                        <p>
-                            CSVファイルの1行目はヘッダー行（列名）である必要があります。ファイルのエンコーディングはUTF-8を推奨します。<br>
-                            <strong>必須列: メールアドレス。</strong>その他は任意です。列の順番は問いません。
-                        </p>
-                        <p class="font-medium pt-1">認識可能なヘッダー名の例（大文字・小文字は区別しません。各項目、下記のいずれかが含まれていれば読み込まれます）：</p>
-                        <ul class="list-disc list-inside pl-2 space-y-0.5">
-                            <li><strong>メールアドレス</strong>: 「メールアドレス」「Email」「email_address」「メール」</li>
-                            <li><strong>名前</strong>: 「名前」 「氏名」 「Name」 「フルネーム」</li>
-                            <li><strong>会社名</strong>: 「会社名」 「Company Name」 「法人名」 「所属」</li>
-                            <li><strong>郵便番号</strong>: 「郵便番号」 「Postal Code」 「郵便」</li>
-                            <li><strong>住所</strong>: 「住所」 「Address」</li>
-                            <li><strong>電話番号</strong>: 「電話番号」 「Phone Number」 「電話」</li>
-                            <li><strong>FAX番号</strong>: 「FAX番号」 「FAX Number」 「FAX」</li>
-                            <li><strong>URL</strong>: 「URL」 「Website」 「ウェブサイト」</li>
-                            <li><strong>代表者名</strong>: 「代表者名」 「Representative Name」 「代表」</li>
-                            <li><strong>設立年月日</strong>: 「設立年月日」 「Establishment Date」 「設立日」 (例: 2000-01-30 or 2000/01/30)
-                            </li>
-                            <li><strong>業種</strong>: 「業種」 「Industry」</li>
-                            <li><strong>備考</strong>: 「備考」 「Notes」 「メモ」</li>
-                            <li><strong>ステータス</strong>: 「ステータス」 「Status」 (値の例: active, do_not_contact, archived)</li>
-                        </ul>
-                    </div>
-                    <div class="flex justify-end">
-                        <x-primary-button type="submit">
-                            <i class="fas fa-file-import mr-2"></i> インポート実行
-                        </x-primary-button>
-                    </div>
-                </div>
-            </form>
+                </form>
+            </div>
         </div>
 
 

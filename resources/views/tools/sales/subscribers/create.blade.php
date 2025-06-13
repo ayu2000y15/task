@@ -18,7 +18,6 @@
 @section('content')
     <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div class="mb-6">
-            {{-- ... (ページタイトルと戻るボタンは変更なし) ... --}}
             <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
                 <div>
                     <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-200">
@@ -33,10 +32,11 @@
             </div>
         </div>
 
+        {{-- フィルターセクション --}}
         <div
-            x-data="{ filtersOpen: {{ request()->hasAny(['filter_company_name', 'filter_postal_code', 'filter_address', 'filter_establishment_date_from', 'filter_establishment_date_to', 'filter_industry', 'filter_notes', 'filter_status', 'keyword']) ? 'true' : 'false' }} }">
+            x-data="{ filtersOpen: {{ request()->hasAny(['filter_company_name', 'filter_postal_code', 'filter_address', 'filter_establishment_date_from', 'filter_establishment_date_to', 'filter_industry', 'filter_notes', 'keyword']) ? 'true' : 'false' }} }">
             <div class="mb-6 bg-white dark:bg-gray-800 shadow-sm rounded-lg p-4">
-                {{-- ... (フィルターフォームは変更なし、ただしactionのルートパラメータ $emailList を渡す) ... --}}
+                {{-- キーワード検索フォーム --}}
                 <form action="{{ route('tools.sales.email-lists.subscribers.create', $emailList) }}" method="GET"
                     class="flex flex-col sm:flex-row gap-3 items-center">
                     <div class="flex-grow relative">
@@ -62,32 +62,68 @@
                     </x-secondary-button>
                 </form>
 
+                {{-- 詳細フィルターフォーム --}}
                 <div x-show="filtersOpen" x-collapse class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                     <form action="{{ route('tools.sales.email-lists.subscribers.create', $emailList) }}" method="GET">
                         @if(request('keyword'))
                             <input type="hidden" name="keyword" value="{{ request('keyword') }}">
                         @endif
-                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                            @php
+                                // プルダウンの選択肢を定義
+                                $blankOptions = [
+                                    '' => '指定なし',
+                                    'is_null' => '空欄のみ',
+                                    'is_not_null' => '空欄以外',
+                                ];
+                            @endphp
+
+                            {{-- 会社名 --}}
                             <div>
                                 <x-input-label for="filter_company_name_sub" value="会社名" />
                                 <x-text-input id="filter_company_name_sub" name="filter_company_name" type="text"
                                     class="mt-1 block w-full" :value="$filterValues['filter_company_name'] ?? ''" />
+                                <x-select-input id="blank_filter_company_name_sub" name="blank_filter_company_name" class="mt-1 block w-full"
+                                    :options="$blankOptions" :selected="$filterValues['blank_filter_company_name'] ?? ''" />
                             </div>
+
+                            {{-- 郵便番号 --}}
                             <div>
                                 <x-input-label for="filter_postal_code_sub" value="郵便番号" />
                                 <x-text-input id="filter_postal_code_sub" name="filter_postal_code" type="text"
                                     class="mt-1 block w-full" :value="$filterValues['filter_postal_code'] ?? ''" />
+                                <x-select-input id="blank_filter_postal_code_sub" name="blank_filter_postal_code" class="mt-1 block w-full"
+                                    :options="$blankOptions" :selected="$filterValues['blank_filter_postal_code'] ?? ''" />
                             </div>
+
+                            {{-- 住所 --}}
                             <div>
                                 <x-input-label for="filter_address_sub" value="住所" />
                                 <x-text-input id="filter_address_sub" name="filter_address" type="text"
                                     class="mt-1 block w-full" :value="$filterValues['filter_address'] ?? ''" />
+                                <x-select-input id="blank_filter_address_sub" name="blank_filter_address" class="mt-1 block w-full"
+                                    :options="$blankOptions" :selected="$filterValues['blank_filter_address'] ?? ''" />
                             </div>
+
+                            {{-- 業種 --}}
                             <div>
                                 <x-input-label for="filter_industry_sub" value="業種" />
                                 <x-text-input id="filter_industry_sub" name="filter_industry" type="text"
                                     class="mt-1 block w-full" :value="$filterValues['filter_industry'] ?? ''" />
+                                <x-select-input id="blank_filter_industry_sub" name="blank_filter_industry" class="mt-1 block w-full"
+                                    :options="$blankOptions" :selected="$filterValues['blank_filter_industry'] ?? ''" />
                             </div>
+
+                            {{-- 備考 --}}
+                            <div>
+                                <x-input-label for="filter_notes_sub" value="備考" />
+                                <x-text-input id="filter_notes_sub" name="filter_notes" type="text"
+                                    class="mt-1 block w-full" :value="$filterValues['filter_notes'] ?? ''" />
+                                <x-select-input id="blank_filter_notes_sub" name="blank_filter_notes" class="mt-1 block w-full"
+                                    :options="$blankOptions" :selected="$filterValues['blank_filter_notes'] ?? ''" />
+                            </div>
+
+                            {{-- 設立年月日 --}}
                             <div>
                                 <x-input-label for="filter_establishment_date_from_sub" value="設立年月日 (From)" />
                                 <x-text-input id="filter_establishment_date_from_sub" name="filter_establishment_date_from"
@@ -100,13 +136,8 @@
                                     type="date" class="mt-1 block w-full"
                                     :value="$filterValues['filter_establishment_date_to'] ?? ''" />
                             </div>
-                            <div>
-                                <x-input-label for="filter_notes_sub" value="備考" />
-                                <x-text-input id="filter_notes_sub" name="filter_notes" type="text"
-                                    class="mt-1 block w-full" :value="$filterValues['filter_notes'] ?? ''" />
-                            </div>
-                            <input type="hidden" name="filter_status" value="active">
 
+                            <input type="hidden" name="filter_status" value="active">
                         </div>
                         <div class="mt-6 flex items-center justify-end space-x-3">
                             <x-secondary-button as="a"
@@ -122,28 +153,20 @@
             </div>
         </div>
 
+        {{-- 購読者追加実行フォーム --}}
         <form action="{{ route('tools.sales.email-lists.subscribers.store', $emailList) }}" method="POST"
             id="addSubscribersForm">
             @csrf
-            {{-- ★★★ フィルター条件をhidden inputとしてフォームに含める ★★★ --}}
-            @if(request('keyword'))<input type="hidden" name="keyword" value="{{ request('keyword') }}">@endif
-            @if(request('filter_company_name'))<input type="hidden" name="filter_company_name"
-            value="{{ request('filter_company_name') }}">@endif
-            @if(request('filter_postal_code'))<input type="hidden" name="filter_postal_code"
-            value="{{ request('filter_postal_code') }}">@endif
-            @if(request('filter_address'))<input type="hidden" name="filter_address"
-            value="{{ request('filter_address') }}">@endif
-            @if(request('filter_establishment_date_from'))<input type="hidden" name="filter_establishment_date_from"
-            value="{{ request('filter_establishment_date_from') }}">@endif
-            @if(request('filter_establishment_date_to'))<input type="hidden" name="filter_establishment_date_to"
-            value="{{ request('filter_establishment_date_to') }}">@endif
-            @if(request('filter_industry'))<input type="hidden" name="filter_industry"
-            value="{{ request('filter_industry') }}">@endif
-            @if(request('filter_notes'))<input type="hidden" name="filter_notes"
-            value="{{ request('filter_notes') }}">@endif
-            {{-- filter_status は 'active' 固定か、もしユーザーが選択できるようにする場合はそれもhiddenで渡す --}}
-            <input type="hidden" name="filter_status" value="{{ request('filter_status', 'active') }}">
-
+            {{-- フィルター条件をhidden inputとしてフォームに含める --}}
+            @foreach(request()->query() as $key => $value)
+                @if(is_array($value))
+                    @foreach($value as $v)
+                        <input type="hidden" name="{{ $key }}[]" value="{{ $v }}">
+                    @endforeach
+                @else
+                    <input type="hidden" name="{{ $key }}" value="{{ $value }}">
+                @endif
+            @endforeach
 
             <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg">
                 <div
@@ -163,7 +186,7 @@
                                 <i class="fas fa-user-plus mr-2"></i> チェックした連絡先を追加
                             </x-primary-button>
                         @else
-                            @if($managedContacts->total() === 0 && !request()->has('keyword') && !request()->hasAny(['filter_company_name', 'filter_postal_code', 'filter_address', 'filter_establishment_date_from', 'filter_establishment_date_to', 'filter_industry', 'filter_notes', 'filter_status']))
+                            @if($managedContacts->total() === 0 && !request()->has('keyword') && !request()->hasAny(['filter_company_name', 'filter_postal_code', 'filter_address', 'filter_establishment_date_from', 'filter_establishment_date_to', 'filter_industry', 'filter_notes']))
                                 <p class="text-sm text-gray-500 dark:text-gray-400 py-2">追加可能な有効な連絡先がありません。</p>
                             @endif
                         @endif
@@ -222,7 +245,6 @@
                                     </td>
                                 </tr>
                             @empty
-                                {{-- ... (変更なし) ... --}}
                                 <tr>
                                     <td colspan="5" class="px-6 py-12 text-center text-sm text-gray-500 dark:text-gray-400">
                                         @if(count(array_filter($filterValues ?? [])) > 0 && empty(array_filter($filterValues)['keyword'] ?? null) && count(array_filter(Arr::except($filterValues ?? [], 'keyword'))) > 0)
@@ -267,7 +289,6 @@
 @endsection
 
 @push('scripts')
-    {{-- ... (JavaScriptは変更なし) ... --}}
     <script>
         function toggleAllCheckboxes(source, name) {
             const checkboxes = document.querySelectorAll(`input[type="checkbox"][name="${name}"]`);

@@ -35,6 +35,15 @@ class ManagedContact extends Model
     ];
 
     /**
+     * ステータスの選択肢
+     * @var array
+     */
+    public const STATUS_OPTIONS = [
+        'active' => '有効', //
+        'do_not_contact' => '連絡不要', //
+        'archived' => 'アーカイブ済', //
+    ];
+    /**
      * ステータスの設定（表示ラベルとCSSクラス）を取得します。
      *
      * @param string|null $status

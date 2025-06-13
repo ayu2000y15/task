@@ -140,79 +140,70 @@ class SalesToolController extends Controller
      * Show the form for creating new subscribers for the given email list by selecting from ManagedContacts.
      * 指定されたメールリストに、管理連絡先から選択して新しい購読者を追加するためのフォームを表示します。
      */
-    public function subscribersCreate(Request $request, EmailList $emailList): View
+    public function subscribersCreate(Request $request, EmailList $emailList)
     {
-        $this->authorize(self::SALES_TOOL_ACCESS_PERMISSION);
+        $filterValues = $request->all();
 
-        $query = ManagedContact::query();
+        // 1. 基本的な絞り込みクエリを生成
+        $query = ManagedContact::query()
+            // ステータスが「有効」なもののみ
+            ->where('status', 'active')
+            // 既にこのリストの購読者である連絡先を除外
+            ->whereDoesntHave('subscribers', function ($q) use ($emailList) {
+                $q->where('email_list_id', $emailList->id);
+            });
 
-        // Keyword search (quick search for selecting contacts)
+        // 2. ユーザーによるフィルターを適用
+        // キーワード検索
         if ($request->filled('keyword')) {
-            $keyword = $request->input('keyword');
+            $keyword = '%' . $request->input('keyword') . '%';
             $query->where(function ($q) use ($keyword) {
-                $q->where('email', 'like', "%{$keyword}%")
-                    ->orWhere('name', 'like', "%{$keyword}%")
-                    ->orWhere('company_name', 'like', "%{$keyword}%");
+                $q->where('email', 'like', $keyword)
+                    ->orWhere('name', 'like', $keyword)
+                    ->orWhere('company_name', 'like', $keyword);
             });
         }
 
-        // Advanced Filters for selecting ManagedContacts
-        if ($request->filled('filter_company_name')) {
-            $query->where('company_name', 'like', '%' . $request->input('filter_company_name') . '%');
-        }
-        if ($request->filled('filter_postal_code')) {
-            $query->where('postal_code', 'like', '%' . $request->input('filter_postal_code') . '%');
-        }
-        if ($request->filled('filter_address')) {
-            $query->where('address', 'like', '%' . $request->input('filter_address') . '%');
-        }
+        // --- 詳細フィルター (空欄/空欄以外を含む) ---
+        $applyTextFilter = function ($query, $request, $fieldName) {
+            $blankFilter = $request->input("blank_filter_{$fieldName}");
+            $textValue = $request->input("filter_{$fieldName}");
+
+            if ($blankFilter === 'is_null') {
+                $query->where(fn($q) => $q->whereNull($fieldName)->orWhere($fieldName, ''));
+            } elseif ($blankFilter === 'is_not_null') {
+                $query->where(fn($q) => $q->whereNotNull($fieldName)->where($fieldName, '!=', ''));
+            } elseif ($request->filled("filter_{$fieldName}")) {
+                $query->where($fieldName, 'like', '%' . $textValue . '%');
+            }
+        };
+
+        // 各フィルターを適用
+        $applyTextFilter($query, $request, 'company_name');
+        $applyTextFilter($query, $request, 'postal_code');
+        $applyTextFilter($query, $request, 'address');
+        $applyTextFilter($query, $request, 'industry');
+        $applyTextFilter($query, $request, 'notes');
+
+        // 設立年月日 (From)
         if ($request->filled('filter_establishment_date_from')) {
             $query->whereDate('establishment_date', '>=', $request->input('filter_establishment_date_from'));
         }
+
+        // 設立年月日 (To)
         if ($request->filled('filter_establishment_date_to')) {
             $query->whereDate('establishment_date', '<=', $request->input('filter_establishment_date_to'));
         }
-        if ($request->filled('filter_industry')) {
-            $query->where('industry', 'like', '%' . $request->input('filter_industry') . '%');
-        }
-        if ($request->filled('filter_notes')) {
-            $query->where('notes', 'like', '%' . $request->input('filter_notes') . '%');
-        }
-        if ($request->filled('filter_status') && $request->input('filter_status') !== '') {
-            $query->where('status', $request->input('filter_status'));
-        } else {
-            // デフォルトでは 'active' の連絡先のみを表示候補とする
-            $query->where('status', 'active');
-        }
 
-        // Exclude contacts already subscribed to this EmailList
-        $existingSubscriberEmails = $emailList->subscribers()->pluck('email')->all();
-        if (!empty($existingSubscriberEmails)) {
-            $query->whereNotIn('email', $existingSubscriberEmails);
-        }
+        // 3. ページネーションして結果を取得
+        $managedContacts = $query->latest('updated_at')->paginate(20);
 
-        $managedContacts = $query->orderBy('email')->paginate(500)->appends($request->query());
-
-        $statusOptions = [ // For the ManagedContact status filter dropdown
-            'active' => '有効',
-            'do_not_contact' => '連絡不要',
-            'archived' => 'アーカイブ済',
-        ];
-
-        // Capture all relevant filter inputs for repopulating the form
-        $filterValues = $request->only([
-            'keyword',
-            'filter_company_name',
-            'filter_postal_code',
-            'filter_address',
-            'filter_establishment_date_from',
-            'filter_establishment_date_to',
-            'filter_industry',
-            'filter_notes',
-            'filter_status',
-        ]);
-
-        return view('tools.sales.subscribers.create', compact('emailList', 'managedContacts', 'statusOptions', 'filterValues'));
+        // 4. ビューを返す
+        return view('tools.sales.subscribers.create', compact(
+            'emailList',
+            'managedContacts',
+            'filterValues'
+        ));
     }
 
     /**
@@ -882,91 +873,70 @@ class SalesToolController extends Controller
      * Display a listing of the managed contacts.
      * 管理連絡先の一覧を表示します。
      */
-    public function managedContactsIndex(Request $request): View
+    public function managedContactsIndex(Request $request)
     {
-        $this->authorize(self::SALES_TOOL_ACCESS_PERMISSION);
-
         $query = ManagedContact::query();
+        $filterValues = $request->all();
 
-        // Keyword search (quick search)
+        // キーワード検索
         if ($request->filled('keyword')) {
-            $keyword = $request->input('keyword');
+            $keyword = '%' . $request->input('keyword') . '%';
             $query->where(function ($q) use ($keyword) {
-                $q->where('email', 'like', "%{$keyword}%")
-                    ->orWhere('name', 'like', "%{$keyword}%")
-                    ->orWhere('company_name', 'like', "%{$keyword}%");
+                $q->where('email', 'like', $keyword)
+                    ->orWhere('name', 'like', $keyword)
+                    ->orWhere('company_name', 'like', $keyword);
             });
         }
 
-        // Advanced Filters
-        if ($request->filled('filter_company_name')) {
-            $query->where('company_name', 'like', '%' . $request->input('filter_company_name') . '%');
-        }
-        if ($request->filled('filter_postal_code')) {
-            // 郵便番号は部分一致より前方一致か完全一致が良い場合もあるが、ここでは部分一致
-            $query->where('postal_code', 'like', '%' . $request->input('filter_postal_code') . '%');
-        }
-        if ($request->filled('filter_address')) {
-            $query->where('address', 'like', '%' . $request->input('filter_address') . '%');
-        }
+        // --- ▼▼▼【ここから詳細フィルターのロジックを修正】▼▼▼ ---
+
+        // 各フィルター項目を動的に処理するヘルパー関数
+        $applyTextFilter = function ($query, $request, $fieldName) {
+            $blankFilter = $request->input("blank_filter_{$fieldName}");
+            $textValue = $request->input("filter_{$fieldName}");
+
+            if ($blankFilter === 'is_null') {
+                $query->where(fn($q) => $q->whereNull($fieldName)->orWhere($fieldName, ''));
+            } elseif ($blankFilter === 'is_not_null') {
+                $query->where(fn($q) => $q->whereNotNull($fieldName)->where($fieldName, '!=', ''));
+            } elseif ($request->filled("filter_{$fieldName}")) {
+                $query->where($fieldName, 'like', '%' . $textValue . '%');
+            }
+        };
+
+        // ヘルパー関数を使って各フィルターを適用
+        $applyTextFilter($query, $request, 'company_name');
+        $applyTextFilter($query, $request, 'postal_code');
+        $applyTextFilter($query, $request, 'address');
+        $applyTextFilter($query, $request, 'industry');
+        $applyTextFilter($query, $request, 'notes');
+
+        // --- ▲▲▲【ここまで詳細フィルターのロジックを修正】▲▲▲ ---
+
+        // 設立年月日 (From)
         if ($request->filled('filter_establishment_date_from')) {
             $query->whereDate('establishment_date', '>=', $request->input('filter_establishment_date_from'));
         }
+
+        // 設立年月日 (To)
         if ($request->filled('filter_establishment_date_to')) {
             $query->whereDate('establishment_date', '<=', $request->input('filter_establishment_date_to'));
         }
-        if ($request->filled('filter_industry')) {
-            $query->where('industry', 'like', '%' . $request->input('filter_industry') . '%');
-        }
-        if ($request->filled('filter_notes')) {
-            $query->where('notes', 'like', '%' . $request->input('filter_notes') . '%');
-        }
-        if ($request->filled('filter_status') && $request->input('filter_status') !== '') {
+
+        // ステータス
+        if ($request->filled('filter_status')) {
             $query->where('status', $request->input('filter_status'));
         }
 
-        $managedContacts = $query->orderBy('created_at', 'desc')->paginate(100)->appends($request->query()); //  appends($request->query()) ですべてのGETパラメータを引き継ぐ
+        $managedContacts = $query->latest('updated_at')->paginate(15);
 
-        $statusOptions = [
-            'active' => '有効',
-            'do_not_contact' => '連絡不要',
-            'archived' => 'アーカイブ済',
-        ];
+        $statusOptions = ManagedContact::STATUS_OPTIONS ?? [];
 
-        // ビューに渡すフィルター値の配列を準備（フィルターフォームの初期値設定用）
-        $filterValues = $request->only([
-            'keyword',
-            'filter_company_name',
-            'filter_postal_code',
-            'filter_address',
-            'filter_establishment_date_from',
-            'filter_establishment_date_to',
-            'filter_industry',
-            'filter_notes',
-            'filter_status',
-        ]);
-
-        $csvImportInterruptedMessage = null;
-        if ($request->session()->has('csv_import_status')) {
-            $importStatus = $request->session()->get('csv_import_status');
-            if (isset($importStatus['in_progress']) && $importStatus['in_progress'] === true) {
-                $fileName = $importStatus['file_name'] ?? '前回';
-                $imported = $importStatus['imported_count'] ?? 0;
-                $updated = $importStatus['updated_count'] ?? 0;
-                $failed = $importStatus['failed_count'] ?? 0; // セッションには途中までの失敗件数が入る
-
-                $csvImportInterruptedMessage = "{$fileName} のCSVインポート処理が中断された可能性があります。";
-                if ($imported > 0 || $updated > 0 || $failed > 0) {
-                    $csvImportInterruptedMessage .= " その時点までに {$imported}件が新規登録、{$updated}件が更新、{$failed}件が失敗として記録されています。";
-                } else {
-                    $csvImportInterruptedMessage .= " 処理された件数は記録されていません。";
-                }
-                $csvImportInterruptedMessage .= " データを確認し、必要に応じて再度インポートを実行してください。";
-            }
-            $request->session()->forget('csv_import_status'); // メッセージ表示後にセッション情報を削除
-        }
-
-        return view('tools.sales.managed_contacts.index', compact('managedContacts', 'statusOptions', 'filterValues'));
+        return view('tools.sales.managed_contacts.index', compact(
+            'managedContacts',
+            'filterValues',
+            'statusOptions'
+        ));
     }
 
     /**
