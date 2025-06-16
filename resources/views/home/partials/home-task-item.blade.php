@@ -18,13 +18,14 @@
         <div class="text-xs text-gray-500 dark:text-gray-400">
             <a href="{{ route('projects.show', $task->project) }}" class="font-semibold hover:underline"
                 style="color: {{ $task->project->color ?? '#6c757d' }};">{{ $task->project->title }}</a>
+
             <p>
                 <i class="fas fa-dragon fa-fw mr-0.5 text-gray-400"></i>
-                {{ $task->character->name }}
+                {{ optional($task->character)->name ?? 'キャラクター未設定' }}
             </p>
             <p>
                 <i class="far fa-clock fa-fw mr-0.5 text-gray-400"></i>
-                {{ $task->end_date->format('n/j H:i') }}
+                {{ optional($task->end_date)->format('n/j H:i') ?? '期限なし' }}
             </p>
         </div>
         <a href="{{ route('projects.tasks.edit', [$task->project, $task]) }}"
