@@ -39,7 +39,7 @@
                             <p class="px-6 py-12 text-center text-sm text-gray-500 dark:text-gray-400">本日の作業はありません</p>
                         @else
                             @foreach($workItemsByAssignee as $assigneeData)
-                                <div class="p-4">
+                                <div class="p-4 {{ $assigneeData['assignee']->id === Auth::id() ? 'bg-blue-50 dark:bg-blue-900/50' : '' }}">
                                     @php
                                         // 表示中の担当者の本日の休日情報を取得
                                         $holidayForUser = $todaysHolidays->firstWhere('user_id', $assigneeData['assignee']->id);
