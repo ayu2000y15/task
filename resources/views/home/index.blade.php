@@ -67,7 +67,7 @@
                                             <span class="px-2 py-0.5 text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300 rounded-full">休暇中</span>
                                         @endif
                                     </h3>
-                                    <ul class="ml-6 divide-y divide-gray-200 dark:divide-gray-700">
+                                    <ul class="ml-6 divide-y space-y-2 divide-gray-200 dark:divide-gray-700">
                                         @foreach($assigneeData['items'] as $item)
                                             @if($item instanceof \App\Models\Task)
                                                 @include('home.partials.home-task-item', ['task' => $item])
