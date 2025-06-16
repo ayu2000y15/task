@@ -136,4 +136,48 @@ class MeasurementController extends Controller
 
         return response()->json(['success' => true, 'message' => '採寸項目の並び順を更新しました。']);
     }
+
+    /**
+     * Store or update multiple measurements at once.
+     * 複数の採寸データを一括で保存・更新する
+     *
+     * @param Request $request
+     * @param Project $project
+     * @param Character $character
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function batchStore(Request $request, Project $project, Character $character)
+    {
+        $this->authorize('manageMeasurements', $project);
+
+        // 'measurements' はキー(item)と値(value, notes)のペアの配列であることを期待
+        $validated = $request->validate([
+            'measurements' => 'required|array',
+            'measurements.*.value' => 'nullable|string|max:255',
+            'measurements.*.notes' => 'nullable|string',
+        ]);
+
+        $updatedMeasurements = [];
+
+        foreach ($validated['measurements'] as $itemKey => $data) {
+            // 値が入力されているデータのみを処理
+            if (isset($data['value']) && $data['value'] !== '') {
+                $measurement = $character->measurements()->updateOrCreate(
+                    ['item' => $itemKey], // このキーで検索
+                    [ // 見つかったら更新、なければ作成
+                        'item_label' => $data['label'] ?? $itemKey,
+                        'value'      => $data['value'],
+                        'notes'      => $data['notes'] ?? null,
+                    ]
+                );
+                $updatedMeasurements[] = $measurement->fresh();
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => '採寸データを一括で保存しました。',
+            'updatedMeasurements' => $updatedMeasurements, // 更新された全データを返す
+        ]);
+    }
 }

@@ -98,7 +98,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/measurement-templates/{measurement_template}/load', [MeasurementTemplateController::class, 'load'])->name('measurement-templates.load');
     Route::delete('/measurement-templates/{measurement_template}', [MeasurementTemplateController::class, 'destroy'])->name('measurement-templates.destroy');
     Route::post('/projects/{project}/characters/{character}/measurements/update-order', [MeasurementController::class, 'updateOrder'])->name('projects.characters.measurements.updateOrder');
-
+    Route::post('/projects/{project}/characters/{character}/measurements/batch', [App\Http\Controllers\MeasurementController::class, 'batchStore'])->name('projects.characters.measurements.batchStore');
 
     // 材料データ (案件詳細ページ内で処理)
     Route::post('/projects/{project}/characters/{character}/materials', [MaterialController::class, 'store'])->name('projects.characters.materials.store');

@@ -748,6 +748,7 @@ namespace App\Models{
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \Spatie\Activitylog\Models\Activity> $activities
  * @property-read int|null $activities_count
  * @property-read \App\Models\Character $character
+ * @property-read string $item_label
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Measurement newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Measurement newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Measurement query()
