@@ -145,7 +145,9 @@ Route::middleware('auth')->group(function () {
 
     // 時間記録のアクション
     Route::post('/work-logs/start', [WorkLogController::class, 'start'])->name('work-logs.start');
-    Route::post('/work-logs/{workLog}/stop', [WorkLogController::class, 'stop'])->name('work-logs.stop');
+    // Route::post('/work-logs/{workLog}/stop', [WorkLogController::class, 'stop'])->name('work-logs.stop');
+    Route::post('/work-logs/start', [App\Http\Controllers\WorkLogController::class, 'start'])->name('work-logs.start');
+    Route::post('/work-logs/stop-by-task', [App\Http\Controllers\WorkLogController::class, 'stopByTask'])->name('work-logs.stop-by-task');
 
     // 作業実績ページ
     Route::get('/my-work-records', [WorkRecordController::class, 'index'])->name('work-records.index');

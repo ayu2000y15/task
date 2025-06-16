@@ -46,6 +46,7 @@ class UserController extends Controller
                 User::STATUS_ACTIVE,
                 User::STATUS_INACTIVE,
                 User::STATUS_RETIRED,
+                User::STATUS_SHARED,
             ])],
         ], [
             'status.required' => 'ステータスは必須です。',

@@ -198,19 +198,28 @@
                         @elseif(!($isFolderView ?? false)) {{-- 通常の工程または重要納期の場合 --}}
                             <td class="px-4 py-3 align-top">
                                 @if(!$task->is_folder && !$task->is_milestone)
-                                    @php
-                                        // ログイン中のユーザーがこのタスクの担当者かチェック
-                                        $isAssigned = $task->assignees->contains('id', Auth::id());
-                                    @endphp
-                                    @if($isAssigned)
-                                        <div class="timer-controls"
-                                        data-task-id="{{ $task->id }}"
-                                        data-task-status="{{ $task->status }}"
-                                        data-is-paused="{{ $task->is_paused ? 'true' : 'false' }}">
-                                            {{-- JavaScriptがこの中身を生成します --}}
-                                        </div>
+                                    {{-- 【追加】担当者がいる場合のみ、以下のロジックを実行 --}}
+                                    @if($task->assignees->isNotEmpty())
+                                        @php
+                                            // ログイン中のユーザーがこのタスクの担当者かチェック
+                                            $isAssigned = $task->assignees->contains('id', Auth::id());
+                                            // ログイン中のユーザーが共有アカウントかチェック
+                                            $isSharedAccount = Auth::check() && Auth::user()->status === \App\Models\User::STATUS_SHARED;
+                                        @endphp
+                                        @if($isAssigned || $isSharedAccount)
+                                            <div class="timer-controls"
+                                            data-task-id="{{ $task->id }}"
+                                            data-task-status="{{ $task->status }}"
+                                            data-is-paused="{{ $task->is_paused ? 'true' : 'false' }}"
+                                            data-assignees='{{ json_encode($task->assignees->map->only(['id', 'name'])->values()) }}'>
+                                                {{-- JavaScriptがこの中身を生成します --}}
+                                            </div>
+                                        @else
+                                            {{-- 担当者はいるが、自分ではない場合 --}}
+                                            <span class="text-xs text-gray-400 dark:text-gray-500">-</span>
+                                        @endif
                                     @else
-                                        {{-- 担当者でなければハイフンを表示 --}}
+                                        {{-- 【追加】担当者が一人もいない場合 --}}
                                         <span class="text-xs text-gray-400 dark:text-gray-500">-</span>
                                     @endif
                                 @else

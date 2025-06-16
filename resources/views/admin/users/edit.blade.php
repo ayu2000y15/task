@@ -48,6 +48,7 @@
                                         \App\Models\User::STATUS_ACTIVE => 'アクティブ',
                                         \App\Models\User::STATUS_INACTIVE => '非アクティブ',
                                         \App\Models\User::STATUS_RETIRED => '退職',
+                                        \App\Models\User::STATUS_SHARED => '共有アカウント',
                                     ];
                                 @endphp
                                 @foreach($statuses as $statusValue => $statusLabel)
@@ -57,6 +58,20 @@
                                             class="border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600">
                                         <span class="ms-2 text-sm text-gray-600 dark:text-gray-300">{{ $statusLabel }}</span>
                                     </label>
+                                    @if ($statusValue === \App\Models\User::STATUS_SHARED)
+                                        <div
+                                            class="pl-8 pr-2 mt-2 text-xs text-gray-500 dark:text-gray-400 space-y-1 bg-gray-50 dark:bg-gray-700/50 p-3 rounded-md">
+                                            <p class="font-semibold">
+                                                <i class="fas fa-info-circle fa-fw mr-1"></i>
+                                                共有アカウントで出来ること：
+                                            </p>
+                                            <ul class="list-disc list-inside pl-2">
+                                                <li>全ての工程のタイマー操作が可能です。</li>
+                                                <li>複数担当者がいる工程では、タイマー開始時に記録対象の担当者を選択できます。</li>
+                                                <li>作業実績ページで、全ユーザーの実績を閲覧できます。</li>
+                                            </ul>
+                                        </div>
+                                    @endif
                                 @endforeach
                             </div>
                             @error('status')

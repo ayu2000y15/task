@@ -23,6 +23,7 @@ class User extends Authenticatable
     const STATUS_ACTIVE = 'active';
     const STATUS_INACTIVE = 'inactive';
     const STATUS_RETIRED = 'retired';
+    const STATUS_SHARED = 'shared';
 
 
     protected $fillable = [

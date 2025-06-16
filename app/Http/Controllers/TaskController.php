@@ -179,8 +179,13 @@ class TaskController extends Controller
                 return ['id' => $user->id, 'name' => $user->name];
             })->values()->all();
 
+        $taskIds = $tasks->pluck('id');
+        $activeWorkLogs = \App\Models\WorkLog::whereIn('task_id', $taskIds)
+            ->where('status', 'active')
+            ->get();
+
         if ($request->ajax()) {
-            $tasksToList = $tasks;
+            $tasksToList = $tasks->where('is_milestone', false)->where('is_folder', false);
             $tableId = 'task-table-index';
 
             $html = view('tasks.partials.task-table', compact(
@@ -203,7 +208,8 @@ class TaskController extends Controller
             'filters',
             'assigneeOptions',
             'sortBy',
-            'sortOrder'
+            'sortOrder',
+            'activeWorkLogs'
         ));
     }
 
