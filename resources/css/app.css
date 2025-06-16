@@ -284,10 +284,10 @@
     @apply p-1.5 text-xs;
 }
 
-/* 祝日イベントのスタイル */
+/* 祝日イベントのスタイル
 .fc-event.holiday-event .fc-event-main {
     @apply bg-pink-100 border-none text-pink-700 dark:bg-pink-900/50 dark:text-pink-200 font-semibold text-center;
-}
+} */
 
 /* マイルストーンのスタイル */
 .fc-event.milestone-event {

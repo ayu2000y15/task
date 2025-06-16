@@ -931,6 +931,69 @@ namespace App\Models{
  * 
  *
  * @property int $id
+ * @property int $requester_id 依頼者ID
+ * @property string $title 依頼の件名
+ * @property string|null $notes 補足事項
+ * @property \Illuminate\Support\Carbon|null $completed_at 全ての項目が完了した日時
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\User> $assignees
+ * @property-read int|null $assignees_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\RequestItem> $items
+ * @property-read int|null $items_count
+ * @property-read \App\Models\User $requester
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Request newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Request newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Request query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Request whereCompletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Request whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Request whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Request whereNotes($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Request whereRequesterId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Request whereTitle($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Request whereUpdatedAt($value)
+ */
+	class Request extends \Eloquent {}
+}
+
+namespace App\Models{
+/**
+ * 
+ *
+ * @property int $id
+ * @property int $request_id 依頼ID
+ * @property string $content 依頼内容
+ * @property bool $is_completed 完了フラグ
+ * @property int|null $completed_by 完了者ID
+ * @property \Illuminate\Support\Carbon|null $completed_at 完了日時
+ * @property int $order 表示順
+ * @property \Illuminate\Support\Carbon|null $my_day_date 「今日のやること」に追加した日付
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\User|null $completedBy
+ * @property-read \App\Models\Request $request
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|RequestItem newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|RequestItem newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|RequestItem query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|RequestItem whereCompletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|RequestItem whereCompletedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|RequestItem whereContent($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|RequestItem whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|RequestItem whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|RequestItem whereIsCompleted($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|RequestItem whereMyDayDate($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|RequestItem whereOrder($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|RequestItem whereRequestId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|RequestItem whereUpdatedAt($value)
+ */
+	class RequestItem extends \Eloquent {}
+}
+
+namespace App\Models{
+/**
+ * 
+ *
+ * @property int $id
  * @property string $name
  * @property string $display_name
  * @property \Illuminate\Support\Carbon|null $created_at
@@ -1270,8 +1333,14 @@ namespace App\Models{
  * @property-read int|null $active_work_logs_count
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \Spatie\Activitylog\Models\Activity> $activities
  * @property-read int|null $activities_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Request> $assignedRequests
+ * @property-read int|null $assigned_requests_count
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\BoardPost> $boardPosts
  * @property-read int|null $board_posts_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Request> $createdRequests
+ * @property-read int|null $created_requests_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\UserHoliday> $holidays
+ * @property-read int|null $holidays_count
  * @property-read \Illuminate\Notifications\DatabaseNotificationCollection<int, \Illuminate\Notifications\DatabaseNotification> $notifications
  * @property-read int|null $notifications_count
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Role> $roles
@@ -1297,6 +1366,32 @@ namespace App\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereUpdatedAt($value)
  */
 	class User extends \Eloquent {}
+}
+
+namespace App\Models{
+/**
+ * 
+ *
+ * @property int $id
+ * @property int|null $user_id
+ * @property string $name
+ * @property \Illuminate\Support\Carbon $date
+ * @property string $period_type
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\User|null $user
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserHoliday newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserHoliday newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserHoliday query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserHoliday whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserHoliday whereDate($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserHoliday whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserHoliday whereName($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserHoliday wherePeriodType($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserHoliday whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserHoliday whereUserId($value)
+ */
+	class UserHoliday extends \Eloquent {}
 }
 
 namespace App\Models{

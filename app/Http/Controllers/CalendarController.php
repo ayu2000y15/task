@@ -6,9 +6,10 @@ use Illuminate\Http\Request;
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\Holiday;
-use App\Models\User; // Userモデルをインポート
+use App\Models\User;
 use Carbon\Carbon;
 use App\Services\TaskService;
+use App\Models\UserHoliday; // ★★★ この行を追加 ★★★
 
 class CalendarController extends Controller
 {
@@ -19,6 +20,7 @@ class CalendarController extends Controller
     {
         $this->authorize('viewAny', Project::class);
 
+        // ... 既存のフィルター処理（変更なし） ...
         $filters = [
             'project_id' => $request->input('project_id', ''),
             'character_id' => $request->input('character_id', ''),
@@ -28,6 +30,9 @@ class CalendarController extends Controller
             'search' => $request->input('search', ''),
         ];
 
+
+        // ... 既存のタスクイベント生成処理（変更なし） ...
+        // (projectsQuery, eventsの生成など)
         $taskQueryLogic = function ($query) use ($filters, $taskService) {
             $taskService->applyAssigneeFilter($query, $filters['assignee']);
             $taskService->applyCharacterFilter($query, $filters['character_id']);
@@ -52,46 +57,24 @@ class CalendarController extends Controller
         }
 
         $projects = $projectsQuery->get();
-
         $events = [];
 
         foreach ($projects as $project) {
             foreach ($project->tasks as $task) {
-                if ($task->is_folder) {
-                    continue;
-                }
-
-                $isAllDay = true;
-                $start = null;
-                $end = null;
-
-                if ($task->start_date) {
-                    if ($task->start_date->format('H:i:s') === '00:00:00') {
-                        $isAllDay = true;
-                        $start = $task->start_date->format('Y-m-d');
-                        $end = $task->end_date ? $task->end_date->addDay()->format('Y-m-d') : null;
-                    } else {
-                        $isAllDay = false;
-                        $start = $task->start_date->toIso8601String();
-                        $end = $task->end_date ? $task->end_date->toIso8601String() : null;
-                    }
-                }
-
-                $taskColor = $project->color;
-
+                if ($task->is_folder) continue;
+                $isAllDay = $task->start_date ? ($task->start_date->format('H:i:s') === '00:00:00') : true;
+                $start = $task->start_date ? ($isAllDay ? $task->start_date->format('Y-m-d') : $task->start_date->toIso8601String()) : null;
+                $end = $task->end_date ? ($isAllDay ? $task->end_date->addDay()->format('Y-m-d') : $task->end_date->toIso8601String()) : null;
                 $events[] = [
                     'id' => 'task_' . $task->id,
                     'title' => $task->name,
                     'start' => $start,
                     'end' => $end,
-                    'color' => $taskColor,
+                    'color' => $project->color,
                     'textColor' => '#ffffff',
                     'allDay' => $isAllDay,
                     'url' => route('projects.tasks.edit', [$project, $task]),
-                    'classNames' => [
-                        'task-event',
-                        $task->is_milestone ? 'milestone-event' : '',
-                    ],
+                    'classNames' => ['task-event', $task->is_milestone ? 'milestone-event' : ''],
                     'extendedProps' => [
                         'type' => $task->is_milestone ? 'milestone' : 'task',
                         'description' => $task->description,
@@ -101,48 +84,86 @@ class CalendarController extends Controller
                         'project_id' => $project->id,
                         'project_title' => $project->title,
                         'project_color' => $project->color,
-                        'character_name' => $task->character->name ?? null,
+                        'character_name' => optional($task->character)->name,
                     ]
                 ];
             }
         }
 
-        $startDate = Carbon::now()->subMonths(1)->startOfMonth();
+
+        // ... 既存の祝日イベント生成処理 ...
+        $startDate = Carbon::now()->subMonths(3)->startOfMonth();
         $endDate = Carbon::now()->addMonths(6)->endOfMonth();
 
         $holidays = Holiday::whereBetween('date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])->get();
 
         foreach ($holidays as $holiday) {
+            // ▼▼▼【変更】祝日を背景でなく、通常のイベントとして表示するように変更します ▼▼▼
             $events[] = [
                 'id' => 'holiday_' . $holiday->id,
                 'title' => $holiday->name,
                 'start' => $holiday->date->format('Y-m-d'),
-                'end' => $holiday->date->format('Y-m-d'),
-                'display' => 'background',
-                'color' => '#ffcdd2',
                 'allDay' => true,
+                'backgroundColor' => '#ef4444', // 赤色
+                'borderColor' => '#ef4444',
+                'textColor' => '#ffffff',
                 'classNames' => ['holiday-event'],
-                'extendedProps' => [
-                    'type' => 'holiday'
-                ]
+                'extendedProps' => ['type' => 'holiday']
             ];
         }
 
-        // ▼▼▼ 変更点: pluckを使用して 'id' => 'name' の形式に変換 ▼▼▼
-        $allAssignees = User::whereHas('tasks')
-            ->orderBy('name')
-            ->get()
-            ->pluck('name', 'id');
+        // ▼▼▼【ここから休日データを追加】▼▼▼
+        $userHolidays = UserHoliday::with('user')
+            ->whereBetween('date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
+            ->get();
 
+        foreach ($userHolidays as $holiday) {
+            if ($holiday->user) {
+                // 個人の休日
+                $events[] = [
+                    'id' => 'userholiday_' . $holiday->id,
+                    'title' => '休み: ' . $holiday->user->name,
+                    'start' => $holiday->date->format('Y-m-d'),
+                    'allDay' => true,
+                    'backgroundColor' => '#16a34a', // 緑色
+                    'borderColor' => '#16a34a',
+                    'textColor' => '#ffffff',
+                    'classNames' => ['holiday-event'],
+                    'extendedProps' => [
+                        'type' => 'holiday',
+                        'description' => $holiday->name
+                    ]
+                ];
+            } else {
+                // 全社共通の休日
+                $events[] = [
+                    'id' => 'userholiday_' . $holiday->id,
+                    'title' => $holiday->name,
+                    'start' => $holiday->date->format('Y-m-d'),
+                    'allDay' => true,
+                    'backgroundColor' => '#f97316', // オレンジ色
+                    'borderColor' => '#f97316',
+                    'textColor' => '#ffffff',
+                    'classNames' => ['holiday-event'],
+                    'extendedProps' => [
+                        'type' => 'holiday',
+                        'description' => '全社休日'
+                    ]
+                ];
+            }
+        }
+        // ▲▲▲【休日データの追加ここまで】▲▲▲
+
+
+        // ... 既存のフィルター用データ取得処理（変更なし） ...
+        $allAssignees = User::whereHas('tasks')->orderBy('name')->get()->pluck('name', 'id');
         $statusOptions = [
             'not_started' => '未着手',
             'in_progress' => '進行中',
             'on_hold' => '保留中',
             'cancelled' => 'キャンセル',
         ];
-
         $allProjects = Project::orderBy('title')->get();
-
         $charactersForFilter = collect();
         if (!empty($filters['project_id'])) {
             $projectWithChars = Project::with('characters')->find($filters['project_id']);

@@ -355,6 +355,18 @@
                         <i class="fas fa-tasks"></i><span class="hidden md:inline ml-2">工程</span>
                     </a>
                     @endcan
+                    {{-- @can('create', App\Models\Request::class) Policyは後で作成 --}}
+                    <a class="inline-flex items-center p-2 text-sm font-medium rounded-md {{ request()->routeIs('requests.*') ? 'text-blue-600 bg-blue-100 dark:text-blue-300 dark:bg-gray-700' : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700' }}"
+                        href="{{ route('requests.index') }}" title="作業依頼一覧">
+                        <span class="relative">
+                            <i class="fas fa-clipboard-check"></i>
+                            @if(isset($pendingRequestsCountGlobal) && $pendingRequestsCountGlobal > 0)
+                                <span class="absolute -top-1.5 -right-2 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-xs text-white">{{ $pendingRequestsCountGlobal }}</span>
+                            @endif
+                        </span>
+                        <span class="hidden md:inline ml-2">依頼</span>
+                    </a>
+                    {{-- @endcan --}}
                     @can('viewAny', App\Models\Project::class)
                     <a class="inline-flex items-center p-2 text-sm font-medium rounded-md {{ request()->routeIs('gantt.*') ? 'text-blue-600 bg-blue-100 dark:text-blue-300 dark:bg-gray-700' : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700' }}"
                         href="{{ route('gantt.index') }}" title="ガントチャート">
@@ -377,11 +389,13 @@
                     @can('viewAny', App\Models\BoardPost::class)
                     <a class="relative inline-flex items-center p-2 text-sm font-medium rounded-md {{ request()->routeIs('community.*') ? 'text-blue-600 bg-blue-100 dark:text-blue-300 dark:bg-gray-700' : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700' }}"
                         href="{{ route('community.posts.index') }}" title="社内掲示板">
-                        <i class="fas fa-comments"></i>
+                        <span class="relative">
+                            <i class="fas fa-comments"></i>
+                            @if(isset($unreadMentionsCountGlobal) && $unreadMentionsCountGlobal > 0)
+                                <span class="absolute -top-1.5 -right-2 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-xs text-white">{{ $unreadMentionsCountGlobal }}</span>
+                            @endif
+                        </span>
                         <span class="hidden md:inline ml-2">掲示板</span>
-                        @if(isset($unreadMentionsCountGlobal) && $unreadMentionsCountGlobal > 0)
-                            <span class="absolute top-1 right-0 -mt-1 -mr-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-xs text-white">{{ $unreadMentionsCountGlobal }}</span>
-                        @endif
                     </a>
                     @endcan
                 </nav>
@@ -491,6 +505,11 @@
                                 <div x-show="openGroup === 'groupWork'" x-transition class="bg-gray-50 dark:bg-gray-800">
                                     @can('viewAny', App\Models\WorkLog::class) {{-- Policyを作成後、権限を設定 --}}
                                     <a href="{{ route('admin.work-records.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">作業実績一覧</a>
+                                    @endcan
+                                </div>
+                                <div x-show="openGroup === 'groupWork'" x-transition class="bg-gray-50 dark:bg-gray-800">
+                                    @can('viewAny', App\Models\WorkLog::class) {{-- Policyを作成後、権限を設定 --}}
+                                    <a href="{{ route('admin.holidays.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">休日一覧</a>
                                     @endcan
                                 </div>
                             </div>
@@ -605,14 +624,19 @@
                                 </a>
                             @endcan
 
+                            <a href="{{ route('requests.create') }}"
+                                class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 {{ $isMyTasksActive ? 'bg-gray-100 dark:bg-gray-600 font-semibold' : '' }}">
+                                作業依頼をする
+                            </a>
+
                             <a href="{{ route('work-records.index') }}"
                                 class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 {{ request()->routeIs('work-records.index') ? 'bg-gray-100 dark:bg-gray-600 font-semibold' : '' }}">
                                 作業実績
                             </a>
-                            {{-- <a href="{{ route('leaves.index') }}"
-                                class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 {{ request()->routeIs('leaves.index') ? 'bg-gray-100 dark:bg-gray-600 font-semibold' : '' }}">
-                                休暇カレンダー
-                            </a> --}}
+                            <a href="{{ route('my-holidays.index') }}"
+                                class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 {{ request()->routeIs('my-holidays.index') ? 'bg-gray-100 dark:bg-gray-600 font-semibold' : '' }}">
+                                休日登録
+                            </a>
 
                             @can('tools.viewAnyPage')
                             <a href="{{ route('tools.index') }}"

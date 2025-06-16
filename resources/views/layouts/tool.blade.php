@@ -23,7 +23,7 @@
     {{-- ツール画面用のヘッダー (これは全幅、または広めのコンテナ) --}}
     <header class="bg-white dark:bg-gray-800 shadow-sm sticky top-0 z-40">
         {{-- ヘッダーコンテンツは中央寄せで最大幅を指定 (例: max-w-7xl) --}}
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <div class="mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
             <div>
                 <a href="{{ route('tools.index') }}"
                     class="text-lg font-semibold text-gray-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400">

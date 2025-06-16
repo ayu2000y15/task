@@ -7,7 +7,21 @@
         /* --- イベント自体のスタイル調整 --- */
         .fc-event-main {
             overflow: visible !important;
+            height: 100%;
+            /* ★ 追加: イベントの高さを親要素に合わせる */
         }
+
+        /* ▼▼▼ 追加: 休日イベント用のシンプルなタイトルスタイル ▼▼▼ */
+        .fc-holiday-title {
+            padding: 2px 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        /* ▲▲▲ ここまで追加 ▲▲▲ */
 
         .custom-fc-content {
             padding: 2px 4px;
@@ -39,35 +53,28 @@
         .fc-event-detail-item .fa-fw {
             margin-right: 4px;
             color: rgba(255, 255, 255, 0.7);
-            /* イベント背景色が様々なので、白系のままが最も視認性が高い */
         }
 
-        /* ▼▼▼ 変更点: ツールチップのスタイルをダークモード対応に刷新 ▼▼▼ */
-        /* ツールチップのコンテンツラッパー */
+        /* ツールチップのスタイル (変更なし) */
         .calendar-tooltip-content {
             padding: 8px 12px;
         }
 
-        /* ツールチップのタイトル */
         .tooltip-title {
             font-size: 1em;
             font-weight: 600;
             color: #1f2937;
-            /* Light: text-gray-800 */
             margin: 0 0 6px 0;
             padding-bottom: 4px;
             border-bottom: 1px solid #e5e7eb;
-            /* Light: border-gray-200 */
         }
 
-        /* 詳細リスト(dl) */
         .tooltip-details {
             margin: 0;
             padding: 0;
             font-size: 0.9em;
         }
 
-        /* 各詳細行 */
         .tooltip-detail-row {
             display: flex;
             align-items: flex-start;
@@ -75,42 +82,34 @@
             padding: 2px 0;
         }
 
-        /* ラベル(dt) */
         .tooltip-detail-row dt {
             font-weight: 500;
             color: #6b7280;
-            /* Light: text-gray-500 */
             flex-shrink: 0;
             width: 65px;
         }
 
-        /* 値(dd) */
         .tooltip-detail-row dd {
             margin: 0;
             color: #374151;
-            /* Light: text-gray-700 */
             word-break: break-all;
         }
 
-        /* --- ダークモード時のツールチップスタイル上書き --- */
+        /* ダークモード時のツールチップスタイル (変更なし) */
         .dark .tooltip-title {
             color: #f9fafb;
-            /* Dark: text-gray-50 */
             border-bottom-color: #4b5563;
-            /* Dark: border-gray-600 */
         }
 
         .dark .tooltip-detail-row dt {
             color: #9ca3af;
-            /* Dark: text-gray-400 */
         }
 
         .dark .tooltip-detail-row dd {
             color: #d1d5db;
-            /* Dark: text-gray-300 */
         }
 
-        /* スマホ表示用のスタイル */
+        /* スマホ表示用のスタイル (変更なし) */
         @media (max-width: 767px) {
             .fc-list-event-title {
                 font-weight: 600;
@@ -130,6 +129,7 @@
 
 
 @section('content')
+    {{-- フィルター部分などのHTMLは変更なし --}}
     @php
         $shouldFiltersBeOpen = array_filter($filters) && !request()->has('close_filters');
     @endphp
@@ -143,7 +143,6 @@
                     <i class="fas fa-chevron-down fa-xs ml-2" x-show="!filtersOpen"></i>
                     <i class="fas fa-chevron-up fa-xs ml-2" x-show="filtersOpen" style="display:none;"></i>
                 </x-secondary-button>
-
                 @auth
                     @php
                         $isFilteringBySelf = isset($filters['assignee_id']) && $filters['assignee_id'] == Auth::id();
@@ -158,50 +157,46 @@
                 @endauth
             </div>
         </div>
-
         <div x-show="filtersOpen" x-collapse class="mb-6" style="display: none;">
             <x-filter-panel :action="route('calendar.index')" :filters="$filters" :all-projects="$allProjects"
                 :all-characters="$charactersForFilter" :all-assignees="$allAssignees" :status-options="$statusOptions" />
         </div>
-
         <div class="bg-white dark:bg-gray-800 shadow-lg rounded-lg p-2 sm:p-6">
             <div id="calendar" data-events='{!! $events !!}'></div>
         </div>
     </div>
-
-    {{-- ▼▼▼ 変更点: ツールチップ本体のクラスをダークモード対応に ▼▼▼ --}}
     <div id="calendar-event-tooltip"
         class="fixed z-[100] hidden rounded-md border bg-white px-0 py-0 text-xs font-medium text-gray-700 shadow-lg dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700 max-w-xs"
         role="tooltip">
     </div>
-
     <x-modal name="eventDetailModal" maxWidth="xl">
+        {{-- モーダルの内容は変更なし --}}
         <div class="p-6" x-data="{
-                type: '', title: '', start: '', end: '', color: '#ffffff', allDay: true,
-                url: '', description: '', assignee: '', status: '', project_title: '',
-                statusLabels: {{ json_encode($statusOptions) }}
-            }" @open-modal.window="if ($event.detail.name === 'eventDetailModal') {
-                const event = $event.detail.eventData;
-                type = event.extendedProps.type;
-                title = event.title;
-                start = event.startStr;
-                allDay = event.allDay;
-                if (event.end) {
-                    if (allDay) {
-                        end = new Date(new Date(event.endStr).setDate(new Date(event.endStr).getDate() - 1)).toLocaleDateString('ja-JP');
+                    type: '', title: '', start: '', end: '', color: '#ffffff', allDay: true,
+                    url: '', description: '', assignee: '', status: '', project_title: '',
+                    statusLabels: {{ json_encode($statusOptions) }}
+                }" @open-modal.window="if ($event.detail.name === 'eventDetailModal') {
+                    const event = $event.detail.eventData;
+                    type = event.extendedProps.type;
+                    title = event.title;
+                    start = event.startStr;
+                    allDay = event.allDay;
+                    if (event.end) {
+                        if (allDay) {
+                            end = new Date(new Date(event.endStr).setDate(new Date(event.endStr).getDate() - 1)).toLocaleDateString('ja-JP');
+                        } else {
+                            end = new Date(event.endStr).toLocaleString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                        }
                     } else {
-                        end = new Date(event.endStr).toLocaleString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                         end = new Date(start).toLocaleDateString('ja-JP');
                     }
-                } else {
-                     end = new Date(start).toLocaleDateString('ja-JP');
-                }
-                color = event.backgroundColor;
-                url = event.url;
-                description = event.extendedProps.description;
-                assignee = event.extendedProps.assignee_names;
-                status = event.extendedProps.status;
-                project_title = event.extendedProps.project_title;
-            }">
+                    color = event.backgroundColor;
+                    url = event.url;
+                    description = event.extendedProps.description;
+                    assignee = event.extendedProps.assignee_names;
+                    status = event.extendedProps.status;
+                    project_title = event.extendedProps.project_title;
+                }">
             <div class="flex justify-between items-start pb-3 border-b dark:border-gray-600">
                 <div class="flex items-center">
                     <div class="w-4 h-4 rounded-full mr-3" :style="`background-color: ${color}`"></div>
@@ -212,7 +207,6 @@
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-
             <div class="mt-4 space-y-3 text-sm">
                 <div x-show="project_title">
                     <strong class="font-semibold text-gray-600 dark:text-gray-400 w-20 inline-block">案件名:</strong>
@@ -237,7 +231,6 @@
                     <p class="text-gray-800 dark:text-gray-200 whitespace-pre-wrap" x-text="description"></p>
                 </div>
             </div>
-
             <div class="mt-6 flex justify-end">
                 <a :href="url" x-show="url"
                     class="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-500 active:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition ease-in-out duration-150">
@@ -266,12 +259,8 @@
                     }
                     const isMobile = window.innerWidth < 768;
                     calendar = new FullCalendar.Calendar(calendarEl, {
-                        headerToolbar: isMobile ? {
-                            left: 'prev,next', center: 'title', right: 'timeGridDay,listWeek'
-                        } : {
-                            left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
-                        },
-                        initialView: isMobile ? 'listWeek' : 'timeGridDay',
+                        headerToolbar: isMobile ? { left: 'prev,next', center: 'title', right: 'timeGridDay,listWeek' } : { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek' },
+                        initialView: isMobile ? 'listWeek' : 'dayGridMonth', // ★ デフォルトを月表示に変更
                         locale: 'ja',
                         buttonText: { today: '今日', month: '月', week: '週', day: '日', list: 'リスト' },
                         navLinks: true, dayMaxEvents: true, events: eventsData,
@@ -288,8 +277,12 @@
                                 info.el.querySelector('.fc-list-event-title').insertAdjacentElement('beforebegin', timeText);
                             }
                         },
+
+                        // ▼▼▼【ここから全面的に修正】▼▼▼
                         eventContent: function (arg) {
                             let props = arg.event.extendedProps;
+
+                            // タスクとマイルストーンの場合、詳細なカスタムHTMLを生成
                             if (props.type === 'task' || props.type === 'milestone') {
                                 let container = document.createElement('div');
                                 container.classList.add('custom-fc-content');
@@ -297,6 +290,8 @@
                                 titleEl.classList.add('fc-event-title');
                                 titleEl.innerText = arg.event.title;
                                 container.appendChild(titleEl);
+
+                                // 月表示以外では詳細情報を追加
                                 if (arg.view.type !== 'dayGridMonth') {
                                     let detailsEl = document.createElement('div');
                                     detailsEl.classList.add('fc-event-details');
@@ -331,8 +326,17 @@
                                 }
                                 return { domNodes: [container] };
                             }
-                            return;
+
+                            // それ以外（休日など）の場合は、シンプルなタイトル表示用のHTMLを生成
+                            else {
+                                let titleEl = document.createElement('div');
+                                titleEl.classList.add('fc-holiday-title');
+                                titleEl.innerHTML = arg.event.title;
+                                return { domNodes: [titleEl] };
+                            }
                         },
+                        // ▲▲▲【修正ここまで】▲▲▲
+
                         eventMouseEnter: function (info) {
                             if (info.event.extendedProps.type !== 'task' && info.event.extendedProps.type !== 'milestone') {
                                 return;
@@ -342,17 +346,17 @@
                             const props = info.event.extendedProps;
                             const statusText = statusOptions[props.status] || props.status || '不明';
                             const contentHtml = `
-                            <div class="calendar-tooltip-content">
-                                <h3 class="tooltip-title">${info.event.title}</h3>
-                                <dl class="tooltip-details">
-                                    <div class="tooltip-detail-row"> <dt>案件:</dt> <dd>${props.project_title || ''}</dd> </div>
-                                    <div class="tooltip-detail-row"> <dt>キャラクター:</dt> <dd>${props.character_name || '未設定'}</dd> </div>
-                                    <div class="tooltip-detail-row"> <dt>担当者:</dt> <dd>${props.assignee_names || '未設定'}</dd> </div>
-                                    <div class="tooltip-detail-row"> <dt>ステータス:</dt> <dd>${statusText}</dd> </div>
-                                    ${props.description ? `<div class="tooltip-detail-row"> <dt>説明:</dt> <dd>${props.description}</dd> </div>` : ''}
-                                </dl>
-                            </div>
-                        `;
+                                <div class="calendar-tooltip-content">
+                                    <h3 class="tooltip-title">${info.event.title}</h3>
+                                    <dl class="tooltip-details">
+                                        <div class="tooltip-detail-row"> <dt>案件:</dt> <dd>${props.project_title || ''}</dd> </div>
+                                        <div class="tooltip-detail-row"> <dt>キャラクター:</dt> <dd>${props.character_name || '未設定'}</dd> </div>
+                                        <div class="tooltip-detail-row"> <dt>担当者:</dt> <dd>${props.assignee_names || '未設定'}</dd> </div>
+                                        <div class="tooltip-detail-row"> <dt>ステータス:</dt> <dd>${statusText}</dd> </div>
+                                        ${props.description ? `<div class="tooltip-detail-row"> <dt>説明:</dt> <dd>${props.description}</dd> </div>` : ''}
+                                    </dl>
+                                </div>
+                            `;
                             tooltip.innerHTML = contentHtml;
                             tooltip.style.display = 'block';
                             const eventRect = info.el.getBoundingClientRect();

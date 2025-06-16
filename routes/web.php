@@ -33,9 +33,10 @@ use App\Http\Controllers\Admin\MeasurementTemplateController;
 
 use App\Http\Controllers\WorkLogController;
 use App\Http\Controllers\WorkRecordController;
-use App\Http\Controllers\LeaveController;
 use App\Http\Controllers\Admin\WorkRecordController as AdminWorkRecordController;
-
+use App\Http\Controllers\Admin\UserHolidayController;
+use App\Http\Controllers\MyHolidayController;
+use App\Http\Controllers\RequestController;
 
 use App\Http\Controllers\ToolController;
 use App\Http\Controllers\SalesToolController;
@@ -123,6 +124,23 @@ Route::middleware('auth')->group(function () {
     Route::post('/feedback', [UserFeedbackController::class, 'store'])->name('user_feedbacks.store');
     // --- ここまでユーザー向けフィードバック機能 ---
 
+    // ユーザー休日
+    Route::get('my-holidays', [MyHolidayController::class, 'index'])->name('my-holidays.index');
+    Route::post('my-holidays', [MyHolidayController::class, 'store'])->name('my-holidays.store');
+    Route::get('my-holidays/{userHoliday}/edit', [MyHolidayController::class, 'edit'])->name('my-holidays.edit'); // ▼ 追加
+    Route::patch('my-holidays/{userHoliday}', [MyHolidayController::class, 'update'])->name('my-holidays.update'); // ▼ 追加
+    Route::delete('my-holidays/{userHoliday}', [MyHolidayController::class, 'destroy'])->name('my-holidays.destroy');
+
+    //作業依頼
+    Route::get('requests', [RequestController::class, 'index'])->name('requests.index');
+    Route::get('requests/create', [RequestController::class, 'create'])->name('requests.create');
+    Route::post('requests', [RequestController::class, 'store'])->name('requests.store');
+    Route::patch('requests/items/{item}', [RequestController::class, 'updateItem'])->name('requests.items.update');
+    Route::post('requests/items/{item}/set-my-day', [RequestController::class, 'setMyDay'])->name('requests.items.set_my_day');
+    Route::get('requests/{request}/edit', [RequestController::class, 'edit'])->name('requests.edit');
+    Route::patch('requests/{request}', [RequestController::class, 'update'])->name('requests.update');
+    Route::delete('requests/{request}', [RequestController::class, 'destroy'])->name('requests.destroy');
+
     // -------------------------------------------------------------------------
     // 社内掲示板
     // -------------------------------------------------------------------------
@@ -151,9 +169,6 @@ Route::middleware('auth')->group(function () {
 
     // 作業実績ページ
     Route::get('/my-work-records', [WorkRecordController::class, 'index'])->name('work-records.index');
-
-    // 休暇管理
-    Route::resource('leaves', LeaveController::class);
 
     Route::prefix('admin')->name('admin.')->middleware(['can:viewAny,App\Models\ProcessTemplate'])->group(function () { // 管理者用などのミドルウェアを想定
         Route::resource('form-definitions', FormFieldDefinitionController::class)
@@ -234,6 +249,9 @@ Route::middleware('auth')->group(function () {
         Route::get('/work-records', [AdminWorkRecordController::class, 'index'])->name('work-records.index');
         Route::post('/work-records/update-rate', [AdminWorkRecordController::class, 'updateUserRate'])->name('work-records.update-rate');
         Route::get('/work-records/{user}', [AdminWorkRecordController::class, 'show'])->name('work-records.show');
+
+        Route::get('holidays', [UserHolidayController::class, 'index'])->name('holidays.index');
+        Route::delete('holidays/{userHoliday}', [UserHolidayController::class, 'destroy'])->name('holidays.destroy');
     });
 
     // -------------------------------------------------------------------------

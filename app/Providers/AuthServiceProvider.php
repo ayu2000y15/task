@@ -60,6 +60,8 @@ class AuthServiceProvider extends ServiceProvider
         StockOrder::class => StockOrderPolicy::class,       // ★ 追加
         InventoryLog::class => InventoryLogPolicy::class, // ★ 追加
         ExternalProjectSubmission::class => ExternalProjectSubmissionPolicy::class, // ★ 追加
+        \App\Models\RequestItem::class => \App\Policies\RequestItemPolicy::class,
+        \App\Models\Request::class => \App\Policies\RequestPolicy::class,
 
         SalesTool::class => SalesToolPolicy::class,
 

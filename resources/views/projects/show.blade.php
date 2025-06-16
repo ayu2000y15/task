@@ -184,11 +184,10 @@
                     @endif
                 </div>
 
-                @if ($currentTotalCost > $budget)
                     <p class="text-xs text-red-600 dark:text-red-400 mt-1 text-right">
-                        予算を {{ number_format($currentTotalCost - $budget) }}円 超過しています。
+                        　
+                        {{-- 予算を {{ number_format($currentTotalCost - $budget) }}円 超過しています。 --}}
                     </p>
-                @endif
 
                 {{-- 警告メッセージ --}}
                 @if($currentTotalCost > $budget)
