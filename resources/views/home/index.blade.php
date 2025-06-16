@@ -60,13 +60,11 @@
                                             }
                                         }
                                     @endphp
-                                    <h3 class="font-semibold text-gray-800 dark:text-gray-200 mb-2 flex items-center gap-x-2">
-                                        <i class="fas fa-user mr-1 text-gray-400"></i>
+                                    <h3 class="font-semibold mb-2 flex items-center gap-x-2 {{ $assigneeData['assignee']->id === Auth::id() ? 'text-blue-600 dark:text-blue-400' : 'text-gray-800 dark:text-gray-200' }}">
+                                        <i class="fas fa-user mr-1 {{ $assigneeData['assignee']->id === Auth::id() ? 'text-blue-500' : 'text-gray-400' }}"></i>
                                         <span>{{ $assigneeData['assignee']->name }}</span>
-                                        {{-- 判定結果に基づきバッジを表示 --}}
-                                        @if($holidayBadgeText)
-                                            <span
-                                                class="px-2 py-0.5 text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300 rounded-full">{{ $holidayBadgeText }}</span>
+                                        @if($todaysHolidays->contains('user_id', $assigneeData['assignee']->id))
+                                            <span class="px-2 py-0.5 text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300 rounded-full">休暇中</span>
                                         @endif
                                     </h3>
                                     <ul class="space-y-2 ml-6">
