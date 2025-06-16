@@ -42,7 +42,8 @@
         </div>
         @if($request->notes)
             <p class="mt-2 pt-2 text-sm text-gray-600 dark:text-gray-300 border-t border-gray-200 dark:border-gray-600">
-                {!! $request->notes !!}
+                {!! nl2br(e($request->notes)) !!}
+
             </p>
         @endif
     </div>
