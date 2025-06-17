@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Storage;
 use App\Models\InventoryItem;
 use Illuminate\Database\Eloquent\Collection;
 use App\Models\WorkLog;
+use App\Models\Cost;
 
 class ProjectController extends Controller
 {
@@ -575,41 +576,60 @@ class ProjectController extends Controller
             return response()->json(['html' => $html]);
         }
 
-        $actual_material_cost = $project->characters->sum(function ($char) {
-            return $char->costs->sum('amount');
-        });
+        // 1. 実績材料費の計算と内訳の取得
+        $material_cost_breakdown = Cost::with('character')
+            ->whereHas('character', fn($q) => $q->where('project_id', $project->id))
+            ->orderBy('amount', 'desc')
+            ->get();
+        $actual_material_cost = $material_cost_breakdown->sum('amount');
 
-        // 2. 実績人件費の計算 (作業ログの時間 × 各担当者の時給)
+        // 2. 実績人件費の計算と内訳の取得
         $actual_labor_cost = 0;
-        $project_work_logs = WorkLog::with('user.hourlyRates')
-            ->whereHas('task', fn($q) => $q->where('project_id', $project->id))
-            ->where('status', 'stopped')
+        $labor_cost_breakdown = []; // 内訳を格納する配列
+
+        // 「完了」ステータスの工程と、それに関連する作業ログを取得
+        $completed_tasks = Task::where('project_id', $project->id)
+            ->where('status', 'completed')
+            ->with('workLogs.user.hourlyRates') // ネストされたリレーションをEager Load
             ->get();
 
-        foreach ($project_work_logs as $log) {
-            if ($log->user && $log->effective_duration > 0) {
-                // ログの開始時点での時給を取得
-                $rate = $log->user->getHourlyRateForDate($log->start_time);
-                if ($rate > 0) {
-                    $actual_labor_cost += ($log->effective_duration / 3600) * $rate;
+        foreach ($completed_tasks as $task) {
+            $actual_work_seconds_per_task = 0;
+            $cost_per_task = 0;
+
+            foreach ($task->workLogs as $log) {
+                if ($log->user && $log->effective_duration > 0) {
+                    $rate = $log->user->getHourlyRateForDate($log->start_time);
+                    if ($rate > 0) {
+                        $cost_per_this_log = ($log->effective_duration / 3600) * $rate;
+                        $cost_per_task += $cost_per_this_log;
+                    }
                 }
+                $actual_work_seconds_per_task += $log->effective_duration;
             }
+
+            // 内訳配列に情報を格納
+            if ($actual_work_seconds_per_task > 0) {
+                $labor_cost_breakdown[] = [
+                    'task_name' => $task->name,
+                    'estimated_duration_seconds' => ($task->duration ?? 0) * 60, // 分を秒に変換
+                    'actual_work_seconds' => $actual_work_seconds_per_task,
+                ];
+            }
+            $actual_labor_cost += $cost_per_task;
         }
 
-        // 3. 目標人件費の計算 (全工程の予定工数 × プロジェクトの固定時給)
+        // 3. 目標人件費の計算 (変更なし)
         $target_labor_cost = 0;
         if ($project->target_labor_cost_rate > 0) {
-            // フォルダと重要納期を除いた全工程の予定工数(分)を合計
             $total_duration_minutes = $project->tasks()
-                ->where('is_folder', false)
-                ->where('is_milestone', false)
-                ->sum('duration');
-
+                ->where('is_folder', false)->where('is_milestone', false)->sum('duration');
             $target_labor_cost = ($total_duration_minutes / 60) * $project->target_labor_cost_rate;
         }
 
-        // 4.【追加】目標合計コストの計算
+        // 4. 目標合計コストの計算 (変更なし)
         $total_target_cost = ($project->target_material_cost ?? 0) + $target_labor_cost;
+
 
         // --- 通常のページ読み込み時のデータ準備 ---
         $project->load([
@@ -646,7 +666,9 @@ class ProjectController extends Controller
             'actual_material_cost',
             'actual_labor_cost',
             'target_labor_cost',
-            'total_target_cost'
+            'total_target_cost',
+            'material_cost_breakdown',
+            'labor_cost_breakdown'
         ));
     }
     /**

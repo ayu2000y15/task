@@ -129,8 +129,8 @@
                 <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-6 relative flex items-center mt-6">
                     {{-- 実績コストバー --}}
                     <div class="bg-blue-600 h-6 rounded-full text-center text-white text-xs font-semibold leading-6 flex items-center justify-center"
-                         style="width: {{ min($total_progress_percentage, 100) }}%">
-                         @if($total_progress_percentage > 5)
+                        style="width: {{ min($total_progress_percentage, 100) }}%">
+                        @if($total_progress_percentage > 5)
                             {{ number_format($total_progress_percentage, 0) }}%
                         @endif
                     </div>
@@ -141,11 +141,11 @@
                             $target_marker_position = ($total_target_cost / $budget) * 100;
                         @endphp
                         @if ($target_marker_position <= 100)
-                             <div class="absolute top-0 h-full border-r-2 border-dashed border-gray-800 dark:border-gray-300"
-                                 style="left: {{ $target_marker_position }}%;"
-                                 title="目標合計: {{ number_format($total_target_cost) }}円">
-                                 <span class="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 text-xs text-indigo-600 dark:text-indigo-300 whitespace-nowrap bg-white dark:bg-gray-800 px-1 rounded shadow">目標合計: ¥{{ number_format($total_target_cost, 0) }}</span>
-                             </div>
+                            <div class="absolute top-0 h-full border-r-2 border-dashed border-gray-800 dark:border-gray-300"
+                                style="left: {{ $target_marker_position }}%;"
+                                title="目標合計: {{ number_format($total_target_cost) }}円">
+                                <span class="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 text-xs text-indigo-600 dark:text-indigo-300 whitespace-nowrap bg-white dark:bg-gray-800 px-1 rounded shadow">目標合計: ¥{{ number_format($total_target_cost, 0) }}</span>
+                            </div>
                         @endif
                     @endif
                 </div>
@@ -155,7 +155,6 @@
                         <span class="text-gray-500 dark:text-gray-400 ml-2">予算: ¥{{ number_format($budget, 0) }}</span>
                     </div>
                 </div>
-                {{-- ▼▼▼【修正】予算超過メッセージを強調 ▼▼▼ --}}
                 @if($total_actual_cost > $budget && $budget > 0)
                     <div class="mt-3 p-3 text-sm font-semibold text-red-800 bg-red-100 rounded-md dark:bg-red-900/50 dark:text-red-300 border border-red-300 dark:border-red-700 flex items-center">
                         <i class="fas fa-exclamation-triangle mr-2"></i>
@@ -167,14 +166,21 @@
             <hr class="dark:border-gray-600">
 
             {{-- 2. 材料費 --}}
-            <div>
-                <h4 class="font-semibold text-gray-700 dark:text-gray-200 mb-2">材料費</h4>
+            <div x-data="{ breakdownOpen: false }">
+                <div class="flex justify-between items-center mb-2">
+                    <h4 class="font-semibold text-gray-700 dark:text-gray-200">材料費・作業費</h4>
+                    @if($material_cost_breakdown->isNotEmpty())
+                        <button type="button" @click="breakdownOpen = !breakdownOpen" class="text-xs text-blue-600 hover:underline">
+                            <span x-show="!breakdownOpen">内訳を表示</span>
+                            <span x-show="breakdownOpen" style="display: none;">内訳を隠す</span>
+                        </button>
+                    @endif
+                </div>
                 @php
                     $material_target = $project->target_material_cost ?? 0;
                     $material_progress = ($material_target > 0) ? ($actual_material_cost / $material_target) * 100 : 0;
                 @endphp
                 <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-4">
-                    {{-- ▼▼▼【追加】バー内にパーセンテージを表示 ▼▼▼ --}}
                     <div class="bg-green-500 h-4 rounded-full text-center text-white text-xs font-semibold leading-4 flex items-center justify-center" style="width: {{ min($material_progress, 100) }}%">
                         @if($material_progress > 10)
                             {{ number_format($material_progress, 0) }}%
@@ -185,25 +191,58 @@
                     <span class="text-gray-600 dark:text-gray-300">実績: <strong class="font-bold">¥{{ number_format($actual_material_cost, 0) }}</strong></span>
                     <span class="text-gray-500 dark:text-gray-400">目標: ¥{{ number_format($material_target, 0) }}</span>
                 </div>
-                {{-- ▼▼▼【修正】目標超過メッセージを強調 ▼▼▼ --}}
                 @if($actual_material_cost > $material_target && $material_target > 0)
                     <div class="mt-3 p-2 text-xs text-yellow-800 bg-yellow-100 rounded-md dark:bg-yellow-900/50 dark:text-yellow-300 border border-yellow-300 dark:border-yellow-700 flex items-center">
                         <i class="fas fa-exclamation-circle mr-2"></i>
                         目標材料費を {{ number_format($actual_material_cost - $material_target) }}円 超過しています。
                     </div>
                 @endif
+
+                {{-- 材料費の内訳表示 --}}
+                <div x-show="breakdownOpen" x-collapse class="mt-3 pt-3 border-t dark:border-gray-600">
+                    <div class="max-h-48 overflow-y-auto">
+                        <table class="min-w-full text-sm">
+                            <thead class="bg-gray-50 dark:bg-gray-700/50">
+                                <tr>
+                                    <th class="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-400">キャラクター</th>
+                                    <th class="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-400">種別</th>
+                                    <th class="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-400">内容</th>
+                                    <th class="px-2 py-1 text-right text-xs font-medium text-gray-500 dark:text-gray-400">金額</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                                @forelse($material_cost_breakdown as $cost)
+                                    <tr>
+                                        <td class="px-2 py-1.5 whitespace-nowrap text-gray-600 dark:text-gray-300">{{ $cost->character->name ?? '案件全体' }}</td>
+                                        <td class="px-2 py-1.5 whitespace-nowrap text-gray-600 dark:text-gray-300">{{ $cost->type ?? '-' }}</td>
+                                        <td class="px-2 py-1.5 text-gray-600 dark:text-gray-300 truncate" title="{{ $cost->name }}">{{ $cost->name }}</td>
+                                        <td class="px-2 py-1.5 text-right font-semibold text-gray-800 dark:text-gray-200">¥{{ number_format($cost->amount) }}</td>
+                                    </tr>
+                                @empty
+                                    <tr><td colspan="4" class="px-2 py-4 text-center text-xs text-gray-500">登録された材料費はありません。</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
 
             {{-- 3. 人件費 --}}
-            <div>
-                <h4 class="font-semibold text-gray-700 dark:text-gray-200 mb-2">人件費</h4>
+            <div x-data="{ breakdownOpen: false }">
+                <div class="flex justify-between items-center mb-2">
+                    <h4 class="font-semibold text-gray-700 dark:text-gray-200">人件費</h4>
+                    @if(!empty($labor_cost_breakdown))
+                        <button type="button" @click="breakdownOpen = !breakdownOpen" class="text-xs text-blue-600 hover:underline">
+                            <span x-show="!breakdownOpen">内訳を表示</span><span x-show="breakdownOpen" style="display: none;">内訳を隠す</span>
+                        </button>
+                    @endif
+                </div>
                 @php
                     $labor_progress = ($target_labor_cost > 0) ? ($actual_labor_cost / $target_labor_cost) * 100 : 0;
                 @endphp
                 <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-4">
-                    {{-- ▼▼▼【追加】バー内にパーセンテージを表示 ▼▼▼ --}}
                     <div class="bg-purple-500 h-4 rounded-full text-center text-white text-xs font-semibold leading-4 flex items-center justify-center" style="width: {{ min($labor_progress, 100) }}%">
-                         @if($labor_progress > 10)
+                        @if($labor_progress > 10)
                             {{ number_format($labor_progress, 0) }}%
                         @endif
                     </div>
@@ -212,13 +251,40 @@
                     <span class="text-gray-600 dark:text-gray-300">実績: <strong class="font-bold">¥{{ number_format($actual_labor_cost, 0) }}</strong></span>
                     <span class="text-gray-500 dark:text-gray-400">目標: ¥{{ number_format($target_labor_cost, 0) }}</span>
                 </div>
-                {{-- ▼▼▼【修正】目標超過メッセージを強調 ▼▼▼ --}}
                 @if($actual_labor_cost > $target_labor_cost && $target_labor_cost > 0)
                     <div class="mt-3 p-2 text-xs text-yellow-800 bg-yellow-100 rounded-md dark:bg-yellow-900/50 dark:text-yellow-300 border border-yellow-300 dark:border-yellow-700 flex items-center">
                         <i class="fas fa-exclamation-circle mr-2"></i>
                         目標人件費を {{ number_format($actual_labor_cost - $target_labor_cost) }}円 超過しています。
                     </div>
                 @endif
+
+                {{-- 人件費の内訳表示 --}}
+                <div x-show="breakdownOpen" x-collapse class="mt-3 pt-3 border-t dark:border-gray-600">
+                    <div class="max-h-48 overflow-y-auto">
+                        <table class="min-w-full text-sm">
+                            <thead class="bg-gray-50 dark:bg-gray-700/50">
+                                <tr>
+                                    <th class="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-400">工程名</th>
+                                    <th class="px-2 py-1 text-right text-xs font-medium text-gray-500 dark:text-gray-400">予定工数</th>
+                                    <th class="px-2 py-1 text-right text-xs font-medium text-gray-500 dark:text-gray-400">実績作業時間</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                                @forelse($labor_cost_breakdown as $item)
+                                    <tr>
+                                        <td class="px-2 py-1.5 text-gray-600 dark:text-gray-300 truncate" title="{{ $item['task_name'] }}">{{ $item['task_name'] }}</td>
+                                        <td class="px-2 py-1.5 text-right text-gray-600 dark:text-gray-300">{{ gmdate('H:i:s', $item['estimated_duration_seconds']) }}</td>
+                                        <td class="px-2 py-1.5 text-right font-semibold {{ $item['actual_work_seconds'] > $item['estimated_duration_seconds'] ? 'text-red-500' : 'text-gray-800 dark:text-gray-200' }}">
+                                            {{ gmdate('H:i:s', $item['actual_work_seconds']) }}
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr><td colspan="3" class="px-2 py-4 text-center text-xs text-gray-500">計上された人件費はありません。</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
