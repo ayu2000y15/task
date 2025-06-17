@@ -23,6 +23,7 @@ class SidebarComposer
         $upcomingTasksForSidebar = collect();
 
         if (Auth::check()) {
+            $user = Auth::user();
             $favoriteProjects = Project::where('is_favorite', true)
                 ->orderBy('title')
                 ->get();
@@ -42,8 +43,13 @@ class SidebarComposer
             });
             // ▲▲▲【変更箇所-END】▲▲▲
 
-            $upcomingTasksForSidebar = Task::whereNotNull('end_date')
-                ->whereDate('end_date', '>=', Carbon::today())
+            $upcomingTasksForSidebar = Task::where(function ($query) use ($user) {
+                $query->whereHas('assignees', function ($q) use ($user) {
+                    $q->where('user_id', $user->id);
+                });
+            })
+                ->whereNotNull('end_date')
+                // ->whereDate('end_date', '>=', Carbon::today()) // この行を削除またはコメントアウト
                 ->whereDate('end_date', '<=', Carbon::today()->addDays(2))
                 ->whereNotIn('status', ['completed', 'cancelled'])
                 ->where('is_milestone', false)

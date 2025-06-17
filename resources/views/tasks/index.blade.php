@@ -3,10 +3,6 @@
 @section('title', '工程一覧')
 
 @section('content')
-    {{-- ログインユーザー情報をJSに渡すための要素を追加 --}}
-    <div id="user-data-container"
-        data-user='{{ Auth::check() ? json_encode(Auth::user()->only(['id', 'status'])) : 'null' }}' class="hidden"></div>
-
     <div id="running-work-logs-data" class="hidden">
         {{ isset($activeWorkLogs) ? json_encode($activeWorkLogs) : '[]' }}
     </div>

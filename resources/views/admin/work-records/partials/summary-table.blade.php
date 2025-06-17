@@ -12,7 +12,7 @@
             @forelse($summary['by_user'] as $userSummary)
                 <tr class="border-b dark:border-gray-700">
                     <td class="py-2 px-2 whitespace-nowrap">
-                        <a href="{{ route('admin.work-records.show', $userSummary['user']) }}"
+                        <a href="{{ route('admin.attendances.show', $userSummary['user']) }}"
                             class="text-blue-600 hover:underline dark:text-blue-400">
                             {{ $userSummary['user']->name }}
                         </a>

@@ -11,6 +11,7 @@ use App\Notifications\VerifyEmailNotification;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Carbon\Carbon;
 
 class User extends Authenticatable
 {
@@ -168,5 +169,43 @@ class User extends Authenticatable
     public function assignedRequests(): BelongsToMany
     {
         return $this->belongsToMany(Request::class, 'request_assignees');
+    }
+
+    /**
+     * このユーザーの時給履歴を取得します。
+     */
+    public function hourlyRates(): HasMany
+    {
+        return $this->hasMany(HourlyRate::class)->orderBy('effective_date', 'desc');
+    }
+
+    /**
+     * 特定の日付における有効な時給を取得します。
+     *
+     * @param Carbon|null $date 対象日
+     * @return float|null
+     */
+    public function getHourlyRateForDate(?Carbon $date): ?float
+    {
+        if (!$date) {
+            return $this->hourlyRates()->first()->rate ?? null;
+        }
+
+        // 対象日以前で最も新しい適用日のレートを取得する
+        $rate = $this->hourlyRates()
+            ->where('effective_date', '<=', $date->format('Y-m-d'))
+            ->first();
+
+        return $rate ? (float)$rate->rate : null;
+    }
+
+    // ▼▼▼【追加】カテゴリを指定して最新の時給レコードを取得するメソッド ▼▼▼
+    public function getLatestHourlyRateForCategory(string $category = 'payroll'): ?\App\Models\HourlyRate
+    {
+        return $this->hourlyRates()
+            ->where('category', $category)
+            ->where('effective_date', '<=', now())
+            ->orderBy('effective_date', 'desc')
+            ->first();
     }
 }

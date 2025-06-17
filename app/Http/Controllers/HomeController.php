@@ -22,6 +22,8 @@ class HomeController extends Controller
         $this->authorize('viewAny', Project::class);
         Carbon::setLocale('ja');
 
+        $user = Auth::user();
+
         // ★ リクエストから日付を取得、なければ今日の日付を使用
         $targetDate = $request->date('date', 'Y-m-d') ?? Carbon::today();
 
@@ -73,13 +75,13 @@ class HomeController extends Controller
         $taskCount = Task::count();
         $upcomingTasks = Task::with(['project', 'character', 'assignees'])
             ->whereNotNull('end_date')
-            ->whereDate('end_date', '>=', $targetDate)
+            // ->whereDate('end_date', '>=', $targetDate) // この行を削除して、期限切れも対象に
             ->whereDate('end_date', '<=', $targetDate->copy()->addDays(2))
             ->whereNotIn('status', ['completed', 'cancelled'])
             ->where('is_milestone', false)
             ->where('is_folder', false)
             ->orderBy('end_date')
-            ->limit(5)
+            // ->limit(5)
             ->get();
 
         return view('home.index', compact(

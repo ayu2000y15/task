@@ -74,4 +74,29 @@ class CharacterController extends Controller
 
         return view('projects.partials.character-costs-tailwind', compact('project', 'character'));
     }
+
+    /**
+     * ▼▼▼【新設】キャラクターの表示順を更新 ▼▼▼
+     */
+    public function updateOrder(Request $request, Project $project) // ★ 引数に $project を追加
+    {
+        // 案件の更新権限で代用
+        $this->authorize('update', $project);
+
+        $validated = $request->validate([
+            'ids' => 'required|array',
+            // ★ バリデーションルールを修正し、この案件に所属するキャラクターIDであることも検証
+            'ids.*' => [
+                'integer',
+                Rule::exists('characters', 'id')->where('project_id', $project->id)
+            ],
+        ]);
+
+        foreach ($validated['ids'] as $index => $id) {
+            // ここでは既にバリデーションでproject_idが正しいことを確認済みなので、そのまま更新
+            Character::where('id', $id)->update(['display_order' => $index]);
+        }
+
+        return response()->json(['success' => true, 'message' => 'キャラクターの並び順を保存しました。']);
+    }
 }

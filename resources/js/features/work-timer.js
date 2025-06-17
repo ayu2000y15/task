@@ -9,6 +9,9 @@ const csrfToken = document
  */
 function renderTimerControls(container, log, isPaused, taskStatus, assignees) {
     const taskId = container.dataset.taskId;
+    // ▼▼▼【追加】表示モードを取得（なければ'full'）▼▼▼
+    const viewMode = container.dataset.viewMode || "full";
+
     const userData = JSON.parse(
         document.getElementById("user-data-container").dataset.user
     );
@@ -23,10 +26,14 @@ function renderTimerControls(container, log, isPaused, taskStatus, assignees) {
         statusDisplay.className = "text-sm font-semibold";
         if (taskStatus === "completed") {
             statusDisplay.className += " text-green-600 dark:text-green-400";
-            statusDisplay.innerHTML = `<i class="fas fa-check-circle mr-1"></i>完了済`;
+            statusDisplay.innerHTML = `<i class="fas fa-check-circle mr-1"></i>${
+                viewMode === "full" ? "完了済" : ""
+            }`;
         } else {
             statusDisplay.className += " text-gray-500 dark:text-gray-400";
-            statusDisplay.innerHTML = `<i class="fas fa-times-circle mr-1"></i>キャンセル済`;
+            statusDisplay.innerHTML = `<i class="fas fa-times-circle mr-1"></i>${
+                viewMode === "full" ? "キャンセル済" : ""
+            }`;
         }
         container.appendChild(statusDisplay);
         return;
@@ -34,51 +41,84 @@ function renderTimerControls(container, log, isPaused, taskStatus, assignees) {
 
     // 実行中のログがある場合
     if (log && log.status === "active") {
-        const displayContainer = document.createElement("div");
-        displayContainer.className = "text-sm mb-2";
-        const startTime = new Date(log.start_time);
-        const formattedStartTime = `${
-            startTime.getMonth() + 1
-        }/${startTime.getDate()} ${startTime
-            .getHours()
-            .toString()
-            .padStart(2, "0")}:${startTime
-            .getMinutes()
-            .toString()
-            .padStart(2, "0")}`;
-        displayContainer.innerHTML = `作業中 (開始: <span class="font-semibold text-gray-800 dark:text-gray-200">${formattedStartTime}</span>)`;
-        container.appendChild(displayContainer);
+        // 通常表示のときだけ「作業中」テキストを表示
+        if (viewMode === "full") {
+            const displayContainer = document.createElement("div");
+            displayContainer.className = "text-sm mb-2";
+            const startTime = new Date(log.start_time);
+            const formattedStartTime = `${
+                startTime.getMonth() + 1
+            }/${startTime.getDate()} ${startTime
+                .getHours()
+                .toString()
+                .padStart(2, "0")}:${startTime
+                .getMinutes()
+                .toString()
+                .padStart(2, "0")}`;
+            displayContainer.innerHTML = `作業中 (開始: <span class="font-semibold text-gray-800 dark:text-gray-200">${formattedStartTime}</span>)`;
+            container.appendChild(displayContainer);
+        }
 
         const buttonGroup = document.createElement("div");
         buttonGroup.className = "flex items-center space-x-2";
 
         const pauseButton = document.createElement("button");
-        pauseButton.innerHTML = `<i class="fas fa-pause mr-1"></i> 一時停止`;
-        pauseButton.className =
-            "inline-flex items-center px-3 py-1 text-xs font-medium text-white bg-yellow-500 hover:bg-yellow-600 rounded-md shadow-sm transition";
+        // ▼▼▼【修正】ボタンの表示をモードによって切り替え ▼▼▼
+        if (viewMode === "compact") {
+            pauseButton.innerHTML = `<i class="fas fa-pause"></i>`;
+            pauseButton.className =
+                "inline-flex items-center justify-center px-2 py-1 text-xs font-medium text-white bg-yellow-500 hover:bg-yellow-600 rounded-md shadow-sm transition";
+            pauseButton.title = "一時停止";
+        } else {
+            pauseButton.innerHTML = `<i class="fas fa-pause mr-1"></i> 一時停止`;
+            pauseButton.className =
+                "inline-flex items-center px-3 py-1 text-xs font-medium text-white bg-yellow-500 hover:bg-yellow-600 rounded-md shadow-sm transition";
+        }
         pauseButton.onclick = () => handleTimerAction(taskId, "pause");
         buttonGroup.appendChild(pauseButton);
 
         const stopButton = document.createElement("button");
-        stopButton.innerHTML = `<i class="fas fa-check-circle mr-1"></i> 完了`;
-        stopButton.className =
-            "inline-flex items-center px-3 py-1 text-xs font-medium text-white bg-red-500 hover:bg-red-600 rounded-md shadow-sm transition";
+        // ▼▼▼【修正】ボタンの表示をモードによって切り替え ▼▼▼
+        if (viewMode === "compact") {
+            stopButton.innerHTML = `<i class="fas fa-check-circle"></i>`;
+            stopButton.className =
+                "inline-flex items-center justify-center px-2 py-1 text-xs font-medium text-white bg-red-500 hover:bg-red-600 rounded-md shadow-sm transition";
+            stopButton.title = "完了";
+        } else {
+            stopButton.innerHTML = `<i class="fas fa-check-circle mr-1"></i> 完了`;
+            stopButton.className =
+                "inline-flex items-center px-3 py-1 text-xs font-medium text-white bg-red-500 hover:bg-red-600 rounded-md shadow-sm transition";
+        }
         stopButton.onclick = () => handleTimerAction(taskId, "stop");
         buttonGroup.appendChild(stopButton);
         container.appendChild(buttonGroup);
     } else {
         // 未開始または一時停止後の状態
+        const buttonContainer = document.createElement("div"); // ボタンをdivで囲む
+        buttonContainer.className = "flex items-center space-x-2";
+
         if (isPaused || (log && log.status === "stopped")) {
-            const displayContainer = document.createElement("div");
-            displayContainer.className =
-                "text-sm mb-2 text-yellow-600 dark:text-yellow-400 font-semibold";
-            displayContainer.textContent = "[一時停止中]";
-            container.appendChild(displayContainer);
+            // 通常表示のときだけ「一時停止中」テキストを表示
+            if (viewMode === "full") {
+                const displayContainer = document.createElement("div");
+                displayContainer.className =
+                    "text-sm mb-2 text-yellow-600 dark:text-yellow-400 font-semibold";
+                displayContainer.textContent = "[一時停止中]";
+                container.appendChild(displayContainer);
+            }
 
             const resumeButton = document.createElement("button");
-            resumeButton.innerHTML = `<i class="fas fa-play mr-1"></i> 再開`;
-            resumeButton.className =
-                "inline-flex items-center px-3 py-1 text-xs font-medium text-white bg-green-500 hover:bg-green-600 rounded-md shadow-sm transition";
+            // ▼▼▼【修正】ボタンの表示をモードによって切り替え ▼▼▼
+            if (viewMode === "compact") {
+                resumeButton.innerHTML = `<i class="fas fa-play"></i>`;
+                resumeButton.className =
+                    "inline-flex items-center justify-center px-2 py-1 text-xs font-medium text-white bg-green-500 hover:bg-green-600 rounded-md shadow-sm transition";
+                resumeButton.title = "再開";
+            } else {
+                resumeButton.innerHTML = `<i class="fas fa-play mr-1"></i> 再開`;
+                resumeButton.className =
+                    "inline-flex items-center px-3 py-1 text-xs font-medium text-white bg-green-500 hover:bg-green-600 rounded-md shadow-sm transition";
+            }
             resumeButton.onclick = () => {
                 if (isSharedAccount && hasMultipleAssignees) {
                     openAssigneeSelectionModal(taskId, assignees);
@@ -86,13 +126,21 @@ function renderTimerControls(container, log, isPaused, taskStatus, assignees) {
                     handleTimerAction(taskId, "start");
                 }
             };
-            container.appendChild(resumeButton);
+            buttonContainer.appendChild(resumeButton);
         } else {
             // 完全な未開始状態
             const startButton = document.createElement("button");
-            startButton.innerHTML = `<i class="fas fa-play mr-1"></i> 開始`;
-            startButton.className =
-                "inline-flex items-center px-3 py-1 text-xs font-medium text-white bg-blue-500 hover:bg-blue-600 rounded-md shadow-sm transition";
+            // ▼▼▼【修正】ボタンの表示をモードによって切り替え ▼▼▼
+            if (viewMode === "compact") {
+                startButton.innerHTML = `<i class="fas fa-play"></i>`;
+                startButton.className =
+                    "inline-flex items-center justify-center px-2 py-1 text-xs font-medium text-white bg-blue-500 hover:bg-blue-600 rounded-md shadow-sm transition";
+                startButton.title = "開始";
+            } else {
+                startButton.innerHTML = `<i class="fas fa-play mr-1"></i> 開始`;
+                startButton.className =
+                    "inline-flex items-center px-3 py-1 text-xs font-medium text-white bg-blue-500 hover:bg-blue-600 rounded-md shadow-sm transition";
+            }
             startButton.onclick = () => {
                 if (isSharedAccount && hasMultipleAssignees) {
                     openAssigneeSelectionModal(taskId, assignees);
@@ -100,11 +148,11 @@ function renderTimerControls(container, log, isPaused, taskStatus, assignees) {
                     handleTimerAction(taskId, "start");
                 }
             };
-            container.appendChild(startButton);
+            buttonContainer.appendChild(startButton);
         }
+        container.appendChild(buttonContainer);
     }
 }
-
 /**
  * 担当者選択モーダルを表示する
  */
@@ -190,6 +238,7 @@ async function handleTimerAction(taskId, action, assigneeIds = []) {
 
         const data = await response.json();
 
+        // 1. タイマー自身のUIを更新する
         const container = document.querySelector(
             `.timer-controls[data-task-id="${taskId}"]`
         );
@@ -219,6 +268,27 @@ async function handleTimerAction(taskId, action, assigneeIds = []) {
                 isPausedForRender,
                 container.dataset.taskStatus,
                 assigneesData
+            );
+        }
+
+        // 2. 工程一覧のステータスアイコンを更新するためのイベントを発行する
+        let newStatus = "";
+        if (action === "start") {
+            newStatus = "in_progress";
+        } else if (action === "stop") {
+            newStatus = "completed";
+        }
+
+        if (newStatus) {
+            window.dispatchEvent(
+                new CustomEvent("task-status-updated", {
+                    detail: {
+                        taskId: taskId,
+                        newStatus: newStatus,
+                        // ステータスに応じた進捗率を渡す
+                        newProgress: newStatus === "completed" ? 100 : 10,
+                    },
+                })
             );
         }
     } catch (error) {

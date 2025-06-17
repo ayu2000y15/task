@@ -47,6 +47,7 @@
 
                                         if ($holidayForUser) {
                                             $periodType = $holidayForUser->period_type;
+                                            $holidayBadgeTextStyle = "";
 
                                             if ($periodType === 'full') {
                                                 // 全休の場合は常に表示
@@ -57,6 +58,8 @@
                                             } elseif ($periodType === 'pm' && now()->hour >= 12) {
                                                 // 午後休で、現在の時刻が正午以降の場合のみ表示
                                                 $holidayBadgeText = '休暇中 (午後)';
+                                            }else {
+                                                $holidayBadgeTextStyle = "display: none;";
                                             }
                                         }
                                     @endphp
@@ -64,7 +67,7 @@
                                         <i class="fas fa-user mr-1 {{ $assigneeData['assignee']->id === Auth::id() ? 'text-blue-500' : 'text-gray-400' }}"></i>
                                         <span>{{ $assigneeData['assignee']->name }}</span>
                                         @if($todaysHolidays->contains('user_id', $assigneeData['assignee']->id))
-                                            <span class="px-2 py-0.5 text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300 rounded-full">休暇中</span>
+                                        <span class="px-2 py-0.5 text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300 rounded-full" style="{{ $holidayBadgeTextStyle }}">{{ $holidayBadgeText }}</span>
                                         @endif
                                     </h3>
                                     <ul class="ml-6 divide-y space-y-2 divide-gray-200 dark:divide-gray-700">
@@ -122,7 +125,7 @@
                 {{-- 期限間近の工程 --}}
                 <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg">
                     <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-                        <h5 class="text-lg font-semibold text-gray-700 dark:text-gray-300">期限間近の工程 (2日以内)</h5>
+                        <h5 class="text-lg font-semibold text-gray-700 dark:text-gray-300">期限切れ・間近の工程 (2日以内)</h5>
                     </div>
                     <ul class="divide-y divide-gray-200 dark:divide-gray-700">
                         @if($upcomingTasks->isEmpty())

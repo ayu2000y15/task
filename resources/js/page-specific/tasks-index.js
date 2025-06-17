@@ -300,11 +300,40 @@ function initializeFolderFileToggle() {
     });
 }
 
+function listenForExternalTaskUpdates() {
+    window.addEventListener("task-status-updated", (event) => {
+        const { taskId, newStatus, newProgress } = event.detail;
+        if (!taskId || !newStatus) return;
+
+        // ページ上の該当するタスク行を探す (trまたはli要素)
+        const row = document.querySelector(
+            `tr[data-task-id="${taskId}"], li[data-task-id="${taskId}"]`
+        );
+        if (row) {
+            // 既存のUI更新関数を呼び出す
+            updateTaskRowUI(row, newStatus, newProgress);
+
+            // チェックボックスの状態も同期する
+            const inProgressCheckbox = row.querySelector(
+                ".task-status-in-progress"
+            );
+            const completedCheckbox = row.querySelector(
+                ".task-status-completed"
+            );
+            if (inProgressCheckbox)
+                inProgressCheckbox.checked = newStatus === "in_progress";
+            if (completedCheckbox)
+                completedCheckbox.checked = newStatus === "completed";
+        }
+    });
+}
+
 try {
     initializeTaskStatusUpdater();
     initializeTaskCheckboxes();
     initializeEditableMultipleAssignees();
     initializeFolderFileToggle();
+    listenForExternalTaskUpdates();
 } catch (e) {
     console.error("Error during tasks-index.js specific initialization:", e);
 }

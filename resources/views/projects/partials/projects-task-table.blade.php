@@ -44,6 +44,11 @@
         <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700" id="{{ $tableId }}">
             <thead class="bg-gray-50 dark:bg-gray-700">
                 <tr>
+                    {{-- ▼▼▼【追加】時間記録用の列ヘッダー ▼▼▼ --}}
+                    <th scope="col" class="sticky top-0 z-10 bg-gray-50 dark:bg-gray-700 px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider min-w-[200px]">
+                        時間記録
+                    </th>
+                    {{-- ▲▲▲ 追加ここまで ▲▲▲ --}}
                     <th scope="col" class="sticky top-0 z-10 bg-gray-50 dark:bg-gray-700 px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider min-w-[250px] sm:min-w-[300px]">
                         工程名
                     </th>
@@ -58,6 +63,7 @@
                         <th scope="col" class="sticky top-0 z-10 bg-gray-50 dark:bg-gray-700 hidden sm:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">工数</th>
                     @endif
                      @if($isFolderView ?? false)
+                        {{-- ▼▼▼【変更】時間記録列の追加に伴い、フォルダ表示の空セルを1つ削除 ▼▼▼ --}}
                         <th scope="col" class="sticky top-0 z-10 bg-gray-50 dark:bg-gray-700 hidden sm:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">親工程</th>
                         <th scope="col" class="sticky top-0 z-10 bg-gray-50 dark:bg-gray-700 hidden sm:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">ファイル数</th>
                     @endif
@@ -98,6 +104,8 @@
                         @if(($isFolderView ?? false) && $task->is_folder)
                             @can('fileView', $task)
                             {{-- フォルダ表示 --}}
+                            {{-- ▼▼▼【追加】フォルダ表示用の空セル ▼▼▼ --}}
+                            <td class="px-4 py-3 align-top"></td>
                             <td class="px-4 py-3 text-sm text-gray-900 dark:text-gray-100 align-top">
                                 <div class="flex items-start" style="padding-left: {{ $level * 1.5 }}rem;">
                                      <div class="task-toggle-container mr-1" style="width: 1.2em; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 0.125rem;">
@@ -154,9 +162,39 @@
                             </td>
                             @endcan
                         @elseif(!($isFolderView ?? false)) {{-- 通常の工程または重要納期の場合 --}}
+                            {{-- ▼▼▼【追加】時間記録用のセルとボタン表示ロジック ▼▼▼ --}}
+                            <td class="px-4 py-3 align-top">
+                                @if(!$task->is_folder && !$task->is_milestone)
+                                    @if($task->assignees->isNotEmpty())
+                                        @php
+                                            $isAssigned = $task->assignees->contains('id', Auth::id());
+                                            $isSharedAccount = Auth::check() && Auth::user()->status === \App\Models\User::STATUS_SHARED;
+                                        @endphp
+                                        @if($isAssigned || $isSharedAccount)
+                                            <div class="timer-controls"
+                                            data-task-id="{{ $task->id }}"
+                                            data-task-status="{{ $task->status }}"
+                                            data-is-paused="{{ $task->is_paused ? 'true' : 'false' }}"
+                                            data-assignees='{{ json_encode($task->assignees->map->only(['id', 'name'])->values()) }}'>
+                                                {{-- JavaScriptがこの中身を生成します --}}
+                                            </div>
+                                        @else
+                                            {{-- 担当者はいるが、自分ではない場合 --}}
+                                            <span class="text-xs text-gray-400 dark:text-gray-500">-</span>
+                                        @endif
+                                    @else
+                                        {{-- 担当者が一人もいない場合 --}}
+                                        <span class="text-xs text-gray-400 dark:text-gray-500">-</span>
+                                    @endif
+                                @else
+                                    {{-- フォルダやマイルストーンにはタイマー不要 --}}
+                                    <span class="text-xs text-gray-400 dark:text-gray-500">-</span>
+                                @endif
+                            </td>
+                            {{-- ▲▲▲ 追加ここまで ▲▲▲ --}}
                             <td class="px-4 py-3 text-sm text-gray-900 dark:text-gray-100 align-top">
                                 <div class="flex items-center gap-x-3">
-                                    @if(!$task->is_milestone && !$task->is_folder)
+                                    {{-- @if(!$task->is_milestone && !$task->is_folder)
                                         <div class="flex flex-col items-center self-start mt-0.5">
                                             <span class="text-xs text-gray-500 dark:text-gray-400 mb-1" style="font-size: 0.5rem; min-width: 30px; text-align: center;">進行中</span>
                                             <input type="checkbox"
@@ -165,7 +203,7 @@
                                                    title="進行中にする"
                                                    @if($task->status == 'in_progress') checked @endif>
                                         </div>
-                                    @endif
+                                    @endif --}}
 
                                     <div class="flex items-start flex-grow min-w-0" style="padding-left: {{ $level * 1.5 }}rem;">
                                         <div class="task-toggle-container mr-1" style="width: 1.2em; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 0.125rem;">
@@ -225,7 +263,7 @@
                                         </div>
                                     </div>
 
-                                    @if(!$task->is_milestone && !$task->is_folder)
+                                    {{-- @if(!$task->is_milestone && !$task->is_folder)
                                         <div class="flex flex-col items-center self-start mt-0.5">
                                             <span class="text-xs text-gray-500 dark:text-gray-400 mb-1" style="font-size: 0.5rem;">完了</span>
                                             <input type="checkbox"
@@ -234,7 +272,7 @@
                                                    title="完了にする"
                                                    @if($task->status == 'completed') checked @endif>
                                         </div>
-                                    @endif
+                                    @endif --}}
                                 </div>
                             </td>
                             @if(!($isFolderView ?? false) && !($isMilestoneView ?? false))
@@ -304,11 +342,12 @@
                     @endif
                 @empty
                     @php
-                         $colspan = 6;
+                         // ▼▼▼【変更】colspanを7に更新 ▼▼▼
+                         $colspan = 7;
                          if ($isFolderView ?? false) {
-                             $colspan = 4;
-                         } elseif ($isMilestoneView ?? false) {
                              $colspan = 5;
+                         } elseif ($isMilestoneView ?? false) {
+                             $colspan = 6;
                          }
                     @endphp
                     <tr><td colspan="{{ $colspan }}" class="px-6 py-12 text-center text-sm text-gray-500 dark:text-gray-400">表示する工程がありません</td></tr>

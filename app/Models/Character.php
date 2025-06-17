@@ -28,6 +28,7 @@ class Character extends Model
         'name',
         'description',
         'gender', // ★ 追加
+        'display_order',
     ];
 
     // ★ アクティビティログのオプション設定

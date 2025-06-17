@@ -15,6 +15,7 @@ use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Storage;
 use App\Models\InventoryItem;
 use Illuminate\Database\Eloquent\Collection;
+use App\Models\WorkLog;
 
 class ProjectController extends Controller
 {
@@ -96,6 +97,10 @@ class ProjectController extends Controller
             'payment_flag'  => 'nullable|string|max:50',
             'payment'       => 'nullable|string',
             'status'        => 'nullable|string|max:50',
+            'tracking_info'   => 'nullable|array',
+            'tracking_info.*.carrier' => 'nullable|string|in:' . implode(',', array_keys(config('shipping.carriers'))),
+            'tracking_info.*.number' => 'nullable|string|max:255',
+            'tracking_info.*.memo' => 'nullable|string|max:255',
             'series_title'  => 'nullable|string|max:255',
             'client_name'   => 'nullable|string|max:255',
             'budget'        => ($isUpdate ? 'sometimes|' : '') . 'nullable|integer|min:0',
@@ -116,6 +121,8 @@ class ProjectController extends Controller
                     }
                 },
             ],
+            'target_material_cost' => ($isUpdate ? 'sometimes|' : '') . 'nullable|integer|min:0',
+            'target_labor_cost_rate' => ($isUpdate ? 'sometimes|' : '') . 'nullable|integer|min:0',
         ];
         $dedicatedAttributeNames = [
             'title' => '案件名',
@@ -130,8 +137,13 @@ class ProjectController extends Controller
             'payment_flag' => '支払いフラグ',
             'payment' => '支払条件',
             'status' => '案件ステータス',
+            'tracking_info.*.carrier' => '配送業者',
+            'tracking_info.*.number' => '送り状番号',
+            'tracking_info.*.memo' => '送り状メモ',
             'budget' => '予算',
-            'target_cost' => '目標コスト',
+            'target_cost' => '目標コスト（全体）',
+            'target_material_cost' => '目標材料費',
+            'target_labor_cost_rate' => '目標人件費 時給',
         ];
 
         $rules = array_merge($rules, $dedicatedRules);
@@ -331,8 +343,11 @@ class ProjectController extends Controller
             'payment_flag',
             'payment',
             'status',
+            'tracking_info',
             'budget',
-            'target_cost' // budget と target_cost を追加
+            'target_cost',
+            'target_material_cost',
+            'target_labor_cost_rate',
         ]);
         if (empty($dedicatedData['title'])) {
             $dedicatedData['title'] = '名称未設定案件 - ' . now()->format('YmdHis');
@@ -347,9 +362,18 @@ class ProjectController extends Controller
         if (empty($dedicatedData['color'])) {
             $dedicatedData['color'] = '#0d6efd';
         }
+
+        // ▼▼▼【追加】空の送り状情報をフィルタリング ▼▼▼
+        if (isset($dedicatedData['tracking_info'])) {
+            $dedicatedData['tracking_info'] = array_values(array_filter($dedicatedData['tracking_info'], function ($item) {
+                return !empty($item['carrier']) && !empty($item['number']);
+            }));
+        }
         // budget と target_cost が空文字列の場合、nullに変換
         $dedicatedData['budget'] = $dedicatedData['budget'] === '' ? null : $dedicatedData['budget'];
-        $dedicatedData['target_cost'] = $dedicatedData['target_cost'] === '' ? null : $dedicatedData['target_cost'];
+        //$dedicatedData['target_cost'] = $dedicatedData['target_cost'] === '' ? null : $dedicatedData['target_cost'];
+        $dedicatedData['target_material_cost'] = $dedicatedData['target_material_cost'] === '' ? null : $dedicatedData['target_material_cost'];
+        $dedicatedData['target_labor_cost_rate'] = $dedicatedData['target_labor_cost_rate'] === '' ? null : $dedicatedData['target_labor_cost_rate'];
 
 
         $project = new Project();
@@ -551,6 +575,42 @@ class ProjectController extends Controller
             return response()->json(['html' => $html]);
         }
 
+        $actual_material_cost = $project->characters->sum(function ($char) {
+            return $char->costs->sum('amount');
+        });
+
+        // 2. 実績人件費の計算 (作業ログの時間 × 各担当者の時給)
+        $actual_labor_cost = 0;
+        $project_work_logs = WorkLog::with('user.hourlyRates')
+            ->whereHas('task', fn($q) => $q->where('project_id', $project->id))
+            ->where('status', 'stopped')
+            ->get();
+
+        foreach ($project_work_logs as $log) {
+            if ($log->user && $log->effective_duration > 0) {
+                // ログの開始時点での時給を取得
+                $rate = $log->user->getHourlyRateForDate($log->start_time);
+                if ($rate > 0) {
+                    $actual_labor_cost += ($log->effective_duration / 3600) * $rate;
+                }
+            }
+        }
+
+        // 3. 目標人件費の計算 (全工程の予定工数 × プロジェクトの固定時給)
+        $target_labor_cost = 0;
+        if ($project->target_labor_cost_rate > 0) {
+            // フォルダと重要納期を除いた全工程の予定工数(分)を合計
+            $total_duration_minutes = $project->tasks()
+                ->where('is_folder', false)
+                ->where('is_milestone', false)
+                ->sum('duration');
+
+            $target_labor_cost = ($total_duration_minutes / 60) * $project->target_labor_cost_rate;
+        }
+
+        // 4.【追加】目標合計コストの計算
+        $total_target_cost = ($project->target_material_cost ?? 0) + $target_labor_cost;
+
         // --- 通常のページ読み込み時のデータ準備 ---
         $project->load([
             'characters' => function ($query) {
@@ -575,7 +635,19 @@ class ProjectController extends Controller
         $completionDataFolders = Task::where('parent_id', $masterFolder->id)->where('is_folder', true)->with('files')->orderBy('name')->get();
         $availableInventoryItems = InventoryItem::where('quantity',  '>', 0)->orderBy('name')->get();
         $assigneeOptions = User::where('status', User::STATUS_ACTIVE)->orderBy('name')->get(['id', 'name'])->map(fn($user) => ['id' => $user->id, 'name' => $user->name])->values()->all();
-        return view('projects.show', compact('project', 'customFormFields', 'availableInventoryItems', 'tasksToList', 'masterFolder', 'completionDataFolders', 'assigneeOptions'));
+        return view('projects.show', compact(
+            'project',
+            'customFormFields',
+            'availableInventoryItems',
+            'tasksToList',
+            'masterFolder',
+            'completionDataFolders',
+            'assigneeOptions',
+            'actual_material_cost',
+            'actual_labor_cost',
+            'target_labor_cost',
+            'total_target_cost'
+        ));
     }
     /**
      * 案件詳細ページで完成データ用のフォルダを作成します。
@@ -642,8 +714,11 @@ class ProjectController extends Controller
             'payment_flag',
             'payment',
             'status',
+            'tracking_info',
             'budget',
-            'target_cost' // budget と target_cost を追加
+            'target_cost',
+            'target_material_cost',
+            'target_labor_cost_rate',
         ]);
         if ($request->has('is_favorite') || array_key_exists('is_favorite', $validatedData)) {
             $dedicatedDataToUpdate['is_favorite'] = $request->boolean('is_favorite');
@@ -662,6 +737,20 @@ class ProjectController extends Controller
             $dedicatedDataToUpdate['target_cost'] = $dedicatedDataToUpdate['target_cost'] === '' ? null : $dedicatedDataToUpdate['target_cost'];
         }
 
+        // ▼▼▼ 新しい項目が空文字列の場合にnullに変換 ▼▼▼
+        if (array_key_exists('target_material_cost', $dedicatedDataToUpdate)) {
+            $dedicatedDataToUpdate['target_material_cost'] = $dedicatedDataToUpdate['target_material_cost'] === '' ? null : $dedicatedDataToUpdate['target_material_cost'];
+        }
+        if (array_key_exists('target_labor_cost_rate', $dedicatedDataToUpdate)) {
+            $dedicatedDataToUpdate['target_labor_cost_rate'] = $dedicatedDataToUpdate['target_labor_cost_rate'] === '' ? null : $dedicatedDataToUpdate['target_labor_cost_rate'];
+        }
+
+        // ▼▼▼【追加】空の送り状情報をフィルタリング ▼▼▼
+        if (array_key_exists('tracking_info', $dedicatedDataToUpdate)) {
+            $dedicatedDataToUpdate['tracking_info'] = array_values(array_filter($dedicatedDataToUpdate['tracking_info'], function ($item) {
+                return !empty($item['carrier']) && !empty($item['number']);
+            }));
+        }
 
         $customAttributesValues = $project->attributes ?? [];
         $submittedAttributes = $request->input('attributes', []);

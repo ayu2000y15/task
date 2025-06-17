@@ -29,6 +29,12 @@ class UserHoliday extends Model
         'period_type',
     ];
 
+    public const PERIOD_TYPES = [
+        'all_day' => '終日',
+        'am'      => '午前休',
+        'pm'      => '午後休',
+    ];
+
     /**
      * The attributes that should be cast.
      *

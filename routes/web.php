@@ -37,6 +37,7 @@ use App\Http\Controllers\Admin\WorkRecordController as AdminWorkRecordController
 use App\Http\Controllers\Admin\UserHolidayController;
 use App\Http\Controllers\MyHolidayController;
 use App\Http\Controllers\RequestController;
+use App\Http\Controllers\Admin\AttendanceController;
 
 use App\Http\Controllers\ToolController;
 use App\Http\Controllers\SalesToolController;
@@ -119,7 +120,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/projects/{project}/characters/{character}/costs-partial', [CharacterController::class, 'getCharacterCostsPartial'])->name('projects.characters.costs.partial');
     Route::post('/projects/{project}/completion-folders', [ProjectController::class, 'storeCompletionFolder'])->name('projects.completionFolders.store');
 
-    // --- ユーザー向けフィードバック機能 ---
+    Route::post('/projects/{project}/characters/update-order', [App\Http\Controllers\CharacterController::class, 'updateOrder'])->name('characters.updateOrder');    // --- ユーザー向けフィードバック機能 ---
+
     Route::get('/feedback/create', [UserFeedbackController::class, 'create'])->name('user_feedbacks.create');
     Route::post('/feedback', [UserFeedbackController::class, 'store'])->name('user_feedbacks.store');
     // --- ここまでユーザー向けフィードバック機能 ---
@@ -247,11 +249,17 @@ Route::middleware('auth')->group(function () {
         Route::get('/work-records/by-project', [AdminWorkRecordController::class, 'byProject'])->name('work-records.by-project');
 
         Route::get('/work-records', [AdminWorkRecordController::class, 'index'])->name('work-records.index');
-        Route::post('/work-records/update-rate', [AdminWorkRecordController::class, 'updateUserRate'])->name('work-records.update-rate');
+        Route::post('work-records/update-rates', [AdminWorkRecordController::class, 'updateUserRates'])->name('work-records.update-rates');
         Route::get('/work-records/{user}', [AdminWorkRecordController::class, 'show'])->name('work-records.show');
 
+        //休日登録
         Route::get('holidays', [UserHolidayController::class, 'index'])->name('holidays.index');
         Route::delete('holidays/{userHoliday}', [UserHolidayController::class, 'destroy'])->name('holidays.destroy');
+
+        // 勤怠管理ルート
+        Route::get('/attendances/{user}/{month?}', [AttendanceController::class, 'show'])->name('attendances.show');
+        Route::post('/attendances/generate/{user}/{month}', [AttendanceController::class, 'generate'])->name('attendances.generate');
+        Route::post('/attendances/{user}/{date}', [AttendanceController::class, 'updateSingle'])->name('attendances.update-single');
     });
 
     // -------------------------------------------------------------------------

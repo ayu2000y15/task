@@ -111,106 +111,119 @@
 
     {{-- ▼▼▼ コスト進捗バーと警告 ここから ▼▼▼ --}}
     @can('manageCosts', $project)
-    @php
-        $currentTotalCost = $project->characters->sum(function ($char) {
-            return $char->costs->sum('amount'); // Costモデルのamountカラムを合計
-        });
-        $budget = $project->budget ?? 0;
-        $targetCost = $project->target_cost ?? 0;
-    @endphp
-
     <div x-data="{ expanded: true }" class="mb-6 bg-white dark:bg-gray-800 shadow rounded-lg">
-        {{-- 折りたたみ制御ヘッダー --}}
         <div @click="expanded = !expanded" class="p-4 flex justify-between items-center cursor-pointer border-b border-gray-200 dark:border-gray-700">
-            <div class="flex items-center"> {{-- アイコンとテキストをグループ化 --}}
-                <i class="fas fa-coins mr-2 text-gray-600 dark:text-gray-300"></i> {{-- アイコンを追加 --}}
-                <h6 class="text-lg font-semibold text-gray-700 dark:text-gray-200">コスト進捗</h6>
-            </div>
-            <button type="button" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
-                <i class="fas" :class="expanded ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
-            </button>
+            <h6 class="text-lg font-semibold text-gray-700 dark:text-gray-200 flex items-center"><i class="fas fa-coins mr-2 text-gray-600 dark:text-gray-300"></i>コスト進捗</h6>
+            <button type="button" class="text-gray-500 dark:text-gray-400"><i class="fas" :class="expanded ? 'fa-chevron-up' : 'fa-chevron-down'"></i></button>
         </div>
 
-        {{-- 折りたたみコンテンツ --}}
-        <div x-show="expanded" x-collapse class="p-4">
-            @if($budget > 0)
-                <div class="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-2">
-                    <span>0円</span>
-                    <span class="font-semibold">予算: {{ number_format($budget) }}円</span>
-                </div>
-                <div class="w-full bg-gray-300 dark:bg-gray-600 rounded-full h-6 relative flex items-center">
-                    @php
-                        $currentCostPercentage = $budget > 0 ? ($currentTotalCost / $budget) * 100 : 0;
-                        // バーの表示は予算の100%を上限とする。超過分はテキストや警告で示す。
-                        $displayCurrentCostPercentage = min($currentCostPercentage, 100);
-
-                        $barColorClass = 'bg-green-500'; // デフォルト緑
-
-                        if ($currentTotalCost > $budget) {
-                            $barColorClass = 'bg-red-600'; // 予算超過
-                        } elseif ($targetCost > 0 && $currentTotalCost > $targetCost) {
-                            $barColorClass = 'bg-yellow-500'; // 目標コスト超過
-                        }
-                    @endphp
-
+        <div x-show="expanded" x-collapse class="p-4 space-y-6">
+            {{-- 1. 全体サマリー --}}
+            <div>
+                <h4 class="font-semibold text-gray-700 dark:text-gray-200 mb-2">全体コスト</h4>
+                @php
+                    $total_actual_cost = $actual_material_cost + $actual_labor_cost;
+                    $budget = $project->budget ?? 0;
+                    $total_progress_percentage = ($budget > 0) ? ($total_actual_cost / $budget) * 100 : 0;
+                @endphp
+                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-6 relative flex items-center mt-6">
                     {{-- 実績コストバー --}}
-                    <div class="{{ $barColorClass }} h-full rounded-l-full" style="width: {{ $displayCurrentCostPercentage }}%;">
-                        {{-- バーが非常に短い場合でもテキストが見えるように、バーの直後に配置 --}}
+                    <div class="bg-blue-600 h-6 rounded-full text-center text-white text-xs font-semibold leading-6 flex items-center justify-center"
+                         style="width: {{ min($total_progress_percentage, 100) }}%">
+                         @if($total_progress_percentage > 5)
+                            {{ number_format($total_progress_percentage, 0) }}%
+                        @endif
                     </div>
 
-                    {{-- 実績コストテキスト (バーの右側、またはバーが短い場合はバーの外側右に表示) --}}
-                    <div class="absolute right-2 h-full flex items-center">
-                        <span class="font-semibold text-xs whitespace-nowrap text-gray-800 dark:text-gray-200">実績: {{ number_format($currentTotalCost) }}円</span>
-                    </div>
-
-
-                    {{-- 目標コストマーカー --}}
-                    @if($targetCost > 0 && $targetCost <= $budget)
+                    {{-- 目標合計コストのマーカー --}}
+                    @if($total_target_cost > 0 && $budget > 0)
                         @php
-                            $targetCostMarkerPosition = ($targetCost / $budget) * 100;
-                            $targetCostMarkerPosition = max(0, min($targetCostMarkerPosition, 100)); // 0-100%の範囲に収める
+                            $target_marker_position = ($total_target_cost / $budget) * 100;
                         @endphp
-                        <div class="absolute top-0 h-full border-r-2 border-dashed border-blue-700 dark:border-blue-400"
-                             style="left: {{ $targetCostMarkerPosition }}%;"
-                             title="目標コスト: {{ number_format($targetCost) }}円">
-                             <span class="absolute top-full mt-1 left-1/2 -translate-x-1/2 text-xs text-blue-700 dark:text-blue-400 whitespace-nowrap bg-white dark:bg-gray-800 px-1 rounded shadow">目標:{{ number_format($targetCost) }}円</span>
-                        </div>
-                    @elseif($targetCost > 0 && $targetCost > $budget)
-                        <div class="absolute top-0 h-full border-r-2 border-dashed border-orange-500 dark:border-orange-400"
-                             style="left: 100%; margin-left: 2px;"
-                             title="目標コスト(予算超過): {{ number_format($targetCost) }}円">
-                             <span class="absolute top-full mt-1 left-0 text-xs text-orange-500 dark:text-orange-400 whitespace-nowrap bg-white dark:bg-gray-800 px-1 rounded shadow">目標(超過)</span>
-                        </div>
+                        @if ($target_marker_position <= 100)
+                             <div class="absolute top-0 h-full border-r-2 border-dashed border-gray-800 dark:border-gray-300"
+                                 style="left: {{ $target_marker_position }}%;"
+                                 title="目標合計: {{ number_format($total_target_cost) }}円">
+                                 <span class="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 text-xs text-indigo-600 dark:text-indigo-300 whitespace-nowrap bg-white dark:bg-gray-800 px-1 rounded shadow">目標合計: ¥{{ number_format($total_target_cost, 0) }}</span>
+                             </div>
+                        @endif
                     @endif
                 </div>
-
-                    <p class="text-xs text-red-600 dark:text-red-400 mt-1 text-right">
-                        　
-                        {{-- 予算を {{ number_format($currentTotalCost - $budget) }}円 超過しています。 --}}
-                    </p>
-
-                {{-- 警告メッセージ --}}
-                @if($currentTotalCost > $budget)
-                    <div class="mt-3 p-3 text-sm text-red-700 bg-red-100 rounded-md dark:bg-red-900 dark:text-red-200 border border-red-300 dark:border-red-700">
-                        <i class="fas fa-exclamation-triangle mr-1"></i>
-                        <strong>重大な警告:</strong> 現在のコスト ({{ number_format($currentTotalCost) }}円) が予算 ({{ number_format($budget) }}円) を超過しています！
+                <div class="flex justify-between text-sm mt-1">
+                    <span class="text-gray-600 dark:text-gray-300">実績: <strong class="font-bold">¥{{ number_format($total_actual_cost, 0) }}</strong></span>
+                    <div class="text-right">
+                        <span class="text-gray-500 dark:text-gray-400 ml-2">予算: ¥{{ number_format($budget, 0) }}</span>
                     </div>
-                @elseif($targetCost > 0 && $currentTotalCost > $targetCost)
-                    <div class="mt-3 p-3 text-sm text-yellow-700 bg-yellow-100 rounded-md dark:bg-yellow-900 dark:text-yellow-200 border border-yellow-300 dark:border-yellow-700">
-                        <i class="fas fa-exclamation-circle mr-1"></i>
-                        <strong>警告:</strong> 現在のコスト ({{ number_format($currentTotalCost) }}円) が目標コスト ({{ number_format($targetCost) }}円) を超過しています。
+                </div>
+                {{-- ▼▼▼【修正】予算超過メッセージを強調 ▼▼▼ --}}
+                @if($total_actual_cost > $budget && $budget > 0)
+                    <div class="mt-3 p-3 text-sm font-semibold text-red-800 bg-red-100 rounded-md dark:bg-red-900/50 dark:text-red-300 border border-red-300 dark:border-red-700 flex items-center">
+                        <i class="fas fa-exclamation-triangle mr-2"></i>
+                        予算を {{ number_format($total_actual_cost - $budget) }}円 超過しています。
                     </div>
                 @endif
-            @else
-                <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">予算が設定されていません。コスト進捗を表示するには、案件編集画面から予算を設定してください。</p>
-                {{-- 予算未設定でも現在のコストは表示する --}}
-                <p class="text-sm text-gray-700 dark:text-gray-300 mt-1">
-                    現在のコスト: {{ number_format($currentTotalCost) }}円
-                </p>
-            @endif
+            </div>
+
+            <hr class="dark:border-gray-600">
+
+            {{-- 2. 材料費 --}}
+            <div>
+                <h4 class="font-semibold text-gray-700 dark:text-gray-200 mb-2">材料費</h4>
+                @php
+                    $material_target = $project->target_material_cost ?? 0;
+                    $material_progress = ($material_target > 0) ? ($actual_material_cost / $material_target) * 100 : 0;
+                @endphp
+                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-4">
+                    {{-- ▼▼▼【追加】バー内にパーセンテージを表示 ▼▼▼ --}}
+                    <div class="bg-green-500 h-4 rounded-full text-center text-white text-xs font-semibold leading-4 flex items-center justify-center" style="width: {{ min($material_progress, 100) }}%">
+                        @if($material_progress > 10)
+                            {{ number_format($material_progress, 0) }}%
+                        @endif
+                    </div>
+                </div>
+                <div class="flex justify-between text-sm mt-1">
+                    <span class="text-gray-600 dark:text-gray-300">実績: <strong class="font-bold">¥{{ number_format($actual_material_cost, 0) }}</strong></span>
+                    <span class="text-gray-500 dark:text-gray-400">目標: ¥{{ number_format($material_target, 0) }}</span>
+                </div>
+                {{-- ▼▼▼【修正】目標超過メッセージを強調 ▼▼▼ --}}
+                @if($actual_material_cost > $material_target && $material_target > 0)
+                    <div class="mt-3 p-2 text-xs text-yellow-800 bg-yellow-100 rounded-md dark:bg-yellow-900/50 dark:text-yellow-300 border border-yellow-300 dark:border-yellow-700 flex items-center">
+                        <i class="fas fa-exclamation-circle mr-2"></i>
+                        目標材料費を {{ number_format($actual_material_cost - $material_target) }}円 超過しています。
+                    </div>
+                @endif
+            </div>
+
+            {{-- 3. 人件費 --}}
+            <div>
+                <h4 class="font-semibold text-gray-700 dark:text-gray-200 mb-2">人件費</h4>
+                @php
+                    $labor_progress = ($target_labor_cost > 0) ? ($actual_labor_cost / $target_labor_cost) * 100 : 0;
+                @endphp
+                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-4">
+                    {{-- ▼▼▼【追加】バー内にパーセンテージを表示 ▼▼▼ --}}
+                    <div class="bg-purple-500 h-4 rounded-full text-center text-white text-xs font-semibold leading-4 flex items-center justify-center" style="width: {{ min($labor_progress, 100) }}%">
+                         @if($labor_progress > 10)
+                            {{ number_format($labor_progress, 0) }}%
+                        @endif
+                    </div>
+                </div>
+                <div class="flex justify-between text-sm mt-1">
+                    <span class="text-gray-600 dark:text-gray-300">実績: <strong class="font-bold">¥{{ number_format($actual_labor_cost, 0) }}</strong></span>
+                    <span class="text-gray-500 dark:text-gray-400">目標: ¥{{ number_format($target_labor_cost, 0) }}</span>
+                </div>
+                {{-- ▼▼▼【修正】目標超過メッセージを強調 ▼▼▼ --}}
+                @if($actual_labor_cost > $target_labor_cost && $target_labor_cost > 0)
+                    <div class="mt-3 p-2 text-xs text-yellow-800 bg-yellow-100 rounded-md dark:bg-yellow-900/50 dark:text-yellow-300 border border-yellow-300 dark:border-yellow-700 flex items-center">
+                        <i class="fas fa-exclamation-circle mr-2"></i>
+                        目標人件費を {{ number_format($actual_labor_cost - $target_labor_cost) }}円 超過しています。
+                    </div>
+                @endif
+            </div>
         </div>
     </div>
     @endcan
+
     {{-- ▲▲▲ コスト進捗バーと警告 ここまで ▲▲▲ --}}
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -320,6 +333,8 @@
                                 <i class="fas {{ $projectStatusIconClass }}" style="margin-right: 4px;"></i>
                             </span>
                         </div>
+
+                        {{-- ▲▲▲ 追加ここまで ▲▲▲ --}}
                         @can('update', $project)
                             <select name="status" id="project_status_select_{{ $project->id }}"
                                     class="project-status-select form-select form-select-sm text-xs dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 rounded-md shadow-sm ml-auto w-32 sm:w-36"
@@ -339,6 +354,34 @@
                         <i class="fas fa-info-circle mr-1"></i>
                         案件ステータスは「納品済み」、かつ「支払完了」とならないと完了になりません。
                     </div>
+
+                    @if(!empty($project->tracking_info))
+                        <hr class="dark:border-gray-700 my-3">
+                        <div class="space-y-3">
+                            <span class="text-sm font-semibold text-gray-500 dark:text-gray-400 w-28 flex-shrink-0">送り状情報</span>
+                            @foreach($project->tracking_info as $info)
+                                @php
+                                    $carrierConfig = config('shipping.carriers.' . ($info['carrier'] ?? 'other'));
+                                    $trackingUrl = $carrierConfig && $carrierConfig['url'] && !empty($info['number']) ? $carrierConfig['url'] . $info['number'] : null;
+                                @endphp
+                                <div class="pl-4 border-l-2 dark:border-gray-600">
+                                    <div class="text-sm text-gray-700 dark:text-gray-300">
+                                        <span class="font-semibold">{{ $carrierConfig['name'] ?? '不明' }}:</span>
+                                        @if($trackingUrl)
+                                            <a href="{{ $trackingUrl }}" target="_blank" class="font-bold text-blue-600 hover:underline">{{ $info['number'] }} <i class="fas fa-external-link-alt fa-xs"></i></a>
+                                        @else
+                                            <span class="font-bold">{{ $info['number'] ?? '番号なし' }}</span>
+                                        @endif
+                                    </div>
+                                    @if(!empty($info['memo']))
+                                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 pl-1">
+                                            <i class="far fa-comment-dots mr-1"></i>{{ $info['memo'] }}
+                                        </p>
+                                    @endif
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
 
                     {{-- プロジェクト固有の form_definitions に基づく追加情報 (案件依頼項目) --}}
                     @can('viewAny', App\Models\FormFieldDefinition::class)
@@ -628,14 +671,18 @@
                             </form>
                         </div>
                     @endcan
+                    {{-- ▼▼▼【追加】並び順保存ボタン ▼▼▼ --}}
+                    <button type="button" id="save-character-order-btn" class="hidden inline-flex items-center px-3 py-1 bg-green-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-green-700">
+                        <i class="fas fa-save mr-1"></i>並び順を保存
+                    </button>
                     @if($project->characters->isEmpty())
                         <div class="text-center py-10"> <i class="fas fa-user-plus text-4xl text-gray-400 dark:text-gray-500 mb-3"></i> <h6 class="text-md font-semibold text-gray-700 dark:text-gray-300">キャラクターが登録されていません</h6> <p class="text-sm text-gray-500 dark:text-gray-400">上のフォームから新しいキャラクターを追加してください。</p> </div>
                     @else
-                        <div class="space-y-6">
-                            @foreach($project->characters as $character)
-                                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden js-character-card" >
-                                    <div class="px-5 py-3 flex justify-between items-center border-b dark:border-gray-700" style="background: linear-gradient(135deg, {{ $project->color ?? '#6c757d' }}1A, {{ $project->color ?? '#6c757d' }}0A); border-left: 3px solid {{ $project->color ?? '#6c757d' }};">
+                        <div id="character-list" class="space-y-6">
+                            @foreach($project->characters->sortBy('display_order') as $character)
+                            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden js-character-card" data-id="{{ $character->id }}">                                    <div class="px-5 py-3 flex justify-between items-center border-b dark:border-gray-700" style="background: linear-gradient(135deg, {{ $project->color ?? '#6c757d' }}1A, {{ $project->color ?? '#6c757d' }}0A); border-left: 3px solid {{ $project->color ?? '#6c757d' }};">
                                         <h6 class="text-md font-semibold text-gray-800 dark:text-gray-100 truncate" title="{{ $character->name }}">
+                                            <span class="drag-handle text-gray-400 mr-3 cursor-move" title="ドラッグして並び替え"><i class="fas fa-grip-vertical"></i></span>
                                             <i class="fas fa-user mr-2" style="color: {{ $project->color ?? '#6c757d' }};"></i>
                                             {{ $character->name }}
                                             @if($character->gender)
@@ -1107,6 +1154,77 @@
                 }
             });
         });
+
+         // ▼▼▼【追加】キャラクター並び替えの初期化 ▼▼▼
+         const characterList = document.getElementById('character-list');
+        if (characterList) {
+            const saveBtn = document.getElementById('save-character-order-btn');
+            const projectId = document.getElementById('project-show-main-container').dataset.projectId;
+
+            const sortable = new Sortable(characterList, {
+                animation: 150,
+                ghostClass: 'sortable-ghost',
+                handle: '.drag-handle',
+                onUpdate: function () {
+                    saveBtn.classList.remove('hidden');
+                }
+            });
+
+            saveBtn.addEventListener('click', function() {
+                let ids = sortable.toArray();
+                ids = ids.map(id => parseInt(id, 10));
+
+                this.disabled = true;
+                this.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+                const url = `/projects/${projectId}/characters/update-order`;
+
+                fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    },
+                    body: JSON.stringify({ ids: ids })
+                })
+                .then(res => {
+                    if (!res.ok) {
+                        return res.json().then(err => Promise.reject(err));
+                    }
+                    return res.json();
+                })
+                .then(data => {
+                    if(data.success) {
+                        // ★★★ alert()でのメッセージ表示に戻す ★★★
+                        alert(data.message || '並び順を保存しました。');
+
+                        // ボタンの表示を更新
+                        this.innerHTML = '<i class="fas fa-check"></i> 保存済';
+                        this.classList.add('hidden');
+                    } else {
+                        throw new Error(data.message || '並び順の保存に失敗しました。');
+                    }
+                })
+                .catch(err => {
+                    let errorMessage = '並び順の保存中にエラーが発生しました。';
+                    if (err.message) {
+                        errorMessage += '\n' + err.message;
+                    }
+                    if (err.errors) {
+                        errorMessage += '\n' + Object.values(err.errors).flat().join('\n');
+                    }
+                    // ★★★ alert()でのエラー表示に戻す ★★★
+                    alert(errorMessage);
+                })
+                .finally(() => {
+                    // ボタンの表示を元に戻す
+                    this.innerHTML = '<i class="fas fa-save mr-1"></i>並び順を保存';
+                    this.disabled = false;
+                });
+            });
+        }
+
     });
 </script>
 @endpush

@@ -7,15 +7,16 @@ use Illuminate\Http\Request;
 use App\Models\WorkLog;
 use App\Models\User;
 use App\Models\Project;
+use App\Models\HourlyRate;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class WorkRecordController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
-    // app/Http/Controllers/Admin/WorkRecordController.php
-
     public function index(Request $request)
     {
         $this->authorize('viewAny', WorkLog::class);
@@ -34,6 +35,7 @@ class WorkRecordController extends Controller
         $weekSummary = $this->calculateSummary($weekLogs);
         $monthSummary = $this->calculateSummary($monthLogs);
 
+
         // --- ▼▼▼【ここからクエリとソート処理を修正】▼▼▼ ---
 
         // ソート可能な列を定義
@@ -44,8 +46,8 @@ class WorkRecordController extends Controller
             'task' => 'tasks.name',
             'start_time' => 'work_logs.start_time',
             'end_time' => 'work_logs.end_time',
-            'duration' => \DB::raw('TIMESTAMPDIFF(SECOND, work_logs.start_time, work_logs.end_time)'),
-            'salary' => \DB::raw('(TIMESTAMPDIFF(SECOND, work_logs.start_time, work_logs.end_time) / 3600 * users.hourly_rate)'),
+            'duration' => DB::raw('TIMESTAMPDIFF(SECOND, work_logs.start_time, work_logs.end_time)'),
+            'salary' => 'calculated_salary', // 計算済みの給与カラム名に変更
         ];
 
         // リクエストからソート情報を取得（デフォルトは開始日時の降順）
@@ -58,12 +60,23 @@ class WorkRecordController extends Controller
             $direction = 'desc';
         }
 
+        // 各作業ログの開始時刻に対応する時給を取得するためのサブクエリ
+        $rateSubQuery = HourlyRate::select('rate')
+            ->whereColumn('user_id', 'users.id')
+            ->where('effective_date', '<=', DB::raw('date(work_logs.start_time)'))
+            ->orderBy('effective_date', 'desc')
+            ->limit(1);
+
         $query = WorkLog::query()
             ->join('users', 'work_logs.user_id', '=', 'users.id')
             ->join('tasks', 'work_logs.task_id', '=', 'tasks.id')
             ->leftJoin('projects', 'tasks.project_id', '=', 'projects.id')
             ->leftJoin('characters', 'tasks.character_id', '=', 'characters.id')
-            ->select('work_logs.*') // work_logsの全カラムを選択
+            // selectにサブクエリを追加して時給と給与を動的に計算
+            ->select('work_logs.*')
+            ->selectSub($rateSubQuery, 'current_rate')
+            ->selectRaw('(TIMESTAMPDIFF(SECOND, work_logs.start_time, work_logs.end_time) / 3600 * (' . $rateSubQuery->toSql() . ')) as calculated_salary')
+            ->mergeBindings($rateSubQuery->getQuery()) // toSql()で失われるバインディングをマージ
             ->where('work_logs.status', 'stopped');
 
         // フィルター処理 (変更なし)
@@ -85,7 +98,7 @@ class WorkRecordController extends Controller
 
         // フィルタ後の合計時間を計算
         $totalSecondsQuery = clone $query;
-        $totalSeconds = $totalSecondsQuery->sum(\DB::raw('TIMESTAMPDIFF(SECOND, work_logs.start_time, work_logs.end_time)'));
+        $totalSeconds = $totalSecondsQuery->sum(DB::raw('TIMESTAMPDIFF(SECOND, work_logs.start_time, work_logs.end_time)'));
 
         // ソートを適用
         $query->orderBy($sortableColumns[$sort], $direction);
@@ -93,10 +106,13 @@ class WorkRecordController extends Controller
             $query->orderBy('work_logs.start_time', 'desc'); // 第2ソートキー
         }
 
-        $workLogs = $query->with(['user', 'task.project', 'task.character'])->paginate(50)->withQueryString();
+        // withに hourlyRates を追加して、ユーザーの最新時給をEager Loadする
+        $workLogs = $query->with(['user.hourlyRates', 'task.project', 'task.character'])->paginate(50)->withQueryString();
 
-        // フィルタリング用の選択肢 (変更なし)
-        $users = User::orderBy('name')->get();
+        // フィルタリング・時給登録用の選択肢 (ユーザーは最新の時給情報も取得)
+        $users = User::with(['hourlyRates' => function ($query) {
+            $query->orderBy('effective_date', 'desc')->limit(2);
+        }])->orderBy('name')->get();
         $projects = Project::orderBy('title')->get();
 
         return view('admin.work-records.index', compact(
@@ -109,27 +125,52 @@ class WorkRecordController extends Controller
             'monthSummary',
             'summaryDateStrings',
             'sort',
-            'direction' // ソート情報をビューに渡す
+            'direction'
         ));
     }
 
-    public function updateUserRate(Request $request)
+    /**
+     * ユーザーの時給を一括で登録・更新する
+     */
+    public function updateUserRates(Request $request)
     {
         $validated = $request->validate([
-            'user_id' => 'required|exists:users,id',
-            'hourly_rate' => 'required|numeric|min:0',
+            'rates' => 'present|array',
+            'rates.*.user_id' => 'required|exists:users,id',
+            'rates.*.rate' => 'nullable|numeric|min:0',
+            'rates.*.effective_date' => 'nullable|date',
+        ], [
+            'rates.*.rate.numeric' => '時給は数値で入力してください。',
+            'rates.*.effective_date.date' => '適用日は有効な日付を入力してください。',
         ]);
 
-        $user = User::findOrFail($validated['user_id']);
-        $user->hourly_rate = $validated['hourly_rate'];
-        $user->save();
+        $updateCount = 0;
+        foreach ($validated['rates'] as $rateData) {
+            // 時給と適用日の両方が入力されている行のみを処理する
+            if (!empty($rateData['rate']) && !empty($rateData['effective_date'])) {
+                HourlyRate::updateOrCreate(
+                    [
+                        'user_id' => $rateData['user_id'],
+                        'effective_date' => $rateData['effective_date'],
+                    ],
+                    [
+                        'rate' => $rateData['rate'],
+                    ]
+                );
+                $updateCount++;
+            }
+        }
 
-        return redirect()->route('admin.work-records.index')->with('success', $user->name . 'さんの時給を更新しました。');
+        if ($updateCount > 0) {
+            return redirect()->route('admin.work-records.index')->with('success', $updateCount . '件の時給情報を登録/更新しました。');
+        } else {
+            return redirect()->route('admin.work-records.index')->with('info', '更新する時給情報が入力されていませんでした。');
+        }
     }
 
     private function getLogsForPeriod(Carbon $start, Carbon $end)
     {
-        return WorkLog::with('user')
+        return WorkLog::with('user.hourlyRates') // hourlyRatesもEager Load
             ->where('status', 'stopped')
             ->whereBetween('start_time', [$start, $end])
             ->get();
@@ -158,8 +199,10 @@ class WorkRecordController extends Controller
             $byUser[$userId]['total_seconds'] += $duration;
             $grandTotalSeconds += $duration;
 
-            if ($log->user->hourly_rate > 0) {
-                $salary = ($duration / 3600) * $log->user->hourly_rate;
+            // ▼▼▼【変更】ユーザーの時給を日付ベースで取得 ▼▼▼
+            $rate = $log->user->getHourlyRateForDate($log->start_time);
+            if ($rate > 0) {
+                $salary = ($duration / 3600) * $rate;
                 $byUser[$userId]['total_salary'] += $salary;
                 $grandTotalSalary += $salary;
             }
@@ -238,7 +281,10 @@ class WorkRecordController extends Controller
                 }
 
                 $breakSeconds = $attendanceSeconds - $actualWorkSeconds;
-                $dailySalary = $user->hourly_rate > 0 ? ($actualWorkSeconds / 3600) * $user->hourly_rate : 0;
+
+                // ▼▼▼【変更】日給の計算を日付ベースの時給で行う ▼▼▼
+                $hourlyRate = $user->getHourlyRateForDate($currentDate);
+                $dailySalary = $hourlyRate > 0 ? ($actualWorkSeconds / 3600) * $hourlyRate : 0;
 
                 $monthTotalActualWorkSeconds += $actualWorkSeconds;
                 $monthTotalEffectiveSeconds += $totalEffectiveSeconds;
@@ -274,6 +320,7 @@ class WorkRecordController extends Controller
         ));
     }
 
+
     /**
      * ▼▼▼【ここが不足していたメソッド】▼▼▼
      * 案件別の作業時間サマリーを表示する
@@ -283,7 +330,8 @@ class WorkRecordController extends Controller
     {
         $this->authorize('viewAny', WorkLog::class);
 
-        $workLogs = WorkLog::with(['task.project', 'task.character', 'user'])
+        // userリレーションに加えて、時給履歴(hourlyRates)もEager Loadする
+        $workLogs = WorkLog::with(['task.project', 'task.character', 'user.hourlyRates'])
             ->where('status', 'stopped')
             ->get();
 
@@ -341,7 +389,11 @@ class WorkRecordController extends Controller
                     'duration_formatted' => gmdate('H:i:s', $log->effective_duration),
                 ];
                 $duration = $log->effective_duration;
-                $logSalary = ($duration / 3600) * ($log->user->hourly_rate ?? 0);
+
+                // ▼▼▼【変更箇所】作業日時に基づいて時給を取得し、給与を計算する ▼▼▼
+                $rate = $log->user->getHourlyRateForDate($log->start_time);
+                $logSalary = ($duration / 3600) * ($rate ?? 0);
+
                 $charactersSummary[$characterId]['tasks'][$taskId]['total_seconds'] += $duration;
                 $charactersSummary[$characterId]['tasks'][$taskId]['total_salary'] += $logSalary;
                 $charactersSummary[$characterId]['character_total_seconds'] += $duration;
@@ -350,7 +402,7 @@ class WorkRecordController extends Controller
                 $projectTotalSalary += $logSalary;
             }
 
-            // --- 2. ▼▼▼【新規】実働時間と実働給与の計算 ▼▼▼ ---
+            // --- 2. 実働時間と実働給与の計算 ---
             $projectActualWorkSeconds = 0;
             $projectActualSalary = 0;
             $logsByUser = $projectLogs->groupBy('user_id');
@@ -358,7 +410,6 @@ class WorkRecordController extends Controller
             foreach ($logsByUser as $userId => $userLogs) {
                 if ($userLogs->isEmpty()) continue;
                 $user = $userLogs->first()->user;
-                $hourlyRate = $user->hourly_rate ?? 0;
 
                 $sortedLogs = $userLogs->sortBy('start_time')->values();
                 $userActualSeconds = 0;
@@ -380,7 +431,13 @@ class WorkRecordController extends Controller
                     $userActualSeconds += $mergedEnd->getTimestamp() - $mergedStart->getTimestamp();
                 }
                 $projectActualWorkSeconds += $userActualSeconds;
-                $projectActualSalary += ($userActualSeconds / 3600) * $hourlyRate;
+
+                // ▼▼▼【変更箇所】実働給与の計算 ▼▼▼
+                // 注意: この計算は複雑（日をまたぐ勤務や、同日でも時給が変わるケース）なため、
+                // ここではユーザーの最新の時給で簡易的に計算しています。
+                // 正確性を期すには、日ごとの実働時間を算出し、その日の時給を適用するロジックが必要です。
+                $latestRate = $user->hourlyRates->first()->rate ?? 0;
+                $projectActualSalary += ($userActualSeconds / 3600) * $latestRate;
             }
 
             // --- 3. 最終的なサマリー配列の構築 ---

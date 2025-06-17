@@ -107,11 +107,58 @@
                             <x-input-error :messages="$errors->get('payment')" class="mt-2" />
                         </div>
                         <div>
-                            <x-input-label for="status" value="プロジェクトステータス" />
+                            <x-input-label for="status" value="案件ステータス" />
                              <x-select-input id="status" name="status" class="mt-1 block w-full"
                                 :options="['' => '選択してください'] + \App\Models\Project::PROJECT_STATUS_OPTIONS"
                                 :selected="old('status', $project->status)" :hasError="$errors->has('status')" />
                             <x-input-error :messages="$errors->get('status')" class="mt-2" />
+                        </div>
+
+                        {{-- 送り状情報 --}}
+                        <div class="mt-4 border-t pt-6 dark:border-gray-700" x-data='{
+                            trackings: {{ old('tracking_info') ? json_encode(old('tracking_info')) : json_encode($project->tracking_info ?? [['carrier' => '', 'number' => '', 'memo' => '']]) }},
+                            carriers: {{ json_encode(config('shipping.carriers')) }},
+                            addRow() { this.trackings.push({ carrier: "", number: "", memo: "" }); },
+                            removeRow(index) { this.trackings.splice(index, 1); }
+                        }'>
+                            <x-input-label value="送り状情報" />
+                            <div class="space-y-4 mt-1">
+                                <template x-for="(tracking, index) in trackings" :key="index">
+                                    <div class="p-3 border rounded-md dark:border-gray-600 space-y-3 relative">
+                                        {{-- 削除ボタン --}}
+                                        <button type="button" @click="removeRow(index)" class="absolute top-2 right-2 p-1 text-gray-400 hover:text-red-500 dark:hover:text-red-400">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+
+                                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                            <div class="sm:col-span-1">
+                                                <x-input-label ::for="`tracking_carrier_${index}`" value="配送業者" class="text-xs" />
+                                                {{-- select要素自体に x-model を適用します --}}
+                                                <select :name="`tracking_info[${index}][carrier]`"
+                                                        @change="tracking.carrier = $event.target.value"
+                                                        class="form-select mt-1 block w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200">
+                                                    <option value="">業者を選択...</option>
+                                                    <template x-for="(carrier, key) in carriers" :key="key">
+                                                        <option :value="key"
+                                                                x-text="carrier.name"
+                                                                :selected="key === tracking.carrier">
+                                                        </option>
+                                                    </template>
+                                                </select>
+                                            </div>
+                                            <div class="sm:col-span-2">
+                                                <x-input-label ::for="`tracking_number_${index}`" value="送り状番号" class="text-xs" />
+                                                <x-text-input ::id="`tracking_number_${index}`" ::name="`tracking_info[${index}][number]`" type="text" class="mt-1 block w-full text-sm" x-model="tracking.number" />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <x-input-label ::for="`tracking_memo_${index}`" value="メモ" class="text-xs" />
+                                            <x-text-input ::id="`tracking_memo_${index}`" ::name="`tracking_info[${index}][memo]`" type="text" class="mt-1 block w-full text-sm" x-model="tracking.memo" placeholder="例: ○○様宛、同梱品あり" />
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                            <button type="button" @click="addRow()" class="mt-2 text-sm text-blue-600 hover:underline">+ 送り状を追加</button>
                         </div>
 
                         <div>
@@ -119,10 +166,24 @@
                             <x-text-input id="budget" name="budget" type="number" class="mt-1 block w-full" :value="old('budget', $project->budget)" min="0" :hasError="$errors->has('budget')" />
                             <x-input-error :messages="$errors->get('budget')" class="mt-2" />
                         </div>
-                        <div>
+                        {{-- <div>
                             <x-input-label for="target_cost" value="目標コスト (円)" />
                             <x-text-input id="target_cost" name="target_cost" type="number" class="mt-1 block w-full" :value="old('target_cost', $project->target_cost)" min="0" :hasError="$errors->has('target_cost')" />
                             <x-input-error :messages="$errors->get('target_cost')" class="mt-2" />
+                        </div> --}}
+                        {{-- 目標材料費 --}}
+                        <div>
+                            <x-input-label for="target_material_cost" value="目標材料費" />
+                            <x-text-input id="target_material_cost" class="block mt-1 w-full" type="number" name="target_material_cost" :value="old('target_material_cost', $project->target_material_cost ?? '')" placeholder="例: 50000" />
+                            <x-input-error :messages="$errors->get('target_material_cost')" class="mt-2" />
+                        </div>
+
+                        {{-- 目標人件費 時給 --}}
+                        <div>
+                            <x-input-label for="target_labor_cost_rate" value="目標人件費 計算用固定時給" />
+                            <x-text-input id="target_labor_cost_rate" class="block mt-1 w-full" type="number" name="target_labor_cost_rate" :value="old('target_labor_cost_rate', $project->target_labor_cost_rate ?? '1200')" placeholder="例: 1200" />
+                            <p class="text-xs text-gray-500 mt-1">目標人件費を計算するための固定時給です。全工程の予定工数にこの時給を掛けて目標額を算出します。</p>
+                            <x-input-error :messages="$errors->get('target_labor_cost_rate')" class="mt-2" />
                         </div>
 
                         @if(!empty($customFormFields) && count($customFormFields) > 0)

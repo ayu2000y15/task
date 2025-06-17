@@ -27,16 +27,20 @@ class Project extends Model
         'payment_flag',
         'payment',
         'status',
+        'tracking_info',
         'form_definitions',
         'attributes',
         'budget',
         'target_cost',
+        'target_material_cost',     // ▼▼▼ 追加 ▼▼▼
+        'target_labor_cost_rate',
     ];
 
     protected $casts = [
         'start_date'        => 'date',
         'end_date'          => 'date',
         'is_favorite'       => 'boolean',
+        'tracking_info'     => 'array',
         'form_definitions'  => 'array',
         'attributes'        => 'array',
     ];

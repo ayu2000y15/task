@@ -109,7 +109,7 @@
             {{-- 期限間近の工程セクション --}}
             <div>
                 <div @click="openUpcomingTasks = !openUpcomingTasks" class="flex items-center justify-between px-3 py-2 text-xs font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md cursor-pointer">
-                    <span>期限間近 [2日以内] ({{ $upcomingTasksForSidebar->count() }})</span>
+                    <span>期限切れ・間近 [2日以内] ({{ $upcomingTasksForSidebar->count() }})</span>
                     <i class="fas fa-fw text-xs" :class="{'fa-chevron-down': openUpcomingTasks, 'fa-chevron-right': !openUpcomingTasks}"></i>
                 </div>
                 <ul x-show="openUpcomingTasks" x-transition class="mt-1 space-y-1">
@@ -136,7 +136,7 @@
                             data-status="{{ $task->status }}">
                             <div class="flex items-start justify-between w-full">
                                 <div class="flex items-start flex-shrink-0">
-                                    @if(!$task->is_milestone && !$task->is_folder)
+                                    {{-- @if(!$task->is_milestone && !$task->is_folder)
                                         <div class="flex flex-col items-center mr-2 mt-[1px]">
                                             <span class="text-xs text-gray-500 dark:text-gray-400 mb-0.5" style="font-size: 0.5rem;">進行中</span>
                                             <input type="checkbox"
@@ -147,7 +147,7 @@
                                         </div>
                                     @else
                                         <div class="w-12 mr-2 mt-[1px]"></div>
-                                    @endif
+                                    @endif --}}
                                     <span class="task-status-icon-wrapper mr-2 mt-[1px] flex-shrink-0">
                                         @if($task->is_milestone) <i class="fas fa-flag text-red-500" title="重要納期"></i>
                                         @elseif($task->is_folder) <i class="fas fa-folder text-blue-500" title="フォルダ"></i>
@@ -198,8 +198,28 @@
                                     @endif
                                 </div>
                                 {{-- ▲▲▲【変更】ここまで ▲▲▲ --}}
-
-                                <div class="flex-shrink-0 ml-2">
+                                <div class="mt-2">
+                                    @if(!$task->is_folder && !$task->is_milestone)
+                                        @if($task->assignees->isNotEmpty())
+                                            @php
+                                                $isAssigned = $task->assignees->contains('id', Auth::id());
+                                                $isSharedAccount = Auth::check() && Auth::user()->status === \App\Models\User::STATUS_SHARED;
+                                            @endphp
+                                            @if($isAssigned || $isSharedAccount)
+                                                <div class="timer-controls"
+                                                    data-task-id="{{ $task->id }}"
+                                                    data-task-status="{{ $task->status }}"
+                                                    data-is-paused="{{ $task->is_paused ? 'true' : 'false' }}"
+                                                    data-assignees='{{ json_encode($task->assignees->map->only(['id', 'name'])->values()) }}'
+                                                    data-view-mode="compact" {{-- ▼▼▼【この属性を追加】▼▼▼ --}}
+                                                    >
+                                                    {{-- JavaScriptがこの中身を生成します --}}
+                                                </div>
+                                            @endif
+                                        @endif
+                                    @endif
+                                </div>
+                                {{-- <div class="flex-shrink-0 ml-2">
                                     @if(!$task->is_milestone && !$task->is_folder)
                                         <div class="flex flex-col items-center mt-[1px]">
                                             <span class="text-xs text-gray-500 dark:text-gray-400 mb-0.5" style="font-size: 0.5rem;">完了</span>
@@ -210,7 +230,7 @@
                                                    @if($task->status == 'completed') checked @endif>
                                         </div>
                                     @endif
-                                </div>
+                                </div> --}}
                             </div>
                         </li>
                     @empty
@@ -689,6 +709,12 @@
         <i class="fas fa-hourglass-half fa-3x mb-3"></i>
         <p>アップロード中です...</p>
     </div>
+
+        {{-- ログインユーザー情報をJSに渡すための要素を追加 --}}
+    <div id="user-data-container"
+        data-user='{{ Auth::check() ? json_encode(Auth::user()->only(['id', 'status'])) : 'null' }}' class="hidden">
+    </div>
+
 
     @yield('scripts')
     @stack('scripts')

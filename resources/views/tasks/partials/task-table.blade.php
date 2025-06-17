@@ -229,7 +229,7 @@
                             </td>
                             <td class="px-4 py-3 text-sm text-gray-900 dark:text-gray-100 align-top">
                                 <div class="flex items-center gap-x-3">
-                                    @if(!$task->is_milestone && !$task->is_folder)
+                                    {{-- @if(!$task->is_milestone && !$task->is_folder)
                                         <div class="flex flex-col items-center self-start mt-0.5">
                                             <span class="text-xs text-gray-500 dark:text-gray-400 mb-1" style="font-size: 0.5rem; min-width: 30px; text-align: center;">進行中</span>
                                             <input type="checkbox"
@@ -238,7 +238,7 @@
                                                    title="進行中にする"
                                                    @if($task->status == 'in_progress') checked @endif>
                                         </div>
-                                    @endif
+                                    @endif --}}
 
                                     <div class="flex items-start flex-grow min-w-0" style="padding-left: {{ $level * 1.5 }}rem;">
                                         <div class="task-toggle-container mr-1" style="width: 1.2em; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 0.125rem;">
@@ -312,7 +312,7 @@
                                         </div>
                                     </div>
 
-                                    @if(!$task->is_milestone && !$task->is_folder)
+                                    {{-- @if(!$task->is_milestone && !$task->is_folder)
                                         <div class="flex flex-col items-center self-start mt-0.5">
                                             <span class="text-xs text-gray-500 dark:text-gray-400 mb-1" style="font-size: 0.5rem;">完了</span>
                                             <input type="checkbox"
@@ -321,7 +321,7 @@
                                                    title="完了にする"
                                                    @if($task->status == 'completed') checked @endif>
                                         </div>
-                                    @endif
+                                    @endif --}}
                                 </div>
                             </td>
                             @if(!($isFolderView ?? false) && !($isMilestoneView ?? false) && !(isset($character) && $character))

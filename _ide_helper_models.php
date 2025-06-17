@@ -16,6 +16,42 @@ namespace App\Models{
  * 
  *
  * @property int $id
+ * @property int $user_id
+ * @property \Illuminate\Support\Carbon $date
+ * @property \Illuminate\Support\Carbon|null $start_time 出勤時刻
+ * @property \Illuminate\Support\Carbon|null $end_time 退勤時刻
+ * @property int $break_seconds 休憩時間（秒）
+ * @property int $actual_work_seconds 実働時間（秒）
+ * @property string|null $note 備考
+ * @property string $status ステータス: calculated, edited, confirmed
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read int $attendance_seconds
+ * @property-read float $daily_salary
+ * @property-read \App\Models\User $user
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Attendance newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Attendance newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Attendance query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Attendance whereActualWorkSeconds($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Attendance whereBreakSeconds($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Attendance whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Attendance whereDate($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Attendance whereEndTime($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Attendance whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Attendance whereNote($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Attendance whereStartTime($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Attendance whereStatus($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Attendance whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Attendance whereUserId($value)
+ */
+	class Attendance extends \Eloquent {}
+}
+
+namespace App\Models{
+/**
+ * 
+ *
+ * @property int $id
  * @property string $email
  * @property string|null $reason
  * @property int|null $added_by_user_id
@@ -215,6 +251,7 @@ namespace App\Models{
  * @property string $name
  * @property string|null $description
  * @property string|null $gender
+ * @property int $display_order
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \Spatie\Activitylog\Models\Activity> $activities
@@ -234,6 +271,7 @@ namespace App\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Character query()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Character whereCreatedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Character whereDescription($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Character whereDisplayOrder($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Character whereGender($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Character whereId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Character whereName($value)
@@ -568,6 +606,30 @@ namespace App\Models{
  * 
  *
  * @property int $id
+ * @property int $user_id
+ * @property numeric $rate
+ * @property \Illuminate\Support\Carbon $effective_date
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\User $user
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|HourlyRate newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|HourlyRate newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|HourlyRate query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|HourlyRate whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|HourlyRate whereEffectiveDate($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|HourlyRate whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|HourlyRate whereRate($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|HourlyRate whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|HourlyRate whereUserId($value)
+ */
+	class HourlyRate extends \Eloquent {}
+}
+
+namespace App\Models{
+/**
+ * 
+ *
+ * @property int $id
  * @property string $name 品名
  * @property string|null $product_number
  * @property string|null $color_number
@@ -887,8 +949,11 @@ namespace App\Models{
  * @property array<array-key, mixed>|null $form_definitions
  * @property array<array-key, mixed>|null $attributes
  * @property string|null $status
+ * @property array<array-key, mixed>|null $tracking_info
  * @property int|null $budget 予算
  * @property int|null $target_cost 目標コスト
+ * @property int|null $target_material_cost 目標材料費
+ * @property int|null $target_labor_cost_rate 目標人件費計算用の固定時給
  * @property string $color
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
@@ -920,7 +985,10 @@ namespace App\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Project whereStartDate($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Project whereStatus($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Project whereTargetCost($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Project whereTargetLaborCostRate($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Project whereTargetMaterialCost($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Project whereTitle($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Project whereTrackingInfo($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Project whereUpdatedAt($value)
  */
 	class Project extends \Eloquent {}
@@ -1341,6 +1409,8 @@ namespace App\Models{
  * @property-read int|null $created_requests_count
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\UserHoliday> $holidays
  * @property-read int|null $holidays_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\HourlyRate> $hourlyRates
+ * @property-read int|null $hourly_rates_count
  * @property-read \Illuminate\Notifications\DatabaseNotificationCollection<int, \Illuminate\Notifications\DatabaseNotification> $notifications
  * @property-read int|null $notifications_count
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Role> $roles
