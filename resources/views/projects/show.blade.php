@@ -282,11 +282,7 @@
                             </button>
                         @endif
                     </div>
-                    @if($target_labor_cost > $budget && $budget > 0)
-                         <div class="mb-2 p-2 text-xs text-red-800 bg-red-100 rounded-md dark:bg-red-900/50 dark:text-red-300 border border-red-300 dark:border-red-700 flex items-center">
-                            <i class="fas fa-exclamation-triangle mr-2"></i>目標が総予算を超過しています。
-                        </div>
-                    @endif
+
                     @php
                         $labor_progress = ($target_labor_cost > 0) ? ($actual_labor_cost / $target_labor_cost) * 100 : 0;
                         $labor_display_max = max(100, $labor_progress) * 1.2;
