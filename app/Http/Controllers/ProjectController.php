@@ -576,27 +576,32 @@ class ProjectController extends Controller
             return response()->json(['html' => $html]);
         }
 
-        // 1. 実績材料費の計算と内訳の取得
-        $material_cost_breakdown = Cost::with('character')
+        // 1. 全キャラクターのコストレコードを一度に取得
+        $all_costs = Cost::with('character')
             ->whereHas('character', fn($q) => $q->where('project_id', $project->id))
-            ->orderBy('amount', 'desc')
             ->get();
+
+        // 2. 実績材料費の計算と内訳の取得
+        // 'type'カラムが「材料費」のものをフィルタリングして合計
+        $material_cost_breakdown = $all_costs->where('type', '材料費')->sortByDesc('amount');
         $actual_material_cost = $material_cost_breakdown->sum('amount');
 
-        // 2. 実績人件費の計算と内訳の取得
-        $actual_labor_cost = 0;
-        $labor_cost_breakdown = []; // 内訳を格納する配列
+        // 3. 実績人件費の計算と内訳の取得
+        // 3-1. 作業費（コストテーブルから）
+        $work_related_costs = $all_costs->where('type', '作業費');
+        $actual_labor_cost_from_costs = $work_related_costs->sum('amount');
 
-        // 「完了」ステータスの工程と、それに関連する作業ログを取得
+        // 3-2. 人件費（作業ログから）
+        $actual_labor_cost_from_logs = 0;
+        $labor_cost_breakdown = []; // 内訳を格納する配列
         $completed_tasks = Task::where('project_id', $project->id)
             ->where('status', 'completed')
-            ->with('workLogs.user.hourlyRates') // ネストされたリレーションをEager Load
+            ->with('workLogs.user.hourlyRates')
             ->get();
 
         foreach ($completed_tasks as $task) {
             $actual_work_seconds_per_task = 0;
             $cost_per_task = 0;
-
             foreach ($task->workLogs as $log) {
                 if ($log->user && $log->effective_duration > 0) {
                     $rate = $log->user->getHourlyRateForDate($log->start_time);
@@ -607,19 +612,28 @@ class ProjectController extends Controller
                 }
                 $actual_work_seconds_per_task += $log->effective_duration;
             }
-
-            // 内訳配列に情報を格納
             if ($actual_work_seconds_per_task > 0) {
                 $labor_cost_breakdown[] = [
                     'task_name' => $task->name,
-                    'estimated_duration_seconds' => ($task->duration ?? 0) * 60, // 分を秒に変換
+                    'estimated_duration_seconds' => ($task->duration ?? 0) * 60,
                     'actual_work_seconds' => $actual_work_seconds_per_task,
                 ];
             }
-            $actual_labor_cost += $cost_per_task;
+            $actual_labor_cost_from_logs += $cost_per_task;
         }
 
-        // 3. 目標人件費の計算 (変更なし)
+        // 3-3. 実績人件費の合計 (作業費 + ログからの人件費)
+        $actual_labor_cost = $actual_labor_cost_from_costs + $actual_labor_cost_from_logs;
+        // 人件費の内訳には「作業費」も追加
+        foreach ($work_related_costs->sortByDesc('amount') as $cost) {
+            array_unshift($labor_cost_breakdown, [
+                'task_name' => "{$cost->character->name}: {$cost->name}",
+                'estimated_duration_seconds' => 0, // 作業費には予定工数がない
+                'actual_work_seconds' => 0, // 作業費には実績時間がない
+            ]);
+        }
+
+        // 4. 目標人件費の計算 (変更なし)
         $target_labor_cost = 0;
         if ($project->target_labor_cost_rate > 0) {
             $total_duration_minutes = $project->tasks()
@@ -627,7 +641,7 @@ class ProjectController extends Controller
             $target_labor_cost = ($total_duration_minutes / 60) * $project->target_labor_cost_rate;
         }
 
-        // 4. 目標合計コストの計算 (変更なし)
+        // 5. 目標合計コストの計算 (変更なし)
         $total_target_cost = ($project->target_material_cost ?? 0) + $target_labor_cost;
 
 
