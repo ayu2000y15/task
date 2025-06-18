@@ -187,7 +187,7 @@
                 </div>
             </div>
 
-            <hr class="dark:border-gray-600">
+            <hr class="dark:border-gray-700">
 
             <div class="space-y-8">
                 {{-- 2. 材料費 --}}
@@ -271,6 +271,7 @@
                         </div>
                     </div>
                 </div>
+                <hr class="dark:border-gray-600">
 
                 {{-- 3. 人件費 --}}
                 <div x-data="{ breakdownOpen: false }">
