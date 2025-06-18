@@ -11,6 +11,7 @@ use App\Models\Request as TaskRequest;
 use App\Models\RequestItem;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
+use App\Models\WorkLog;
 
 class HomeController extends Controller
 {
@@ -84,6 +85,14 @@ class HomeController extends Controller
             // ->limit(5)
             ->get();
 
+        // 現在進行中（タイマーが作動中）の作業ログを取得します
+        // タスクごとに最新の1件に絞り込み、関連データも一緒に読み込みます
+        $runningWorkLogs = WorkLog::where('status', 'active')
+            ->with(['task.project', 'task.assignees', 'user'])
+            ->latest('start_time') // 新しく開始されたものを上に
+            ->get()
+            ->unique('task_id'); // 同じタスクが複数あっても1つにまとめる
+
         return view('home.index', compact(
             'projectCount',
             'activeProjectCount',
@@ -91,7 +100,8 @@ class HomeController extends Controller
             'upcomingTasks',
             'todaysHolidays',
             'workItemsByAssignee',
-            'targetDate' // ★ Viewに日付を渡す
+            'targetDate',
+            'runningWorkLogs',
         ));
     }
 }

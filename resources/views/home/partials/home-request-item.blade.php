@@ -1,4 +1,4 @@
-<li class="flex items-center group {{ $item->is_completed ? 'opacity-50' : '' }}">
+<li class="flex items-center group mt-2 {{ $item->is_completed ? 'opacity-50' : '' }}">
     <input type="checkbox"
         class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 request-item-checkbox"
         data-item-id="{{ $item->id }}" {{ $item->is_completed ? 'checked' : '' }}>

@@ -9,7 +9,6 @@ const csrfToken = document
  */
 function renderTimerControls(container, log, isPaused, taskStatus, assignees) {
     const taskId = container.dataset.taskId;
-    // ▼▼▼【追加】表示モードを取得（なければ'full'）▼▼▼
     const viewMode = container.dataset.viewMode || "full";
 
     const userData = JSON.parse(
@@ -63,7 +62,6 @@ function renderTimerControls(container, log, isPaused, taskStatus, assignees) {
         buttonGroup.className = "flex items-center space-x-2";
 
         const pauseButton = document.createElement("button");
-        // ▼▼▼【修正】ボタンの表示をモードによって切り替え ▼▼▼
         if (viewMode === "compact") {
             pauseButton.innerHTML = `<i class="fas fa-pause"></i>`;
             pauseButton.className =
@@ -78,7 +76,6 @@ function renderTimerControls(container, log, isPaused, taskStatus, assignees) {
         buttonGroup.appendChild(pauseButton);
 
         const stopButton = document.createElement("button");
-        // ▼▼▼【修正】ボタンの表示をモードによって切り替え ▼▼▼
         if (viewMode === "compact") {
             stopButton.innerHTML = `<i class="fas fa-check-circle"></i>`;
             stopButton.className =
@@ -108,7 +105,6 @@ function renderTimerControls(container, log, isPaused, taskStatus, assignees) {
             }
 
             const resumeButton = document.createElement("button");
-            // ▼▼▼【修正】ボタンの表示をモードによって切り替え ▼▼▼
             if (viewMode === "compact") {
                 resumeButton.innerHTML = `<i class="fas fa-play"></i>`;
                 resumeButton.className =
@@ -130,7 +126,6 @@ function renderTimerControls(container, log, isPaused, taskStatus, assignees) {
         } else {
             // 完全な未開始状態
             const startButton = document.createElement("button");
-            // ▼▼▼【修正】ボタンの表示をモードによって切り替え ▼▼▼
             if (viewMode === "compact") {
                 startButton.innerHTML = `<i class="fas fa-play"></i>`;
                 startButton.className =
@@ -239,54 +234,85 @@ async function handleTimerAction(taskId, action, assigneeIds = []) {
         const data = await response.json();
 
         // 1. タイマー自身のUIを更新する
-        const container = document.querySelector(
+        const containers = document.querySelectorAll(
             `.timer-controls[data-task-id="${taskId}"]`
         );
-        if (container) {
-            let logForRender = null;
-            let isPausedForRender = false;
 
-            if (action === "start") {
-                logForRender = {
-                    status: "active",
-                    start_time: new Date().toISOString(),
-                };
-            } else if (action === "pause") {
-                isPausedForRender = true;
-            } else if (action === "stop") {
-                container.dataset.taskStatus = "completed";
-            }
+        if (containers.length > 0) {
+            containers.forEach((container) => {
+                let logForRender = null;
+                let isPausedForRender = false;
 
-            container.dataset.isPaused = isPausedForRender ? "true" : "false";
+                // ▼▼▼【ここから変更】▼▼▼
+                // バックエンドから返された最新のタスクステータスをデータ属性に反映
+                if (data.task_status) {
+                    container.dataset.taskStatus = data.task_status;
+                }
 
-            const assigneesData = JSON.parse(
-                container.dataset.assignees || "[]"
-            );
-            renderTimerControls(
-                container,
-                logForRender,
-                isPausedForRender,
-                container.dataset.taskStatus,
-                assigneesData
-            );
+                if (action === "start") {
+                    logForRender = {
+                        status: "active",
+                        start_time: new Date().toISOString(),
+                    };
+                    isPausedForRender = false;
+                    // ステータスが完了でない限り、進行中に設定
+                    if (container.dataset.taskStatus !== "completed") {
+                        container.dataset.taskStatus = "in_progress";
+                    }
+                } else if (action === "pause") {
+                    logForRender = null;
+                    isPausedForRender = true;
+                } else if (action === "stop") {
+                    logForRender = null;
+                    isPausedForRender = false;
+
+                    // 自分の作業ログだけが停止した場合、タイマーは「開始」状態に戻る
+                    // タスク全体が完了した場合にのみ、データ属性が'completed'に更新される
+                    if (data.log_only) {
+                        // UIを「未開始」の状態に戻す（renderTimerControlsが開始ボタンを表示）
+                    } else {
+                        container.dataset.taskStatus = "completed";
+                    }
+                }
+                // ▲▲▲【変更ここまで】▲▲▲
+
+                container.dataset.isPaused = isPausedForRender
+                    ? "true"
+                    : "false";
+
+                const assigneesData = JSON.parse(
+                    container.dataset.assignees || "[]"
+                );
+
+                renderTimerControls(
+                    container,
+                    logForRender,
+                    isPausedForRender,
+                    container.dataset.taskStatus,
+                    assigneesData
+                );
+            });
+        }
+
+        // ▼▼▼【変更】アラートメッセージを常にサーバーからの応答で表示▼▼▼
+        if (data.message) {
+            alert(data.message);
         }
 
         // 2. 工程一覧のステータスアイコンを更新するためのイベントを発行する
-        let newStatus = "";
-        if (action === "start") {
-            newStatus = "in_progress";
-        } else if (action === "stop") {
-            newStatus = "completed";
-        }
-
-        if (newStatus) {
+        // ▼▼▼【変更】サーバーからの応答に基づいてイベントを発行▼▼▼
+        if (data.task_status) {
             window.dispatchEvent(
                 new CustomEvent("task-status-updated", {
                     detail: {
                         taskId: taskId,
-                        newStatus: newStatus,
-                        // ステータスに応じた進捗率を渡す
-                        newProgress: newStatus === "completed" ? 100 : 10,
+                        newStatus: data.task_status,
+                        newProgress:
+                            data.task_status === "completed"
+                                ? 100
+                                : data.task_status === "in_progress"
+                                ? 10
+                                : 0,
                     },
                 })
             );

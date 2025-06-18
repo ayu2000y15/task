@@ -131,19 +131,47 @@ class WorkLogController extends Controller
 
             WorkLog::whereIn('id', $logsToStop->pluck('id'))->update($updateData);
 
-            $message = '作業を一時停止しました。';
-            $responsePayload = ['success' => true, 'message' => $message];
-
             // "完了" の場合
             if ($request->action_type === 'complete') {
-                $task->status = 'completed';
-                $task->progress = 100;
-                $task->save();
-                $message = '作業を終了し、工程を完了にしました。';
-                $responsePayload['message'] = $message;
+                // ▼▼▼【ここから変更】▼▼▼
+                // 他に作業中の担当者がいないか確認する
+                $otherActiveLogsCount = WorkLog::where('task_id', $task->id)
+                    ->where('status', 'active')
+                    ->count();
+
+                if ($otherActiveLogsCount > 0) {
+                    // 他の担当者がまだ作業中の場合
+                    $message = 'ご自身の作業を完了しました。他の担当者が作業中のため、工程は「進行中」のままです。';
+                    // タスクのステータスは変更しない
+                    return response()->json([
+                        'success' => true,
+                        'message' => $message,
+                        'task_status' => $task->status, // 現在のステータスを返す
+                        'log_only' => true // ログのみ停止したことを示すフラグ
+                    ]);
+                } else {
+                    // これで最後の作業者の場合
+                    $task->status = 'completed';
+                    $task->progress = 100;
+                    $task->save();
+                    $message = '作業を終了し、工程を完了にしました。';
+                    return response()->json([
+                        'success' => true,
+                        'message' => $message,
+                        'task_status' => 'completed', // 新しいステータスを返す
+                    ]);
+                }
+                // ▲▲▲【変更ここまで】▲▲▲
             }
 
-            return response()->json($responsePayload);
+            // "一時停止" の場合
+            $message = '作業を一時停止しました。';
+            // ▼▼▼【変更】レスポンス形式を統一 ▼▼▼
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'task_status' => $task->status
+            ]);
         });
     }
 }

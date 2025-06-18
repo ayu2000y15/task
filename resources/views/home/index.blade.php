@@ -18,6 +18,89 @@
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {{-- ▼▼▼ 左カラム（メインコンテンツ） ▼▼▼ --}}
             <div class="lg:col-span-2 space-y-6">
+
+                {{-- ▼▼▼【ここから追加】現在進行中の工程セクション ▼▼▼ --}}
+                @if($runningWorkLogs->isNotEmpty())
+                    <div x-data="{ open: false }" class="bg-white dark:bg-gray-800 shadow-md rounded-lg">
+                        {{-- アコーディオンヘッダー --}}
+                        <div @click="open = !open"
+                            class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition">
+                            <h5 class="text-lg font-semibold text-gray-700 dark:text-gray-300 flex items-center">
+                                <i class="fas fa-tasks mr-2 text-blue-500"></i>
+                                現在進行中の工程
+                                <span class="ml-2 px-2 py-0.5 text-xs font-semibold text-white bg-blue-500 rounded-full">{{ $runningWorkLogs->count() }}</span>
+                            </h5>
+                            <button aria-label="進行中の工程を展開/折りたたむ">
+                                <i class="fas fa-fw transition-transform" :class="open ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
+                            </button>
+                        </div>
+
+                        {{-- アコーディオンコンテンツ --}}
+                        <div x-show="open" x-transition class="divide-y divide-gray-200 dark:divide-gray-700" style="display: none;">
+                            @foreach ($runningWorkLogs as $workLog)
+                                @php $task = $workLog->task; @endphp
+                                @if ($task)
+                                    <div class="p-4 hover:bg-gray-50 dark:hover:bg-gray-700 border-l-4" style="border-left-color: {{ $task->project->color ?? '#6c757d' }};">
+                                        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                                            <div class="flex-grow min-w-0">
+                                                {{-- 案件名 --}}
+                                                <p class="text-xs font-semibold truncate" style="color: {{ $task->project->color ?? '#6c757d' }};" title="案件: {{ $task->project->title }}">
+                                                    <a href="{{ route('projects.show', $task->project) }}" class="hover:underline">
+                                                        {{ $task->project->title }}
+                                                    </a>
+                                                </p>
+                                                {{-- 工程名 --}}
+                                                <p class="text-lg font-medium text-gray-800 dark:text-gray-100 whitespace-normal break-words">
+                                                    <a href="{{ route('projects.tasks.edit', [$task->project, $task]) }}" class="hover:text-blue-600 dark:hover:text-blue-400">
+                                                        {{ $task->name }}
+                                                    </a>
+                                                </p>
+                                                {{-- 担当者 --}}
+                                                @if($task->assignees->isNotEmpty())
+                                                <p class="text-xs text-gray-500 dark:text-gray-400 truncate mt-1" title="担当: {{ $task->assignees->pluck('name')->join(', ') }}">
+                                                    <i class="fas fa-user fa-fw mr-1 text-gray-400"></i>{{ $task->assignees->pluck('name')->join(', ') }}
+                                                </p>
+                                                @endif
+                                                {{-- 期限 --}}
+                                                @if($task->end_date)
+                                                    @php
+                                                        $now = \Carbon\Carbon::now();
+                                                        $isPast = $task->end_date->isPast();
+                                                    @endphp
+                                                    <p class="text-xs mt-1 {{ $isPast ? 'text-red-500 font-semibold' : 'text-gray-500 dark:text-gray-400' }}">
+                                                        <i class="far fa-clock fa-fw mr-1"></i>
+                                                        期限: {{ $task->end_date->format('n/j H:i') }} ({{ $task->end_date->diffForHumans() }})
+                                                    </p>
+                                                @endif
+                                            </div>
+                                            {{-- タイマーコントロール --}}
+                                            <div class="flex-shrink-0">
+                                                @if(!$task->is_folder && !$task->is_milestone)
+                                                    @if($task->assignees->isNotEmpty())
+                                                        @php
+                                                            $isAssigned = $task->assignees->contains('id', Auth::id());
+                                                            $isSharedAccount = Auth::check() && Auth::user()->status === \App\Models\User::STATUS_SHARED;
+                                                        @endphp
+                                                        @if($isAssigned || $isSharedAccount)
+                                                            <div class="timer-controls"
+                                                                data-task-id="{{ $task->id }}"
+                                                                data-task-status="{{ $task->status }}"
+                                                                data-is-paused="{{ $task->is_paused ? 'true' : 'false' }}"
+                                                                data-assignees='{{ json_encode($task->assignees->map->only(['id', 'name'])->values()) }}'>
+                                                                {{-- JavaScriptがタイマーボタンをここに生成します --}}
+                                                            </div>
+                                                        @endif
+                                                    @endif
+                                                @endif
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endif
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
+
                 <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg">
                     <div
                         class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row justify-between items-center gap-4">
