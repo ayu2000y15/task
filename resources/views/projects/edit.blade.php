@@ -162,7 +162,7 @@
                         </div>
 
                         <div>
-                            <x-input-label for="budget" value="総売上 (円)" />
+                            <x-input-label for="budget" value="予算 (円)" />
                             <x-text-input id="budget" name="budget" type="number" class="mt-1 block w-full" :value="old('budget', $project->budget)" min="0" :hasError="$errors->has('budget')" />
                             <x-input-error :messages="$errors->get('budget')" class="mt-2" />
                         </div>

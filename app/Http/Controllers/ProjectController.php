@@ -615,6 +615,7 @@ class ProjectController extends Controller
             if ($actual_work_seconds_per_task > 0) {
                 $labor_cost_breakdown[] = [
                     'task_name' => $task->name,
+                    'character_name' => $task->character->name,
                     'estimated_duration_seconds' => ($task->duration ?? 0) * 60,
                     'actual_work_seconds' => $actual_work_seconds_per_task,
                 ];
@@ -627,7 +628,8 @@ class ProjectController extends Controller
         // 人件費の内訳には「作業費」も追加
         foreach ($work_related_costs->sortByDesc('amount') as $cost) {
             array_unshift($labor_cost_breakdown, [
-                'task_name' => "{$cost->character->name}: {$cost->name}",
+                'task_name' => "作業費: {$cost->item_description} ({$cost->amount}円)",
+                'character_name' => $cost->character->name,
                 'estimated_duration_seconds' => 0, // 作業費には予定工数がない
                 'actual_work_seconds' => 0, // 作業費には実績時間がない
             ]);
