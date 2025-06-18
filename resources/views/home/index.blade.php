@@ -89,7 +89,17 @@
                                                                 data-assignees='{{ json_encode($task->assignees->map->only(['id', 'name'])->values()) }}'>
                                                                 {{-- JavaScriptがタイマーボタンをここに生成します --}}
                                                             </div>
+                                                        @else
+                                                            {{-- 表示専用のタイマー状況コンテナ --}}
+                                                            <div class="timer-display-only"
+                                                                data-task-id="{{ $task->id }}"
+                                                                data-task-status="{{ $task->status }}"
+                                                                data-is-paused="{{ $task->is_paused ? 'true' : 'false' }}">
+                                                                {{-- JavaScriptがこの中身を生成します --}}
+                                                            </div>
                                                         @endif
+                                                    @else
+                                                        <span class="text-xs text-gray-400 dark:text-gray-500">-</span>
                                                     @endif
                                                 @endif
                                             </div>
