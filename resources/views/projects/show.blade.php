@@ -118,6 +118,10 @@
         </div>
 
         <div x-show="expanded" x-collapse class="p-4 space-y-6">
+            @php
+                // 全てのコスト計算を最初にまとめて実行
+                $budget = $project->budget ?? 0;
+            @endphp
             {{-- 1. 全体サマリー --}}
             <div>
                 <div class="flex justify-between items-end mb-2">
@@ -126,6 +130,13 @@
                     <span class="text-sm font-bold text-red-600 dark:text-red-400">総売上: ¥{{ number_format($project->budget) }}</span>
                     @endif
                 </div>
+
+                @if($total_target_cost > $budget && $budget > 0)
+                    <div class="mb-3 p-2 text-xs text-red-800 bg-red-100 rounded-md dark:bg-red-900/50 dark:text-red-300 border border-red-300 dark:border-red-700 flex items-center">
+                        <i class="fas fa-exclamation-triangle mr-2"></i>
+                        計画（目標合計）が総売上を超過しています。
+                    </div>
+                @endif
 
                 @php
                     $total_actual_cost = $actual_material_cost + $actual_labor_cost;
@@ -168,9 +179,9 @@
                         </div>
                     @endif
                 </div>
-                <div class="flex justify-between  text-sm mt-5">
+                <div class="flex flex-col sm:flex-row sm:justify-between text-sm mt-5">
                     <span class="text-gray-600 dark:text-gray-300">実績合計: <strong class="font-bold">¥{{ number_format($total_actual_cost, 0) }}</strong></span>
-                    <span class="text-gray-500 dark:text-gray-400">目標合計: ¥{{ number_format($total_target_cost, 0) }}</span>
+                    <span class="text-gray-500 dark:text-gray-400 sm:text-right">目標合計: ¥{{ number_format($total_target_cost, 0) }}</span>
                 </div>
                  @if($total_actual_cost > $budget && $budget > 0)
                     <div class="mt-3 p-3 text-sm font-semibold text-red-800 bg-red-100 rounded-md dark:bg-red-900/50 dark:text-red-300 border border-red-300 dark:border-red-700 flex items-center">
@@ -202,6 +213,13 @@
                         $material_target_marker = ($material_display_max > 0) ? (100 / $material_display_max) * 100 : 0;
                         $material_bar_color = ($actual_material_cost > $material_target && $material_target > 0) ? 'bg-yellow-500' : 'bg-green-500';
                     @endphp
+
+                    @if($material_target > $budget && $budget > 0)
+                        <div class="mb-2 p-2 text-xs text-red-800 bg-red-100 rounded-md dark:bg-red-900/50 dark:text-red-300 border border-red-300 dark:border-red-700 flex items-center">
+                        <i class="fas fa-exclamation-triangle mr-2"></i>
+                        目標が総売上を超過しています。
+                        </div>
+                    @endif
                     <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-4 relative flex items-center mt-4">
                         {{-- ▼▼▼【修正】バーの色を動的に変更 ▼▼▼ --}}
                         <div class="{{ $material_bar_color }} h-4 rounded-full text-center text-white text-xs font-semibold leading-4 flex items-center justify-center" style="width: {{ $material_display_width }}%">
@@ -265,6 +283,12 @@
                         $labor_target_marker = ($labor_display_max > 0) ? (100 / $labor_display_max) * 100 : 0;
                         $labor_bar_color = ($actual_labor_cost > $target_labor_cost && $target_labor_cost > 0) ? 'bg-orange-500' : 'bg-purple-500';
                     @endphp
+                    @if($target_labor_cost > $budget && $budget > 0)
+                        <div class="mb-2 p-2 text-xs text-red-800 bg-red-100 rounded-md dark:bg-red-900/50 dark:text-red-300 border border-red-300 dark:border-red-700 flex items-center">
+                            <i class="fas fa-exclamation-triangle mr-2"></i>
+                            目標が総売上を超過しています。
+                        </div>
+                    @endif
                     <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-4 relative flex items-center mt-4">
                         {{-- ▼▼▼【修正】バーの色を動的に変更 ▼▼▼ --}}
                         <div class="{{ $labor_bar_color }} h-4 rounded-full text-center text-white text-xs font-semibold leading-4 flex items-center justify-center" style="width: {{ $labor_display_width }}%">
