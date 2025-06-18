@@ -193,7 +193,7 @@
                 {{-- 2. 材料費 --}}
                 <div x-data="{ breakdownOpen: false }">
                     <div class="flex justify-between items-center mb-2">
-                        <h4 class="font-semibold text-gray-700 dark:text-gray-200">材料費・作業費</h4>
+                        <h4 class="font-semibold text-gray-700 dark:text-gray-200">材料費</h4>
                         @if($material_cost_breakdown->isNotEmpty())
                             <button type="button" @click="breakdownOpen = !breakdownOpen" class="text-xs text-blue-600 hover:underline">
                                 <span x-show="!breakdownOpen">内訳を表示</span><span x-show="breakdownOpen" style="display: none;">内訳を隠す</span>
