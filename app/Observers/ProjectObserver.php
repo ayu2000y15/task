@@ -46,7 +46,7 @@ class ProjectObserver
             elseif ($project->status === 'not_started' && ($project->isDirty('delivery_flag') || $project->isDirty('payment_flag'))) {
                 $project->status = 'in_progress';
             }
-            // 現在のステータスが「保留中」などの他のアクティブな状態であれば、「進行中」にする
+            // 現在のステータスが「一時停止中」などの他のアクティブな状態であれば、「進行中」にする
             // (ただし、「未着手」でフラグ変更なしの場合はそのまま「未着手」を維持)
             elseif (!in_array($project->status, ['not_started', 'cancelled'])) {
                 $project->status = 'in_progress';

@@ -293,7 +293,7 @@
 
                         <div id="status-field-individual" {{ $taskType === 'folder' ? 'style="display:none;"' : '' }}>
                             <x-select-input label="ステータス" name="status" id="status_individual"
-                                :options="['not_started' => '未着手', 'in_progress' => '進行中', 'completed' => '完了', 'on_hold' => '保留中', 'cancelled' => 'キャンセル']"
+                                :options="['not_started' => '未着手', 'in_progress' => '進行中', 'completed' => '完了', 'on_hold' => '一時停止中', 'cancelled' => 'キャンセル']"
                                 :selected="old('status', $task->status)"
                                 :hasError="$errors->has('status')" />
                             <x-input-error :messages="$errors->get('status')" class="mt-2" />

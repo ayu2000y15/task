@@ -155,7 +155,7 @@
                                             @switch($task->status)
                                                 @case('completed') <i class="fas fa-check-circle text-green-500" title="完了"></i> @break
                                                 @case('in_progress') <i class="fas fa-play-circle text-blue-500" title="進行中"></i> @break
-                                                @case('on_hold') <i class="fas fa-pause-circle text-yellow-500" title="保留中"></i> @break
+                                                @case('on_hold') <i class="fas fa-pause-circle text-yellow-500" title="一時停止中"></i> @break
                                                 @case('cancelled') <i class="fas fa-times-circle text-red-500" title="キャンセル"></i> @break
                                                 @default <i class="far fa-circle text-gray-400" title="未着手"></i>
                                             @endswitch

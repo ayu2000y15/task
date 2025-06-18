@@ -50,7 +50,7 @@ export const paymentFlagData = {
         colorClass: "text-purple-500 dark:text-purple-400",
     },
     "On Hold": {
-        tooltip: "保留中",
+        tooltip: "一時停止中",
         icon: "fa-pause-circle",
         colorClass: "text-indigo-500 dark:text-indigo-400",
     },
@@ -77,7 +77,7 @@ export const projectStatusData = {
         colorClass: "text-green-500 dark:text-green-400",
     },
     on_hold: {
-        tooltip: "保留中",
+        tooltip: "一時停止中",
         icon: "fa-pause-circle",
         colorClass: "text-yellow-500 dark:text-yellow-400",
     },

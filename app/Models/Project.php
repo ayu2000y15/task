@@ -78,14 +78,14 @@ class Project extends Model
         'Overdue'        => '期限切れ',
         'Cancelled'      => 'キャンセル',
         'Refunded'       => '返金済み',
-        'On Hold'        => '保留中',
+        'On Hold'        => '一時停止中',
     ];
 
     public const PROJECT_STATUS_OPTIONS = [
         'not_started' => '未着手',
         'in_progress' => '進行中',
         'completed'   => '完了',
-        'on_hold'     => '保留中',
+        'on_hold'     => '一時停止中',
         'cancelled'   => 'キャンセル',
     ];
 

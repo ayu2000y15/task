@@ -4,22 +4,147 @@ const csrfToken = document
     .querySelector('meta[name="csrf-token"]')
     .getAttribute("content");
 
+// ▼▼▼【ここから追加】UI更新のための関数を tasks-index.js から移動 ▼▼▼
+
+/**
+ * ステータスに応じたアイコンのHTMLを返す
+ * @param {string} status
+ * @returns {string}
+ */
+function getStatusIconHtml(status) {
+    switch (status) {
+        case "completed":
+            return '<i class="fas fa-check-circle text-green-500" title="完了"></i>';
+        case "in_progress":
+            return '<i class="fas fa-play-circle text-blue-500" title="進行中"></i>';
+        case "on_hold":
+            return '<i class="fas fa-pause-circle text-yellow-500" title="一時停止中"></i>';
+        case "cancelled":
+            return '<i class="fas fa-times-circle text-red-500" title="キャンセル"></i>';
+        case "not_started":
+        default:
+            return '<i class="far fa-circle text-gray-400" title="未着手"></i>';
+    }
+}
+
+/**
+ * タスク行のUI（アイコン、進捗、セレクトボックス）を更新する
+ * @param {HTMLElement} row
+ * @param {string} newStatus
+ * @param {number} newProgress
+ */
+function updateTaskRowUI(row, newStatus, newProgress) {
+    if (!row) {
+        return;
+    }
+    const iconWrapper = row.querySelector(".task-status-icon-wrapper");
+    if (iconWrapper) {
+        let isSpecialTask = false;
+        // tr (テーブル行) または li (リスト項目) 内のアイコンかチェック
+        if (row.tagName.toLowerCase() === "tr") {
+            const taskNameCell = row.querySelector(
+                "td:nth-child(2), td:nth-child(1)"
+            );
+            if (taskNameCell) {
+                isSpecialTask = !!(
+                    taskNameCell.querySelector("i.fa-flag") ||
+                    taskNameCell.querySelector("i.fa-folder")
+                );
+            }
+        } else if (row.tagName.toLowerCase() === "li") {
+            isSpecialTask = !!(
+                iconWrapper.querySelector("i.fa-flag") ||
+                iconWrapper.querySelector("i.fa-folder")
+            );
+        }
+
+        // 重要納期やフォルダでなければアイコンを更新
+        if (!isSpecialTask) {
+            iconWrapper.innerHTML = getStatusIconHtml(newStatus);
+        }
+    }
+    row.dataset.progress = newProgress;
+
+    // ステータスセレクトボックスがあれば、値も同期する
+    const selectElement = row.querySelector(".task-status-select");
+    if (selectElement) {
+        selectElement.value = newStatus;
+    }
+}
+
+/**
+ * タイマーなど外部からのタスクステータス更新を監視するリスナー
+ */
+function listenForExternalTaskUpdates() {
+    window.addEventListener("task-status-updated", (event) => {
+        const { taskId, newStatus, newProgress } = event.detail;
+        if (!taskId || !newStatus) return;
+
+        // ページ上の該当するすべてのタスク行を探す (trまたはli要素)
+        const rows = document.querySelectorAll(
+            `tr[data-task-id="${taskId}"], li[data-task-id="${taskId}"]`
+        );
+        if (rows.length > 0) {
+            rows.forEach((row) => {
+                // 既存のUI更新関数を呼び出す
+                updateTaskRowUI(row, newStatus, newProgress);
+            });
+        }
+    });
+}
+// ▲▲▲【追加ここまで】▲▲▲
+
+/**
+ * 表示専用UIを描画する関数
+ */
+function renderTimerDisplay(container) {
+    container.innerHTML = "";
+    let statusText = "未定義",
+        iconClass = "fas fa-question-circle",
+        colorClass = "text-gray-400";
+    const taskStatus = container.dataset.taskStatus,
+        isPaused = container.dataset.isPaused === "true";
+
+    if (taskStatus === "in_progress" && !isPaused) {
+        statusText = "作業中";
+        iconClass = "fas fa-play-circle";
+        colorClass = "text-blue-500 dark:text-blue-400";
+    } else if (taskStatus === "completed") {
+        statusText = "完了済";
+        iconClass = "fas fa-check-circle";
+        colorClass = "text-green-500 dark:text-green-400";
+    } else if (taskStatus === "on_hold" || isPaused) {
+        statusText = "一時停止中";
+        iconClass = "fas fa-pause-circle";
+        colorClass = "text-yellow-500 dark:text-yellow-400";
+    } else if (taskStatus === "cancelled") {
+        statusText = "キャンセル済";
+        iconClass = "fas fa-times-circle";
+        colorClass = "text-red-500 dark:text-red-400";
+    } else {
+        statusText = "未着手";
+        iconClass = "far fa-circle";
+        colorClass = "text-gray-400 dark:text-gray-500";
+    }
+    const displayElement = document.createElement("div");
+    displayElement.className = `text-sm font-medium ${colorClass}`;
+    displayElement.innerHTML = `<i class="${iconClass} fa-fw mr-1"></i>${statusText}`;
+    container.appendChild(displayElement);
+}
+
 /**
  * 特定のタスクのタイマーUIを描画する
  */
 function renderTimerControls(container, log, isPaused, taskStatus, assignees) {
-    const taskId = container.dataset.taskId;
-    const viewMode = container.dataset.viewMode || "full";
-
+    const taskId = container.dataset.taskId,
+        viewMode = container.dataset.viewMode || "full";
     const userData = JSON.parse(
         document.getElementById("user-data-container").dataset.user
     );
     const isSharedAccount = userData && userData.status === "shared";
     const hasMultipleAssignees = assignees && assignees.length > 1;
+    container.innerHTML = "";
 
-    container.innerHTML = ""; // コンテナを初期化
-
-    // 完了・キャンセル済みのタスク
     if (taskStatus === "completed" || taskStatus === "cancelled") {
         const statusDisplay = document.createElement("div");
         statusDisplay.className = "text-sm font-semibold";
@@ -38,9 +163,7 @@ function renderTimerControls(container, log, isPaused, taskStatus, assignees) {
         return;
     }
 
-    // 実行中のログがある場合
     if (log && log.status === "active") {
-        // 通常表示のときだけ「作業中」テキストを表示
         if (viewMode === "full") {
             const displayContainer = document.createElement("div");
             displayContainer.className = "text-sm mb-2";
@@ -57,10 +180,8 @@ function renderTimerControls(container, log, isPaused, taskStatus, assignees) {
             displayContainer.innerHTML = `作業中 (開始: <span class="font-semibold text-gray-800 dark:text-gray-200">${formattedStartTime}</span>)`;
             container.appendChild(displayContainer);
         }
-
         const buttonGroup = document.createElement("div");
         buttonGroup.className = "flex items-center space-x-2";
-
         const pauseButton = document.createElement("button");
         if (viewMode === "compact") {
             pauseButton.innerHTML = `<i class="fas fa-pause"></i>`;
@@ -74,7 +195,6 @@ function renderTimerControls(container, log, isPaused, taskStatus, assignees) {
         }
         pauseButton.onclick = () => handleTimerAction(taskId, "pause");
         buttonGroup.appendChild(pauseButton);
-
         const stopButton = document.createElement("button");
         if (viewMode === "compact") {
             stopButton.innerHTML = `<i class="fas fa-check-circle"></i>`;
@@ -90,12 +210,9 @@ function renderTimerControls(container, log, isPaused, taskStatus, assignees) {
         buttonGroup.appendChild(stopButton);
         container.appendChild(buttonGroup);
     } else {
-        // 未開始または一時停止後の状態
-        const buttonContainer = document.createElement("div"); // ボタンをdivで囲む
+        const buttonContainer = document.createElement("div");
         buttonContainer.className = "flex items-center space-x-2";
-
         if (isPaused || (log && log.status === "stopped")) {
-            // 通常表示のときだけ「一時停止中」テキストを表示
             if (viewMode === "full") {
                 const displayContainer = document.createElement("div");
                 displayContainer.className =
@@ -103,7 +220,6 @@ function renderTimerControls(container, log, isPaused, taskStatus, assignees) {
                 displayContainer.textContent = "[一時停止中]";
                 container.appendChild(displayContainer);
             }
-
             const resumeButton = document.createElement("button");
             if (viewMode === "compact") {
                 resumeButton.innerHTML = `<i class="fas fa-play"></i>`;
@@ -116,15 +232,12 @@ function renderTimerControls(container, log, isPaused, taskStatus, assignees) {
                     "inline-flex items-center px-3 py-1 text-xs font-medium text-white bg-green-500 hover:bg-green-600 rounded-md shadow-sm transition";
             }
             resumeButton.onclick = () => {
-                if (isSharedAccount && hasMultipleAssignees) {
-                    openAssigneeSelectionModal(taskId, assignees);
-                } else {
-                    handleTimerAction(taskId, "start");
-                }
+                isSharedAccount && hasMultipleAssignees
+                    ? openAssigneeSelectionModal(taskId, assignees)
+                    : handleTimerAction(taskId, "start");
             };
             buttonContainer.appendChild(resumeButton);
         } else {
-            // 完全な未開始状態
             const startButton = document.createElement("button");
             if (viewMode === "compact") {
                 startButton.innerHTML = `<i class="fas fa-play"></i>`;
@@ -137,22 +250,17 @@ function renderTimerControls(container, log, isPaused, taskStatus, assignees) {
                     "inline-flex items-center px-3 py-1 text-xs font-medium text-white bg-blue-500 hover:bg-blue-600 rounded-md shadow-sm transition";
             }
             startButton.onclick = () => {
-                if (isSharedAccount && hasMultipleAssignees) {
-                    openAssigneeSelectionModal(taskId, assignees);
-                } else {
-                    handleTimerAction(taskId, "start");
-                }
+                isSharedAccount && hasMultipleAssignees
+                    ? openAssigneeSelectionModal(taskId, assignees)
+                    : handleTimerAction(taskId, "start");
             };
             buttonContainer.appendChild(startButton);
         }
         container.appendChild(buttonContainer);
     }
 }
-/**
- * 担当者選択モーダルを表示する
- */
+
 function openAssigneeSelectionModal(taskId, assignees) {
-    // Alpine.js コンポーネントにイベントをディスパッチしてモーダルを開く
     window.dispatchEvent(
         new CustomEvent("open-assignee-modal", {
             detail: { taskId, assignees },
@@ -160,25 +268,17 @@ function openAssigneeSelectionModal(taskId, assignees) {
     );
 }
 
-/**
- * 選択された担当者でタイマーを開始する (Alpine.jsから呼び出せるようにグローバルに公開)
- */
 window.handleStartTimerWithSelection = function (taskId, assigneeIds) {
     if (!assigneeIds || assigneeIds.length === 0) {
         alert("担当者を少なくとも1人選択してください。");
         return;
     }
-    // 同じファイルスコープ内の handleTimerAction を呼び出す
     handleTimerAction(taskId, "start", assigneeIds);
 };
 
-/**
- * タイマーアクション（開始・一時停止・完了）をサーバーに送信
- */
 async function handleTimerAction(taskId, action, assigneeIds = []) {
     let url, body;
     const method = "POST";
-
     if (action === "start") {
         url = "/work-logs/start";
         body = { task_id: taskId, assignee_ids: assigneeIds };
@@ -212,18 +312,16 @@ async function handleTimerAction(taskId, action, assigneeIds = []) {
             let errorMessage = `エラー (コード: ${response.status}): サーバーがリクエストを拒否しました。`;
             try {
                 const errorData = await response.json();
-                if (errorData.message) {
+                if (errorData.message)
                     errorMessage += `\n\nメッセージ: ${errorData.message}`;
-                }
-                if (errorData.error) {
+                if (errorData.error)
                     errorMessage += `\n\nメッセージ: ${errorData.error}`;
-                }
-                if (errorData.errors) {
-                    const errorDetails = Object.values(errorData.errors)
+                if (errorData.errors)
+                    errorMessage += `\n\n詳細:\n${Object.values(
+                        errorData.errors
+                    )
                         .flat()
-                        .join("\n");
-                    errorMessage += `\n\n詳細:\n${errorDetails}`;
-                }
+                        .join("\n")}`;
             } catch (e) {
                 errorMessage += `\nサーバーからの応答が予期した形式ではありませんでした。`;
             }
@@ -233,84 +331,58 @@ async function handleTimerAction(taskId, action, assigneeIds = []) {
 
         const data = await response.json();
 
-        // 1. タイマー自身のUIを更新する
-        const containers = document.querySelectorAll(
-            `.timer-controls[data-task-id="${taskId}"]`
-        );
-
-        if (containers.length > 0) {
-            containers.forEach((container) => {
-                let logForRender = null;
-                let isPausedForRender = false;
-
-                // ▼▼▼【ここから変更】▼▼▼
-                // バックエンドから返された最新のタスクステータスをデータ属性に反映
-                if (data.task_status) {
+        document
+            .querySelectorAll(`.timer-controls[data-task-id="${taskId}"]`)
+            .forEach((container) => {
+                if (data.task_status)
                     container.dataset.taskStatus = data.task_status;
-                }
-
-                if (action === "start") {
-                    logForRender = {
-                        status: "active",
-                        start_time: new Date().toISOString(),
-                    };
-                    isPausedForRender = false;
-                    // ステータスが完了でない限り、進行中に設定
-                    if (container.dataset.taskStatus !== "completed") {
-                        container.dataset.taskStatus = "in_progress";
-                    }
-                } else if (action === "pause") {
-                    logForRender = null;
-                    isPausedForRender = true;
-                } else if (action === "stop") {
-                    logForRender = null;
-                    isPausedForRender = false;
-
-                    // 自分の作業ログだけが停止した場合、タイマーは「開始」状態に戻る
-                    // タスク全体が完了した場合にのみ、データ属性が'completed'に更新される
-                    if (data.log_only) {
-                        // UIを「未開始」の状態に戻す（renderTimerControlsが開始ボタンを表示）
-                    } else {
-                        container.dataset.taskStatus = "completed";
-                    }
-                }
-                // ▲▲▲【変更ここまで】▲▲▲
-
-                container.dataset.isPaused = isPausedForRender
-                    ? "true"
-                    : "false";
-
-                const assigneesData = JSON.parse(
-                    container.dataset.assignees || "[]"
-                );
-
+                if (typeof data.is_paused !== "undefined")
+                    container.dataset.isPaused = data.is_paused
+                        ? "true"
+                        : "false";
+                let logForRender =
+                    action === "start"
+                        ? {
+                              status: "active",
+                              start_time: new Date().toISOString(),
+                          }
+                        : null;
+                let isPausedForRender =
+                    action === "pause" || data.is_paused === true;
                 renderTimerControls(
                     container,
                     logForRender,
                     isPausedForRender,
                     container.dataset.taskStatus,
-                    assigneesData
+                    JSON.parse(container.dataset.assignees || "[]")
                 );
             });
-        }
 
-        // ▼▼▼【変更】アラートメッセージを常にサーバーからの応答で表示▼▼▼
-        if (data.message) {
-            alert(data.message);
-        }
+        document
+            .querySelectorAll(`.timer-display-only[data-task-id="${taskId}"]`)
+            .forEach((container) => {
+                if (data.task_status)
+                    container.dataset.taskStatus = data.task_status;
+                if (typeof data.is_paused !== "undefined")
+                    container.dataset.isPaused = data.is_paused
+                        ? "true"
+                        : "false";
+                renderTimerDisplay(container);
+            });
 
-        // 2. 工程一覧のステータスアイコンを更新するためのイベントを発行する
-        // ▼▼▼【変更】サーバーからの応答に基づいてイベントを発行▼▼▼
-        if (data.task_status) {
+        if (data.message) alert(data.message);
+
+        let finalStatus = data.task_status;
+        if (finalStatus) {
             window.dispatchEvent(
                 new CustomEvent("task-status-updated", {
                     detail: {
                         taskId: taskId,
-                        newStatus: data.task_status,
+                        newStatus: finalStatus,
                         newProgress:
-                            data.task_status === "completed"
+                            finalStatus === "completed"
                                 ? 100
-                                : data.task_status === "in_progress"
+                                : finalStatus === "in_progress"
                                 ? 10
                                 : 0,
                     },
@@ -325,12 +397,13 @@ async function handleTimerAction(taskId, action, assigneeIds = []) {
     }
 }
 
-/**
- * ページ読み込み時にタイマーを初期化
- */
 export function initializeWorkTimers() {
     const timerContainers = document.querySelectorAll(".timer-controls");
-    if (timerContainers.length === 0) return;
+    const displayOnlyContainers = document.querySelectorAll(
+        ".timer-display-only"
+    );
+    if (timerContainers.length === 0 && displayOnlyContainers.length === 0)
+        return;
 
     const runningLogsElement = document.getElementById(
         "running-work-logs-data"
@@ -356,7 +429,6 @@ export function initializeWorkTimers() {
         const logForThisTask = activeWorkLogs.find(
             (log) => String(log.task_id) === String(taskId)
         );
-
         renderTimerControls(
             container,
             logForThisTask,
@@ -365,4 +437,11 @@ export function initializeWorkTimers() {
             assignees
         );
     });
+
+    displayOnlyContainers.forEach((container) => {
+        renderTimerDisplay(container);
+    });
+
+    // ▼▼▼【追加】イベントリスナーの初期化をここで行う ▼▼▼
+    listenForExternalTaskUpdates();
 }

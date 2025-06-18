@@ -4,14 +4,14 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Spatie\Activitylog\Traits\LogsActivity; // ★ 追加
-use Spatie\Activitylog\LogOptions;          // ★ 追加
+use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\Activitylog\LogOptions;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Task extends Model
 {
-    use HasFactory, LogsActivity; // ★ LogsActivity トレイトを追加
+    use HasFactory, LogsActivity;
 
     protected $fillable = [
         'project_id',
@@ -24,6 +24,7 @@ class Task extends Model
         'duration',
         'status',
         'progress',
+        'is_paused', // ★ is_paused を追加
         'assignee',
         'is_milestone',
         'is_folder',
@@ -36,6 +37,7 @@ class Task extends Model
         'is_milestone' => 'boolean',
         'is_folder' => 'boolean',
         'duration' => 'integer',
+        'is_paused' => 'boolean', // ★ is_paused を追加
     ];
 
     // ★ アクティビティログのオプション設定
@@ -104,55 +106,11 @@ class Task extends Model
     }
 
     /**
-     * ▼▼▼【ここを追加】is_pausedをJSONに含めるように追記 ▼▼▼
-     *
-     * @var array
-     */
-    protected $appends = ['is_paused'];
-    /**
      * この工程の作業ログ
      */
     public function workLogs(): HasMany
     {
         return $this->hasMany(WorkLog::class);
-    }
-
-    /**
-     * ▼▼▼【ここを追加】タスクが一時停止中かどうかを判定するアクセサ ▼▼▼
-     *
-     * @return bool
-     */
-    public function getIsPausedAttribute(): bool
-    {
-        // ログインしていない場合は常にfalse
-        if (!auth()->check()) {
-            return false;
-        }
-        $currentUser = auth()->user();
-
-        // 完了・キャンセル済みタスクは「一時停止中」ではない
-        if (in_array($this->status, ['completed', 'cancelled'])) {
-            return false;
-        }
-
-        // 'workLogs' リレーションが読み込まれているか確認
-        if (!$this->relationLoaded('workLogs')) {
-            return false;
-        }
-
-        // 【修正点】ログインユーザーに絞って判定
-        $userWorkLogs = $this->workLogs->where('user_id', $currentUser->id);
-
-        // ログインユーザーの実行中のログがある場合は「一時停止中」ではない
-        if ($userWorkLogs->where('status', 'active')->isNotEmpty()) {
-            return false;
-        }
-
-        // ログインユーザーの最新のログを取得
-        $lastLog = $userWorkLogs->sortByDesc('id')->first();
-
-        // 最新のログが存在し、かつステータスが 'stopped' の場合に「一時停止中」と判断
-        return $lastLog && $lastLog->status === 'stopped';
     }
 
     /**
@@ -165,33 +123,6 @@ class Task extends Model
             ->whereIn('status', ['active', 'paused'])
             ->first();
     }
-
-    /**
-     * 工程の期間（日数）を取得
-     */
-    // public function getDurationAttribute($value) // ★ $value を受け取るように変更
-    // {
-    //     // ★ is_folder や is_milestone の場合は duration を計算しないか、固定値を返す
-    //     if ($this->is_folder) {
-    //         return null;
-    //     }
-    //     if ($this->is_milestone) {
-    //         return 1; // マイルストーンは常に1日
-    //     }
-
-    //     if (is_null($this->start_date) || is_null($this->end_date)) {
-    //         // ★ fillable に duration がある場合は、DBの値か計算結果を返す
-    //         // ここでは元々の $fillable に duration が含まれているため、DBに保存された値を優先する
-    //         // ただし、start_date/end_dateから動的に計算したい場合は、このアクセサのロジックを調整
-    //         return $this->attributes['duration'] ?? null;
-    //     }
-    //     // ★ start_date と end_date から計算する場合
-    //     // return $this->start_date->diffInDays($this->end_date) + 1;
-    //     // ★ 今回は $fillable に 'duration' が含まれているため、
-    //     // ★ DBに保存された値を返すか、もしくはTaskControllerの保存ロジックでdurationを計算・保存し、
-    //     // ★ ここではその値を返す。以下はDBの値がnullの場合に計算する例
-    //     return $this->attributes['duration'] ?? ($this->start_date && $this->end_date ? $this->start_date->diffInDays($this->end_date) + 1 : null);
-    // }
 
     /**
      * 整形された工数を取得 (例: 2日 3時間, 1時間30分)

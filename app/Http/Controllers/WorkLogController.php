@@ -57,7 +57,6 @@ class WorkLogController extends Controller
             // --- ロジックここまで ---
 
             if ($usersToLog->isEmpty()) {
-                // このエラーは、通常発生しないはずですが、万が一のために残します
                 return response()->json(['error' => '記録対象の担当者が見つかりませんでした。'], 400);
             }
 
@@ -78,13 +77,19 @@ class WorkLogController extends Controller
                 ]);
             }
 
-            // 工程ステータスを「進行中」に更新
+            // 工程ステータスとis_pausedフラグを更新
             if ($task->status !== 'in_progress' && $task->status !== 'completed') {
                 $task->status = 'in_progress';
-                $task->save();
             }
+            $task->is_paused = false;
+            $task->save();
 
-            return response()->json(['success' => true, 'message' => '作業を開始しました。']);
+            return response()->json([
+                'success' => true,
+                'message' => '作業を開始しました。',
+                'task_status' => $task->status,
+                'is_paused' => $task->is_paused
+            ]);
         });
     }
 
@@ -131,47 +136,54 @@ class WorkLogController extends Controller
 
             WorkLog::whereIn('id', $logsToStop->pluck('id'))->update($updateData);
 
-            // "完了" の場合
-            if ($request->action_type === 'complete') {
-                // ▼▼▼【ここから変更】▼▼▼
-                // 他に作業中の担当者がいないか確認する
-                $otherActiveLogsCount = WorkLog::where('task_id', $task->id)
-                    ->where('status', 'active')
-                    ->count();
+            // 最終的なタスクの状態を更新・判定する
+            $otherActiveLogsCount = WorkLog::where('task_id', $task->id)
+                ->where('status', 'active')
+                ->count();
 
+            $taskIsPaused = false;
+            $finalTaskStatus = $task->status;
+            $message = '';
+            $responsePayload = ['success' => true];
+
+            if ($request->action_type === 'complete') {
                 if ($otherActiveLogsCount > 0) {
-                    // 他の担当者がまだ作業中の場合
                     $message = 'ご自身の作業を完了しました。他の担当者が作業中のため、工程は「進行中」のままです。';
-                    // タスクのステータスは変更しない
-                    return response()->json([
-                        'success' => true,
-                        'message' => $message,
-                        'task_status' => $task->status, // 現在のステータスを返す
-                        'log_only' => true // ログのみ停止したことを示すフラグ
-                    ]);
+                    $taskIsPaused = false; // 他が動いているのでpausedではない
+                    $finalTaskStatus = 'in_progress';
+                    $responsePayload['log_only'] = true;
                 } else {
-                    // これで最後の作業者の場合
-                    $task->status = 'completed';
-                    $task->progress = 100;
-                    $task->save();
                     $message = '作業を終了し、工程を完了にしました。';
-                    return response()->json([
-                        'success' => true,
-                        'message' => $message,
-                        'task_status' => 'completed', // 新しいステータスを返す
-                    ]);
+                    $finalTaskStatus = 'completed';
+                    $taskIsPaused = false;
                 }
-                // ▲▲▲【変更ここまで】▲▲▲
+            } elseif ($request->action_type === 'pause') {
+                $message = '作業を一時停止しました。';
+                if ($otherActiveLogsCount === 0) {
+                    $finalTaskStatus = 'on_hold';
+                    $taskIsPaused = true;
+                } else {
+                    // 他の人が作業中ならステータスは変わらない
+                    $finalTaskStatus = 'in_progress';
+                    $taskIsPaused = false; // task全体としてはpausedではない
+                }
             }
 
-            // "一時停止" の場合
-            $message = '作業を一時停止しました。';
-            // ▼▼▼【変更】レスポンス形式を統一 ▼▼▼
-            return response()->json([
-                'success' => true,
-                'message' => $message,
-                'task_status' => $task->status
-            ]);
+            // データベースのタスク状態を更新
+            if ($task->status !== $finalTaskStatus || $task->is_paused !== $taskIsPaused) {
+                $task->status = $finalTaskStatus;
+                $task->is_paused = $taskIsPaused;
+                if ($finalTaskStatus === 'completed') {
+                    $task->progress = 100;
+                }
+                $task->save();
+            }
+
+            $responsePayload['message'] = $message;
+            $responsePayload['task_status'] = $finalTaskStatus;
+            $responsePayload['is_paused'] = $taskIsPaused;
+
+            return response()->json($responsePayload);
         });
     }
 }

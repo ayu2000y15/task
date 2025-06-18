@@ -8,7 +8,7 @@
                 <i class="fas fa-play-circle text-blue-500" title="進行中"></i>
                 @break
             @case('on_hold')
-                <i class="fas fa-pause-circle text-yellow-500" title="保留中"></i>
+                <i class="fas fa-pause-circle text-yellow-500" title="一時停止中"></i>
                 @break
             @default
                 <i class="far fa-circle text-gray-400" title="未着手"></i>

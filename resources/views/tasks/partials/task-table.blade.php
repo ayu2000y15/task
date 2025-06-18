@@ -207,6 +207,7 @@
                                             $isSharedAccount = Auth::check() && Auth::user()->status === \App\Models\User::STATUS_SHARED;
                                         @endphp
                                         @if($isAssigned || $isSharedAccount)
+                                            {{-- 操作可能なタイマーコントロール --}}
                                             <div class="timer-controls"
                                             data-task-id="{{ $task->id }}"
                                             data-task-status="{{ $task->status }}"
@@ -215,8 +216,13 @@
                                                 {{-- JavaScriptがこの中身を生成します --}}
                                             </div>
                                         @else
-                                            {{-- 担当者はいるが、自分ではない場合 --}}
-                                            <span class="text-xs text-gray-400 dark:text-gray-500">-</span>
+                                            {{-- 表示専用のタイマー状況コンテナ --}}
+                                            <div class="timer-display-only"
+                                                data-task-id="{{ $task->id }}"
+                                                data-task-status="{{ $task->status }}"
+                                                data-is-paused="{{ $task->is_paused ? 'true' : 'false' }}">
+                                                {{-- JavaScriptがこの中身を生成します --}}
+                                            </div>
                                         @endif
                                     @else
                                         {{-- 【追加】担当者が一人もいない場合 --}}
@@ -255,7 +261,7 @@
                                                 @switch($task->status)
                                                     @case('completed') <i class="fas fa-check-circle text-green-500" title="完了"></i> @break
                                                     @case('in_progress') <i class="fas fa-play-circle text-blue-500" title="進行中"></i> @break
-                                                    @case('on_hold') <i class="fas fa-pause-circle text-yellow-500" title="保留中"></i> @break
+                                                    @case('on_hold') <i class="fas fa-pause-circle text-yellow-500" title="一時停止中"></i> @break
                                                     @case('cancelled') <i class="fas fa-times-circle text-red-500" title="キャンセル"></i> @break
                                                     @default <i class="far fa-circle text-gray-400" title="未着手"></i>
                                                 @endswitch
@@ -356,7 +362,7 @@
                                     <option value="not_started" @if($task->status == 'not_started') selected @endif>未着手</option>
                                     <option value="in_progress" @if($task->status == 'in_progress') selected @endif>進行中</option>
                                     <option value="completed" @if($task->status == 'completed') selected @endif>完了</option>
-                                    <option value="on_hold" @if($task->status == 'on_hold') selected @endif>保留中</option>
+                                    <option value="on_hold" @if($task->status == 'on_hold') selected @endif>一時停止中</option>
                                     <option value="cancelled" @if($task->status == 'cancelled') selected @endif>キャンセル</option>
                                 </select>
                                 @else

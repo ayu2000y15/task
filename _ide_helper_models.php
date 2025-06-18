@@ -1306,6 +1306,7 @@ namespace App\Models{
  * @property \Illuminate\Support\Carbon|null $end_date
  * @property string|null $status
  * @property int|null $progress
+ * @property bool $is_paused
  * @property string $color
  * @property bool $is_milestone
  * @property bool $is_folder
@@ -1321,7 +1322,6 @@ namespace App\Models{
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\TaskFile> $files
  * @property-read int|null $files_count
  * @property-read string|null $formatted_duration
- * @property-read bool $is_paused
  * @property-read mixed $level
  * @property-read Task|null $parent
  * @property-read \App\Models\Project $project
@@ -1340,6 +1340,7 @@ namespace App\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereIsFolder($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereIsMilestone($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereIsPaused($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereName($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereParentId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereProgress($value)

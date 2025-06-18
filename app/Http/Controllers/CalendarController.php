@@ -160,7 +160,7 @@ class CalendarController extends Controller
         $statusOptions = [
             'not_started' => '未着手',
             'in_progress' => '進行中',
-            'on_hold' => '保留中',
+            'on_hold' => '一時停止中',
             'cancelled' => 'キャンセル',
         ];
         $allProjects = Project::orderBy('title')->get();

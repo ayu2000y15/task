@@ -1,6 +1,7 @@
 // resources/js/page-specific/tasks-index.js
 import axios from "axios";
 
+// ▼▼▼【再追加】このファイル内でUIを直接更新するために、共通関数を再度設置します ▼▼▼
 function getStatusIconHtml(status) {
     switch (status) {
         case "completed":
@@ -8,7 +9,7 @@ function getStatusIconHtml(status) {
         case "in_progress":
             return '<i class="fas fa-play-circle text-blue-500" title="進行中"></i>';
         case "on_hold":
-            return '<i class="fas fa-pause-circle text-yellow-500" title="保留中"></i>';
+            return '<i class="fas fa-pause-circle text-yellow-500" title="一時停止中"></i>';
         case "cancelled":
             return '<i class="fas fa-times-circle text-red-500" title="キャンセル"></i>';
         case "not_started":
@@ -25,7 +26,9 @@ function updateTaskRowUI(row, newStatus, newProgress) {
     if (iconWrapper) {
         let isSpecialTask = false;
         if (row.tagName.toLowerCase() === "tr") {
-            const taskNameCell = row.querySelector("td:nth-child(2)");
+            const taskNameCell = row.querySelector(
+                "td:nth-child(2), td:nth-child(1)"
+            );
             if (taskNameCell) {
                 isSpecialTask = !!(
                     taskNameCell.querySelector("i.fa-flag") ||
@@ -48,10 +51,9 @@ function updateTaskRowUI(row, newStatus, newProgress) {
     const selectElement = row.querySelector(".task-status-select");
     if (selectElement) {
         selectElement.value = newStatus;
-        selectElement.dataset.originalStatus = newStatus;
-        selectElement.dataset.currentProgress = newProgress;
     }
 }
+// ▲▲▲【再追加ここまで】▲▲▲
 
 function initializeTaskCheckboxes() {
     document.querySelectorAll(".task-status-checkbox").forEach((checkbox) => {
@@ -99,8 +101,10 @@ function initializeTaskCheckboxes() {
                     progress: newProgress,
                 })
                 .then((response) => {
-                    if (response.data.success)
+                    // ▼▼▼【修正】直接UI更新関数を呼び出すように戻します ▼▼▼
+                    if (response.data.success) {
                         updateTaskRowUI(row, newStatus, newProgress);
+                    }
                 });
         });
     });
@@ -129,21 +133,10 @@ function initializeTaskStatusUpdater() {
                     progress: newProgress,
                 })
                 .then((response) => {
+                    // ▼▼▼【修正】直接UI更新関数を呼び出すように戻します ▼▼▼
                     if (response.data.success) {
                         const row = this.closest("tr, li");
                         updateTaskRowUI(row, newStatus, newProgress);
-                        const inProgressCheckbox = row?.querySelector(
-                            ".task-status-in-progress"
-                        );
-                        const completedCheckbox = row?.querySelector(
-                            ".task-status-completed"
-                        );
-                        if (inProgressCheckbox)
-                            inProgressCheckbox.checked =
-                                newStatus === "in_progress";
-                        if (completedCheckbox)
-                            completedCheckbox.checked =
-                                newStatus === "completed";
                     }
                 });
         });
@@ -151,23 +144,18 @@ function initializeTaskStatusUpdater() {
 }
 
 function initializeEditableMultipleAssignees() {
-    // ▼▼▼【ここから修正】▼▼▼
-    // IDが 'assignee-data-container-' で始まる全てのコンテナを取得
     const containers = document.querySelectorAll(
         '[id^="assignee-data-container"]'
     );
 
     if (containers.length === 0) {
-        // コンテナが一つもなければ、警告を出して処理を終了
         console.warn("担当者選択肢のデータコンテナが見つかりません。");
         return;
     }
 
-    // 見つかった各コンテナに対して処理を実行
     containers.forEach((container) => {
         let assigneeOptions = [];
         try {
-            // 各コンテナから担当者オプションのデータを取得
             assigneeOptions = JSON.parse(container.dataset.assigneeOptions);
         } catch (e) {
             console.error(
@@ -175,24 +163,20 @@ function initializeEditableMultipleAssignees() {
                 e,
                 container
             );
-            return; // このコンテナの処理をスキップ
+            return;
         }
 
-        // 現在のコンテナ内にある編集可能セルのみを対象にする
         const editableCells = container.querySelectorAll(
             ".editable-cell-assignees"
         );
 
         editableCells.forEach((cell) => {
             cell.addEventListener("click", function (event) {
-                // 既に編集中の場合は何もしない
                 if (cell.querySelector(".ts-control")) {
                     return;
                 }
-
                 const parentRow = cell.closest("tr");
                 if (!parentRow) return;
-
                 const taskId = parentRow.dataset.taskId;
                 const projectId = parentRow.dataset.projectId;
                 const currentAssigneeIds = JSON.parse(
@@ -226,9 +210,7 @@ function initializeEditableMultipleAssignees() {
 
                 const saveChanges = (instance) => {
                     if (!instance.wrapper) return;
-
                     const newAssigneeIds = instance.items;
-
                     const sortedOld = [...currentAssigneeIds].sort();
                     const sortedNew = [...newAssigneeIds].sort();
                     if (
@@ -240,13 +222,10 @@ function initializeEditableMultipleAssignees() {
                         select.remove();
                         return;
                     }
-
                     axios
                         .post(
                             `/projects/${projectId}/tasks/${taskId}/assignee`,
-                            {
-                                assignees: newAssigneeIds,
-                            }
+                            { assignees: newAssigneeIds }
                         )
                         .then((response) => {
                             if (response.data.success) {
@@ -292,7 +271,6 @@ function initializeFolderFileToggle() {
             const targetElement = document.getElementById(this.dataset.target);
             const icon = this.querySelector("i");
             if (!targetElement || !icon) return;
-
             targetElement.classList.toggle("hidden");
             icon.classList.toggle("fa-chevron-down");
             icon.classList.toggle("fa-chevron-up");
@@ -300,40 +278,14 @@ function initializeFolderFileToggle() {
     });
 }
 
-function listenForExternalTaskUpdates() {
-    window.addEventListener("task-status-updated", (event) => {
-        const { taskId, newStatus, newProgress } = event.detail;
-        if (!taskId || !newStatus) return;
-
-        // ページ上の該当するタスク行を探す (trまたはli要素)
-        const row = document.querySelector(
-            `tr[data-task-id="${taskId}"], li[data-task-id="${taskId}"]`
-        );
-        if (row) {
-            // 既存のUI更新関数を呼び出す
-            updateTaskRowUI(row, newStatus, newProgress);
-
-            // チェックボックスの状態も同期する
-            const inProgressCheckbox = row.querySelector(
-                ".task-status-in-progress"
-            );
-            const completedCheckbox = row.querySelector(
-                ".task-status-completed"
-            );
-            if (inProgressCheckbox)
-                inProgressCheckbox.checked = newStatus === "in_progress";
-            if (completedCheckbox)
-                completedCheckbox.checked = newStatus === "completed";
-        }
-    });
-}
+// listenForExternalTaskUpdates は work-timer.js に移動したため、このファイルには不要です
 
 try {
+    // このファイルに残った、ページ固有の初期化処理を実行
     initializeTaskStatusUpdater();
     initializeTaskCheckboxes();
     initializeEditableMultipleAssignees();
     initializeFolderFileToggle();
-    listenForExternalTaskUpdates();
 } catch (e) {
     console.error("Error during tasks-index.js specific initialization:", e);
 }

@@ -54,7 +54,7 @@ class Subscriber extends Model
             'subscribed' => '購読中',
             'unsubscribed' => '解除済',
             'bounced' => 'エラー',
-            'pending' => '保留中',
+            'pending' => '一時停止中',
         ];
         return $statuses[$this->status] ?? ucfirst($this->status);
     }

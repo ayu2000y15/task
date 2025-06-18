@@ -98,7 +98,7 @@
                                 'subscribed' => '購読中 (Subscribed)',
                                 'unsubscribed' => '解除済 (Unsubscribed)',
                                 'bounced' => 'エラー (Bounced)',
-                                'pending' => '保留中 (Pending)',
+                                'pending' => '一時停止中 (Pending)',
                             ];
                         @endphp
                         <x-select-input label="購読ステータス" id="status" name="status" class="mt-1 block w-full"
