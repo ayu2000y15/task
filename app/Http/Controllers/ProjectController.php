@@ -615,7 +615,7 @@ class ProjectController extends Controller
             if ($actual_work_seconds_per_task > 0) {
                 $labor_cost_breakdown[] = [
                     'task_name' => $task->name,
-                    'character_name' => $task->character->name,
+                    'character_name' => $task->character->name ?? '',
                     'estimated_duration_seconds' => ($task->duration ?? 0) * 60,
                     'actual_work_seconds' => $actual_work_seconds_per_task,
                 ];
