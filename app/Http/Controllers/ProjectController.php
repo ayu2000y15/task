@@ -372,7 +372,7 @@ class ProjectController extends Controller
         }
         // budget と target_cost が空文字列の場合、nullに変換
         $dedicatedData['budget'] = $dedicatedData['budget'] === '' ? null : $dedicatedData['budget'];
-        //$dedicatedData['target_cost'] = $dedicatedData['target_cost'] === '' ? null : $dedicatedData['target_cost'];
+        $dedicatedData['target_cost'] = $dedicatedData['target_cost'] === '' ? null : $dedicatedData['target_cost'];
         $dedicatedData['target_material_cost'] = $dedicatedData['target_material_cost'] === '' ? null : $dedicatedData['target_material_cost'];
         $dedicatedData['target_labor_cost_rate'] = $dedicatedData['target_labor_cost_rate'] === '' ? null : $dedicatedData['target_labor_cost_rate'];
 

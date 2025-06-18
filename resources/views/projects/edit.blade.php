@@ -162,15 +162,15 @@
                         </div>
 
                         <div>
-                            <x-input-label for="budget" value="予算 (円)" />
+                            <x-input-label for="budget" value="総売上 (円)" />
                             <x-text-input id="budget" name="budget" type="number" class="mt-1 block w-full" :value="old('budget', $project->budget)" min="0" :hasError="$errors->has('budget')" />
                             <x-input-error :messages="$errors->get('budget')" class="mt-2" />
                         </div>
-                        {{-- <div>
-                            <x-input-label for="target_cost" value="目標コスト (円)" />
+                        <div>
+                            <x-input-label for="target_cost" value="予算 (円)" />
                             <x-text-input id="target_cost" name="target_cost" type="number" class="mt-1 block w-full" :value="old('target_cost', $project->target_cost)" min="0" :hasError="$errors->has('target_cost')" />
                             <x-input-error :messages="$errors->get('target_cost')" class="mt-2" />
-                        </div> --}}
+                        </div>
                         {{-- 目標材料費 --}}
                         <div>
                             <x-input-label for="target_material_cost" value="目標材料費" />

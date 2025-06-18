@@ -120,59 +120,69 @@
 
         <div x-show="expanded" x-collapse class="p-4 space-y-6">
             @php
-                $budget = $project->budget ?? 0;
+                // 計算の基準を budget から target_cost (目標コスト全体) に変更
+                $overall_target_cost = $project->target_cost ?? 0;
                 $total_actual_cost = $actual_material_cost + $actual_labor_cost;
+                $budget = $project->budget ?? 0; // 予算は参考情報として保持
             @endphp
 
             {{-- 1. 全体サマリー --}}
             <div>
                 <h4 class="font-semibold text-gray-700 dark:text-gray-200 mb-2">全体コスト</h4>
                 @php
-                    $actual_vs_budget_percentage = ($budget > 0) ? ($total_actual_cost / $budget) * 100 : 0;
-                    $target_vs_budget_percentage = ($budget > 0) ? ($total_target_cost / $budget) * 100 : 0;
-                    $display_max_percentage_overall = max(100, $actual_vs_budget_percentage, $target_vs_budget_percentage) * 1.2;
-                    $material_display_width = ($budget > 0) ? (($actual_material_cost / $budget) * 100 / $display_max_percentage_overall) * 100 : 0;
-                    $labor_display_width = ($budget > 0) ? (($actual_labor_cost / $budget) * 100 / $display_max_percentage_overall) * 100 : 0;
-                    $overall_bar_color_material = ($total_actual_cost > $budget && $budget > 0) ? 'bg-yellow-500' : 'bg-green-500';
-                    $overall_bar_color_labor = ($total_actual_cost > $budget && $budget > 0) ? 'bg-orange-500' : 'bg-purple-500';
+                    // パーセンテージ計算の分母を $overall_target_cost に変更
+                    $actual_vs_target_percentage = ($overall_target_cost > 0) ? ($total_actual_cost / $overall_target_cost) * 100 : 0;
+                    $target_vs_overall_target_percentage = ($overall_target_cost > 0) ? ($total_target_cost / $overall_target_cost) * 100 : 0;
+                    $display_max_percentage_overall = max(100, $actual_vs_target_percentage, $target_vs_overall_target_percentage) * 1.2;
+
+                    // 表示幅の計算の分母を $overall_target_cost に変更
+                    $material_display_width = ($overall_target_cost > 0) ? (($actual_material_cost / $overall_target_cost) * 100 / $display_max_percentage_overall) * 100 : 0;
+                    $labor_display_width = ($overall_target_cost > 0) ? (($actual_labor_cost / $overall_target_cost) * 100 / $display_max_percentage_overall) * 100 : 0;
+
+                    // バーの超過判定の基準を $overall_target_cost に変更
+                    $overall_bar_color_material = ($total_actual_cost > $overall_target_cost && $overall_target_cost > 0) ? 'bg-yellow-500' : 'bg-green-500';
+                    $overall_bar_color_labor = ($total_actual_cost > $overall_target_cost && $overall_target_cost > 0) ? 'bg-orange-500' : 'bg-purple-500';
                 @endphp
+
                 <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-6 relative flex items-center mt-6">
                     <div class="flex h-full w-full">
                         <div class="{{ $overall_bar_color_material }} h-full flex items-center justify-center rounded-l-full" style="width: {{ $material_display_width }}%" title="実績材料費: {{number_format($actual_material_cost)}}円"></div>
                         <div class="{{ $overall_bar_color_labor }} h-full flex items-center justify-center rounded-r-full" style="width: {{ $labor_display_width }}%" title="実績人件費: {{number_format($actual_labor_cost)}}円"></div>
                     </div>
 
-                    @if($budget > 0)
-                        {{-- 目標合計マーカー --}}
+                    @if($overall_target_cost > 0)
+                        {{-- 目標合計(内訳)マーカー --}}
                         @if($total_target_cost > 0)
-                            @php $target_marker_position = (($total_target_cost / $budget) * 100 / $display_max_percentage_overall) * 100; @endphp
-                            <div class="absolute top-0 h-full border-r-2 border-dashed border-indigo-500" style="left: {{ $target_marker_position }}%;" title="目標合計: {{ number_format($total_target_cost) }}円">
+                            {{-- マーカー位置計算の分母を $overall_target_cost に変更 --}}
+                            @php $target_marker_position = (($total_target_cost / $overall_target_cost) * 100 / $display_max_percentage_overall) * 100; @endphp
+                            <div class="absolute top-0 h-full border-r-2 border-dashed border-indigo-500" style="left: {{ $target_marker_position }}%;" title="目標合計(内訳): {{ number_format($total_target_cost) }}円">
                                 <span class="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 text-xs text-indigo-600 dark:text-indigo-300 whitespace-nowrap bg-white dark:bg-gray-800 px-1 rounded shadow flex items-center">
-                                    目標合計
-                                    @if($total_target_cost > $budget)
-                                        <i class="fas fa-exclamation-triangle text-red-500 ml-1" title="目標合計が総予算を超過しています。"></i>
+                                    目標合計: ¥{{ number_format($total_target_cost, 0) }}
+                                    {{-- 超過比較の対象を $overall_target_cost に変更 --}}
+                                    @if($total_target_cost > $overall_target_cost)
+                                        <i class="fas fa-exclamation-triangle text-red-500 ml-1" title="目標合計(内訳)が目標コスト(全体)を超過しています。"></i>
                                     @endif
                                 </span>
                             </div>
                         @endif
 
-                        {{-- 予算(100%)マーカー --}}
-                        @php $budget_marker_position = (100 / $display_max_percentage_overall) * 100; @endphp
-                        <div class="absolute top-0 h-full border-r-2 border-dashed border-red-500" style="left: {{ $budget_marker_position }}%;" title="総予算: {{ number_format($budget) }}円">
+                        {{-- 目標コスト(全体) (100%) マーカー (旧: 予算マーカー) --}}
+                        @php $target_cost_marker_position = (100 / $display_max_percentage_overall) * 100; @endphp
+                        <div class="absolute top-0 h-full border-r-2 border-dashed border-red-500" style="left: {{ $target_cost_marker_position }}%;" title="目標コスト(全体): {{ number_format($overall_target_cost) }}円">
                             <span class="absolute top-full mt-1 left-1/2 -translate-x-1/2 text-xs text-red-600 dark:text-red-300 whitespace-nowrap bg-white dark:bg-gray-800 px-1 rounded shadow">予算</span>
                         </div>
                     @endif
                 </div>
                 <div class="flex flex-col sm:flex-row sm:justify-between text-sm mt-5">
                     <span class="text-gray-600 dark:text-gray-300">実績合計: <strong class="font-bold">¥{{ number_format($total_actual_cost, 0) }}</strong>
-                        @if($total_actual_cost > $budget && $budget > 0)
-                            <i class="fas fa-exclamation-triangle text-red-500 ml-2" title="予算を{{ number_format($total_actual_cost - $budget) }}円超過しています。"></i>
-                            <span class="text-red-500 text-xs">予算を{{ number_format($total_actual_cost - $budget) }}円超過しています。</span>
+                        {{-- 超過比較の対象とメッセージを target_cost ベースに変更 --}}
+                        @if($total_actual_cost > $overall_target_cost && $overall_target_cost > 0)
+                            <i class="fas fa-exclamation-triangle text-red-500 ml-2" title="目標コスト(全体)を{{ number_format($total_actual_cost - $overall_target_cost) }}円超過しています。"></i>
+                            <span class="text-red-500 text-xs">目標コスト(全体)を{{ number_format($total_actual_cost - $overall_target_cost) }}円超過しています。</span>
                         @endif
                     </span>
                     <div class="sm:text-right">
-                        <span class="text-gray-500 dark:text-gray-400">目標合計: ¥{{ number_format($total_target_cost, 0) }}</span>
-                        <span class="text-gray-500 dark:text-gray-400 ml-2">(予算: ¥{{ number_format($budget, 0) }})</span>
+                        <span class="text-gray-500 dark:text-gray-400 ml-2">予算: ¥{{ number_format($overall_target_cost, 0) }}</span>
                     </div>
                 </div>
             </div>
