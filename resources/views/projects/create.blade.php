@@ -172,7 +172,7 @@
                         </div>
 
                         {{-- 目標人件費 固定時給 --}}
-                        <div>
+                        <div style="display:none">
                             <x-input-label for="target_labor_cost_rate" value="目標人件費 計算用固定時給" />
                             <x-text-input id="target_labor_cost_rate" class="block mt-1 w-full" type="number" name="target_labor_cost_rate" :value="old('target_labor_cost_rate', $project->target_labor_cost_rate ?? '1200')" placeholder="例: 1200" />
                             <p class="text-xs text-gray-500 mt-1">目標人件費を計算するための固定時給です。全工程の予定工数にこの時給を掛けて目標額を算出します。</p>

@@ -118,7 +118,7 @@ class ProjectController extends Controller
                     }
                     // $value (目標コスト) と $budget (予算) が両方ともnullでない場合のみ比較
                     if ($value !== null && $budget !== null && (int)$value > (int)$budget) {
-                        $fail('目標コストは予算以下の金額にしてください。');
+                        $fail('予算は総売上以下の金額にしてください。');
                     }
                 },
             ],
@@ -141,8 +141,8 @@ class ProjectController extends Controller
             'tracking_info.*.carrier' => '配送業者',
             'tracking_info.*.number' => '送り状番号',
             'tracking_info.*.memo' => '送り状メモ',
-            'budget' => '予算',
-            'target_cost' => '目標コスト（全体）',
+            'budget' => '総売上',
+            'target_cost' => '予算',
             'target_material_cost' => '目標材料費',
             'target_labor_cost_rate' => '目標人件費 時給',
         ];
