@@ -243,7 +243,7 @@
                                         </div>
                                     </div>
                                 @empty
-                                    <p class="px-2 py-4 text-center text-xs text-gray-500">登録された材料費・作業費はありません。</p>
+                                    <p class="px-2 py-4 text-center text-xs text-gray-500">登録された材料費はありません。</p>
                                 @endforelse
                             </div>
                             <table class="min-w-full text-sm hidden sm:table">
@@ -264,7 +264,7 @@
                                             <td class="px-2 py-1.5 text-right font-semibold text-gray-800 dark:text-gray-200">¥{{ number_format($cost->amount) }}</td>
                                         </tr>
                                     @empty
-                                        <tr><td colspan="4" class="px-2 py-4 text-center text-xs text-gray-500">登録された材料費・作業費はありません。</td></tr>
+                                        <tr><td colspan="4" class="px-2 py-4 text-center text-xs text-gray-500">登録された材料費はありません。</td></tr>
                                     @endforelse
                                 </tbody>
                             </table>
