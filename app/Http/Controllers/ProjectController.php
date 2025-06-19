@@ -583,9 +583,8 @@ class ProjectController extends Controller
 
         // 2. 実績材料費の計算と内訳の取得
         // 'type'カラムが「材料費」のものをフィルタリングして合計
-        $material_cost_breakdown = $all_costs->where('type', '材料費')->sortByDesc('amount');
+        $material_cost_breakdown = $all_costs->whereIn('type', ['材料費'])->sortByDesc('amount');
         $actual_material_cost = $material_cost_breakdown->sum('amount');
-
         // 3. 実績人件費の計算と内訳の取得
         // 3-1. 作業費（コストテーブルから）
         $manual_labor_related_costs = $all_costs->whereIn('type', ['作業費', '交通費']);

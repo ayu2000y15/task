@@ -38,6 +38,8 @@ class CostController extends Controller
         $maxOrder = $character->costs()->max('display_order');
         $validated['display_order'] = $maxOrder + 1;
 
+        $validated['project_id'] = $project->id;
+
         $cost = $character->costs()->create($validated);
 
 
@@ -86,6 +88,7 @@ class CostController extends Controller
         // ★ 一旦、単純な更新処理とし、ステータス変更による自動削除/追加は材料側で行うことを基本とします。
         // ★ もし、コストを編集した際に材料のステータスも連動させたい場合は、別途そのロジックを検討する必要があります。
         $cost->update($validator->validated());
+
 
         // ★ ログ記録: コスト更新 (CostモデルのLogsActivityが発火)
 

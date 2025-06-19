@@ -368,6 +368,7 @@ class MaterialController extends Controller
             if ($oldStatus !== '購入済' && $material->status === '購入済' && $newCostAmount > 0) {
                 // 未購入 -> 購入済: コスト追加
                 $character->costs()->create([
+                    'project_id' => $project->id,
                     'item_description' => $newCostItemDescription,
                     'amount' => $newCostAmount,
                     'type' => '材料費',
