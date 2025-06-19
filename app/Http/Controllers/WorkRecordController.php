@@ -16,48 +16,46 @@ class WorkRecordController extends Controller
      */
     public function index(Request $request)
     {
+        // 自身の作業実績を閲覧する権限があるかチェック
+        $this->authorize('viewOwn', WorkLog::class);
+
+        // ログインしているユーザーを取得
         $user = Auth::user();
+
+        // リクエストから期間を取得（デフォルトは 'today'）
         $period = $request->input('period', 'today');
 
-        // 共有アカウントの場合
-        if ($user->status === User::STATUS_SHARED) {
-            $query = WorkLog::where('status', 'stopped')->with('user', 'task.project');
+        // 期間に応じて日付範囲を設定
+        $query = WorkLog::where('user_id', $user->id);
 
-            // 期間フィルタリング
-            $this->applyPeriodFilter($query, $period, $request);
-
-            $allLogs = $query->get();
-
-            // ユーザー毎にログと合計時間を集計
-            $usersWithLogs = $allLogs->groupBy('user_id')->map(function ($logs, $userId) {
-                $firstLog = $logs->first();
-                if (!$firstLog || !$firstLog->user) {
-                    return null; // ユーザー情報が取得できない場合は除外
-                }
-                return (object) [
-                    'user' => $firstLog->user,
-                    'logs' => $logs->sortByDesc('start_time'),
-                    'totalSeconds' => $logs->sum('effective_duration'),
-                ];
-            })->filter()->sortBy(function ($userReport) {
-                return $userReport->user->name; // ユーザー名でソート
-            });
-
-            $overallTotalSeconds = $allLogs->sum('effective_duration');
-
-            return view('work-records.index', compact('usersWithLogs', 'overallTotalSeconds', 'period'));
+        switch ($period) {
+            case 'week':
+                $query->whereBetween('start_time', [now()->startOfWeek(), now()->endOfWeek()]);
+                break;
+            case 'month':
+                $query->whereBetween('start_time', [now()->startOfMonth(), now()->endOfMonth()]);
+                break;
+            case 'today':
+            default:
+                $query->whereBetween('start_time', [now()->startOfDay(), now()->endOfDay()]);
+                break;
         }
 
-        // 通常アカウントの場合
-        $query = WorkLog::where('user_id', $user->id)->where('status', 'stopped')->with('task.project');
+        // ログインユーザーの作業ログを取得
+        $workLogs = $query->with('task.project') // N+1問題対策
+            ->orderBy('start_time', 'desc')
+            ->get();
 
-        // 期間フィルタリング
-        $this->applyPeriodFilter($query, $period, $request);
-
-        $workLogs = $query->orderBy('start_time', 'desc')->get();
+        // 合計作業時間（秒）を計算
+        // 'effective_duration'は作業ログの有効な期間を秒で持つカラムを想定しています
         $totalSeconds = $workLogs->sum('effective_duration');
 
-        return view('work-records.index', compact('workLogs', 'totalSeconds', 'period'));
+        // 統一されたデータをビューに渡す
+        return view('work-records.index', [
+            'workLogs' => $workLogs,
+            'totalSeconds' => $totalSeconds,
+            'period' => $period,
+        ]);
     }
 
     /**
