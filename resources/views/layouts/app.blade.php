@@ -649,10 +649,12 @@
                                 作業依頼をする
                             </a>
 
+                            @can('viewOwn', App\Models\WorkLog::class)
                             <a href="{{ route('work-records.index') }}"
                                 class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 {{ request()->routeIs('work-records.index') ? 'bg-gray-100 dark:bg-gray-600 font-semibold' : '' }}">
                                 作業実績
                             </a>
+                            @endcan
                             <a href="{{ route('my-holidays.index') }}"
                                 class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 {{ request()->routeIs('my-holidays.index') ? 'bg-gray-100 dark:bg-gray-600 font-semibold' : '' }}">
                                 休日登録

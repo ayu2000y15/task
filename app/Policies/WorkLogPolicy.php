@@ -23,6 +23,18 @@ class WorkLogPolicy
     }
 
     /**
+     * 自身の作業実績一覧を閲覧できるかを判定する
+     *
+     * @param \App\Models\User $user
+     * @return boolean
+     */
+    public function viewOwn(User $user): bool
+    {
+        // 'work-logs.view-own'の権限を持つユーザーに許可
+        return $user->hasPermissionTo('work-logs.viewOwn');
+    }
+
+    /**
      * Determine whether the user can view the model.
      *
      * @param  \App\Models\User  $user
