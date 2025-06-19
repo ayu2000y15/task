@@ -6,6 +6,7 @@ use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 use App\Console\Commands\ExportActivityLogCommand; // ★ 追加
 use App\Console\Commands\PruneOldActivityLogsCommand; // ★ 追加
+use App\Console\Commands\BackupTablesToBkCommand;
 use Illuminate\Support\Facades\Log;
 
 class Kernel extends ConsoleKernel
@@ -28,6 +29,16 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule): void
     {
+        // ★ 毎日AM2:00に指定テーブルのバックアップを実行するスケジュール
+        $schedule->command(BackupTablesToBkCommand::class)
+            ->dailyAt('02:00')
+            ->onSuccess(function () {
+                \Illuminate\Support\Facades\Log::channel('schedule')->info('BackupTablesToBkCommand: Schedule completed successfully.');
+            })
+            ->onFailure(function () {
+                \Illuminate\Support\Facades\Log::channel('schedule')->error('BackupTablesToBkCommand: Schedule failed.');
+            });
+
         // ★ 毎日AM3:00に前日のログをCSVにエクスポートするスケジュール
         $schedule->command(ExportActivityLogCommand::class)
             ->dailyAt('03:00')
