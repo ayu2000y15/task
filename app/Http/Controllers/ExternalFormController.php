@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Auth;
 use App\Models\User;
 use Illuminate\Support\Facades\Storage; // Storageファサードをインポート
 use App\Models\ManagedContact; // ★ ManagedContactモデルをuse
+use Illuminate\Http\JsonResponse;
 
 class ExternalFormController extends Controller
 {
@@ -372,5 +373,23 @@ class ExternalFormController extends Controller
         ManagedContact::create($validatedData);
 
         return redirect()->route('external-contact.create')->with('success', '連絡先を登録しました。');;
+    }
+
+    /**
+     * メールアドレスの重複をAJAXでチェック
+     */
+    public function checkEmail(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|email',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['exists' => false, 'message' => '無効なメールアドレスです。']);
+        }
+
+        $exists = ManagedContact::where('email', $request->input('email'))->exists();
+
+        return response()->json(['exists' => $exists]);
     }
 }

@@ -173,6 +173,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/contact-register', [ExternalFormController::class, 'createContact'])->name('external-contact.create');
     Route::post('/contact-register', [ExternalFormController::class, 'storeContact'])->name('external-contact.store');
     Route::get('/contact-register/thanks', [ExternalFormController::class, 'thanksContact'])->name('external-contact.thanks');
+    Route::post('/check-email-external', [ExternalFormController::class, 'checkEmail'])->name('external-contact.checkEmail');
 
 
     // 作業実績ページ

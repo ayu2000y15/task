@@ -55,7 +55,7 @@
                         return;
                     }
 
-                    fetch('{{ route("tools.sales.managed-contacts.checkEmail") }}', {
+                    fetch('{{ route("external-contact.checkEmail") }}', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
