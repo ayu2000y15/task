@@ -13,6 +13,7 @@ class Cost extends Model
     use HasFactory, LogsActivity;
 
     protected $fillable = [
+        'project_id',
         'display_order',
         'character_id',
         'item_description',
@@ -52,5 +53,11 @@ class Cost extends Model
     public function character(): BelongsTo
     {
         return $this->belongsTo(Character::class);
+    }
+
+    // ★ 追加: Projectとのリレーション
+    public function project(): BelongsTo
+    {
+        return $this->belongsTo(Project::class);
     }
 }

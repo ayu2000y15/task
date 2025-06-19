@@ -83,4 +83,22 @@ class UserPolicy
         // 'productivity.viewAll' という権限を持つユーザーのみ閲覧を許可
         return $currentUser->hasPermissionTo('productivity.viewAll');
     }
+
+    /**
+     * 全ユーザーのスケジュールカレンダーを閲覧できるか決定する
+     */
+    public function viewAllSchedules(User $currentUser): bool
+    {
+        // 'schedules.viewAll' という権限を持つユーザーのみ閲覧を許可
+        return $currentUser->hasPermissionTo('schedules.viewAll');
+    }
+
+    /**
+     * 全ユーザーの交通費を閲覧できるか決定する
+     */
+    public function viewAllTransportationExpenses(User $currentUser): bool
+    {
+        // 'schedules.viewAll' という権限を持つユーザーのみ閲覧を許可
+        return $currentUser->hasPermissionTo('transportation-expenses.viewAll');
+    }
 }

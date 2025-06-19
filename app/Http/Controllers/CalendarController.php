@@ -9,7 +9,7 @@ use App\Models\Holiday;
 use App\Models\User;
 use Carbon\Carbon;
 use App\Services\TaskService;
-use App\Models\UserHoliday; // ★★★ この行を追加 ★★★
+use App\Models\WorkShift;
 
 class CalendarController extends Controller
 {
@@ -113,47 +113,47 @@ class CalendarController extends Controller
         }
 
         // ▼▼▼【ここから休日データを追加】▼▼▼
-        $userHolidays = UserHoliday::with('user')
+        $userShifts = WorkShift::with('user')
+            ->whereIn('type', ['full_day_off', 'am_off', 'pm_off']) // 休日タイプのシフトのみ取得
             ->whereBetween('date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
             ->get();
 
-        foreach ($userHolidays as $holiday) {
-            if ($holiday->user) {
-                // 個人の休日
+        foreach ($userShifts as $shift) {
+            if ($shift->user) {
+                $eventTitle = '';
+                $eventColor = '';
+
+                switch ($shift->type) {
+                    case 'full_day_off':
+                        $eventTitle = '休み(全日): ' . $shift->user->name;
+                        $eventColor = '#16a34a'; // 緑色
+                        break;
+                    case 'am_off':
+                        $eventTitle = '休み(午前): ' . $shift->user->name;
+                        $eventColor = '#f97316'; // オレンジ色
+                        break;
+                    case 'pm_off':
+                        $eventTitle = '休み(午後): ' . $shift->user->name;
+                        $eventColor = '#ca8a04'; // 黄色
+                        break;
+                }
+
                 $events[] = [
-                    'id' => 'userholiday_' . $holiday->id,
-                    'title' => '休み: ' . $holiday->user->name,
-                    'start' => $holiday->date->format('Y-m-d'),
+                    'id' => 'usershift_' . $shift->id,
+                    'title' => $eventTitle,
+                    'start' => $shift->date->format('Y-m-d'),
                     'allDay' => true,
-                    'backgroundColor' => '#16a34a', // 緑色
-                    'borderColor' => '#16a34a',
+                    'backgroundColor' => $eventColor,
+                    'borderColor' => $eventColor,
                     'textColor' => '#ffffff',
                     'classNames' => ['holiday-event'],
                     'extendedProps' => [
                         'type' => 'holiday',
-                        'description' => $holiday->name
-                    ]
-                ];
-            } else {
-                // 全社共通の休日
-                $events[] = [
-                    'id' => 'userholiday_' . $holiday->id,
-                    'title' => $holiday->name,
-                    'start' => $holiday->date->format('Y-m-d'),
-                    'allDay' => true,
-                    'backgroundColor' => '#f97316', // オレンジ色
-                    'borderColor' => '#f97316',
-                    'textColor' => '#ffffff',
-                    'classNames' => ['holiday-event'],
-                    'extendedProps' => [
-                        'type' => 'holiday',
-                        'description' => '全社休日'
+                        'description' => $shift->name // 登録された休日の名称
                     ]
                 ];
             }
         }
-        // ▲▲▲【休日データの追加ここまで】▲▲▲
-
 
         // ... 既存のフィルター用データ取得処理（変更なし） ...
         $allAssignees = User::whereHas('tasks')->orderBy('name')->get()->pluck('name', 'id');

@@ -6,7 +6,7 @@ use Illuminate\Http\Request; // ★ Requestをuse
 use App\Models\Project;
 use App\Models\Task;
 use Carbon\Carbon;
-use App\Models\UserHoliday;
+use App\Models\WorkShift;
 use App\Models\Request as TaskRequest;
 use App\Models\RequestItem;
 use App\Models\User;
@@ -30,7 +30,11 @@ class HomeController extends Controller
         $targetDate = $request->date('date', 'Y-m-d') ?? Carbon::today();
 
         // 1. 指定された日付の休日取得者を取得
-        $todaysHolidays = UserHoliday::with('user')->where('date', $targetDate)->get()->filter(fn($h) => $h->user);
+        $todaysHolidays = WorkShift::with('user')
+            ->where('date', $targetDate)
+            ->whereIn('type', ['full_day_off', 'am_off', 'pm_off']) // 休日タイプのものを取得
+            ->get()
+            ->filter(fn($shift) => $shift->user);
 
         // 2. 担当者別の「やることリスト」を格納する配列を準備
         $workItemsByAssignee = [];

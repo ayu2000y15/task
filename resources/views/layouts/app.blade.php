@@ -493,8 +493,10 @@
                     </a>
                     @endcan
                 </nav>
+
+                {{-- 勤怠登録 --}}
                 @auth
-                    <div x-data="attendanceTimer({ initialStatus: '{{ $currentAttendanceStatus }}' })" class="relative mr-2">
+                    <div x-data="attendanceTimer({ initialStatus: '{{ $currentAttendanceStatus }}' })" class="relative">
                         <div class="flex items-center space-x-1">
                             <span class="hidden sm:inline-flex items-center px-2 py-1 text-xs font-medium rounded-md"
                                 :class="{
@@ -582,6 +584,10 @@
 
                             $canViewGroup2 = $currentUser->can('viewAny', App\Models\InventoryItem::class);
 
+                            $canViewGroupWork = $currentUser->can('viewAny', App\Models\WorkLog::class) ||
+                                                $currentUser->can('viewAllSchedules', App\Models\User::class) ||
+                                                $currentUser->can('viewAllTransportationExpenses', App\Models\User::class);
+
                             $canViewGroup3 = $currentUser->can('viewAny', App\Models\User::class) ||
                                             $currentUser->can('viewAny', App\Models\Role::class) ||
                                             $currentUser->can('viewAny', App\Models\ProcessTemplate::class) ||
@@ -605,11 +611,10 @@
                             <div class="group-item @if(!$isFirstVisibleGroup) border-t border-gray-200 dark:border-gray-600 @endif">
                                 <button @click="openGroup = (openGroup === 'group1' ? null : 'group1')"
                                         class="w-full flex justify-between items-center px-4 py-3 text-sm font-medium text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none">
-                                    <span>申請・通知</span>
-                                    <i class="fas fa-fw" :class="{'fa-chevron-down': openGroup === 'group1', 'fa-chevron-right': openGroup !== 'group1'}"></i>
+                                    <span><i class="fas fa-bell fa-fw mr-2"></i>申請・通知</span>
+                                    <i class="fas fa-fw text-xs" :class="{'fa-chevron-down': openGroup === 'group1', 'fa-chevron-right': openGroup !== 'group1'}"></i>
                                 </button>
-                                <div x-show="openGroup === 'group1'" x-transition
-                                    class="bg-gray-50 dark:bg-gray-800">
+                                <div x-show="openGroup === 'group1'" x-transition class="bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-600">
                                     @can('viewAny', App\Models\ExternalProjectSubmission::class)
                                     <a href="{{ route('admin.external-submissions.index') }}" class="flex justify-between items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
                                         案件依頼一覧
@@ -641,11 +646,10 @@
                             <div class="group-item @if(!$isFirstVisibleGroup) border-t border-gray-200 dark:border-gray-600 @endif">
                                 <button @click="openGroup = (openGroup === 'group2' ? null : 'group2')"
                                         class="w-full flex justify-between items-center px-4 py-3 text-sm font-medium text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none">
-                                    <span>データ・在庫</span>
-                                    <i class="fas fa-fw" :class="{'fa-chevron-down': openGroup === 'group2', 'fa-chevron-right': openGroup !== 'group2'}"></i>
+                                    <span><i class="fas fa-database fa-fw mr-2"></i>データ・在庫</span>
+                                    <i class="fas fa-fw text-xs" :class="{'fa-chevron-down': openGroup === 'group2', 'fa-chevron-right': openGroup !== 'group2'}"></i>
                                 </button>
-                                <div x-show="openGroup === 'group2'" x-transition
-                                    class="bg-gray-50 dark:bg-gray-800">
+                                <div x-show="openGroup === 'group2'" x-transition class="bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-600">
                                     @can('viewAny', App\Models\InventoryItem::class)
                                         <a href="{{ route('admin.inventory.index') }}" class="flex justify-between items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
                                             在庫管理
@@ -659,36 +663,36 @@
                             @php if($canViewGroup2) $isFirstVisibleGroup = false; @endphp
                             @endif
 
-                            @can('viewAny', App\Models\WorkLog::class) {{-- Policyを作成後、権限を設定 --}}
-
+                            @if($canViewGroupWork)
                             <div class="group-item @if(!$isFirstVisibleGroup) border-t border-gray-200 dark:border-gray-600 @endif">
                                 <button @click="openGroup = (openGroup === 'groupWork' ? null : 'groupWork')"
                                         class="w-full flex justify-between items-center px-4 py-3 text-sm font-medium text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none">
-                                    <span>勤怠管理</span>
-                                    <i class="fas fa-fw" :class="{'fa-chevron-down': openGroup === 'groupWork', 'fa-chevron-right': openGroup !== 'groupWork'}"></i>
+                                    <span><i class="fas fa-user-clock fa-fw mr-2"></i>勤怠管理</span>
+                                    <i class="fas fa-fw text-xs" :class="{'fa-chevron-down': openGroup === 'groupWork', 'fa-chevron-right': openGroup !== 'groupWork'}"></i>
                                 </button>
-                                <div x-show="openGroup === 'groupWork'" x-transition class="bg-gray-50 dark:bg-gray-800">
-                                    @can('viewAny', App\Models\WorkLog::class) {{-- Policyを作成後、権限を設定 --}}
-                                    <a href="{{ route('admin.work-records.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">作業実績一覧</a>
+                                <div x-show="openGroup === 'groupWork'" x-transition class="bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-600">
+                                    @can('viewAllSchedules', App\Models\User::class)
+                                        <a href="{{ route('admin.schedule.calendar') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">全員のスケジュール</a>
                                     @endcan
-                                </div>
-                                <div x-show="openGroup === 'groupWork'" x-transition class="bg-gray-50 dark:bg-gray-800">
-                                    @can('viewAny', App\Models\WorkLog::class) {{-- Policyを作成後、権限を設定 --}}
-                                    <a href="{{ route('admin.holidays.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">休日一覧</a>
+                                    @can('viewAllTransportationExpenses', App\Models\User::class)
+                                        <a href="{{ route('admin.transportation-expenses.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">交通費一覧</a>
+                                    @endcan
+                                    @can('viewAny', App\Models\WorkLog::class)
+                                        <a href="{{ route('admin.work-records.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">作業実績一覧</a>
                                     @endcan
                                 </div>
                             </div>
-                            @endcan
+                            @php if($canViewGroupWork) $isFirstVisibleGroup = false; @endphp
+                            @endif
 
                             @if ($canViewGroup3)
                             <div class="group-item @if(!$isFirstVisibleGroup) border-t border-gray-200 dark:border-gray-600 @endif">
                                 <button @click="openGroup = (openGroup === 'group3' ? null : 'group3')"
                                         class="w-full flex justify-between items-center px-4 py-3 text-sm font-medium text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none">
-                                    <span>設定</span>
-                                    <i class="fas fa-fw" :class="{'fa-chevron-down': openGroup === 'group3', 'fa-chevron-right': openGroup !== 'group3'}"></i>
+                                    <span><i class="fas fa-cogs fa-fw mr-2"></i>設定</span>
+                                    <i class="fas fa-fw text-xs" :class="{'fa-chevron-down': openGroup === 'group3', 'fa-chevron-right': openGroup !== 'group3'}"></i>
                                 </button>
-                                <div x-show="openGroup === 'group3'" x-transition
-                                    class="bg-gray-50 dark:bg-gray-800">
+                                <div x-show="openGroup === 'group3'" x-transition class="bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-600">
                                     @can('viewAny', App\Models\User::class)
                                         <a href="{{ route('admin.users.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">ユーザー管理</a>
                                     @endcan
@@ -713,11 +717,10 @@
                             <div class="group-item @if(!$isFirstVisibleGroup) border-t border-gray-200 dark:border-gray-600 @endif">
                                 <button @click="openGroup = (openGroup === 'group4' ? null : 'group4')"
                                         class="w-full flex justify-between items-center px-4 py-3 text-sm font-medium text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none">
-                                    <span>ログ</span>
-                                    <i class="fas fa-fw" :class="{'fa-chevron-down': openGroup === 'group4', 'fa-chevron-right': openGroup !== 'group4'}"></i>
+                                    <span><i class="fas fa-history fa-fw mr-2"></i>ログ</span>
+                                    <i class="fas fa-fw text-xs" :class="{'fa-chevron-down': openGroup === 'group4', 'fa-chevron-right': openGroup !== 'group4'}"></i>
                                 </button>
-                                <div x-show="openGroup === 'group4'" x-transition
-                                    class="bg-gray-50 dark:bg-gray-800">
+                                <div x-show="openGroup === 'group4'" x-transition class="bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-600">
                                     @can('viewAny', Spatie\Activitylog\Models\Activity::class)
                                         <a href="{{ route('admin.logs.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">操作ログ閲覧</a>
                                     @endcan
@@ -730,11 +733,10 @@
                             <div class="group-item @if(!$isFirstVisibleGroup) border-t border-gray-200 dark:border-gray-600 @endif">
                                 <button @click="openGroup = (openGroup === 'group5' ? null : 'group5')"
                                         class="w-full flex justify-between items-center px-4 py-3 text-sm font-medium text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none">
-                                    <span>リンクコピー</span>
-                                    <i class="fas fa-fw" :class="{'fa-chevron-down': openGroup === 'group5', 'fa-chevron-right': openGroup !== 'group5'}"></i>
+                                    <span><i class="fas fa-link fa-fw mr-2"></i>リンクコピー</span>
+                                    <i class="fas fa-fw text-xs" :class="{'fa-chevron-down': openGroup === 'group5', 'fa-chevron-right': openGroup !== 'group5'}"></i>
                                 </button>
-                                <div x-show="openGroup === 'group5'" x-transition
-                                    class="bg-gray-50 dark:bg-gray-800">
+                                <div x-show="openGroup === 'group5'" x-transition class="bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-600">
                                     @can('viewAny', App\Models\User::class)
                                     <a href="javascript:void(0)" onclick="copyLink(this)" data-copy-value="{{ url('/register') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
                                         新規ユーザー登録リンク
@@ -755,7 +757,7 @@
                     @endcan
 
                     @auth
-                    <div x-data="{ userMenuOpen: false }" class="relative">
+                    <div x-data="{ userMenuOpen: false, openUserGroup: null }" class="relative">
                         <button @click="userMenuOpen = !userMenuOpen" class="flex items-center text-sm font-medium text-gray-700 rounded-md dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none p-2">
                             <span class="hidden sm:inline">{{ Auth::user()->name }}</span>
                             <i class="fas fa-user sm:hidden" title="{{ Auth::user()->name }}"></i>
@@ -763,66 +765,90 @@
                         </button>
                         <div x-show="userMenuOpen" @click.away="userMenuOpen = false"
                             x-transition
-                            class="absolute right-0 mt-2 w-48 py-1 bg-white rounded-md shadow-lg dark:bg-gray-700 ring-1 ring-black ring-opacity-5 z-50"
+                            class="absolute right-0 mt-2 w-56 py-1 bg-white rounded-md shadow-lg dark:bg-gray-700 ring-1 ring-black ring-opacity-5 z-50 overflow-hidden"
                             style="display: none;">
-                            @can('viewAny', App\Models\BoardPost::class)
-                                <a href="{{ route('community.posts.index') }}"
-                                class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
-                                    <span>社内掲示板</span>
-                                    {{-- View Composerから渡された変数でバッジ表示 --}}
-                                    @if(isset($unreadMentionsCountGlobal) && $unreadMentionsCountGlobal > 0)
-                                        <span class="ml-auto inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-blue-500 rounded-full">{{ $unreadMentionsCountGlobal }}</span>
-                                    @endif
-                                </a>
-                            @endcan
-                            @can('create', App\Models\Feedback::class)
-                            <a href="{{ route('user_feedbacks.create') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">フィードバックを送信</a>
-                            @endcan
 
-                            @can('viewAny', App\Models\Task::class)
-                                @php
-                                    $isMyTasksActive = request()->routeIs('tasks.index') && request()->query('assignee') === Auth::user()->name;
-                                @endphp
-                                <a href="{{ route('tasks.index', ['assignee_id' => Auth::id(), 'close_filters' => 1]) }}"
-                                    class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 {{ $isMyTasksActive ? 'bg-gray-100 dark:bg-gray-600 font-semibold' : '' }}">
-                                    担当工程一覧
-                                </a>
-                            @endcan
+                            {{-- 勤務・勤怠グループ --}}
+                            <div class="group-item">
+                                <button @click="openUserGroup = (openUserGroup === 'work' ? null : 'work')" class="w-full flex justify-between items-center px-4 py-3 text-sm font-medium text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none">
+                                    <span><i class="fas fa-briefcase fa-fw mr-2"></i>勤務・勤怠</span>
+                                    <i class="fas fa-fw text-xs" :class="{'fa-chevron-down': openUserGroup === 'work', 'fa-chevron-right': openUserGroup !== 'work'}"></i>
+                                </button>
+                                <div x-show="openUserGroup === 'work'" x-transition class="bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-600">
+                                    <a href="{{ route('schedule.monthly') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 {{ request()->routeIs('shifts.*') ? 'bg-gray-100 dark:bg-gray-600 font-semibold' : '' }}">
+                                        シフト登録
+                                    </a>
+                                    <a href="{{ route('transportation-expenses.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 {{ request()->routeIs('transportation-expenses.*') ? 'bg-gray-100 dark:bg-gray-600 font-semibold' : '' }}">
+                                        交通費登録
+                                    </a>
+                                    @can('viewOwn', App\Models\WorkLog::class)
+                                    <a href="{{ route('work-records.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 {{ request()->routeIs('work-records.index') ? 'bg-gray-100 dark:bg-gray-600 font-semibold' : '' }}">
+                                        作業実績
+                                    </a>
+                                    @endcan
 
-                            <a href="{{ route('requests.create') }}"
-                                class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 {{ $isMyTasksActive ? 'bg-gray-100 dark:bg-gray-600 font-semibold' : '' }}">
-                                作業依頼をする
-                            </a>
+                                </div>
+                            </div>
 
-                            @can('viewOwn', App\Models\WorkLog::class)
-                            <a href="{{ route('work-records.index') }}"
-                                class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 {{ request()->routeIs('work-records.index') ? 'bg-gray-100 dark:bg-gray-600 font-semibold' : '' }}">
-                                作業実績
-                            </a>
-                            @endcan
-                            <a href="{{ route('my-holidays.index') }}"
-                                class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 {{ request()->routeIs('my-holidays.index') ? 'bg-gray-100 dark:bg-gray-600 font-semibold' : '' }}">
-                                休日登録
-                            </a>
+                            {{-- 依頼・ツールグループ --}}
+                            <div class="group-item border-t border-gray-200 dark:border-gray-600">
+                                <button @click="openUserGroup = (openUserGroup === 'tools' ? null : 'tools')" class="w-full flex justify-between items-center px-4 py-3 text-sm font-medium text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none">
+                                    <span><i class="fas fa-pencil-ruler fa-fw mr-2"></i>依頼・ツール</span>
+                                    <i class="fas fa-fw text-xs" :class="{'fa-chevron-down': openUserGroup === 'tools', 'fa-chevron-right': openUserGroup !== 'tools'}"></i>
+                                </button>
+                                <div x-show="openUserGroup === 'tools'" x-transition class="bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-600">
+                                    @can('viewAny', App\Models\Task::class)
+                                        <a href="{{ route('tasks.index', ['assignee_id' => Auth::id(), 'close_filters' => 1]) }}"
+                                            class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 {{ request()->routeIs('tasks.index') && request()->query('assignee_id') == Auth::id() ? 'bg-gray-100 dark:bg-gray-600 font-semibold' : '' }}">
+                                            担当工程一覧
+                                        </a>
+                                    @endcan
+                                    <a href="{{ route('requests.create') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
+                                        作業依頼をする
+                                    </a>
+                                    @can('tools.viewAnyPage')
+                                    <a href="{{ route('tools.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 {{ request()->routeIs('tools.*') ? 'bg-gray-100 dark:bg-gray-600 font-semibold' : '' }}">
+                                        ツール一覧
+                                    </a>
+                                    @endcan
+                                    <a href="{{ url('/contact-register') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
+                                        企業登録
+                                    </a>
+                                </div>
+                            </div>
 
-                            @can('tools.viewAnyPage')
-                            <a href="{{ route('tools.index') }}"
-                                class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 {{ request()->routeIs('tools.index') || request()->routeIs('tools.sales.*') ? 'bg-gray-100 dark:bg-gray-600 font-semibold' : '' }}">
-                                ツール一覧
-                            </a>
-                            @endcan
-                            <a href="{{ url('/contact-register') }}"
-                                class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 {{ request()->routeIs('tools.index') || request()->routeIs('tools.sales.*') ? 'bg-gray-100 dark:bg-gray-600 font-semibold' : '' }}">
-                                企業登録
-                            </a>
-                            <form method="POST" action="{{ route('logout') }}">
-                                @csrf
-                                <a href="{{ route('logout') }}"
-                                onclick="event.preventDefault(); this.closest('form').submit();"
-                                class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
-                                    ログアウト
-                                </a>
-                            </form>
+                            {{-- コミュニケーショングループ --}}
+                            <div class="group-item border-t border-gray-200 dark:border-gray-600">
+                                <button @click="openUserGroup = (openUserGroup === 'comms' ? null : 'comms')" class="w-full flex justify-between items-center px-4 py-3 text-sm font-medium text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none">
+                                    <span><i class="fas fa-comments fa-fw mr-2"></i>コミュニケーション</span>
+                                    <i class="fas fa-fw text-xs" :class="{'fa-chevron-down': openUserGroup === 'comms', 'fa-chevron-right': openUserGroup !== 'comms'}"></i>
+                                </button>
+                                <div x-show="openUserGroup === 'comms'" x-transition class="bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-600">
+                                    @can('viewAny', App\Models\BoardPost::class)
+                                        <a href="{{ route('community.posts.index') }}" class="flex justify-between items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
+                                            <span>社内掲示板</span>
+                                            @if(isset($unreadMentionsCountGlobal) && $unreadMentionsCountGlobal > 0)
+                                                <span class="ml-auto inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-blue-500 rounded-full">{{ $unreadMentionsCountGlobal }}</span>
+                                            @endif
+                                        </a>
+                                    @endcan
+                                    @can('create', App\Models\Feedback::class)
+                                    <a href="{{ route('user_feedbacks.create') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">フィードバックを送信</a>
+                                    @endcan
+                                </div>
+                            </div>
+
+                            {{-- ログアウト --}}
+                            <div class="border-t border-gray-200 dark:border-gray-600">
+                                <form method="POST" action="{{ route('logout') }}">
+                                    @csrf
+                                    <a href="{{ route('logout') }}"
+                                    onclick="event.preventDefault(); this.closest('form').submit();"
+                                    class="block px-4 py-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600">
+                                        <i class="fas fa-sign-out-alt fa-fw mr-2"></i>ログアウト
+                                    </a>
+                                </form>
+                            </div>
                         </div>
                     </div>
                     @endauth

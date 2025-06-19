@@ -199,22 +199,19 @@
                                     @php
                                         // 表示中の担当者の本日の休日情報を取得
                                         $holidayForUser = $todaysHolidays->firstWhere('user_id', $assigneeData['assignee']->id);
-                                        $holidayBadgeText = null; // 表示するバッジのテキスト（デフォルトは非表示）
+                                        $holidayBadgeText = null;
+                                        $holidayBadgeTextStyle = "";
 
                                         if ($holidayForUser) {
-                                            $periodType = $holidayForUser->period_type;
-                                            $holidayBadgeTextStyle = "";
+                                            $type = $holidayForUser->type; // period_type から type に変更
 
-                                            if ($periodType === 'full') {
-                                                // 全休の場合は常に表示
+                                            if ($type === 'full_day_off') { // 'full' から 'full_day_off' に変更
                                                 $holidayBadgeText = '休暇中 (全休)';
-                                            } elseif ($periodType === 'am' && now()->hour < 12) {
-                                                // 午前休で、現在の時刻が正午より前の場合のみ表示
+                                            } elseif ($type === 'am_off' && now()->hour < 12) { // 'am' から 'am_off' に変更
                                                 $holidayBadgeText = '休暇中 (午前)';
-                                            } elseif ($periodType === 'pm' && now()->hour >= 12) {
-                                                // 午後休で、現在の時刻が正午以降の場合のみ表示
+                                            } elseif ($type === 'pm_off' && now()->hour >= 12) { // 'pm' から 'pm_off' に変更
                                                 $holidayBadgeText = '休暇中 (午後)';
-                                            }else {
+                                            } else {
                                                 $holidayBadgeTextStyle = "display: none;";
                                             }
                                         }
@@ -253,11 +250,11 @@
                         <p class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">本日の休日取得者はいません</p>
                     @else
                         @php
-                            $periodTypes = ['full' => '全休', 'am' => '午前休', 'pm' => '午後休'];
-                            $periodClasses = [
-                                'full' => 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
-                                'am' => 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
-                                'pm' => 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300',
+                            $typeLabels = ['full_day_off' => '全休', 'am_off' => '午前休', 'pm_off' => '午後休'];
+                            $typeClasses = [
+                                'full_day_off' => 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
+                                'am_off' => 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
+                                'pm_off' => 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300',
                             ];
                         @endphp
                         <ul class="divide-y divide-gray-200 dark:divide-gray-700">
@@ -268,9 +265,8 @@
                                             class="text-sm font-medium text-gray-800 dark:text-gray-200">{{ $holiday->user->name }}</span>
                                         <p class="text-xs text-gray-500 dark:text-gray-400">{{ $holiday->name }}</p>
                                     </div>
-                                    <span
-                                        class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ $periodClasses[$holiday->period_type] ?? $periodClasses['full'] }}">
-                                        {{ $periodTypes[$holiday->period_type] ?? '全休' }}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ $typeClasses[$holiday->type] ?? $typeClasses['full_day_off'] }}">
+                                        {{ $typeLabels[$holiday->type] ?? '全休' }}
                                     </span>
                                 </li>
                             @endforeach

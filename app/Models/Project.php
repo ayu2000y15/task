@@ -132,4 +132,9 @@ class Project extends Model
 
         return parent::__get($key);
     }
+
+    public function costs(): HasMany
+    {
+        return $this->hasMany(Cost::class);
+    }
 }

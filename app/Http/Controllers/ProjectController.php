@@ -578,7 +578,7 @@ class ProjectController extends Controller
 
         // 1. 全キャラクターのコストレコードを一度に取得
         $all_costs = Cost::with('character')
-            ->whereHas('character', fn($q) => $q->where('project_id', $project->id))
+            ->where('project_id', $project->id)
             ->get();
 
         // 2. 実績材料費の計算と内訳の取得
@@ -588,8 +588,8 @@ class ProjectController extends Controller
 
         // 3. 実績人件費の計算と内訳の取得
         // 3-1. 作業費（コストテーブルから）
-        $work_related_costs = $all_costs->where('type', '作業費');
-        $actual_labor_cost_from_costs = $work_related_costs->sum('amount');
+        $manual_labor_related_costs = $all_costs->whereIn('type', ['作業費', '交通費']);
+        $actual_labor_cost_from_costs = $manual_labor_related_costs->sum('amount');
 
         // 3-2. 人件費（作業ログから）
         $actual_labor_cost_from_logs = 0;
@@ -626,12 +626,12 @@ class ProjectController extends Controller
         // 3-3. 実績人件費の合計 (作業費 + ログからの人件費)
         $actual_labor_cost = $actual_labor_cost_from_costs + $actual_labor_cost_from_logs;
         // 人件費の内訳には「作業費」も追加
-        foreach ($work_related_costs->sortByDesc('amount') as $cost) {
+        foreach ($manual_labor_related_costs->sortByDesc('amount') as $cost) {
             array_unshift($labor_cost_breakdown, [
-                'task_name' => "作業費: {$cost->item_description} ({$cost->amount}円)",
-                'character_name' => $cost->character->name,
-                'estimated_duration_seconds' => 0, // 作業費には予定工数がない
-                'actual_work_seconds' => 0, // 作業費には実績時間がない
+                'task_name' => "{$cost->type}: {$cost->item_description} ({$cost->amount}円)",
+                'character_name' => $cost->character->name ?? '案件全体',
+                'estimated_duration_seconds' => 0,
+                'actual_work_seconds' => 0,
             ]);
         }
 

@@ -30,6 +30,8 @@ use App\Http\Controllers\Admin\InventoryController;
 use App\Http\Controllers\Admin\StockOrderController;
 use App\Http\Controllers\Admin\InventoryLogController;
 use App\Http\Controllers\Admin\MeasurementTemplateController;
+use App\Http\Controllers\Admin\ScheduleController as AdminScheduleController;
+use App\Http\Controllers\Admin\TransportationExpenseController as AdminTransportationExpenseController;
 
 use App\Http\Controllers\WorkLogController;
 use App\Http\Controllers\WorkRecordController;
@@ -41,6 +43,8 @@ use App\Http\Controllers\Admin\AttendanceController as AdminAttendanceController
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\ToolController;
 use App\Http\Controllers\SalesToolController;
+use App\Http\Controllers\ShiftController;
+use App\Http\Controllers\TransportationExpenseController;
 
 Route::middleware('auth')->group(function () {
     // ホーム
@@ -126,13 +130,6 @@ Route::middleware('auth')->group(function () {
     Route::post('/feedback', [UserFeedbackController::class, 'store'])->name('user_feedbacks.store');
     // --- ここまでユーザー向けフィードバック機能 ---
 
-    // ユーザー休日
-    Route::get('my-holidays', [MyHolidayController::class, 'index'])->name('my-holidays.index');
-    Route::post('my-holidays', [MyHolidayController::class, 'store'])->name('my-holidays.store');
-    Route::get('my-holidays/{userHoliday}/edit', [MyHolidayController::class, 'edit'])->name('my-holidays.edit'); // ▼ 追加
-    Route::patch('my-holidays/{userHoliday}', [MyHolidayController::class, 'update'])->name('my-holidays.update'); // ▼ 追加
-    Route::delete('my-holidays/{userHoliday}', [MyHolidayController::class, 'destroy'])->name('my-holidays.destroy');
-
     //作業依頼
     Route::get('requests', [RequestController::class, 'index'])->name('requests.index');
     Route::get('requests/create', [RequestController::class, 'create'])->name('requests.create');
@@ -181,6 +178,18 @@ Route::middleware('auth')->group(function () {
     // 打刻API
     Route::post('/attendance/clock', [AttendanceController::class, 'clock'])->name('attendance.clock');
 
+    // シフト登録
+    Route::get('schedule', [ShiftController::class, 'monthlySchedule'])->name('schedule.monthly');
+    Route::post('schedule/update', [ShiftController::class, 'updateOrClearDay'])->name('schedule.updateOrClearDay');
+    // デフォルトパターン設定
+    Route::get('shifts/default', [ShiftController::class, 'editDefault'])->name('shifts.default.edit');
+    Route::post('shifts/default', [ShiftController::class, 'updateDefault'])->name('shifts.default.update');
+
+    Route::get('/api/schedule/events', [AdminScheduleController::class, 'fetchEvents'])->name('api.schedule.events');
+
+
+    // 交通費登録
+    Route::resource('transportation-expenses', TransportationExpenseController::class)->except(['show']);
 
     Route::prefix('admin')->name('admin.')->middleware(['can:viewAny,App\Models\ProcessTemplate'])->group(function () { // 管理者用などのミドルウェアを想定
         Route::resource('form-definitions', FormFieldDefinitionController::class)
@@ -270,6 +279,12 @@ Route::middleware('auth')->group(function () {
         Route::get('/attendances/{user}/{month?}', [AdminAttendanceController::class, 'show'])->name('attendances.show');
         Route::post('/attendances/generate/{user}/{month}', [AdminAttendanceController::class, 'generate'])->name('attendances.generate');
         Route::post('/attendances/{user}/{date}', [AdminAttendanceController::class, 'updateSingle'])->name('attendances.update-single');
+
+        // 全員のスケジュールカレンダー
+        Route::get('/schedule-calendar', [AdminScheduleController::class, 'showCalendar'])->name('schedule.calendar');
+
+        // 交通費一覧
+        Route::get('/transportation-expenses', [AdminTransportationExpenseController::class, 'index'])->name('transportation-expenses.index');
     });
 
     // -------------------------------------------------------------------------

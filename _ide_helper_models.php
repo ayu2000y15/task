@@ -313,7 +313,7 @@ namespace App\Models{
  *
  * @property int $id
  * @property int $display_order 表示順
- * @property int $character_id
+ * @property int|null $character_id
  * @property string $item_description
  * @property string $amount
  * @property string $type
@@ -323,7 +323,8 @@ namespace App\Models{
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \Spatie\Activitylog\Models\Activity> $activities
  * @property-read int|null $activities_count
- * @property-read \App\Models\Character $character
+ * @property-read \App\Models\Character|null $character
+ * @property-read \App\Models\Project|null $project
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Cost newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Cost newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Cost query()
@@ -339,6 +340,35 @@ namespace App\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Cost whereUpdatedAt($value)
  */
 	class Cost extends \Eloquent {}
+}
+
+namespace App\Models{
+/**
+ * 
+ *
+ * @property int $id
+ * @property int $user_id
+ * @property int $day_of_week
+ * @property int $is_workday
+ * @property string|null $start_time
+ * @property string|null $end_time
+ * @property int $break_minutes
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|DefaultShiftPattern newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|DefaultShiftPattern newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|DefaultShiftPattern query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|DefaultShiftPattern whereBreakMinutes($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|DefaultShiftPattern whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|DefaultShiftPattern whereDayOfWeek($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|DefaultShiftPattern whereEndTime($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|DefaultShiftPattern whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|DefaultShiftPattern whereIsWorkday($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|DefaultShiftPattern whereStartTime($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|DefaultShiftPattern whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|DefaultShiftPattern whereUserId($value)
+ */
+	class DefaultShiftPattern extends \Eloquent {}
 }
 
 namespace App\Models{
@@ -989,6 +1019,8 @@ namespace App\Models{
  * @property-read int|null $activities_count
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Character> $characters
  * @property-read int|null $characters_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Cost> $costs
+ * @property-read int|null $costs_count
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Task> $tasks
  * @property-read int|null $tasks_count
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Task> $tasksWithoutCharacter
@@ -1415,6 +1447,41 @@ namespace App\Models{
  * 
  *
  * @property int $id
+ * @property int $user_id
+ * @property \Illuminate\Support\Carbon $date
+ * @property int|null $project_id
+ * @property int|null $cost_id
+ * @property string|null $departure
+ * @property string $destination
+ * @property int $amount
+ * @property string|null $notes
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\Project|null $project
+ * @property-read \App\Models\User $user
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TransportationExpense newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TransportationExpense newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TransportationExpense query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TransportationExpense whereAmount($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TransportationExpense whereCostId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TransportationExpense whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TransportationExpense whereDate($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TransportationExpense whereDeparture($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TransportationExpense whereDestination($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TransportationExpense whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TransportationExpense whereNotes($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TransportationExpense whereProjectId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TransportationExpense whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TransportationExpense whereUserId($value)
+ */
+	class TransportationExpense extends \Eloquent {}
+}
+
+namespace App\Models{
+/**
+ * 
+ *
+ * @property int $id
  * @property string $name
  * @property string $email
  * @property string|null $access_id
@@ -1531,5 +1598,39 @@ namespace App\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|WorkLog whereUserId($value)
  */
 	class WorkLog extends \Eloquent {}
+}
+
+namespace App\Models{
+/**
+ * 
+ *
+ * @property int $id
+ * @property int $user_id
+ * @property \Illuminate\Support\Carbon $date
+ * @property string|null $start_time
+ * @property string|null $end_time
+ * @property int|null $break_minutes
+ * @property string $type
+ * @property string|null $notes
+ * @property string|null $name
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\User $user
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|WorkShift newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|WorkShift newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|WorkShift query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|WorkShift whereBreakMinutes($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|WorkShift whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|WorkShift whereDate($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|WorkShift whereEndTime($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|WorkShift whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|WorkShift whereName($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|WorkShift whereNotes($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|WorkShift whereStartTime($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|WorkShift whereType($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|WorkShift whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|WorkShift whereUserId($value)
+ */
+	class WorkShift extends \Eloquent {}
 }
 
