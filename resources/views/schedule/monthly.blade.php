@@ -18,9 +18,10 @@
             <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-200">{{ $targetMonth->format('Y年n月') }}</h1>
             <a href="{{ route('schedule.monthly', ['month' => $targetMonth->copy()->addMonth()->format('Y-m')]) }}" class="px-3 py-1 bg-gray-200 dark:bg-gray-700 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600">次月 <i class="fas fa-chevron-right"></i></a>
             {{-- ▲▲▲【デザイン統一】▲▲▲ --}}
+            <a href="{{ route('schedule.monthly') }}" class="text-sm text-blue-600 hover:underline">今月へ</a>
+
         </div>
         <div class="flex items-center space-x-2">
-            <a href="{{ route('schedule.monthly') }}" class="text-sm text-blue-600 hover:underline">今月へ</a>
             <x-secondary-button as="a" href="{{ route('shifts.default.edit') }}">
                 <i class="fas fa-cog mr-2"></i> デフォルトパターン設定
             </x-secondary-button>
