@@ -2,13 +2,19 @@
 @section('title', '交通費一覧')
 
 @section('content')
-    <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8"
+        x-data="{ filtersOpen: {{ count(array_filter($filters, fn($value, $key) => $key !== 'month' || $value !== now()->format('Y-m'), ARRAY_FILTER_USE_BOTH)) > 0 ? 'false' : 'true' }} }">
+
         <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
             <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-200">交通費一覧</h1>
+            <x-secondary-button @click="filtersOpen = !filtersOpen">
+                <i class="fas fa-filter mr-1"></i>フィルター
+                <span x-show="filtersOpen" style="display:none;"><i class="fas fa-chevron-up fa-xs ml-2"></i></span>
+                <span x-show="!filtersOpen"><i class="fas fa-chevron-down fa-xs ml-2"></i></span>
+            </x-secondary-button>
         </div>
 
-        {{-- フィルターパネル --}}
-        <div class="mb-6 bg-white dark:bg-gray-800 shadow-md rounded-lg p-4">
+        <div x-show="filtersOpen" x-collapse class="mb-6 bg-white dark:bg-gray-800 shadow-md rounded-lg p-4">
             <form action="{{ route('admin.transportation-expenses.index') }}" method="GET">
                 <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 items-end">
                     <div>
@@ -33,23 +39,29 @@
                         <select id="project_id" name="project_id"
                             class="mt-1 block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow-sm">
                             <option value="">全案件</option>
-                            <option value="none" {{ $filters['project_id'] === 'none' ? 'selected' : '' }}>その他（案件なし）</option>
+                            <option value="none" {{ $filters['project_id'] === 'none' ? 'selected' : '' }}>その他（案件なし）
+                            </option>
                             @foreach($projects as $project)
-                                <option value="{{ $project->id }}" {{ $filters['project_id'] == $project->id ? 'selected' : '' }}>
+                                <option value="{{ $project->id }}"
+                                    {{ $filters['project_id'] == $project->id ? 'selected' : '' }}>
                                     {{ $project->title }}</option>
                             @endforeach
                         </select>
                     </div>
                     <div class="flex space-x-2">
-                        <x-primary-button type="submit" class="w-full justify-center">絞り込み</x-primary-button>
-                        <x-secondary-button as="a" href="{{ route('admin.transportation-expenses.index') }}"
-                            class="w-full justify-center">クリア</x-secondary-button>
+                        <div class="mt-6 flex items-center justify-end space-x-3">
+                            <x-secondary-button as="a" href="{{ route('admin.transportation-expenses.index') }}">
+                                リセット
+                            </x-secondary-button>
+                            <x-primary-button type="submit">
+                                <i class="fas fa-search mr-2"></i> 絞り込む
+                            </x-primary-button>
+                        </div>
                     </div>
                 </div>
             </form>
         </div>
 
-        {{-- 結果表示 --}}
         <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
             <div class="px-6 py-4 border-b dark:border-gray-700">
                 <h3 class="text-lg font-semibold">合計金額: <span
@@ -90,7 +102,8 @@
                                     {{ optional($expense->project)->title ?? 'その他' }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                                     {{ $expense->departure }} → {{ $expense->destination }}</td>
-                                <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 break-words">{{ $expense->notes }}
+                                <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 break-words">
+                                    {{ $expense->notes }}
                                 </td>
                                 <td
                                     class="px-6 py-4 whitespace-nowrap text-right text-sm font-semibold text-gray-900 dark:text-gray-100">
