@@ -355,8 +355,12 @@ Route::middleware('auth')->group(function () {
 Route::prefix('track')->name('track.')->group(function () {
     Route::get('/open/{identifier}', [TrackingController::class, 'open'])->name('open');
     Route::get('/click/{identifier}', [TrackingController::class, 'click'])->name('click');
-    Route::get('/unsubscribe/{identifier}/{list_hash?}', [TrackingController::class, 'unsubscribe'])->name('unsubscribe');
 });
+
+// ★ 配信停止関連のルートをグループの外に単独で定義します ★
+Route::get('/unsubscribe/confirm/{identifier}', [TrackingController::class, 'showUnsubscribeConfirmationPage'])->name('unsubscribe.confirm');
+Route::post('/unsubscribe/process', [TrackingController::class, 'processUnsubscribe'])->name('unsubscribe.process');
+
 
 // 外部向け申請フォーム (認証外)
 Route::get('/costume-request', [ExternalFormController::class, 'create'])->name('external-form.create');

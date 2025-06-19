@@ -91,6 +91,8 @@
                             {{-- ▲▲▲ ここまで ▲▲▲ --}}
                             <x-input-error :messages="$errors->get('body_html')" class="mt-2" />
                             <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">HTML形式でリッチなメールを作成できます。</p>
+                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                添付ファイルの最大容量は10MBです。拡張子の制限はありません。</p>
                             <div
                                 class="mt-2 p-3 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-md text-xs text-gray-600 dark:text-gray-400">
                                 <p class="font-semibold mb-1">利用可能なプレースホルダー (本文または件名に記述):</p>

@@ -132,7 +132,7 @@ class SalesCampaignMail extends Mailable implements ShouldQueue
         $trackingPixelHtml = "<img src=\"{$trackingPixelUrl}\" width=\"1\" height=\"1\" alt=\"\" style=\"border:0;height:1px;width:1px;position:absolute;left:-9999px;\" />";
 
         // ▼▼▼ 配信停止リンクを追加 ▼▼▼
-        $unsubscribeUrl = route('track.unsubscribe', ['identifier' => $this->messageIdentifier]);
+        $unsubscribeUrl = route('unsubscribe.confirm', ['identifier' => $this->messageIdentifier]); // ★★★ routeの行き先を 'unsubscribe.confirm' に変更 ★★★
         // シンプルなフッターの例
         $unsubscribeHtml = "<p style=\"text-align:center;font-size:10px;color:#888888;margin-top:20px;\">";
         $unsubscribeHtml .= "このメールの配信停止をご希望の場合は、<a href=\"{$unsubscribeUrl}\" target=\"_blank\" style=\"color:#888888;text-decoration:underline;\">こちら</a>をクリックしてください。";
