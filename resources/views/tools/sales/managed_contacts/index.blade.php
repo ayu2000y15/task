@@ -197,11 +197,11 @@
                             <x-input-label for="csv_file" value="CSVファイルを選択" :required="true" />
                             <input type="file" name="csv_file" id="csv_file" required accept=".csv, text/csv, .xlsx"
                                 class="mt-1 block w-full text-sm text-gray-900 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer bg-gray-50 dark:bg-gray-700 focus:outline-none focus:border-indigo-500 focus:ring-indigo-500
-                                                                                                file:mr-4 file:py-2 file:px-4
-                                                                                                file:rounded-md file:border-0
-                                                                                                file:text-sm file:font-semibold
-                                                                                                file:bg-indigo-100 dark:file:bg-indigo-700 file:text-indigo-600 dark:file:text-indigo-300
-                                                                                                hover:file:bg-indigo-200 dark:hover:file:bg-indigo-600" />
+                                                                                                            file:mr-4 file:py-2 file:px-4
+                                                                                                            file:rounded-md file:border-0
+                                                                                                            file:text-sm file:font-semibold
+                                                                                                            file:bg-indigo-100 dark:file:bg-indigo-700 file:text-indigo-600 dark:file:text-indigo-300
+                                                                                                            hover:file:bg-indigo-200 dark:hover:file:bg-indigo-600" />
                             <x-input-error :messages="$errors->get('csv_file')" class="mt-2" />
                         </div>
                         <div class="text-xs text-gray-600 dark:text-gray-400 space-y-1">
@@ -239,9 +239,9 @@
 
 
         {{-- 管理連絡先一覧テーブル --}}
-        <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-x-auto">
+        <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-x-auto max-h-[70vh] overflow-y-auto">
             <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead class="bg-gray-50 dark:bg-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-700 sticky top-0 z-10">
                     <tr>
                         <th scope="col"
                             class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">

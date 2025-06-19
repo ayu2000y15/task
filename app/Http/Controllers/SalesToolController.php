@@ -938,7 +938,7 @@ class SalesToolController extends Controller
             $query->where('status', $request->input('filter_status'));
         }
 
-        $managedContacts = $query->latest('updated_at')->paginate(15);
+        $managedContacts = $query->latest('updated_at')->paginate(500);
 
         $statusOptions = ManagedContact::STATUS_OPTIONS ?? [];
 
