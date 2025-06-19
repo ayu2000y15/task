@@ -75,7 +75,8 @@
         }
     </style>
 </head>
-<body class="font-sans antialiased text-gray-900 bg-gray-100 dark:text-gray-100 dark:bg-gray-900">
+<body class="font-sans antialiased text-gray-900 bg-gray-100 dark:text-gray-100 dark:bg-gray-900"
+    data-attendance-status="{{ $currentAttendanceStatus ?? 'clocked_out' }}">
     <div x-data="{ sidebarOpen: localStorage.getItem('sidebarOpen') === 'true' }" x-init="$watch('sidebarOpen', value => localStorage.setItem('sidebarOpen', value))">
         <div x-show="sidebarOpen" class="fixed inset-0 z-20 bg-black opacity-50 md:hidden" @click="sidebarOpen = false" style="display: none;"></div>
 
@@ -88,23 +89,96 @@
 
         {{-- サイドバーナビゲーション --}}
         <nav class="px-2 py-4"
-        x-data="{
-            openFavorites: localStorage.getItem('openFavorites') === null ? true : localStorage.getItem('openFavorites') === 'true',
-            openNormalProjects: localStorage.getItem('openNormalProjects') === null ? true : localStorage.getItem('openNormalProjects') === 'true',
-            openUpcomingTasks: localStorage.getItem('openUpcomingTasks') === null ? true : localStorage.getItem('openUpcomingTasks') === 'true',
-            openArchivedProjects: localStorage.getItem('openArchivedProjects') === null ? false : localStorage.getItem('openArchivedProjects') === 'true'
-        }"
-        x-init="
-            $watch('openFavorites', value => localStorage.setItem('openFavorites', value));
-            $watch('openNormalProjects', value => localStorage.setItem('openNormalProjects', value));
-            $watch('openUpcomingTasks', value => localStorage.setItem('openUpcomingTasks', value));
-            $watch('openArchivedProjects', value => localStorage.setItem('openArchivedProjects', value));
-        ">
+            x-data="{
+                openProductivity: localStorage.getItem('openProductivity') === null ? true : localStorage.getItem('openProductivity') === 'true',
+                openFavorites: localStorage.getItem('openFavorites') === null ? true : localStorage.getItem('openFavorites') === 'true',
+                openNormalProjects: localStorage.getItem('openNormalProjects') === null ? true : localStorage.getItem('openNormalProjects') === 'true',
+                openUpcomingTasks: localStorage.getItem('openUpcomingTasks') === null ? true : localStorage.getItem('openUpcomingTasks') === 'true',
+                openArchivedProjects: localStorage.getItem('openArchivedProjects') === null ? false : localStorage.getItem('openArchivedProjects') === 'true'
+            }"
+            x-init="
+                $watch('openProductivity', value => localStorage.setItem('openProductivity', value));
+                $watch('openFavorites', value => localStorage.setItem('openFavorites', value));
+                $watch('openNormalProjects', value => localStorage.setItem('openNormalProjects', value));
+                $watch('openUpcomingTasks', value => localStorage.setItem('openUpcomingTasks', value));
+                $watch('openArchivedProjects', value => localStorage.setItem('openArchivedProjects', value));
+            ">
             @can('create', App\Models\Project::class)
             <a href="{{ route('projects.create') }}" class="flex items-center px-3 py-2 mb-3 text-sm font-medium text-gray-700 transition-colors duration-200 rounded-md dark:text-gray-200 hover:bg-gray-800 hover:text-white dark:hover:bg-blue-600">
                 <i class="fas fa-plus w-5 h-5 mr-2"></i> 新規衣装案件
             </a>
             @endcan
+
+            {{-- 生産性 --}}
+            @can('viewOwnProductivity', App\Models\User::class)
+            <div>
+                {{-- クリックで開閉するヘッダー --}}
+                <div @click="openProductivity = !openProductivity" class="flex items-center justify-between px-3 py-2 text-xs font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md cursor-pointer">
+                    <div class="flex items-center">
+                        <span>生産性</span>
+                        <i class="far fa-question-circle text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-help ml-2"
+                           title="【生産性バーの見方】
+                            ■ バー全体：その日（または月）の総拘束時間（最初の出勤から最後の退勤まで）を表します。
+                            ■ 青色（作業）：作業ログに記録された、実際のタスクに費やされた時間です。
+                            ■ 黄色（休憩等）：勤怠ログに記録された、休憩や中抜けの時間です。
+                            ■ 灰色（空き）：上記のいずれにも分類されない時間です。会議や準備、移動、または記録されていない作業などが含まれます。
+                            目標は、この灰色の「空き時間」をできるだけ減らし、全ての業務を青色の「作業時間」として記録することです。"></i>
+                    </div>
+                    <i class="fas fa-fw text-xs" :class="{'fa-chevron-down': openProductivity, 'fa-chevron-right': !openProductivity}"></i>
+                </div>
+
+                {{-- 開閉するコンテンツエリア --}}
+                <div x-show="openProductivity" x-transition class="mt-2">
+                    <div x-data="{ openOthers: false }">
+                        {{-- ログイン中のユーザー（常に表示） --}}
+                        @if($currentUserProductivitySummary)
+                            <div class="px-2 py-3 bg-gray-100 dark:bg-gray-700/50 rounded-lg">
+                                <h4 class="text-sm font-semibold text-gray-800 dark:text-gray-200">{{ $currentUserProductivitySummary->user->name }}</h4>
+                                {{-- 昨日のバー --}}
+                                <div class="mt-3">
+                                    <div class="flex justify-between text-xs text-gray-600 dark:text-gray-400">
+                                        <span>昨日</span>
+                                        <span>空き: <strong class="text-red-500">{{ gmdate('H:i', $currentUserProductivitySummary->yesterday->unaccountedSeconds) }}</strong> / {{ gmdate('H:i', $currentUserProductivitySummary->yesterday->totalAttendanceSeconds) }}</span>
+                                    </div>
+                                    @if($currentUserProductivitySummary->yesterday->totalAttendanceSeconds > 0)
+                                        <div class="mt-1 flex w-full h-3 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden"
+                                             title="作業:{{ gmdate('H:i', $currentUserProductivitySummary->yesterday->totalWorkLogSeconds) }} | 休憩等:{{ gmdate('H:i', $currentUserProductivitySummary->yesterday->totalBreakSeconds) }} | 空き:{{ gmdate('H:i', $currentUserProductivitySummary->yesterday->unaccountedSeconds) }}">
+                                            <div class="bg-blue-500" style="width: {{ $currentUserProductivitySummary->yesterday->workLogPercentage }}%"></div>
+                                            <div class="bg-yellow-400" style="width: {{ $currentUserProductivitySummary->yesterday->breakPercentage }}%"></div>
+                                        </div>
+                                        <div class="flex justify-end space-x-2 text-xs text-gray-500 mt-1">
+                                            <span><i class="fas fa-square text-blue-500"></i> 作業</span>
+                                            <span><i class="fas fa-square text-yellow-400"></i> 休憩等</span>
+                                            <span><i class="fas fa-square text-gray-300 dark:text-gray-500"></i> 空き</span>
+                                        </div>
+                                    @else
+                                        <p class="text-xs text-gray-400 mt-1">昨日の勤怠記録がありません。</p>
+                                    @endif
+                                </div>
+
+                                {{-- 今月のバー --}}
+                                <div class="mt-4">
+                                    <div class="flex justify-between text-xs text-gray-600 dark:text-gray-400">
+                                        <span>今月</span>
+                                        <span>総空き: <strong class="text-red-500">{{ floor($currentUserProductivitySummary->month->unaccountedSeconds / 3600) }}h</strong> / {{ floor($currentUserProductivitySummary->month->totalAttendanceSeconds / 3600) }}h</span>
+                                    </div>
+                                    @if($currentUserProductivitySummary->month->totalAttendanceSeconds > 0)
+                                        <div class="mt-1 flex w-full h-3 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden"
+                                             title="総作業:{{ floor($currentUserProductivitySummary->month->totalWorkLogSeconds / 3600) }}h | 総休憩等:{{ floor($currentUserProductivitySummary->month->totalBreakSeconds / 3600) }}h | 総空き:{{ floor($currentUserProductivitySummary->month->unaccountedSeconds / 3600) }}h">
+                                            <div class="bg-blue-500" style="width: {{ $currentUserProductivitySummary->month->workLogPercentage }}%"></div>
+                                            <div class="bg-yellow-400" style="width: {{ $currentUserProductivitySummary->month->breakPercentage }}%"></div>
+                                        </div>
+                                    @else
+                                        <p class="text-xs text-gray-400 mt-1">今月の勤怠記録がありません。</p>
+                                    @endif
+                                </div>
+                            </div>
+                        @endif
+                    </div>
+                </div>
+            </div>
+            @endcan
+
 
             {{-- 期限間近の工程セクション --}}
             <div>
@@ -419,6 +493,77 @@
                     </a>
                     @endcan
                 </nav>
+                @auth
+                    <div x-data="attendanceTimer({ initialStatus: '{{ $currentAttendanceStatus }}' })" class="relative mr-2">
+                        <div class="flex items-center space-x-1">
+                            <span class="hidden sm:inline-flex items-center px-2 py-1 text-xs font-medium rounded-md"
+                                :class="{
+                                    'bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-gray-200': status === 'clocked_out',
+                                    'bg-blue-100 text-blue-800 dark:bg-blue-600 dark:text-blue-100': status === 'working',
+                                    'bg-yellow-100 text-yellow-800 dark:bg-yellow-600 dark:text-yellow-100': status === 'on_break',
+                                    'bg-purple-100 text-purple-800 dark:bg-purple-600 dark:text-purple-100': status === 'on_away',
+                                }" x-text="statusText">
+                            </span>
+
+                            <div class="relative" x-data="{ open: false }">
+                                <button @click="open = !open" class="flex items-center px-2 py-2 text-sm font-medium text-gray-700 rounded-md dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none">
+                                    <i class="fas fa-clock"></i>
+                                    <i class="fas fa-chevron-down fa-xs ml-1"></i>
+                                </button>
+
+                                <div x-show="open" @click.away="open = false"
+                                    x-transition
+                                    class="absolute right-0 mt-2 w-40 py-1 bg-white rounded-md shadow-lg dark:bg-gray-700 ring-1 ring-black ring-opacity-5 z-50"
+                                    style="display: none;">
+
+                                    <template x-if="status === 'clocked_out'">
+                                        <a href="#" @click.prevent="clock('clock_in')" class="block px-4 py-2 text-sm text-green-600 dark:text-green-400 hover:bg-gray-100 dark:hover:bg-gray-600">出勤</a>
+                                    </template>
+
+                                    <template x-if="status === 'working'">
+                                        <div>
+                                            <a href="#" @click.prevent="clock('break_start')"
+                                                class="block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-600"
+                                                :class="{
+                                                    'text-gray-700 dark:text-gray-200': !hasActiveWorkLog,
+                                                    'text-gray-400 dark:text-gray-500 cursor-not-allowed': hasActiveWorkLog
+                                                }"
+                                                :title="hasActiveWorkLog ? '実行中の作業があるため操作できません' : ''">
+                                                休憩開始
+                                            </a>
+
+                                            <a href="#" @click.prevent="clock('away_start')"
+                                                class="block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-600"
+                                                :class="{
+                                                    'text-gray-700 dark:text-gray-200': !hasActiveWorkLog,
+                                                    'text-gray-400 dark:text-gray-500 cursor-not-allowed': hasActiveWorkLog
+                                                }"
+                                                :title="hasActiveWorkLog ? '実行中の作業があるため操作できません' : ''">
+                                                中抜け開始
+                                            </a>
+                                            <a href="#" @click.prevent="clock('clock_out')"
+                                                class="block px-4 py-2 text-sm  hover:bg-gray-100 dark:hover:bg-gray-600"
+                                                :class="{
+                                                    'text-red-600 dark:text-red-400': !hasActiveWorkLog,
+                                                    'text-gray-400 dark:text-gray-500 cursor-not-allowed': hasActiveWorkLog
+                                                }"
+                                                :title="hasActiveWorkLog ? '実行中の作業があるため退勤できません' : ''"
+                                                >退勤</a>
+                                        </div>
+                                    </template>
+
+                                    <template x-if="status === 'on_break'">
+                                        <a href="#" @click.prevent="clock('break_end')" class="block px-4 py-2 text-sm text-blue-600 dark:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-600">休憩終了</a>
+                                    </template>
+
+                                    <template x-if="status === 'on_away'">
+                                        <a href="#" @click.prevent="clock('away_end')" class="block px-4 py-2 text-sm text-blue-600 dark:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-600">戻り</a>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                @endauth
 
                 <div class="flex items-center space-x-1 sm:space-x-2 pl-1 sm:pl-2">
                     @can('viewAny', App\Models\ProcessTemplate::class)

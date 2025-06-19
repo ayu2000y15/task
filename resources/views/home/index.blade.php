@@ -111,6 +111,69 @@
                     </div>
                 @endif
 
+                {{-- 全ユーザーの生産性トラッカー  --}}
+                @can('viewAllProductivity', App\Models\User::class) {{-- 権限があるユーザーのみ表示 --}}
+                <div x-data="{ open: false }" class="bg-white dark:bg-gray-800 shadow-md rounded-lg mt-6">
+                    {{-- アコーディオンヘッダー --}}
+                    <div @click="open = !open"
+                        class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition">
+                        <h5 class="text-lg font-semibold text-gray-700 dark:text-gray-300 flex items-center">
+                            <i class="fas fa-chart-line mr-2 text-purple-500"></i>
+                            全ユーザーの生産性
+                        </h5>
+                        <button aria-label="生産性を展開/折りたたむ">
+                            <i class="fas fa-fw transition-transform" :class="open ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
+                        </button>
+                    </div>
+
+                    {{-- アコーディオンコンテンツ --}}
+                    <div x-show="open" x-transition class="p-4 space-y-4" style="display: none;">
+                        @foreach($productivitySummaries as $summary)
+                            <div class="px-3 py-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
+                                <h4 class="text-md font-semibold text-gray-800 dark:text-gray-200">{{ $summary->user->name }}</h4>
+                                {{-- 昨日のバー --}}
+                                <div class="mt-3">
+                                    <div class="flex justify-between text-xs text-gray-600 dark:text-gray-400">
+                                        <span>昨日</span>
+                                        <span>空き: <strong class="text-red-500">{{ gmdate('H:i', $summary->yesterday->unaccountedSeconds) }}</strong></span>
+                                    </div>
+                                    @if($summary->yesterday->totalAttendanceSeconds > 0)
+                                        <div class="mt-1 flex w-full h-2.5 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden" title="作業:{{ gmdate('H:i', $summary->yesterday->totalWorkLogSeconds) }} | 休憩等:{{ gmdate('H:i', $summary->yesterday->totalBreakSeconds) }}">
+                                            <div class="bg-blue-500" style="width: {{ $summary->yesterday->workLogPercentage }}%"></div>
+                                            <div class="bg-yellow-400" style="width: {{ $summary->yesterday->breakPercentage }}%"></div>
+                                        </div>
+                                    @else
+                                        <p class="text-xs text-gray-400 mt-1">記録なし</p>
+                                    @endif
+                                </div>
+                                {{-- 今月のバー --}}
+                                <div class="mt-3">
+                                    <div class="flex justify-between text-xs text-gray-600 dark:text-gray-400">
+                                        <span>今月</span>
+                                        <span>総空き: <strong class="text-red-500">{{ floor($summary->month->unaccountedSeconds / 3600) }}h</strong></span>
+                                    </div>
+                                    @if($summary->month->totalAttendanceSeconds > 0)
+                                        <div class="mt-1 flex w-full h-2.5 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden" title="総作業:{{ floor($summary->month->totalWorkLogSeconds / 3600) }}h | 総休憩等:{{ floor($summary->month->totalBreakSeconds / 3600) }}h">
+                                            <div class="bg-blue-500" style="width: {{ $summary->month->workLogPercentage }}%"></div>
+                                            <div class="bg-yellow-400" style="width: {{ $summary->month->breakPercentage }}%"></div>
+                                        </div>
+                                    @else
+                                        <p class="text-xs text-gray-400 mt-1">記録なし</p>
+                                    @endif
+                                </div>
+                            </div>
+                        @endforeach
+                        <div class="text-center pt-2">
+                            <div class="flex justify-center space-x-4 text-xs text-gray-500 mt-1">
+                                <span><i class="fas fa-square text-blue-500"></i> 作業</span>
+                                <span><i class="fas fa-square text-yellow-400"></i> 休憩等</span>
+                                <span><i class="fas fa-square text-gray-300 dark:text-gray-500"></i> 空き</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                @endcan
+
                 <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg">
                     <div
                         class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row justify-between items-center gap-4">

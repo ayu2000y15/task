@@ -12,6 +12,9 @@ use App\View\Composers\NewExternalSubmissionsComposer; // ★ 追加: 新しい�
 use App\View\Composers\UnreadBoardPostComposer;
 use Illuminate\Support\Carbon;
 use App\View\Composers\PendingRequestComposer; // ★ この行を追加
+use Illuminate\Support\Facades\Auth;
+use App\Services\ProductivityService;
+
 class AppServiceProvider extends ServiceProvider
 {
     /**
@@ -35,5 +38,27 @@ class AppServiceProvider extends ServiceProvider
         View::composer('layouts.app', NewExternalSubmissionsComposer::class);
         View::composer('layouts.app', UnreadBoardPostComposer::class);
         View::composer('*', PendingRequestComposer::class);
+
+        View::composer('layouts.app', function ($view) {
+            if (Auth::check()) {
+                $view->with('currentAttendanceStatus', Auth::user()->getCurrentAttendanceStatus());
+            } else {
+                $view->with('currentAttendanceStatus', 'clocked_out');
+            }
+        });
+
+        View::composer('layouts.app', function ($view) {
+            if (Auth::check()) {
+                // 勤怠ステータス（既存のロジック）
+                $view->with('currentAttendanceStatus', Auth::user()->getCurrentAttendanceStatus());
+
+                // 生産性サマリー
+                $productivityService = new ProductivityService();
+                $view->with('currentUserProductivitySummary', $productivityService->getSummaryForCurrentUser());
+            } else {
+                $view->with('currentAttendanceStatus', 'clocked_out');
+                $view->with('productivitySummaries', collect());
+            }
+        });
     }
 }

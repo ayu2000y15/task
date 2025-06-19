@@ -12,13 +12,14 @@ use App\Models\RequestItem;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use App\Models\WorkLog;
+use App\Services\ProductivityService;
 
 class HomeController extends Controller
 {
     /**
      * @param \Illuminate\Http\Request $request // ★ Requestを受け取る
      */
-    public function index(Request $request)
+    public function index(Request $request, ProductivityService $productivityService)
     {
         $this->authorize('viewAny', Project::class);
         Carbon::setLocale('ja');
@@ -93,6 +94,8 @@ class HomeController extends Controller
             ->get()
             ->unique('task_id'); // 同じタスクが複数あっても1つにまとめる
 
+        $productivitySummaries = $productivityService->getSummariesForAllActiveUsers();
+
         return view('home.index', compact(
             'projectCount',
             'activeProjectCount',
@@ -102,6 +105,7 @@ class HomeController extends Controller
             'workItemsByAssignee',
             'targetDate',
             'runningWorkLogs',
+            'productivitySummaries'
         ));
     }
 }

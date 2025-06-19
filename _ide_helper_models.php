@@ -52,6 +52,32 @@ namespace App\Models{
  * 
  *
  * @property int $id
+ * @property int $user_id
+ * @property string $type
+ * @property \Illuminate\Support\Carbon $timestamp
+ * @property string|null $memo
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\User $user
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AttendanceLog newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AttendanceLog newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AttendanceLog query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AttendanceLog whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AttendanceLog whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AttendanceLog whereMemo($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AttendanceLog whereTimestamp($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AttendanceLog whereType($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AttendanceLog whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AttendanceLog whereUserId($value)
+ */
+	class AttendanceLog extends \Eloquent {}
+}
+
+namespace App\Models{
+/**
+ * 
+ *
+ * @property int $id
  * @property string $email
  * @property string|null $reason
  * @property int|null $added_by_user_id
@@ -1406,6 +1432,8 @@ namespace App\Models{
  * @property-read int|null $activities_count
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Request> $assignedRequests
  * @property-read int|null $assigned_requests_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\AttendanceLog> $attendanceLogs
+ * @property-read int|null $attendance_logs_count
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\BoardPost> $boardPosts
  * @property-read int|null $board_posts_count
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Request> $createdRequests

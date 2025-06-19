@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\WorkLog;
 use App\Models\Attendance;
+use App\Models\AttendanceLog; // ▼▼▼【追加】勤怠ログモデルをインポート
 use App\Models\UserHoliday;
 use App\Models\Holiday;
 use Illuminate\Http\Request;
@@ -18,78 +19,75 @@ class AttendanceController extends Controller
      */
     public function show(User $user, $month = null)
     {
-
         $targetMonth = $month ? Carbon::parse($month) : Carbon::now();
         $startDate = $targetMonth->copy()->startOfMonth();
         $endDate = $targetMonth->copy()->endOfMonth();
 
-        // 祝日データを取得
-        $dbHolidays = Holiday::whereBetween('date', [$startDate, $endDate])->get();
-        $publicHolidays = [];
-        foreach ($dbHolidays as $holiday) {
-            $publicHolidays[$holiday->date->format('Y-m-d')] = $holiday->name;
-        }
-
-        // その月の既存の勤怠データを取得
-        $attendances = Attendance::where('user_id', $user->id)
-            ->whereBetween('date', [$startDate, $endDate])
+        // --- 1. 必要なデータを全て取得 ---
+        $holidays = Holiday::whereBetween('date', [$startDate, $endDate])
             ->get()->keyBy(fn($item) => $item->date->format('Y-m-d'));
 
-        // ユーザーの登録休日を取得
         $userHolidays = UserHoliday::where('user_id', $user->id)
             ->whereBetween('date', [$startDate, $endDate])
             ->get()->keyBy(fn($item) => $item->date->format('Y-m-d'));
-
-        // 詳細表示用に、その月の作業ログも取得
-        $workLogs = WorkLog::where('user_id', $user->id)
+        $workLogs = WorkLog::where('user_id', $user->id)->where('status', 'stopped')
             ->whereBetween('start_time', [$startDate, $endDate])
-            ->where('status', 'stopped')
-            ->with('task.project')
-            ->orderBy('start_time')
-            ->get()
-            ->groupBy(fn($log) => $log->start_time->format('Y-m-d'));
+            ->with('task.project', 'task.character')->orderBy('start_time')->get();
+        $attendanceLogs = AttendanceLog::where('user_id', $user->id)
+            ->whereBetween('timestamp', [$startDate, $endDate])->orderBy('timestamp')->get();
 
-        // 1. 月の開始日時点で有効な最新の時給を1件取得
-        $baseRate = $user->hourlyRates()
-            ->where('effective_date', '<=', $startDate)
-            ->orderBy('effective_date', 'desc')
-            ->first();
+        // ▼▼▼ この変数をビューに渡す必要があります ▼▼▼
+        $applicableRates = $user->getApplicableRatesForMonth($targetMonth);
 
-        // 2. 月の途中で有効になる時給を全て取得 (初日は除く)
-        $ratesStartingInMonth = $user->hourlyRates()
-            ->whereBetween('effective_date', [$startDate->copy()->addDay(), $endDate])
-            ->orderBy('effective_date', 'asc')
-            ->get();
+        $overriddenAttendances = Attendance::where('user_id', $user->id)
+            ->whereBetween('date', [$startDate, $endDate])
+            ->get()->keyBy(fn($item) => $item->date->format('Y-m-d'));
 
-        // 3. 上記2つを結合して、その月に適用される時給リストを作成
-        $applicableRates = collect();
-        if ($baseRate) {
-            $applicableRates->push($baseRate);
-        }
-        $applicableRates = $applicableRates->merge($ratesStartingInMonth);
 
-        // 月の全日分のレポートデータを生成
+        // --- 2. 月の全日分の表示データを生成 ---
         $monthlyReport = [];
         for ($day = 1; $day <= $targetMonth->daysInMonth; $day++) {
             $currentDate = $targetMonth->copy()->day($day);
             $dateString = $currentDate->format('Y-m-d');
-            $attendance = $attendances->get($dateString) ?? new Attendance(['date' => $currentDate]);
 
-            $monthlyReport[] = [
+            $reportData = [
                 'date' => $currentDate,
-                'attendance' => $attendance,
                 'user_holiday' => $userHolidays->get($dateString),
-                'public_holiday_name' => $publicHolidays[$dateString] ?? null,
-                'logs' => $workLogs->get($dateString, collect()),
+                'public_holiday' => $holidays->get($dateString),
             ];
+
+            $overrideData = $overriddenAttendances->get($dateString);
+
+            if ($overrideData) {
+                $reportData['type'] = 'edited';
+                $reportData['summary'] = $overrideData;
+                $reportData['logs'] = $workLogs->where('start_time', '>=', $overrideData->start_time)
+                    ->where('end_time', '<=', $overrideData->end_time);
+            } else {
+                $dayAttendanceLogs = $attendanceLogs->filter(fn($log) => $log->timestamp->isSameDay($currentDate));
+                if ($dayAttendanceLogs->isNotEmpty()) {
+                    $reportData['type'] = 'workday';
+                    $reportData['sessions'] = $this->calculateSessionsFromLogs($dayAttendanceLogs, $workLogs, $user);
+                } else {
+                    $reportData['type'] = 'day_off';
+                    $reportData['sessions'] = [];
+                }
+            }
+            $monthlyReport[$dateString] = $reportData;
         }
 
-        // 月の合計を計算
-        $monthTotalActualWorkSeconds = $attendances->sum('actual_work_seconds');
-        $monthTotalSalary = $attendances->sum(fn($att) => $att->daily_salary);
-
-        // JavaScriptでの計算用に、ユーザーの時給履歴をJSONで渡す
-        $hourlyRatesJson = $user->hourlyRates()->get(['rate', 'effective_date'])->toJson();
+        // --- 3. 月の合計を計算 ---
+        $monthTotalSalary = 0;
+        $monthTotalActualWorkSeconds = 0;
+        foreach ($monthlyReport as $report) {
+            if ($report['type'] === 'edited') {
+                $monthTotalActualWorkSeconds += $report['summary']->actual_work_seconds;
+                $monthTotalSalary += $report['summary']->daily_salary;
+            } elseif ($report['type'] === 'workday') {
+                $monthTotalActualWorkSeconds += collect($report['sessions'])->sum('actual_work_seconds');
+                $monthTotalSalary += collect($report['sessions'])->sum('daily_salary');
+            }
+        }
 
         return view('admin.attendances.show', compact(
             'user',
@@ -97,94 +95,60 @@ class AttendanceController extends Controller
             'monthlyReport',
             'monthTotalActualWorkSeconds',
             'monthTotalSalary',
-            'hourlyRatesJson',
             'applicableRates'
         ));
     }
 
-    /**
-     * 作業ログから勤怠データを生成・更新
-     */
-    public function generate(User $user, $month)
+    // ▼▼▼【追加】勤怠ログから勤務セッションを計算するメソッドを抽出 ▼▼▼
+    private function calculateSessionsFromLogs($dayAttendanceLogs, $allWorkLogs, $user)
     {
-
-        $targetMonth = Carbon::parse($month)->startOfMonth();
-        $startDate = $targetMonth->copy()->startOfMonth();
-        $endDate = $targetMonth->copy()->endOfMonth();
-
-        $existingAttendances = Attendance::where('user_id', $user->id)
-            ->whereBetween('date', [$startDate, $endDate])
-            ->get()
-            ->keyBy(fn($item) => $item->date->format('Y-m-d'));
-
-        $workLogs = WorkLog::where('user_id', $user->id)
-            ->where('status', 'stopped')->whereBetween('start_time', [$startDate, $endDate])
-            ->orderBy('start_time')->get()->groupBy(fn($log) => $log->start_time->format('Y-m-d'));
-
-        $processedCount = 0;
-
-        foreach ($workLogs as $date => $dayLogs) {
-            // 手動編集済みのデータはスキップする
-            if ($existingAttendances->has($date) && $existingAttendances->get($date)->status === 'edited') {
-                continue;
-            }
-
-            $firstStartTime = $dayLogs->min('start_time');
-            $lastEndTime = $dayLogs->max('end_time');
-
-            $actualWorkSeconds = 0;
-            $sortedLogs = $dayLogs->sortBy('start_time')->values();
-            if ($sortedLogs->isNotEmpty()) {
-                $mergedStart = $sortedLogs->first()->start_time;
-                $mergedEnd = $sortedLogs->first()->end_time;
-                foreach ($sortedLogs->slice(1) as $log) {
-                    if ($log->start_time < $mergedEnd) {
-                        if ($log->end_time > $mergedEnd) {
-                            $mergedEnd = $log->end_time;
-                        }
-                    } else {
-                        $actualWorkSeconds += $mergedEnd->getTimestamp() - $mergedStart->getTimestamp();
-                        $mergedStart = $log->start_time;
-                        $mergedEnd = $log->end_time;
-                    }
+        $sessions = [];
+        $currentSession = null;
+        foreach ($dayAttendanceLogs as $log) {
+            if ($log->type === 'clock_in') {
+                if ($currentSession) {
+                    $sessions[] = $currentSession;
                 }
-                $actualWorkSeconds += $mergedEnd->getTimestamp() - $mergedStart->getTimestamp();
+                $currentSession = ['start_time' => $log->timestamp, 'end_time' => null, 'logs' => collect([$log])];
+            } elseif ($currentSession) {
+                $currentSession['logs']->push($log);
+                if ($log->type === 'clock_out') {
+                    $currentSession['end_time'] = $log->timestamp;
+                    $sessions[] = $currentSession;
+                    $currentSession = null;
+                }
             }
-
-            $attendanceSeconds = $lastEndTime->getTimestamp() - $firstStartTime->getTimestamp();
-            $breakSeconds = $attendanceSeconds - $actualWorkSeconds;
-
-            Attendance::updateOrCreate(
-                ['user_id' => $user->id, 'date' => $date],
-                [
-                    'start_time' => $firstStartTime,
-                    'end_time' => $lastEndTime,
-                    'break_seconds' => max(0, $breakSeconds),
-                    'actual_work_seconds' => $actualWorkSeconds,
-                    'note' => null,
-                    'status' => 'calculated',
-                ]
-            );
-
-            $processedCount++;
+        }
+        if ($currentSession) {
+            $sessions[] = $currentSession;
         }
 
-        if ($processedCount > 0) {
-            $message = $targetMonth->format('Y年n月') . 'の勤怠データ（' . $processedCount . '日分）を更新しました。手動編集された行はスキップされました。';
-        } else {
-            $message = '更新対象のデータがありませんでした。';
-        }
-
-        return redirect()->route('admin.attendances.show', ['user' => $user, 'month' => $month])
-            ->with('success', $message);
+        return collect($sessions)->map(function ($session) use ($allWorkLogs, $user) {
+            $startTime = $session['start_time'];
+            $endTime = $session['end_time'];
+            $sessionWorkLogs = $allWorkLogs->where('start_time', '>=', $startTime)
+                ->when($endTime, fn($q) => $q->where('end_time', '<=', $endTime));
+            $actualWorkSeconds = $sessionWorkLogs->sum('effective_duration');
+            $rateForDay = $user->getHourlyRateForDate($startTime);
+            return [
+                'start_time' => $startTime,
+                'end_time' => $endTime,
+                'break_seconds' => $this->calculateTimeDifference($session['logs'], 'break_start', 'break_end') + $this->calculateTimeDifference($session['logs'], 'away_start', 'away_end'),
+                'actual_work_seconds' => $actualWorkSeconds,
+                'daily_salary' => $rateForDay > 0 ? round(($actualWorkSeconds / 3600) * $rateForDay) : 0,
+                'logs' => $sessionWorkLogs,
+            ];
+        });
     }
 
+
     /**
-     * 1行分の勤怠データを更新する
+     * 1行分の勤怠データを更新する (手動編集・オーバーライド用)
+     * ▼▼▼ このメソッドは変更なし、そのまま利用 ▼▼▼
      */
     public function updateSingle(Request $request, User $user, $date)
     {
-
+        // ... 既存のコードのまま ...
         $validated = $request->validate([
             'start_time' => 'nullable|required_with:end_time|date_format:H:i',
             'end_time' => 'nullable|required_with:start_time|date_format:H:i',
@@ -207,7 +171,6 @@ class AttendanceController extends Controller
 
             $breakSeconds = (int)($validated['break_minutes'] ?? 0) * 60;
 
-            // ▼▼▼【ここを修正】拘束時間の計算方法をより確実な方法に変更 ▼▼▼
             $attendanceSeconds = $endTime->getTimestamp() - $startTime->getTimestamp();
             $actualWorkSeconds = max(0, $attendanceSeconds - $breakSeconds);
 
@@ -223,7 +186,6 @@ class AttendanceController extends Controller
                 ]
             );
 
-            // 更新後のデータをJSONで返す
             return response()->json([
                 'success' => true,
                 'message' => '更新しました。',
@@ -236,5 +198,23 @@ class AttendanceController extends Controller
 
         Attendance::where('user_id', $user->id)->where('date', $date)->delete();
         return response()->json(['success' => true, 'message' => 'データをクリアしました。']);
+    }
+
+    /**
+     * ▼▼▼【追加】休憩・中抜け時間計算用のヘルパーメソッド ▼▼▼
+     */
+    private function calculateTimeDifference($logs, $startType, $endType): int
+    {
+        $totalSeconds = 0;
+        $startTime = null;
+        foreach ($logs as $log) {
+            if ($log->type === $startType) {
+                $startTime = $log->timestamp;
+            } elseif ($log->type === $endType && $startTime) {
+                $totalSeconds += $startTime->diffInSeconds($log->timestamp);
+                $startTime = null; // 次のペアのためにリセット
+            }
+        }
+        return $totalSeconds;
     }
 }

@@ -25,6 +25,7 @@ import {
 import "./features/file-deleter.js";
 
 import { initializeWorkTimers } from "./features/work-timer.js";
+import "./features/attendance-timer.js";
 
 if (document.getElementById("feedback-table")) {
     import("./page-specific/admin-feedbacks-index.js").catch((error) =>

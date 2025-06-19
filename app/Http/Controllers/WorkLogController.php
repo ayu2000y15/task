@@ -30,27 +30,17 @@ class WorkLogController extends Controller
             $usersToLog = collect();
 
             // --- 記録対象ユーザーの決定ロジック (修正版) ---
-            // Case 1: モーダルで担当者が選択された場合
             $assigneeIds = $request->input('assignee_ids');
-            // リクエストで送られてきたIDが、有効なID（数字）であるかを最初にチェックします
             $validAssigneeIds = is_array($assigneeIds) ? array_filter($assigneeIds, 'is_numeric') : [];
 
-            // 1. モーダル等で有効な担当者IDが1つ以上選択されていた場合
             if (!empty($validAssigneeIds)) {
                 $usersToLog = User::findMany($validAssigneeIds);
-            }
-            // 2. 有効な担当者IDが選択されていない場合（非共有アカウントでの開始など）
-            else {
-                // 2a. ログインユーザーが「共有アカウント」でなければ、ログインユーザー自身を対象とする
+            } else {
                 if ($user->status !== User::STATUS_SHARED) {
                     $usersToLog->push($user);
-                }
-                // 2b. ログインユーザーが「共有アカウント」で、タスクに担当者が割り当てられている場合
-                elseif ($task->assignees->isNotEmpty()) {
+                } elseif ($task->assignees->isNotEmpty()) {
                     $usersToLog = $task->assignees;
-                }
-                // 2c. 上記以外（共有アカウントでタスクに担当者未設定など）の最終的なフォールバック
-                else {
+                } else {
                     $usersToLog->push($user);
                 }
             }
@@ -58,6 +48,14 @@ class WorkLogController extends Controller
 
             if ($usersToLog->isEmpty()) {
                 return response()->json(['error' => '記録対象の担当者が見つかりませんでした。'], 400);
+            }
+
+            foreach ($usersToLog as $userToCheck) {
+                if ($userToCheck->getCurrentAttendanceStatus() !== 'working') {
+                    return response()->json([
+                        'error' => '担当者「' . $userToCheck->name . '」が出勤中ではありません。作業を開始する前に出勤打刻をしてください。'
+                    ], 403);
+                }
             }
 
             // 対象者の中に一人でも作業中の人がいればエラーにする
@@ -88,7 +86,8 @@ class WorkLogController extends Controller
                 'success' => true,
                 'message' => '作業を開始しました。',
                 'task_status' => $task->status,
-                'is_paused' => $task->is_paused
+                'is_paused' => $task->is_paused,
+                'running_logs' => WorkLog::where('user_id', Auth::id())->where('status', 'active')->get()
             ]);
         });
     }
@@ -110,7 +109,6 @@ class WorkLogController extends Controller
 
             $targetUserIds = collect();
 
-            // 停止対象のユーザーを決定
             if ($user->status === User::STATUS_SHARED && $task->assignees->isNotEmpty()) {
                 $targetUserIds = $task->assignees->pluck('id');
             } else {
@@ -136,7 +134,6 @@ class WorkLogController extends Controller
 
             WorkLog::whereIn('id', $logsToStop->pluck('id'))->update($updateData);
 
-            // 最終的なタスクの状態を更新・判定する
             $otherActiveLogsCount = WorkLog::where('task_id', $task->id)
                 ->where('status', 'active')
                 ->count();
@@ -149,7 +146,7 @@ class WorkLogController extends Controller
             if ($request->action_type === 'complete') {
                 if ($otherActiveLogsCount > 0) {
                     $message = 'ご自身の作業を完了しました。他の担当者が作業中のため、工程は「進行中」のままです。';
-                    $taskIsPaused = false; // 他が動いているのでpausedではない
+                    $taskIsPaused = false;
                     $finalTaskStatus = 'in_progress';
                     $responsePayload['log_only'] = true;
                 } else {
@@ -163,13 +160,11 @@ class WorkLogController extends Controller
                     $finalTaskStatus = 'on_hold';
                     $taskIsPaused = true;
                 } else {
-                    // 他の人が作業中ならステータスは変わらない
                     $finalTaskStatus = 'in_progress';
-                    $taskIsPaused = false; // task全体としてはpausedではない
+                    $taskIsPaused = false;
                 }
             }
 
-            // データベースのタスク状態を更新
             if ($task->status !== $finalTaskStatus || $task->is_paused !== $taskIsPaused) {
                 $task->status = $finalTaskStatus;
                 $task->is_paused = $taskIsPaused;
@@ -182,6 +177,10 @@ class WorkLogController extends Controller
             $responsePayload['message'] = $message;
             $responsePayload['task_status'] = $finalTaskStatus;
             $responsePayload['is_paused'] = $taskIsPaused;
+
+            // ▼▼▼【変更】フロントエンド連携のため、最新の実行中ログを返す ▼▼▼
+            $responsePayload['running_logs'] = WorkLog::where('user_id', Auth::user()->id)->where('status', 'active')->get();
+            // ▲▲▲【変更ここまで】▲▲▲
 
             return response()->json($responsePayload);
         });

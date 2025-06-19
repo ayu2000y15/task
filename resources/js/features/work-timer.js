@@ -133,9 +133,47 @@ function renderTimerDisplay(container) {
 }
 
 /**
+ * 実行中の作業ログがあるかを確認し、グローバルイベントを発行する
+ */
+function dispatchWorkLogStatus() {
+    const runningLogsElement = document.getElementById(
+        "running-work-logs-data"
+    );
+    const userData = JSON.parse(
+        document.getElementById("user-data-container").dataset.user
+    );
+
+    if (!runningLogsElement || !userData) return;
+
+    let activeWorkLogs = [];
+    try {
+        activeWorkLogs = JSON.parse(runningLogsElement.textContent);
+    } catch (e) {
+        /* データが空の場合など */
+    }
+
+    const currentUserId = userData.id;
+    // ログイン中のユーザーに、'active'なログがあるか
+    const hasActiveLog = activeWorkLogs.some(
+        (log) => log.user_id === currentUserId && log.status === "active"
+    );
+
+    // グローバルイベントを発行
+    window.dispatchEvent(
+        new CustomEvent("work-log-status-changed", {
+            detail: { hasActiveWorkLog: hasActiveLog },
+        })
+    );
+}
+
+/**
  * 特定のタスクのタイマーUIを描画する
  */
 function renderTimerControls(container, log, isPaused, taskStatus, assignees) {
+    // ▼▼▼【追加】現在の勤怠ステータスを取得 ▼▼▼
+    const attendanceStatus = document.body.dataset.attendanceStatus;
+    const isWorking = attendanceStatus === "working";
+
     const taskId = container.dataset.taskId,
         viewMode = container.dataset.viewMode || "full";
     const userData = JSON.parse(
@@ -221,39 +259,67 @@ function renderTimerControls(container, log, isPaused, taskStatus, assignees) {
                 container.appendChild(displayContainer);
             }
             const resumeButton = document.createElement("button");
+            // ▼▼▼【ここから変更】「再開」ボタンの制御 ▼▼▼
             if (viewMode === "compact") {
                 resumeButton.innerHTML = `<i class="fas fa-play"></i>`;
-                resumeButton.className =
-                    "inline-flex items-center justify-center px-2 py-1 text-xs font-medium text-white bg-green-500 hover:bg-green-600 rounded-md shadow-sm transition";
-                resumeButton.title = "再開";
+                resumeButton.className = `inline-flex items-center justify-center px-2 py-1 text-xs font-medium text-white rounded-md shadow-sm transition ${
+                    isWorking
+                        ? "bg-green-500 hover:bg-green-600"
+                        : "bg-gray-400 cursor-not-allowed"
+                }`;
+                resumeButton.title = isWorking
+                    ? "再開"
+                    : "出勤中のみ作業を再開できます";
             } else {
                 resumeButton.innerHTML = `<i class="fas fa-play mr-1"></i> 再開`;
-                resumeButton.className =
-                    "inline-flex items-center px-3 py-1 text-xs font-medium text-white bg-green-500 hover:bg-green-600 rounded-md shadow-sm transition";
+                resumeButton.className = `inline-flex items-center px-3 py-1 text-xs font-medium text-white rounded-md shadow-sm transition ${
+                    isWorking
+                        ? "bg-green-500 hover:bg-green-600"
+                        : "bg-gray-400 cursor-not-allowed"
+                }`;
             }
-            resumeButton.onclick = () => {
-                isSharedAccount && hasMultipleAssignees
-                    ? openAssigneeSelectionModal(taskId, assignees)
-                    : handleTimerAction(taskId, "start");
-            };
+            if (isWorking) {
+                resumeButton.onclick = () => {
+                    isSharedAccount && hasMultipleAssignees
+                        ? openAssigneeSelectionModal(taskId, assignees)
+                        : handleTimerAction(taskId, "start");
+                };
+            } else {
+                resumeButton.disabled = true;
+            }
+            // ▲▲▲【変更ここまで】▲▲▲
             buttonContainer.appendChild(resumeButton);
         } else {
             const startButton = document.createElement("button");
+            // ▼▼▼【ここから変更】「開始」ボタンの制御 ▼▼▼
             if (viewMode === "compact") {
                 startButton.innerHTML = `<i class="fas fa-play"></i>`;
-                startButton.className =
-                    "inline-flex items-center justify-center px-2 py-1 text-xs font-medium text-white bg-blue-500 hover:bg-blue-600 rounded-md shadow-sm transition";
-                startButton.title = "開始";
+                startButton.className = `inline-flex items-center justify-center px-2 py-1 text-xs font-medium text-white rounded-md shadow-sm transition ${
+                    isWorking
+                        ? "bg-blue-500 hover:bg-blue-600"
+                        : "bg-gray-400 cursor-not-allowed"
+                }`;
+                startButton.title = isWorking
+                    ? "開始"
+                    : "出勤中のみ作業を開始できます";
             } else {
                 startButton.innerHTML = `<i class="fas fa-play mr-1"></i> 開始`;
-                startButton.className =
-                    "inline-flex items-center px-3 py-1 text-xs font-medium text-white bg-blue-500 hover:bg-blue-600 rounded-md shadow-sm transition";
+                startButton.className = `inline-flex items-center px-3 py-1 text-xs font-medium text-white rounded-md shadow-sm transition ${
+                    isWorking
+                        ? "bg-blue-500 hover:bg-blue-600"
+                        : "bg-gray-400 cursor-not-allowed"
+                }`;
             }
-            startButton.onclick = () => {
-                isSharedAccount && hasMultipleAssignees
-                    ? openAssigneeSelectionModal(taskId, assignees)
-                    : handleTimerAction(taskId, "start");
-            };
+            if (isWorking) {
+                startButton.onclick = () => {
+                    isSharedAccount && hasMultipleAssignees
+                        ? openAssigneeSelectionModal(taskId, assignees)
+                        : handleTimerAction(taskId, "start");
+                };
+            } else {
+                startButton.disabled = true;
+            }
+            // ▲▲▲【変更ここまで】▲▲▲
             buttonContainer.appendChild(startButton);
         }
         container.appendChild(buttonContainer);
@@ -330,6 +396,20 @@ async function handleTimerAction(taskId, action, assigneeIds = []) {
         }
 
         const data = await response.json();
+
+        // ▼▼▼【ここから変更】タイマー操作後に、実行中ログのJSONを更新してイベントを発行 ▼▼▼
+        if (data.running_logs) {
+            // サーバーから最新の実行中ログリストを受け取るようにする
+            const runningLogsElement = document.getElementById(
+                "running-work-logs-data"
+            );
+            if (runningLogsElement) {
+                runningLogsElement.textContent = JSON.stringify(
+                    data.running_logs
+                );
+            }
+        }
+        dispatchWorkLogStatus(); // 状態をチェックしてイベント発行
 
         document
             .querySelectorAll(`.timer-controls[data-task-id="${taskId}"]`)
@@ -420,6 +500,7 @@ export function initializeWorkTimers() {
             );
         }
     }
+    dispatchWorkLogStatus();
 
     timerContainers.forEach((container) => {
         const taskId = container.dataset.taskId;
@@ -440,6 +521,37 @@ export function initializeWorkTimers() {
 
     displayOnlyContainers.forEach((container) => {
         renderTimerDisplay(container);
+    });
+
+    window.addEventListener("attendance-status-changed", () => {
+        // 勤怠ステータスが変わったら、ページ上のすべてのタイマーUIを再描画する
+        const timerContainers = document.querySelectorAll(".timer-controls");
+        const runningLogsElement = document.getElementById(
+            "running-work-logs-data"
+        );
+        let activeWorkLogs = [];
+        if (runningLogsElement) {
+            try {
+                activeWorkLogs = JSON.parse(runningLogsElement.textContent);
+            } catch (e) {}
+        }
+
+        timerContainers.forEach((container) => {
+            const taskId = container.dataset.taskId;
+            const taskStatus = container.dataset.taskStatus;
+            const isPaused = container.dataset.isPaused === "true";
+            const assignees = JSON.parse(container.dataset.assignees || "[]");
+            const logForThisTask = activeWorkLogs.find(
+                (log) => String(log.task_id) === String(taskId)
+            );
+            renderTimerControls(
+                container,
+                logForThisTask,
+                isPaused,
+                taskStatus,
+                assignees
+            );
+        });
     });
 
     // ▼▼▼【追加】イベントリスナーの初期化をここで行う ▼▼▼

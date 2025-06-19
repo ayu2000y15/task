@@ -37,8 +37,8 @@ use App\Http\Controllers\Admin\WorkRecordController as AdminWorkRecordController
 use App\Http\Controllers\Admin\UserHolidayController;
 use App\Http\Controllers\MyHolidayController;
 use App\Http\Controllers\RequestController;
-use App\Http\Controllers\Admin\AttendanceController;
-
+use App\Http\Controllers\Admin\AttendanceController as AdminAttendanceController;
+use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\ToolController;
 use App\Http\Controllers\SalesToolController;
 
@@ -178,6 +178,9 @@ Route::middleware('auth')->group(function () {
 
     // 作業実績ページ
     Route::get('/my-work-records', [WorkRecordController::class, 'index'])->name('work-records.index');
+    // 打刻API
+    Route::post('/attendance/clock', [AttendanceController::class, 'clock'])->name('attendance.clock');
+
 
     Route::prefix('admin')->name('admin.')->middleware(['can:viewAny,App\Models\ProcessTemplate'])->group(function () { // 管理者用などのミドルウェアを想定
         Route::resource('form-definitions', FormFieldDefinitionController::class)
@@ -264,9 +267,9 @@ Route::middleware('auth')->group(function () {
         Route::delete('holidays/{userHoliday}', [UserHolidayController::class, 'destroy'])->name('holidays.destroy');
 
         // 勤怠管理ルート
-        Route::get('/attendances/{user}/{month?}', [AttendanceController::class, 'show'])->name('attendances.show');
-        Route::post('/attendances/generate/{user}/{month}', [AttendanceController::class, 'generate'])->name('attendances.generate');
-        Route::post('/attendances/{user}/{date}', [AttendanceController::class, 'updateSingle'])->name('attendances.update-single');
+        Route::get('/attendances/{user}/{month?}', [AdminAttendanceController::class, 'show'])->name('attendances.show');
+        Route::post('/attendances/generate/{user}/{month}', [AdminAttendanceController::class, 'generate'])->name('attendances.generate');
+        Route::post('/attendances/{user}/{date}', [AdminAttendanceController::class, 'updateSingle'])->name('attendances.update-single');
     });
 
     // -------------------------------------------------------------------------

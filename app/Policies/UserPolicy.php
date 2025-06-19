@@ -65,4 +65,22 @@ class UserPolicy
         }
         return $currentUser->hasPermissionTo('users.delete');
     }
+
+    /**
+     * * 自分の生産性サマリーを閲覧できるか決定する
+     */
+    public function viewOwnProductivity(User $user): bool
+    {
+        // 'productivity.viewAll' という権限を持つユーザーのみ閲覧を許可
+        return $user->hasPermissionTo('productivity.viewOwn');
+    }
+
+    /**
+     * * 全ユーザーの生産性サマリーを閲覧できるか決定する
+     */
+    public function viewAllProductivity(User $currentUser): bool
+    {
+        // 'productivity.viewAll' という権限を持つユーザーのみ閲覧を許可
+        return $currentUser->hasPermissionTo('productivity.viewAll');
+    }
 }

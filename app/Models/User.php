@@ -12,6 +12,8 @@ use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Collection;
 
 class User extends Authenticatable
 {
@@ -207,5 +209,89 @@ class User extends Authenticatable
             ->where('effective_date', '<=', now())
             ->orderBy('effective_date', 'desc')
             ->first();
+    }
+
+    /**
+     * ユーザーの勤怠ログとのリレーション
+     */
+    public function attendanceLogs(): HasMany
+    {
+        return $this->hasMany(AttendanceLog::class);
+    }
+
+    /**
+     * 現在の勤怠ステータスを取得する
+     *
+     * @return string working, on_break, on_away, clocked_out
+     */
+    public function getCurrentAttendanceStatus(): string
+    {
+        // パフォーマンス向上のため、ステータスを短時間キャッシュする
+        return Cache::remember('attendance_status_' . $this->id, 60, function () {
+            $lastLog = $this->attendanceLogs()
+                ->latest('timestamp')
+                ->first();
+
+            if (!$lastLog) {
+                return 'clocked_out'; // ログがなければ未出勤
+            }
+
+            switch ($lastLog->type) {
+                case 'clock_in':
+                case 'break_end':
+                case 'away_end':
+                    return 'working'; // 出勤中
+                case 'break_start':
+                    return 'on_break'; // 休憩中
+                case 'away_start':
+                    return 'on_away'; // 中抜け中
+                case 'clock_out':
+                default:
+                    return 'clocked_out'; // 退勤済み
+            }
+        });
+    }
+    /**
+     * ユーザーが実行中の作業ログを持っているかを確認する
+     */
+    public function hasActiveWorkLog(): bool
+    {
+        // 'status'が'active'のWorkLogが存在すればtrueを返す
+        return $this->workLogs()->where('status', 'active')->exists();
+    }
+
+    /**
+     * ▼▼▼【ここから追加】エラー解決のための不足していたメソッド ▼▼▼
+     *
+     * 指定された月に適用される時給のリストを取得します。
+     * (月の開始前の最新のレート + 月の途中で変更される全てのレート)
+     *
+     * @param Carbon $targetMonth 対象月
+     * @return Collection
+     */
+    public function getApplicableRatesForMonth(Carbon $targetMonth): Collection
+    {
+        $startDate = $targetMonth->copy()->startOfMonth();
+        $endDate = $targetMonth->copy()->endOfMonth();
+
+        // 1. 月の開始日時点で有効な最新の時給を1件取得
+        $baseRate = $this->hourlyRates()
+            ->where('effective_date', '<=', $startDate)
+            ->orderBy('effective_date', 'desc')
+            ->first();
+
+        // 2. 月の途中で有効になる時給を全て取得 (初日は除く)
+        $ratesStartingInMonth = $this->hourlyRates()
+            ->whereBetween('effective_date', [$startDate->copy()->addDay(), $endDate])
+            ->orderBy('effective_date', 'asc')
+            ->get();
+
+        // 3. 上記2つを結合して、その月に適用される時給リストを作成
+        $applicableRates = collect();
+        if ($baseRate) {
+            $applicableRates->push($baseRate);
+        }
+
+        return $applicableRates->merge($ratesStartingInMonth);
     }
 }
