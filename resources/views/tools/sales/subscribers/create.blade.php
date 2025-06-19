@@ -15,6 +15,32 @@
     <span class="text-gray-700 dark:text-gray-200">購読者を追加</span>
 @endsection
 
+@push('styles')
+    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
+    <style>
+        */ .ts-control,
+        .ts-control input {
+            color: #d1d5db;
+            /* dark:text-gray-300 */
+        }
+
+        .ts-dropdown .ts-option {
+            color: #d1d5db;
+        }
+
+        .ts-dropdown .ts-option.active,
+        .ts-dropdown .ts-option:hover {
+            background-color: #4b5563;
+        }
+
+        .ts-control .item {
+            background-color: #4f46e5;
+            /* indigo-600 */
+            color: white;
+        }
+    </style>
+@endpush
+
 @section('content')
     <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div class="mb-6">
@@ -34,7 +60,7 @@
 
         {{-- フィルターセクション --}}
         <div
-            x-data="{ filtersOpen: {{ request()->hasAny(['filter_company_name', 'filter_postal_code', 'filter_address', 'filter_establishment_date_from', 'filter_establishment_date_to', 'filter_industry', 'filter_notes', 'keyword']) ? 'true' : 'false' }} }">
+            x-data="{ filtersOpen: {{ request()->hasAny(['filter_company_name', 'filter_postal_code', 'filter_address', 'filter_establishment_date_from', 'filter_establishment_date_to', 'filter_industry', 'filter_notes', 'keyword', 'exclude_lists']) ? 'true' : 'false' }} }">
             <div class="mb-6 bg-white dark:bg-gray-800 shadow-sm rounded-lg p-4">
                 {{-- キーワード検索フォーム --}}
                 <form action="{{ route('tools.sales.email-lists.subscribers.create', $emailList) }}" method="GET"
@@ -68,6 +94,21 @@
                         @if(request('keyword'))
                             <input type="hidden" name="keyword" value="{{ request('keyword') }}">
                         @endif
+
+                        {{-- 他のリストを除外 --}}
+                        <div class="mb-6 border-b border-gray-200 dark:border-gray-700 pb-6">
+                            <x-input-label for="exclude_lists" value="以下のリストに登録済みの連絡先も除外する" />
+                            {{-- ▼▼▼【ここを修正】Tom Selectが適用されるように、classから不要なものを削除しシンプルにします ▼▼▼ --}}
+                            <select name="exclude_lists[]" id="exclude_lists" multiple>
+                                @foreach($otherEmailLists as $list)
+                                    <option value="{{ $list->id }}" {{ in_array($list->id, $filterValues['exclude_lists'] ?? []) ? 'selected' : '' }}>
+                                        {{ $list->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            {{-- ▲▲▲【ここまで修正】▲▲▲ --}}
+                        </div>
+
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                             @php
                                 // プルダウンの選択肢を定義
@@ -76,72 +117,129 @@
                                     'is_null' => '空欄のみ',
                                     'is_not_null' => '空欄以外',
                                 ];
+                                $searchModeOptions = [
+                                    'like' => 'あいまい検索',
+                                    'exact' => '完全一致',
+                                    'not_in' => '含まない',
+                                ];
                             @endphp
 
                             {{-- 会社名 --}}
                             <div>
                                 <x-input-label for="filter_company_name_sub" value="会社名" />
-                                <x-text-input id="filter_company_name_sub" name="filter_company_name" type="text"
-                                    class="mt-1 block w-full" :value="$filterValues['filter_company_name'] ?? ''" />
-                                <x-select-input id="blank_filter_company_name_sub" name="blank_filter_company_name" class="mt-1 block w-full"
-                                    :options="$blankOptions" :selected="$filterValues['blank_filter_company_name'] ?? ''" />
+                                <div class="flex items-center space-x-2 mt-1">
+                                    <x-select-input id="filter_company_name_mode_sub" name="filter_company_name_mode"
+                                        class="block w-1/2" :options="$searchModeOptions"
+                                        :selected="$filterValues['filter_company_name_mode'] ?? 'like'" />
+                                    <x-text-input id="filter_company_name_sub" name="filter_company_name" type="text"
+                                        class="block w-1/2" :value="$filterValues['filter_company_name'] ?? ''"
+                                        placeholder="値" />
+                                </div>
+                                <x-select-input id="blank_filter_company_name_sub" name="blank_filter_company_name"
+                                    class="mt-1 block w-full" :options="$blankOptions"
+                                    :selected="$filterValues['blank_filter_company_name'] ?? ''" />
                             </div>
 
                             {{-- 郵便番号 --}}
                             <div>
                                 <x-input-label for="filter_postal_code_sub" value="郵便番号" />
-                                <x-text-input id="filter_postal_code_sub" name="filter_postal_code" type="text"
-                                    class="mt-1 block w-full" :value="$filterValues['filter_postal_code'] ?? ''" />
-                                <x-select-input id="blank_filter_postal_code_sub" name="blank_filter_postal_code" class="mt-1 block w-full"
-                                    :options="$blankOptions" :selected="$filterValues['blank_filter_postal_code'] ?? ''" />
+                                <div class="flex items-center space-x-2 mt-1">
+                                    <x-select-input id="filter_postal_code_mode_sub" name="filter_postal_code_mode"
+                                        class="block w-1/2" :options="$searchModeOptions"
+                                        :selected="$filterValues['filter_postal_code_mode'] ?? 'like'" />
+                                    <x-text-input id="filter_postal_code_sub" name="filter_postal_code" type="text"
+                                        class="block w-1/2" :value="$filterValues['filter_postal_code'] ?? ''"
+                                        placeholder="値" />
+                                </div>
+                                <x-select-input id="blank_filter_postal_code_sub" name="blank_filter_postal_code"
+                                    class="mt-1 block w-full" :options="$blankOptions"
+                                    :selected="$filterValues['blank_filter_postal_code'] ?? ''" />
                             </div>
 
                             {{-- 住所 --}}
                             <div>
                                 <x-input-label for="filter_address_sub" value="住所" />
-                                <x-text-input id="filter_address_sub" name="filter_address" type="text"
-                                    class="mt-1 block w-full" :value="$filterValues['filter_address'] ?? ''" />
-                                <x-select-input id="blank_filter_address_sub" name="blank_filter_address" class="mt-1 block w-full"
-                                    :options="$blankOptions" :selected="$filterValues['blank_filter_address'] ?? ''" />
+                                <div class="flex items-center space-x-2 mt-1">
+                                    <x-select-input id="filter_address_mode_sub" name="filter_address_mode"
+                                        class="block w-1/2" :options="$searchModeOptions"
+                                        :selected="$filterValues['filter_address_mode'] ?? 'like'" />
+                                    <x-text-input id="filter_address_sub" name="filter_address" type="text"
+                                        class="block w-1/2" :value="$filterValues['filter_address'] ?? ''"
+                                        placeholder="値" />
+                                </div>
+                                <x-select-input id="blank_filter_address_sub" name="blank_filter_address"
+                                    class="mt-1 block w-full" :options="$blankOptions"
+                                    :selected="$filterValues['blank_filter_address'] ?? ''" />
                             </div>
 
                             {{-- 業種 --}}
                             <div>
                                 <x-input-label for="filter_industry_sub" value="業種" />
-                                <x-text-input id="filter_industry_sub" name="filter_industry" type="text"
-                                    class="mt-1 block w-full" :value="$filterValues['filter_industry'] ?? ''" />
-                                <x-select-input id="blank_filter_industry_sub" name="blank_filter_industry" class="mt-1 block w-full"
-                                    :options="$blankOptions" :selected="$filterValues['blank_filter_industry'] ?? ''" />
+                                <div class="flex items-center space-x-2 mt-1">
+                                    <x-select-input id="filter_industry_mode_sub" name="filter_industry_mode"
+                                        class="block w-1/2" :options="$searchModeOptions"
+                                        :selected="$filterValues['filter_industry_mode'] ?? 'like'" />
+                                    <x-text-input id="filter_industry_sub" name="filter_industry" type="text"
+                                        class="block w-1/2" :value="$filterValues['filter_industry'] ?? ''"
+                                        placeholder="値" />
+                                </div>
+                                <x-select-input id="blank_filter_industry_sub" name="blank_filter_industry"
+                                    class="mt-1 block w-full" :options="$blankOptions"
+                                    :selected="$filterValues['blank_filter_industry'] ?? ''" />
+                            </div>
+
+                            <div>
+                                <x-input-label for="filter_source_info_sub" value="登録元" />
+                                <div class="flex items-center space-x-2 mt-1">
+                                    {{-- 検索モード選択 --}}
+                                    <x-select-input id="filter_source_info_mode_sub" name="filter_source_info_mode"
+                                        class="block w-1/2" :options="$searchModeOptions"
+                                        :selected="$filterValues['filter_source_info_mode'] ?? 'like'" />
+                                    {{-- 値の入力欄 --}}
+                                    <x-text-input id="filter_source_info_sub" name="filter_source_info" type="text"
+                                        class="block w-1/2" :value="$filterValues['filter_source_info'] ?? ''"
+                                        placeholder="ファイル名, 手入力など" />
+                                </div>
+                                {{-- 空欄/空欄以外の選択 --}}
+                                <x-select-input id="blank_filter_source_info_sub" name="blank_filter_source_info"
+                                    class="mt-1 block w-full" :options="$blankOptions"
+                                    :selected="$filterValues['blank_filter_source_info'] ?? ''" />
                             </div>
 
                             {{-- 備考 --}}
                             <div>
                                 <x-input-label for="filter_notes_sub" value="備考" />
-                                <x-text-input id="filter_notes_sub" name="filter_notes" type="text"
-                                    class="mt-1 block w-full" :value="$filterValues['filter_notes'] ?? ''" />
-                                <x-select-input id="blank_filter_notes_sub" name="blank_filter_notes" class="mt-1 block w-full"
-                                    :options="$blankOptions" :selected="$filterValues['blank_filter_notes'] ?? ''" />
+                                <div class="flex items-center space-x-2 mt-1">
+                                    <x-select-input id="filter_notes_mode_sub" name="filter_notes_mode" class="block w-1/2"
+                                        :options="$searchModeOptions" :selected="$filterValues['filter_notes_mode'] ?? 'like'" />
+                                    <x-text-input id="filter_notes_sub" name="filter_notes" type="text" class="block w-1/2"
+                                        :value="$filterValues['filter_notes'] ?? ''" placeholder="値" />
+                                </div>
+                                <x-select-input id="blank_filter_notes_sub" name="blank_filter_notes"
+                                    class="mt-1 block w-full" :options="$blankOptions"
+                                    :selected="$filterValues['blank_filter_notes'] ?? ''" />
                             </div>
 
                             {{-- 設立年月日 --}}
                             <div>
-                                <x-input-label for="filter_establishment_date_from_sub" value="設立年月日 (From)" />
-                                <x-text-input id="filter_establishment_date_from_sub" name="filter_establishment_date_from"
-                                    type="date" class="mt-1 block w-full"
-                                    :value="$filterValues['filter_establishment_date_from'] ?? ''" />
-                            </div>
-                            <div>
-                                <x-input-label for="filter_establishment_date_to_sub" value="設立年月日 (To)" />
-                                <x-text-input id="filter_establishment_date_to_sub" name="filter_establishment_date_to"
-                                    type="date" class="mt-1 block w-full"
-                                    :value="$filterValues['filter_establishment_date_to'] ?? ''" />
+                                <x-input-label for="filter_establishment_date" value="設立" />
+                                <div class="flex items-center space-x-2 mt-1">
+                                    <x-select-input id="filter_establishment_date" name="filter_establishment_date_mode"
+                                        class="block w-1/2" :options="$searchModeOptions"
+                                        :selected="$filterValues['filter_establishment_date_mode'] ?? 'like'" />
+                                    <x-text-input id="filter_establishment_date" name="filter_establishment_date"
+                                        type="text" class="block w-1/2" :value="$filterValues['filter_establishment_date'] ?? ''" placeholder="値" />
+                                </div>
+                                <x-select-input id="blank_filter_establishment_date_sub"
+                                    name="blank_filter_establishment_date" class="mt-1 block w-full"
+                                    :options="$blankOptions" :selected="$filterValues['blank_filter_establishment_date'] ?? ''" />
                             </div>
 
                             <input type="hidden" name="filter_status" value="active">
                         </div>
                         <div class="mt-6 flex items-center justify-end space-x-3">
                             <x-secondary-button as="a"
-                                href="{{ route('tools.sales.email-lists.subscribers.create', array_merge(['emailList' => $emailList->id], request()->only('keyword'))) }}">
+                                href="{{ route('tools.sales.email-lists.subscribers.create', ['emailList' => $emailList->id]) }}">
                                 フィルターリセット
                             </x-secondary-button>
                             <x-primary-button type="submit">
@@ -215,6 +313,9 @@
                                     会社名</th>
                                 <th scope="col"
                                     class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                    登録元</th>
+                                <th scope="col"
+                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                                     連絡先ステータス</th>
                             </tr>
                         </thead>
@@ -231,9 +332,15 @@
                                         {{ $contact->email }}
                                     </td>
                                     <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                        {{ $contact->industry ?? '-' }}</td>
+                                        {{ $contact->industry ?? '-' }}
+                                    </td>
                                     <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                        {{ Str::limit($contact->company_name ?? '-', 30) }}</td>
+                                        {{ Str::limit($contact->company_name ?? '-', 30) }}
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400"
+                                        title="{{ $contact->source_info }}">
+                                        {{ Str::limit($contact->source_info ?? '-', 20) }}
+                                    </td>
                                     <td class="px-6 py-2 whitespace-nowrap text-sm">
                                         @php
                                             $statusCfg = \App\Models\ManagedContact::getStatusConfig($contact->status);
@@ -318,6 +425,14 @@
                     if (!cb.checked) initialAllChecked = false;
                 });
                 if (itemCheckboxesSub.length > 0) mainCheckboxSub.checked = initialAllChecked; else mainCheckboxSub.checked = false;
+            }
+
+            if (document.getElementById('exclude_lists')) {
+                new TomSelect('#exclude_lists', {
+                    plugins: ['remove_button'],
+                    create: false,
+                    placeholder: '除外するリストを検索・選択...'
+                });
             }
         });
     </script>

@@ -98,8 +98,9 @@
                                 <x-text-input id="filter_company_name" name="filter_company_name" type="text"
                                     class="mt-1 block w-full" :value="$filterValues['filter_company_name'] ?? ''"
                                     placeholder="株式会社〇〇" />
-                                <x-select-input id="blank_filter_company_name" name="blank_filter_company_name" class="mt-1 block w-full"
-                                    :options="$blankOptions" :selected="$filterValues['blank_filter_company_name'] ?? ''" />
+                                <x-select-input id="blank_filter_company_name" name="blank_filter_company_name"
+                                    class="mt-1 block w-full" :options="$blankOptions"
+                                    :selected="$filterValues['blank_filter_company_name'] ?? ''" />
                             </div>
 
                             {{-- 郵便番号 --}}
@@ -108,8 +109,9 @@
                                 <x-text-input id="filter_postal_code" name="filter_postal_code" type="text"
                                     class="mt-1 block w-full" :value="$filterValues['filter_postal_code'] ?? ''"
                                     placeholder="123-4567" />
-                                <x-select-input id="blank_filter_postal_code" name="blank_filter_postal_code" class="mt-1 block w-full"
-                                    :options="$blankOptions" :selected="$filterValues['blank_filter_postal_code'] ?? ''" />
+                                <x-select-input id="blank_filter_postal_code" name="blank_filter_postal_code"
+                                    class="mt-1 block w-full" :options="$blankOptions"
+                                    :selected="$filterValues['blank_filter_postal_code'] ?? ''" />
                             </div>
 
                             {{-- 住所 --}}
@@ -118,8 +120,9 @@
                                 <x-text-input id="filter_address" name="filter_address" type="text"
                                     class="mt-1 block w-full" :value="$filterValues['filter_address'] ?? ''"
                                     placeholder="東京都..." />
-                                <x-select-input id="blank_filter_address" name="blank_filter_address" class="mt-1 block w-full"
-                                    :options="$blankOptions" :selected="$filterValues['blank_filter_address'] ?? ''" />
+                                <x-select-input id="blank_filter_address" name="blank_filter_address"
+                                    class="mt-1 block w-full" :options="$blankOptions"
+                                    :selected="$filterValues['blank_filter_address'] ?? ''" />
                             </div>
 
                             {{-- 業種 --}}
@@ -128,8 +131,9 @@
                                 <x-text-input id="filter_industry" name="filter_industry" type="text"
                                     class="mt-1 block w-full" :value="$filterValues['filter_industry'] ?? ''"
                                     placeholder="ITサービス" />
-                                <x-select-input id="blank_filter_industry" name="blank_filter_industry" class="mt-1 block w-full"
-                                    :options="$blankOptions" :selected="$filterValues['blank_filter_industry'] ?? ''" />
+                                <x-select-input id="blank_filter_industry" name="blank_filter_industry"
+                                    class="mt-1 block w-full" :options="$blankOptions"
+                                    :selected="$filterValues['blank_filter_industry'] ?? ''" />
                             </div>
 
                             {{-- 備考 --}}
@@ -141,18 +145,15 @@
                                     :options="$blankOptions" :selected="$filterValues['blank_filter_notes'] ?? ''" />
                             </div>
 
-                            {{-- (日付とステータスのフィルターは変更なし) --}}
+                            {{-- 設立年月日 --}}
                             <div>
-                                <x-input-label for="filter_establishment_date_from" value="設立年月日 (From)" />
-                                <x-text-input id="filter_establishment_date_from" name="filter_establishment_date_from"
-                                    type="date" class="mt-1 block w-full"
-                                    :value="$filterValues['filter_establishment_date_from'] ?? ''" />
-                            </div>
-                            <div>
-                                <x-input-label for="filter_establishment_date_to" value="設立年月日 (To)" />
-                                <x-text-input id="filter_establishment_date_to" name="filter_establishment_date_to"
-                                    type="date" class="mt-1 block w-full"
-                                    :value="$filterValues['filter_establishment_date_to'] ?? ''" />
+                                <x-input-label for="filter_establishment_date" value="設立年月日" />
+                                <x-text-input id="filter_establishment_date" name="filter_establishment_date" type="text"
+                                    class="mt-1 block w-full" :value="$filterValues['filter_establishment_date'] ?? ''"
+                                    placeholder="2024-01-01, 令和6年 など" />
+                                <x-select-input id="blank_filter_establishment_date" name="blank_filter_establishment_date"
+                                    class="mt-1 block w-full" :options="$blankOptions"
+                                    :selected="$filterValues['blank_filter_establishment_date'] ?? ''" />
                             </div>
                             <div>
                                 <x-input-label for="filter_status" value="ステータス" />
@@ -187,19 +188,20 @@
                 </span>
             </h2>
             <div x-show="csvImportOpen" x-collapse class="p-4 sm:p-6 border-t dark:border-gray-700">
-                <form action="{{ route('tools.sales.managed-contacts.importCsv') }}" method="POST"
+                <form action="{{ route('tools.sales.managed-contacts.import') }}" method="POST"
                     enctype="multipart/form-data">
                     @csrf
                     <div class="space-y-4">
+                        {{-- CSVインポートセクションのinputタグ --}}
                         <div>
                             <x-input-label for="csv_file" value="CSVファイルを選択" :required="true" />
-                            <input type="file" name="csv_file" id="csv_file" required accept=".csv, text/csv"
+                            <input type="file" name="csv_file" id="csv_file" required accept=".csv, text/csv, .xlsx"
                                 class="mt-1 block w-full text-sm text-gray-900 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer bg-gray-50 dark:bg-gray-700 focus:outline-none focus:border-indigo-500 focus:ring-indigo-500
-                                                                    file:mr-4 file:py-2 file:px-4
-                                                                    file:rounded-md file:border-0
-                                                                    file:text-sm file:font-semibold
-                                                                    file:bg-indigo-100 dark:file:bg-indigo-700 file:text-indigo-600 dark:file:text-indigo-300
-                                                                    hover:file:bg-indigo-200 dark:hover:file:bg-indigo-600" />
+                                                                                                file:mr-4 file:py-2 file:px-4
+                                                                                                file:rounded-md file:border-0
+                                                                                                file:text-sm file:font-semibold
+                                                                                                file:bg-indigo-100 dark:file:bg-indigo-700 file:text-indigo-600 dark:file:text-indigo-300
+                                                                                                hover:file:bg-indigo-200 dark:hover:file:bg-indigo-600" />
                             <x-input-error :messages="$errors->get('csv_file')" class="mt-2" />
                         </div>
                         <div class="text-xs text-gray-600 dark:text-gray-400 space-y-1">
@@ -255,6 +257,9 @@
                             ステータス</th>
                         <th scope="col"
                             class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            登録元</th>
+                        <th scope="col"
+                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                             最終更新日</th>
                         <th scope="col"
                             class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider min-w-[100px]">
@@ -284,6 +289,10 @@
                                     class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {{ $statusCfg['class'] }}">
                                     {{ $statusCfg['label'] }}
                                 </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400"
+                                title="{{ $contact->source_info }}">
+                                {{ Str::limit($contact->source_info ?? '-', 20) }}
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400"
                                 title="{{ $contact->updated_at->format('Y-m-d H:i:s') }}">

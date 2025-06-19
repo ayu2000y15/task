@@ -11,6 +11,7 @@ use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Auth;
 use App\Models\User;
 use Illuminate\Support\Facades\Storage; // Storageファサードをインポート
+use App\Models\ManagedContact; // ★ ManagedContactモデルをuse
 
 class ExternalFormController extends Controller
 {
@@ -334,5 +335,42 @@ class ExternalFormController extends Controller
 
         return redirect()->route('admin.external-submissions.show', $submission)
             ->with('success', '依頼ステータスを更新しました。');
+    }
+
+    /**
+     * 外部向けの管理連絡先登録フォームを表示します。
+     */
+    public function createContact()
+    {
+        return view('external.contact.create');
+    }
+
+    /**
+     * 外部から送信された管理連絡先情報を保存します。
+     */
+    public function storeContact(Request $request)
+    {
+        $validatedData = $request->validate([
+            'email' => 'required|string|email|max:255|unique:managed_contacts,email',
+            'name' => 'nullable|string|max:255',
+            'company_name' => 'nullable|string|max:255',
+            'postal_code' => 'nullable|string|max:20',
+            'address' => 'nullable|string|max:1000',
+            'phone_number' => 'nullable|string|max:30',
+            'fax_number' => 'nullable|string|max:30',
+            'url' => 'nullable|string|url|max:255',
+            'representative_name' => 'nullable|string|max:255',
+            'establishment_date' => 'nullable|string|max:255',
+            'industry' => 'nullable|string|max:255',
+            'notes' => 'nullable|string',
+        ]);
+
+        // デフォルト値と登録元情報を設定
+        $validatedData['status'] = 'active'; // デフォルトで「有効」ステータスにする
+        $validatedData['source_info'] = '手入力: ' . Auth::user()->name;
+
+        ManagedContact::create($validatedData);
+
+        return redirect()->route('external-contact.create')->with('success', '連絡先を登録しました。');;
     }
 }

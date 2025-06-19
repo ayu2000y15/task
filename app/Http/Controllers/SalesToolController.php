@@ -25,6 +25,9 @@ use Illuminate\Support\Facades\Validator; // Validator を use
 use League\Csv\Reader; // league/csv を use
 use League\Csv\Statement; // league/csv を use
 
+use Maatwebsite\Excel\Facades\Excel; // ★★★ Excelファサードをuse ★★★
+use App\Imports\ManagedContactsImport;
+
 class SalesToolController extends Controller
 {
     // 営業ツールへの包括的アクセス権限
@@ -142,67 +145,83 @@ class SalesToolController extends Controller
      */
     public function subscribersCreate(Request $request, EmailList $emailList)
     {
+        $this->authorize(self::SALES_TOOL_ACCESS_PERMISSION);
+
         $filterValues = $request->all();
 
-        // 1. 基本的な絞り込みクエリを生成
-        $query = ManagedContact::query()
-            // ステータスが「有効」なもののみ
-            ->where('status', 'active')
-            // 既にこのリストの購読者である連絡先を除外
-            ->whereDoesntHave('subscribers', function ($q) use ($emailList) {
-                $q->where('email_list_id', $emailList->id);
-            });
+        // --- 1. 基本クエリの生成 ---
+        $query = ManagedContact::query()->where('status', 'active'); // 有効な連絡先のみ
 
-        // 2. ユーザーによるフィルターを適用
+        // --- 2. 除外リストの処理 ---
+        // 自分自身のリストIDは常に対象
+        $excludeListIds = [$emailList->id];
+        // リクエストで追加の除外リストが指定されていればマージする
+        if ($request->filled('exclude_lists') && is_array($request->input('exclude_lists'))) {
+            $excludeListIds = array_merge($excludeListIds, $request->input('exclude_lists'));
+        }
+        // 重複を除外
+        $excludeListIds = array_unique($excludeListIds);
+
+        // 指定されたすべてのリストに存在しない連絡先を絞り込む
+        $query->whereDoesntHave('subscribers', function ($q) use ($excludeListIds) {
+            $q->whereIn('email_list_id', $excludeListIds);
+        });
+
+
+        // --- 3. ユーザーによるフィルターを適用 ---
         // キーワード検索
         if ($request->filled('keyword')) {
             $keyword = '%' . $request->input('keyword') . '%';
             $query->where(function ($q) use ($keyword) {
                 $q->where('email', 'like', $keyword)
                     ->orWhere('name', 'like', $keyword)
-                    ->orWhere('company_name', 'like', $keyword);
+                    ->orWhere('company_name', 'like', 'keyword');
             });
         }
 
-        // --- 詳細フィルター (空欄/空欄以外を含む) ---
+        // --- 詳細フィルター (検索モード対応) ---
         $applyTextFilter = function ($query, $request, $fieldName) {
+            $mode = $request->input("filter_{$fieldName}_mode", 'like'); // デフォルトは 'like'
+            $value = $request->input("filter_{$fieldName}");
             $blankFilter = $request->input("blank_filter_{$fieldName}");
-            $textValue = $request->input("filter_{$fieldName}");
 
             if ($blankFilter === 'is_null') {
                 $query->where(fn($q) => $q->whereNull($fieldName)->orWhere($fieldName, ''));
             } elseif ($blankFilter === 'is_not_null') {
                 $query->where(fn($q) => $q->whereNotNull($fieldName)->where($fieldName, '!=', ''));
             } elseif ($request->filled("filter_{$fieldName}")) {
-                $query->where($fieldName, 'like', '%' . $textValue . '%');
+                switch ($mode) {
+                    case 'exact':
+                        $query->where($fieldName, '=', $value);
+                        break;
+                    case 'not_in':
+                        $query->where($fieldName, 'NOT LIKE', '%' . $value . '%');
+                        break;
+                    case 'like':
+                    default:
+                        $query->where($fieldName, 'LIKE', '%' . $value . '%');
+                        break;
+                }
             }
         };
 
-        // 各フィルターを適用
-        $applyTextFilter($query, $request, 'company_name');
-        $applyTextFilter($query, $request, 'postal_code');
-        $applyTextFilter($query, $request, 'address');
-        $applyTextFilter($query, $request, 'industry');
-        $applyTextFilter($query, $request, 'notes');
-
-        // 設立年月日 (From)
-        if ($request->filled('filter_establishment_date_from')) {
-            $query->whereDate('establishment_date', '>=', $request->input('filter_establishment_date_from'));
+        // フィルターを適用するフィールドリスト
+        $filterableTextFields = ['company_name', 'postal_code', 'address', 'industry', 'notes', 'source_info', 'establishment_date'];
+        foreach ($filterableTextFields as $field) {
+            $applyTextFilter($query, $request, $field);
         }
 
-        // 設立年月日 (To)
-        if ($request->filled('filter_establishment_date_to')) {
-            $query->whereDate('establishment_date', '<=', $request->input('filter_establishment_date_to'));
-        }
+        // --- 4. 結果取得とビューへのデータ受け渡し ---
+        $managedContacts = $query->latest('updated_at')->paginate(100);
 
-        // 3. ページネーションして結果を取得
-        $managedContacts = $query->latest('updated_at')->paginate(20);
+        // 除外リスト選択用に、現在のリスト以外の全リストを取得
+        $otherEmailLists = EmailList::where('id', '!=', $emailList->id)->orderBy('name')->get();
 
-        // 4. ビューを返す
         return view('tools.sales.subscribers.create', compact(
             'emailList',
             'managedContacts',
-            'filterValues'
+            'filterValues',
+            'otherEmailLists' // ★ビューに渡す
         ));
     }
 
@@ -910,18 +929,9 @@ class SalesToolController extends Controller
         $applyTextFilter($query, $request, 'address');
         $applyTextFilter($query, $request, 'industry');
         $applyTextFilter($query, $request, 'notes');
+        $applyTextFilter($query, $request, 'establishment_date');
 
         // --- ▲▲▲【ここまで詳細フィルターのロジックを修正】▲▲▲ ---
-
-        // 設立年月日 (From)
-        if ($request->filled('filter_establishment_date_from')) {
-            $query->whereDate('establishment_date', '>=', $request->input('filter_establishment_date_from'));
-        }
-
-        // 設立年月日 (To)
-        if ($request->filled('filter_establishment_date_to')) {
-            $query->whereDate('establishment_date', '<=', $request->input('filter_establishment_date_to'));
-        }
 
         // ステータス
         if ($request->filled('filter_status')) {
@@ -967,17 +977,20 @@ class SalesToolController extends Controller
             'fax_number' => 'nullable|string|max:30',
             'url' => 'nullable|string|url|max:255',
             'representative_name' => 'nullable|string|max:255',
-            'establishment_date' => 'nullable|date_format:Y-m-d', // dateフォーマット指定
+            'establishment_date' => 'nullable|string|max:255', // dateフォーマット指定
             'industry' => 'nullable|string|max:255',
             'notes' => 'nullable|string',
             'status' => 'nullable|string|in:active,do_not_contact,archived', // 適切なステータス値
         ]);
         if (empty($validatedData['status'])) {
-            $validatedData['status'] = 'active'; // デフォルトステータス
+            $validatedData['status'] = 'active';
         }
         if (isset($validatedData['establishment_date']) && $validatedData['establishment_date'] === '') {
             $validatedData['establishment_date'] = null;
         }
+
+        // ★★★ 登録元情報を追加 ★★★
+        $validatedData['source_info'] = '手入力: ' . Auth::user()->name;
 
         $managedContact = ManagedContact::create($validatedData);
 
@@ -1013,7 +1026,7 @@ class SalesToolController extends Controller
             'fax_number' => 'nullable|string|max:30',
             'url' => 'nullable|string|url|max:255',
             'representative_name' => 'nullable|string|max:255',
-            'establishment_date' => 'nullable|date_format:Y-m-d',
+            'establishment_date' => 'nullable|string|max:255',
             'industry' => 'nullable|string|max:255',
             'notes' => 'nullable|string',
             'status' => 'required|string|in:active,do_not_contact,archived',
@@ -1021,6 +1034,9 @@ class SalesToolController extends Controller
         if (isset($validatedData['establishment_date']) && $validatedData['establishment_date'] === '') {
             $validatedData['establishment_date'] = null;
         }
+
+        // ★★★ 更新元情報を追加 ★★★
+        $validatedData['source_info'] = '手入力(更新): ' . Auth::user()->name;
 
         $managedContact->update($validatedData);
 
@@ -1046,54 +1062,24 @@ class SalesToolController extends Controller
     }
 
     /**
-     * Import managed contacts from a CSV file.
-     * CSVファイルから管理連絡先をインポートします。
+     * CSVまたはExcelファイルから管理連絡先をインポートします。
+     * (managedContactsImportCsvメソッドを置き換える新しいメソッド)
      */
-    public function managedContactsImportCsv(Request $request)
+    public function importContacts(Request $request)
     {
-        // ★★★ 最大実行時間を180秒に設定 ★★★
-        @set_time_limit(180); // エラー制御演算子 @ は、set_time_limit が無効な環境での警告を抑制するため
-
+        @set_time_limit(180);
         $this->authorize(self::SALES_TOOL_ACCESS_PERMISSION);
 
         $request->validate([
-            'csv_file' => 'required|file|mimes:csv,txt|max:4096',
+            'csv_file' => 'required|file|mimes:csv,txt,xlsx|max:8192', // ★ xlsxを追加
         ]);
 
         $file = $request->file('csv_file');
-        $filePath = $file->getRealPath();
         $originalFileName = $file->getClientOriginalName();
+        $extension = strtolower($file->getClientOriginalExtension());
 
-        // ★★★ インポート処理中ステータスをセッションに保存 ★★★
-        $request->session()->put('csv_import_status', [
-            'in_progress' => true,
-            'file_name' => $originalFileName,
-            'imported_count' => 0,
-            'updated_count' => 0,
-            'failed_count' => 0,
-        ]);
-
-        try {
-            $csv = Reader::createFromPath($filePath, 'r');
-            // 必要に応じてエンコーディング設定
-            // try {
-            //     $csv->setCharset('SJIS-win'); // 例: Windowsで作成されたShift_JIS CSVの場合
-            //     // BOMチェックと除去（league/csv v9.7.0+）
-            //     if (str_starts_with(file_get_contents($filePath, false, null, 0, 3), "\xEF\xBB\xBF")) {
-            //        $csv->setInputBOM(Reader::BOM_UTF8);
-            //     }
-            // } catch (\Exception $e) { /* Charset setting failed, try default */ }
-
-            $csv->setHeaderOffset(0);
-            $header = $csv->getHeader();
-            $records = Statement::create()->process($csv);
-        } catch (\Exception $e) {
-            Log::error('CSV Import - File Read Error: ' . $e->getMessage(), ['file' => $originalFileName]);
-            $request->session()->forget('csv_import_status'); // エラー時はセッションクリア
-            return redirect()->back()->with('danger', 'CSVファイルの読み込みに失敗しました。ファイル形式やエンコーディングを確認してください。');
-        }
-
-        $columnMappings = [ /* ... (前回定義の通り) ... */
+        // ヘッダーのマッピング定義
+        $columnMappings = [
             'email' => ['メールアドレス', 'Email', 'email_address', 'メール'],
             'name' => ['名前', '氏名', 'Name', 'フルネーム'],
             'company_name' => ['会社名', 'Company Name', '法人名', '所属'],
@@ -1108,38 +1094,130 @@ class SalesToolController extends Controller
             'notes' => ['備考', 'Notes', 'メモ'],
             'status' => ['ステータス', 'Status'],
         ];
-        $headerToModelMap = [];
-        $actualCsvHeaders = array_map('trim', $header);
+
+        // ファイルタイプに応じて処理を分岐
+        if (in_array($extension, ['csv', 'txt'])) {
+            $records = $this->readCsvRecords($file, $columnMappings);
+        } elseif ($extension === 'xlsx') {
+            $records = $this->readXlsxRecords($file, $columnMappings);
+        } else {
+            return redirect()->back()->with('error', '未対応のファイル形式です。');
+        }
+
+        if (is_string($records)) { // エラーメッセージが返された場合
+            return redirect()->back()->with('error', $records);
+        }
+
+        // データベースへの登録処理
+        list($importedCount, $updatedCount, $failedCount) = $this->processImportRecords($records, $originalFileName);
+
+        // 結果メッセージの生成とリダイレクト
+        $message = "インポート処理が完了しました（{$originalFileName}）。";
+        $message .= " {$importedCount}件を新規登録、{$updatedCount}件を更新しました。";
+        $messageType = 'success';
+        if ($failedCount > 0) {
+            $messageType = 'warning';
+            $message .= " {$failedCount}件の処理に失敗しました（詳細はログを確認）。";
+        }
+
+        return redirect()->route('tools.sales.managed-contacts.index')->with($messageType, $message);
+    }
+
+    /**
+     * ヘルパー：CSVファイルを読み込んで整形されたレコード配列を返す
+     */
+    private function readCsvRecords($file, $columnMappings)
+    {
+        try {
+            $csv = Reader::createFromPath($file->getRealPath(), 'r');
+            $csv->setHeaderOffset(0);
+            $header = array_map('trim', $csv->getHeader());
+            $recordsIterator = Statement::create()->process($csv);
+        } catch (\Exception $e) {
+            Log::error('Import Error - CSV Read: ' . $e->getMessage());
+            return 'CSVファイルの読み込みに失敗しました。';
+        }
+
+        $headerToModelMap = $this->mapHeaderToModel($header, $columnMappings);
+        if (empty($headerToModelMap['email'])) {
+            return '必須のヘッダー「メールアドレス」が見つかりません。';
+        }
+
+        $records = [];
+        foreach ($recordsIterator as $record) {
+            $rowData = [];
+            foreach ($headerToModelMap as $modelAttribute => $headerName) {
+                $rowData[$modelAttribute] = $record[$headerName] ?? null;
+            }
+            $records[] = $rowData;
+        }
+        return $records;
+    }
+
+    /**
+     * ヘルパー：XLSXファイルを読み込んで整形されたレコード配列を返す
+     */
+    private function readXlsxRecords($file, $columnMappings)
+    {
+        try {
+            $rows = Excel::toCollection(new \stdClass(), $file)[0]; // 最初のシートのみ
+            if ($rows->isEmpty()) {
+                return 'Excelファイルが空です。';
+            }
+            $header = $rows->first()->map(fn($cell) => trim($cell))->toArray();
+            $dataRows = $rows->slice(1);
+        } catch (\Exception $e) {
+            Log::error('Import Error - XLSX Read: ' . $e->getMessage());
+            return 'Excelファイルの読み込みに失敗しました。';
+        }
+
+        $headerToModelMap = $this->mapHeaderToModel($header, $columnMappings);
+        if (empty($headerToModelMap['email'])) {
+            return '必須のヘッダー「メールアドレス」が見つかりません。';
+        }
+
+        $records = [];
+        foreach ($dataRows as $row) {
+            $rowData = [];
+            foreach ($headerToModelMap as $modelAttribute => $headerName) {
+                $colIndex = array_search($headerName, $header);
+                $rowData[$modelAttribute] = $row[$colIndex] ?? null;
+            }
+            $records[] = $rowData;
+        }
+        return $records;
+    }
+
+    /**
+     * ヘルパー：CSV/Excelのヘッダーとモデルの属性をマッピングする
+     */
+    private function mapHeaderToModel($header, $columnMappings)
+    {
+        $map = [];
         foreach ($columnMappings as $modelAttribute => $possibleHeaders) {
             foreach ($possibleHeaders as $possibleHeader) {
-                $columnIndex = array_search($possibleHeader, $actualCsvHeaders);
-                if ($columnIndex !== false) {
-                    $headerToModelMap[$modelAttribute] = $columnIndex;
+                if (in_array($possibleHeader, $header)) {
+                    $map[$modelAttribute] = $possibleHeader;
                     break;
                 }
             }
         }
-        if (!isset($headerToModelMap['email'])) {
-            $request->session()->forget('csv_import_status');
-            return redirect()->back()->with('danger', 'CSVヘッダーに「メールアドレス」に該当する列が見つかりませんでした。');
-        }
+        return $map;
+    }
 
-        $importedCount = 0;
-        $updatedCount = 0;
-        $failedCount = 0;
-        $failedRowsDetails = [];
+    /**
+     * ヘルパー：整形されたレコードをデータベースに登録・更新する
+     */
+    private function processImportRecords($records, $sourceFileName)
+    {
+        $imported = 0;
+        $updated = 0;
+        $failed = 0;
 
-        foreach ($records as $index => $record) {
-            $rowData = [];
-            foreach ($headerToModelMap as $modelAttribute => $columnIndex) {
-                if (isset($actualCsvHeaders[$columnIndex]) && isset($record[$actualCsvHeaders[$columnIndex]])) {
-                    $rowData[$modelAttribute] = trim($record[$actualCsvHeaders[$columnIndex]]);
-                } else {
-                    $rowData[$modelAttribute] = null;
-                }
-            }
+        foreach ($records as $record) {
+            $rowData = array_map(fn($value) => is_string($value) ? trim($value) : $value, $record);
 
-            $validator = Validator::make($rowData, [ /* ... (バリデーションルールは前回定義の通り) ... */
+            $validator = Validator::make($rowData, [
                 'email' => 'required|email|max:255',
                 'name' => 'nullable|string|max:255',
                 'company_name' => 'nullable|string|max:255',
@@ -1149,32 +1227,28 @@ class SalesToolController extends Controller
                 'fax_number' => 'nullable|string|max:30',
                 'url' => 'nullable|string|url|max:255',
                 'representative_name' => 'nullable|string|max:255',
-                'establishment_date' => 'nullable|date_format:Y-m-d,Y/m/d',
+                'establishment_date' => 'nullable|string|max:255',
                 'industry' => 'nullable|string|max:255',
                 'notes' => 'nullable|string',
-                'status' => 'nullable|string|in:active,do_not_contact,archived',
             ]);
 
             if ($validator->fails()) {
-                $failedCount++;
-                $failedRowsDetails[] = ['row' => $index + 2, 'email' => $rowData['email'] ?? 'N/A', 'errors' => $validator->errors()->all()];
-                Log::warning('CSV Import - Validation Failed for row', ['file' => $originalFileName, 'row_index' => $index + 2, 'data' => $rowData, 'errors' => $validator->errors()->all()]);
-                $request->session()->put('csv_import_status.failed_count', $failedCount); // 失敗件数もセッション更新
+                $failed++;
+                Log::warning('Import Validation Failed:', ['data' => $rowData, 'errors' => $validator->errors()->all()]);
                 continue;
             }
 
             $dataToUpsert = $validator->validated();
+            $dataToUpsert['source_info'] = "インポート: {$sourceFileName}";
+
+            if (empty($dataToUpsert['status'])) $dataToUpsert['status'] = 'active';
+
             if (!empty($dataToUpsert['establishment_date'])) {
                 try {
                     $dataToUpsert['establishment_date'] = \Carbon\Carbon::parse($dataToUpsert['establishment_date'])->format('Y-m-d');
                 } catch (\Exception $e) {
                     $dataToUpsert['establishment_date'] = null;
                 }
-            } else {
-                $dataToUpsert['establishment_date'] = null;
-            }
-            if (empty($dataToUpsert['status'])) {
-                $dataToUpsert['status'] = 'active';
             }
 
             try {
@@ -1183,38 +1257,14 @@ class SalesToolController extends Controller
                     $dataToUpsert
                 );
 
-                if ($contact->wasRecentlyCreated) {
-                    $importedCount++;
-                    $request->session()->put('csv_import_status.imported_count', $importedCount);
-                } else if ($contact->wasChanged()) {
-                    $updatedCount++;
-                    $request->session()->put('csv_import_status.updated_count', $updatedCount);
-                }
+                if ($contact->wasRecentlyCreated) $imported++;
+                elseif ($contact->wasChanged()) $updated++;
             } catch (\Exception $e) {
-                $failedCount++;
-                $failedRowsDetails[] = ['row' => $index + 2, 'email' => $dataToUpsert['email'] ?? 'N/A', 'errors' => ['データベースエラー: ' . Str::limit($e->getMessage(), 100)]];
-                Log::error('CSV Import - DB Error for email: ' . ($dataToUpsert['email'] ?? 'N/A'), ['file' => $originalFileName, 'message' => $e->getMessage()]);
-                $request->session()->put('csv_import_status.failed_count', $failedCount);
+                $failed++;
+                Log::error('Import DB Error:', ['email' => $dataToUpsert['email'], 'error' => $e->getMessage()]);
             }
         }
-
-        // ★★★ 正常完了時はセッション情報をクリア ★★★
-        $request->session()->forget('csv_import_status');
-
-        $message = "CSVインポート処理が完了しました（{$originalFileName}）。";
-        $message .= " {$importedCount}件の新規連絡先を登録しました。";
-        $message .= " {$updatedCount}件の既存連絡先を更新しました。";
-        if ($failedCount > 0) {
-            $messageType = 'warning'; // 失敗がある場合は warning
-            $message .= " {$failedCount}件の処理に失敗しました。";
-            Log::warning('CSV Import Summary: Failed rows present.', ['file' => $originalFileName, 'details' => $failedRowsDetails]);
-            $message .= ' 詳細はログを確認してください。';
-        } else {
-            $messageType = 'success';
-        }
-
-        return redirect()->route('tools.sales.managed-contacts.index')
-            ->with($messageType, $message);
+        return [$imported, $updated, $failed];
     }
 
     /**
@@ -1311,5 +1361,23 @@ class SalesToolController extends Controller
             'body_html' => $template->body_html,
             'body_text' => $template->body_text,
         ]);
+    }
+
+    /**
+     * メールアドレスの重複をAJAXでチェック
+     */
+    public function checkEmail(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|email',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['exists' => false, 'message' => '無効なメールアドレスです。']);
+        }
+
+        $exists = ManagedContact::where('email', $request->input('email'))->exists();
+
+        return response()->json(['exists' => $exists]);
     }
 }

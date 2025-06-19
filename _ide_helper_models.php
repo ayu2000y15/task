@@ -720,10 +720,11 @@ namespace App\Models{
  * @property string|null $fax_number
  * @property string|null $url
  * @property string|null $representative_name
- * @property \Illuminate\Support\Carbon|null $establishment_date
+ * @property string|null $establishment_date
  * @property string|null $industry
  * @property string|null $notes
  * @property string $status
+ * @property string|null $source_info
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Subscriber> $subscribers
@@ -744,6 +745,7 @@ namespace App\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|ManagedContact wherePhoneNumber($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|ManagedContact wherePostalCode($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|ManagedContact whereRepresentativeName($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ManagedContact whereSourceInfo($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|ManagedContact whereStatus($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|ManagedContact whereUpdatedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|ManagedContact whereUrl($value)

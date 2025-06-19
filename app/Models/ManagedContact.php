@@ -25,14 +25,9 @@ class ManagedContact extends Model
         'industry',
         'notes',
         'status',
+        'source_info',
     ];
 
-    protected $casts = [
-        'establishment_date' => 'date',
-        // updated_at や created_at はデフォルトでCarbonインスタンスになるため、
-        // getUpdatedAtAttribute のようなアクセサでCarbonインスタンスを返す必要は通常ありません。
-        // もし特定のフォーマットで常に扱いたい場合はアクセサを定義します。
-    ];
 
     /**
      * ステータスの選択肢

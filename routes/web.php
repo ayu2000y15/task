@@ -169,6 +169,12 @@ Route::middleware('auth')->group(function () {
     Route::post('/work-logs/start', [App\Http\Controllers\WorkLogController::class, 'start'])->name('work-logs.start');
     Route::post('/work-logs/stop-by-task', [App\Http\Controllers\WorkLogController::class, 'stopByTask'])->name('work-logs.stop-by-task');
 
+    // 外部からの管理連絡先登録
+    Route::get('/contact-register', [ExternalFormController::class, 'createContact'])->name('external-contact.create');
+    Route::post('/contact-register', [ExternalFormController::class, 'storeContact'])->name('external-contact.store');
+    Route::get('/contact-register/thanks', [ExternalFormController::class, 'thanksContact'])->name('external-contact.thanks');
+
+
     // 作業実績ページ
     Route::get('/my-work-records', [WorkRecordController::class, 'index'])->name('work-records.index');
 
@@ -308,9 +314,10 @@ Route::middleware('auth')->group(function () {
                 Route::get('/{managedContact}/edit', [SalesToolController::class, 'managedContactsEdit'])->name('edit');
                 Route::put('/{managedContact}', [SalesToolController::class, 'managedContactsUpdate'])->name('update');
                 Route::delete('/{managedContact}', [SalesToolController::class, 'managedContactsDestroy'])->name('destroy');
-                Route::post('/import-csv', [SalesToolController::class, 'managedContactsImportCsv'])->name('importCsv'); // ★ この行を追加 ★
-
+                Route::post('/import', [SalesToolController::class, 'importContacts'])->name('import');
                 // 必要に応じて検索やフィルター用のルートもここに追加
+                // メールアドレスのリアルタイム重複チェック用ルート
+                Route::post('/check-email', [SalesToolController::class, 'checkEmail'])->name('checkEmail');
             });
 
             // メール送信
@@ -365,7 +372,6 @@ Route::post('/unsubscribe/process', [TrackingController::class, 'processUnsubscr
 // 外部向け申請フォーム (認証外)
 Route::get('/costume-request', [ExternalFormController::class, 'create'])->name('external-form.create');
 Route::post('/costume-request', [ExternalFormController::class, 'store'])->name('external-form.store');
-Route::get('/costume-request/thanks', [ExternalFormController::class, 'thanks'])->name('external-form.thanks');
 
 
 require __DIR__ . '/auth.php';

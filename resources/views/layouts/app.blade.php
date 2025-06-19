@@ -666,7 +666,10 @@
                                 ツール一覧
                             </a>
                             @endcan
-
+                            <a href="{{ url('/contact-register') }}"
+                                class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 {{ request()->routeIs('tools.index') || request()->routeIs('tools.sales.*') ? 'bg-gray-100 dark:bg-gray-600 font-semibold' : '' }}">
+                                企業登録
+                            </a>
                             <form method="POST" action="{{ route('logout') }}">
                                 @csrf
                                 <a href="{{ route('logout') }}"

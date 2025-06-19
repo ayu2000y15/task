@@ -2,6 +2,8 @@
     <div>
         <x-input-label for="email" value="メールアドレス" :required="true" />
         <x-text-input type="email" id="email" name="email" class="mt-1 block w-full" :value="old('email', $managedContact->email ?? '')" required :hasError="$errors->has('email')" />
+        <div id="email-validation-error" class="text-red-600 dark:text-red-400 text-sm mt-1 font-bold"
+            style="display: none;"></div>
         <x-input-error :messages="$errors->get('email')" class="mt-2" />
     </div>
 
@@ -64,7 +66,7 @@
         </div>
         <div>
             <x-input-label for="establishment_date" value="設立年月日" />
-            <x-text-input type="date" id="establishment_date" name="establishment_date" class="mt-1 block w-full"
+            <x-text-input type="text" id="establishment_date" name="establishment_date" class="mt-1 block w-full"
                 :value="old('establishment_date', $managedContact->establishment_date ? \Carbon\Carbon::parse($managedContact->establishment_date)->format('Y-m-d') : '')"
                 :hasError="$errors->has('establishment_date')" />
             <x-input-error :messages="$errors->get('establishment_date')" class="mt-2" />
