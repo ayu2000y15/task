@@ -57,7 +57,13 @@
                             <template x-for="(item, index) in items" :key="index">
                                 <div class="flex items-center space-x-3 bg-gray-50 dark:bg-gray-700/50 p-3 rounded-md">
                                     <div class="flex-grow">
-                                        <x-text-input type="text" name="items[]" x-model="items[index]" class="block w-full"
+                                        <!-- 既存項目のIDを隠しフィールドで送信 -->
+                                        <input type="hidden" x-bind:name="'items[' + index + '][id]'"
+                                            :value="item.id || ''">
+                                        <!-- 項目の内容 -->
+                                        <input type="text" x-bind:name="'items[' + index + '][content]'"
+                                            x-model="item.content"
+                                            class="block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                                             placeholder="依頼内容を入力..." required />
                                     </div>
                                     <div class="flex-shrink-0">
@@ -95,12 +101,39 @@
 
     <script>
         function requestForm() {
-            const oldItems = @json(old('items', $request->items->pluck('content')));
-            const initialItems = oldItems.length > 0 ? oldItems : [''];
+            // バリデーション失敗時の古い入力値を取得
+            const oldItems = @json(old('items', []));
+
+            // 既存の項目データを取得（IDと内容を含む）
+            const existingItems = @json($request->items->map(function ($item) {
+                return ['id' => $item->id, 'content' => $item->content];
+            }));
+
+            // バリデーション失敗時は古い入力値を、そうでなければ既存データを使用
+            let initialItems;
+            if (oldItems.length > 0) {
+                // バリデーション失敗時：old()の値を使用
+                initialItems = oldItems.map(item => ({
+                    id: item.id || null,
+                    content: item.content || ''
+                }));
+            } else {
+                // 通常時：既存のデータを使用
+                initialItems = existingItems.length > 0 ? existingItems : [{ id: null, content: '' }];
+            }
+
             return {
                 items: initialItems,
-                addItem() { if (this.items.length < 15) this.items.push(''); },
-                removeItem(index) { if (this.items.length > 1) this.items.splice(index, 1); }
+                addItem() {
+                    if (this.items.length < 15) {
+                        this.items.push({ id: null, content: '' });
+                    }
+                },
+                removeItem(index) {
+                    if (this.items.length > 1) {
+                        this.items.splice(index, 1);
+                    }
+                }
             }
         }
     </script>

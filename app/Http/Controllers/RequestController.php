@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class RequestController extends Controller
 {
@@ -174,7 +175,12 @@ class RequestController extends Controller
      */
     public function update(Request $httpRequest, TaskRequest $request)
     {
-        $this->authorize('update', $request); // ★ $taskRequest を $request に変更
+        $this->authorize('update', $request);
+
+        // このリクエストに属するアイテムIDであることを確認するバリデーションルール
+        $itemExistsRule = Rule::exists('request_items', 'id')->where(function ($query) use ($request) {
+            return $query->where('request_id', $request->id);
+        });
 
         $validated = $httpRequest->validate([
             'title' => 'required|string|max:255',
@@ -182,11 +188,18 @@ class RequestController extends Controller
             'assignees' => 'required|array|min:1',
             'assignees.*' => 'required|exists:users,id',
             'items' => 'required|array|min:1',
-            'items.*' => 'required|string|max:1000',
+            'items.*.id' => ['nullable', 'integer', $itemExistsRule],
+            'items.*.content' => 'required|string|max:1000',
+        ], [
+            'title.required' => '件名は必ず入力してください。',
+            'assignees.required' => '担当者は必ず選択してください。',
+            'items.required' => 'チェックリスト項目は最低1つ必要です。',
+            'items.*.content.required' => 'チェックリストの項目内容は必ず入力してください。',
+            'items.*.id.exists' => '指定された項目は、この依頼に属していません。',
         ]);
 
         try {
-            DB::transaction(function () use ($validated, $request) { // ★ $taskRequest を $request に変更
+            DB::transaction(function () use ($validated, $request) {
                 // 1. 依頼の親レコードを更新
                 $request->update([
                     'title' => $validated['title'],
@@ -196,13 +209,32 @@ class RequestController extends Controller
                 // 2. 担当者を更新
                 $request->assignees()->sync($validated['assignees']);
 
-                // 3. チェックリスト項目を更新
-                $request->items()->delete();
-                foreach ($validated['items'] as $index => $content) {
-                    $request->items()->create([
-                        'content' => $content,
-                        'order' => $index + 1,
-                    ]);
+                // 3. チェックリスト項目を差分更新
+                $submittedItemIds = [];
+
+                foreach ($validated['items'] as $index => $itemData) {
+                    // IDがあれば更新、なければ新規作成 (updateOrCreate)
+                    // 既存の is_completed などの情報は保持される
+                    $item = $request->items()->updateOrCreate(
+                        [
+                            'id' => $itemData['id'] ?? null,
+                        ],
+                        [
+                            'content' => $itemData['content'],
+                            'order' => $index + 1,
+                        ]
+                    );
+                    $submittedItemIds[] = $item->id;
+                }
+
+                // フォームから送信されなかったアイテム（=削除されたアイテム）をDBから削除
+                $request->items()->whereNotIn('id', $submittedItemIds)->delete();
+
+                // 削除や更新の結果、全項目が完了になったか再チェック
+                if ($request->items()->where('is_completed', false)->doesntExist() && $request->items()->count() > 0) {
+                    $request->update(['completed_at' => now()]);
+                } else {
+                    $request->update(['completed_at' => null]);
                 }
             });
         } catch (\Exception $e) {
@@ -211,7 +243,6 @@ class RequestController extends Controller
 
         return redirect()->route('requests.index')->with('success', '作業依頼を更新しました。');
     }
-
     /**
      * 指定された依頼を削除します。
      * @param \App\Models\Request $request // ★ 変数名を $taskRequest から $request に変更
