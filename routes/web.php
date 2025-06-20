@@ -76,6 +76,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/projects/{project}/tasks/{task}/assignee', [TaskController::class, 'updateAssignee'])->name('tasks.assignee');
     Route::patch('projects/{project}/tasks/{task}/description', [TaskController::class, 'updateDescription'])->name('projects.tasks.description.update');
 
+    Route::post('/projects/{project}/tasks/{task}/status', [TaskController::class, 'updateStatusFromEdit'])
+        ->name('tasks.updateStatusFromEdit');
+
     // ファイル関連のルート
     Route::post('/projects/{project}/tasks/{task}/files', [TaskController::class, 'uploadFiles'])->name('projects.tasks.files.upload');
     Route::get('/projects/{project}/tasks/{task}/files', [TaskController::class, 'getFiles'])->name('projects.tasks.files.index');
@@ -187,9 +190,9 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/api/schedule/events', [AdminScheduleController::class, 'fetchEvents'])->name('api.schedule.events');
 
-
     // 交通費登録
     Route::resource('transportation-expenses', TransportationExpenseController::class)->except(['show']);
+    Route::post('/transportation-expenses/batch-store', [TransportationExpenseController::class, 'batchStore'])->name('transportation-expenses.batch-store');
 
     Route::prefix('admin')->name('admin.')->middleware(['can:viewAny,App\Models\ProcessTemplate'])->group(function () { // 管理者用などのミドルウェアを想定
         Route::resource('form-definitions', FormFieldDefinitionController::class)

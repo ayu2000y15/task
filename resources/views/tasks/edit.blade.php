@@ -330,18 +330,144 @@ document.addEventListener('DOMContentLoaded', function () {
     const endDateInput = document.getElementById('end_date_individual');
     const parentIdSelectEdit = document.getElementById('parent_id_individual_edit');
 
-    const assigneeWrapper = document.getElementById('assignees_wrapper_individual'); // ★ 変更
+    const assigneeWrapper = document.getElementById('assignees_wrapper_individual');
     const parentIdWrapperEdit = document.getElementById('parent_id_wrapper_individual_edit');
 
-    // ▼▼▼【追記】Tom Selectの初期化 ▼▼▼
+    let tomSelectInstance = null;
     if (document.getElementById('assignees_select')) {
-        new TomSelect('#assignees_select',{
+        tomSelectInstance = new TomSelect('#assignees_select',{
             plugins: ['remove_button'],
             create: false,
             placeholder: '担当者を検索・選択...'
         });
     }
-    // ▲▲▲【追記】ここまで ▲▲▲
+
+    // ▼▼▼【ここから】工程編集画面用のステータス更新機能（警告処理付き）▼▼▼
+    const statusSelect = document.getElementById("status_individual");
+    const taskFormPage = document.getElementById("task-form-page");
+
+    if (statusSelect && taskFormPage) {
+        const taskId = taskFormPage.dataset.taskId;
+        const projectId = taskFormPage.dataset.projectId;
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        let originalValue = statusSelect.value;
+        let isUpdating = false;
+
+        statusSelect.addEventListener("change", async function () {
+            if (isUpdating) return;
+            isUpdating = true;
+            const newStatus = this.value;
+
+            try {
+                await sendUpdateRequest(newStatus, false);
+                originalValue = newStatus; // 成功時に元の値を更新
+            } catch (error) {
+                if (error.requires_confirmation) {
+                    const confirmed = await showConfirmationDialogs(error.warnings);
+                    if (confirmed) {
+                        try {
+                            await sendUpdateRequest(newStatus, true); // 強制更新
+                            originalValue = newStatus; // 成功時に元の値を更新
+                        } catch (finalError) {
+                            alert(finalError.message || "ステータスの更新に失敗しました。");
+                            this.value = originalValue; // 最終的に失敗したら元に戻す
+                        }
+                    } else {
+                        this.value = originalValue; // キャンセルされたら元に戻す
+                    }
+                } else {
+                    alert(error.message || "ステータスの更新中にエラーが発生しました。");
+                    this.value = originalValue; // エラー時も元に戻す
+                }
+            } finally {
+                isUpdating = false;
+            }
+        });
+
+        async function sendUpdateRequest(status, force = false) {
+            const response = await fetch(`/projects/${projectId}/tasks/${taskId}/status`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({ status: status, force_update: force })
+            });
+
+            const data = await response.json();
+            if (!response.ok) {
+                const error = new Error(data.message || 'サーバーエラーが発生しました。');
+                if (data.requires_confirmation) {
+                    error.requires_confirmation = true;
+                    error.warnings = data.warnings;
+                }
+                throw error;
+            }
+            handleSuccess(data);
+        }
+
+        async function showConfirmationDialogs(warnings) {
+            for (const warning of warnings) {
+                const confirmed = confirm(warning.message + "\n\nこのまま続行しますか？");
+                if (!confirmed) return false;
+            }
+            return true;
+        }
+
+        function handleSuccess(data) {
+            if (data.work_log_message) {
+                showWorkLogNotification(data.work_log_message);
+            }
+            if (data.updated_assignees && tomSelectInstance) {
+                const newAssigneeIds = data.updated_assignees.map(assignee => assignee.id);
+                tomSelectInstance.setValue(newAssigneeIds, true); // 第2引数 true でイベントを発火させずに更新
+            }
+
+            updateTimerDisplayInEdit(data);
+        }
+
+        function updateTimerDisplayInEdit(responseData) {
+            const timerContainers = document.querySelectorAll('.timer-controls, .timer-display-only');
+            timerContainers.forEach(container => {
+                if (responseData.task_status) {
+                    container.dataset.taskStatus = responseData.task_status;
+                }
+                if (typeof responseData.is_paused !== 'undefined') {
+                    container.dataset.isPaused = responseData.is_paused ? 'true' : 'false';
+                }
+            });
+
+            if (responseData.running_logs) {
+                const runningLogsElement = document.getElementById("running-work-logs-data");
+                if (runningLogsElement) {
+                    runningLogsElement.textContent = JSON.stringify(responseData.running_logs);
+                }
+                window.dispatchEvent(
+                    new CustomEvent("work-log-status-changed", {
+                        detail: { hasActiveWorkLog: responseData.running_logs.some(log => log.status === 'active') },
+                    })
+                );
+            }
+
+            if (window.initializeWorkTimers) {
+                window.initializeWorkTimers();
+            }
+        }
+
+        function showWorkLogNotification(message) {
+            const notification = document.createElement("div");
+            notification.className = "fixed top-4 right-4 bg-blue-500 text-white px-4 py-2 rounded-md shadow-lg z-50 transition-opacity duration-300";
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            setTimeout(() => {
+                notification.style.opacity = "0";
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+    }
+    // ▲▲▲【ここまで】▲▲▲
+
 
     function handleParentIdChangeForEdit() {
         const parentIsSelected = parentIdSelectEdit.value !== '';
@@ -358,6 +484,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function setFieldsBasedOnTaskType(currentTaskType) {
+        // (この関数は元のままで変更なし)
         const isFolder = currentTaskType === 'folder';
         const isMilestone = currentTaskType === 'milestone';
         const isTodoTask = currentTaskType === 'todo_task';
@@ -374,8 +501,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (durationValueInput) durationValueInput.disabled = isDateTimeDisabled;
         if (durationUnitSelect) durationUnitSelect.disabled = isDateTimeDisabled;
         if (endDateInput) endDateInput.disabled = isDateTimeDisabled;
-        if (assigneeSelect) assigneeSelect.disabled = isFolder;
-        if (assigneeOtherInput) assigneeOtherInput.disabled = isFolder;
+
         if (parentIdSelectEdit) parentIdSelectEdit.disabled = isFolder;
 
         if (isFolder) {
@@ -412,130 +538,8 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     handleParentIdChangeForEdit();
 
-    if (assigneeSelect) {
-        assigneeSelect.addEventListener('change', function() {
-            if (this.value === 'other') {
-                assigneeOtherWrapper.style.display = 'block';
-                assigneeOtherInput.setAttribute('required', 'required');
-            } else {
-                assigneeOtherWrapper.style.display = 'none';
-                assigneeOtherInput.removeAttribute('required');
-                assigneeOtherInput.value = '';
-            }
-        });
-    }
+    // (元のDropzoneなどのロジックがあれば、この下に続きます)
 
-    // function calculateEndDate() {
-    //     if (!startDateInput || startDateInput.disabled ||
-    //         !durationValueInput || durationValueInput.disabled ||
-    //         !durationUnitSelect || durationUnitSelect.disabled ||
-    //         !endDateInput || endDateInput.disabled) {
-    //         return;
-    //     }
-    //     const startDateValue = startDateInput.value;
-    //     const duration = parseFloat(durationValueInput.value);
-    //     const unit = durationUnitSelect.value;
-    //     if (startDateValue && !isNaN(duration) && duration >= 0 && unit) {
-    //         const start = new Date(startDateValue);
-    //         let minutesToAdd = 0;
-    //         if (unit === 'days') {
-    //             minutesToAdd = duration * 24 * 60;
-    //         } else if (unit === 'hours') {
-    //             minutesToAdd = duration * 60;
-    //         } else if (unit === 'minutes') {
-    //             minutesToAdd = duration;
-    //         }
-    //         const end = new Date(start.getTime() + minutesToAdd * 60000);
-    //         if (!isNaN(end.getTime())) {
-    //             const year = end.getFullYear();
-    //             const month = ('0' + (end.getMonth() + 1)).slice(-2);
-    //             const day = ('0' + end.getDate()).slice(-2);
-    //             const hours = ('0' + end.getHours()).slice(-2);
-    //             const minutes = ('0' + end.getMinutes()).slice(-2);
-    //             endDateInput.value = `${year}-${month}-${day}T${hours}:${minutes}`;
-    //         }
-    //     }
-    // }
-
-    // if (startDateInput && durationValueInput && durationUnitSelect && endDateInput) {
-    //     startDateInput.addEventListener('change', calculateEndDate);
-    //     durationValueInput.addEventListener('input', calculateEndDate);
-    //     durationUnitSelect.addEventListener('change', calculateEndDate);
-    // }
-
-    // if (taskType === 'folder' && document.getElementById('file-upload-dropzone-edit')) {
-    //     const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-    //     const projectId = document.getElementById('task-form-page').dataset.projectId;
-    //     const taskId = document.getElementById('task-form-page').dataset.taskId;
-
-    //     const myDropzone = new Dropzone("#file-upload-dropzone-edit", {
-    //         url: `/projects/${projectId}/tasks/${taskId}/files`,
-    //         paramName: "file",
-    //         maxFilesize: 100,
-    //         acceptedFiles: "image/*,application/pdf,.doc,.docx,.xls,.xlsx,.zip,.txt",
-    //         addRemoveLinks: false,
-    //         headers: { 'X-CSRF-TOKEN': csrfToken },
-    //         dictDefaultMessage: "<p class='mb-2'>ここにファイルをドラッグ＆ドロップ</p><p class='mb-3 text-xs text-gray-500 dark:text-gray-400'>または</p><button type='button' class='dz-button-bootstrap'><i class='fas fa-folder-open mr-1'></i>ファイルを選択</button>",
-    //         init: function() {
-    //             this.on("success", function(file, response) {
-    //                 if (response.success && response.html) {
-    //                     document.getElementById('file-list-edit').innerHTML = response.html;
-    //                     initializeDynamicDeleteButtons();
-    //                 }
-    //                 this.removeFile(file);
-    //             });
-    //             this.on("error", function(file, message) {
-    //                 let errorMessage = "アップロードに失敗しました。";
-    //                 if (typeof message === 'string') {
-    //                     errorMessage += message;
-    //                 } else if (message.error) {
-    //                     errorMessage += message.error;
-    //                 } else if (message.message) {
-    //                     errorMessage += message.message;
-    //                 }
-    //                 alert(errorMessage);
-    //                 this.removeFile(file);
-    //             });
-    //         }
-    //     });
-
-    //     function initializeDynamicDeleteButtons() {
-    //         document.querySelectorAll('.folder-file-delete-btn').forEach(button => {
-    //             const newButton = button.cloneNode(true);
-    //             button.parentNode.replaceChild(newButton, button);
-
-    //             newButton.addEventListener('click', function(e) {
-    //                 e.preventDefault();
-    //                 if (!confirm('このファイルを削除しますか？')) return;
-
-    //                 const url = this.dataset.url;
-    //                 const fileId = this.dataset.fileId;
-
-    //                 fetch(url, {
-    //                     method: 'DELETE',
-    //                     headers: {
-    //                         'X-CSRF-TOKEN': csrfToken,
-    //                         'Accept': 'application/json'
-    //                     }
-    //                 })
-    //                 .then(response => response.json())
-    //                 .then(data => {
-    //                     if (data.success) {
-    //                         const fileItem = document.getElementById(`folder-file-item-${fileId}`);
-    //                         if (fileItem) fileItem.remove();
-    //                     } else {
-    //                         alert('ファイルの削除に失敗しました: ' + (data.message || '不明なエラー'));
-    //                     }
-    //                 })
-    //                 .catch(error => {
-    //                     console.error('Error deleting file:', error);
-    //                     alert('ファイルの削除中にエラーが発生しました。');
-    //                 });
-    //             });
-    //         });
-    //     }
-    //     initializeDynamicDeleteButtons();
-    // }
 });
 </script>
 @endpush

@@ -9,6 +9,7 @@ use App\Models\WorkShift;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use App\Models\Holiday;
+use App\Models\TransportationExpense;
 
 class ShiftController extends Controller
 {
@@ -29,6 +30,20 @@ class ShiftController extends Controller
     public function updateDefault(Request $request)
     {
         $user = Auth::user();
+        $validatedTransportation = $request->validate([
+            'default_transportation_departure' => 'nullable|string|max:255',
+            'default_transportation_destination' => 'nullable|string|max:255',
+            'default_transportation_amount' => 'nullable|integer|min:0',
+        ]);
+
+        // 空文字で送信された場合にnullをセットする
+        foreach ($validatedTransportation as $key => $value) {
+            if ($value === '') {
+                $validatedTransportation[$key] = null;
+            }
+        }
+        $user->update($validatedTransportation);
+
         $days = $request->input('days', []);
 
         foreach ($days as $dayOfWeek => $data) {
@@ -39,6 +54,7 @@ class ShiftController extends Controller
                     'start_time' => $data['start_time'],
                     'end_time' => $data['end_time'],
                     'break_minutes' => $data['break_minutes'] ?? 60,
+                    'location' => $data['location'] ?? 'office', // ★追加
                 ]
             );
         }
@@ -71,6 +87,15 @@ class ShiftController extends Controller
             ->get()
             ->keyBy(fn($holiday) => $holiday->date->format('Y-m-d'));
 
+        // 交通費
+        $dailyExpenses = TransportationExpense::where('user_id', $user->id)
+            ->whereYear('date', $targetMonth->year)
+            ->whereMonth('date', $targetMonth->month)
+            ->get()
+            ->groupBy(fn($item) => $item->date->format('Y-m-d'))
+            ->mapWithKeys(function ($group, $date) {
+                return [$date => $group->sum('amount')];
+            });
         // 4. 月の全日付を生成し、デフォルトと個別設定をマージ
         $period = CarbonPeriod::create($targetMonth, $targetMonth->copy()->endOfMonth());
         $days = [];
@@ -104,6 +129,7 @@ class ShiftController extends Controller
             'days' => $days,
             'targetMonth' => $targetMonth,
             'publicHolidays' => $publicHolidays,
+            'dailyExpenses' => $dailyExpenses,
         ]);
     }
 
@@ -114,10 +140,12 @@ class ShiftController extends Controller
     {
         $validated = $request->validate([
             'date' => 'required|date_format:Y-m-d',
-            'type' => 'required|string|in:work,full_day_off,am_off,pm_off,clear',
+            'type' => 'required|string|in:work,full_day_off,am_off,pm_off,clear,location_only',
             'name' => 'nullable|string|max:255',
             'start_time' => 'nullable|required_if:type,work|date_format:H:i',
             'end_time' => 'nullable|required_if:type,work|date_format:H:i|after:start_time',
+            'location' => 'nullable|string|in:office,remote',
+            'notes' => 'nullable|string|max:1000',
         ]);
 
         $user = Auth::user();
@@ -135,6 +163,9 @@ class ShiftController extends Controller
             'name' => $validated['name'] ?? null,
             'start_time' => ($validated['type'] === 'work') ? $validated['start_time'] : null,
             'end_time' => ($validated['type'] === 'work') ? $validated['end_time'] : null,
+            'location' => in_array($validated['type'], ['work', 'location_only']) ? ($validated['location'] ?? 'office') : null,
+            'notes' => $validated['notes'] ?? null,
+
         ];
 
         WorkShift::updateOrCreate(

@@ -16,7 +16,104 @@ document.addEventListener("alpine:init", () => {
             return this.statusTexts[this.status] || "不明";
         },
 
+        // ▼▼▼【ここから追加】UIを制御するためのプロパティ▼▼▼
+        /**
+         * メインアクションボタンのテキストを返します。
+         */
+        get primaryActionText() {
+            switch (this.status) {
+                case "clocked_out":
+                    return "出勤";
+                case "working":
+                    return "休憩開始";
+                case "on_break":
+                    return "休憩終了";
+                case "on_away":
+                    return "業務再開";
+                default:
+                    return "";
+            }
+        },
+
+        /**
+         * メインアクションボタンのアイコンを返します。
+         */
+        get primaryActionIcon() {
+            switch (this.status) {
+                case "clocked_out":
+                    return "fa-sign-in-alt";
+                case "working":
+                    return "fa-mug-hot";
+                case "on_break":
+                    return "fa-play";
+                case "on_away":
+                    return "fa-play";
+                default:
+                    return "";
+            }
+        },
+
+        /**
+         * 現在のステータスを示すアイコンを返します。（主にスマホ表示用）
+         */
+        get statusIcon() {
+            switch (this.status) {
+                case "clocked_out":
+                    return "fa-door-open";
+                case "working":
+                    return "fa-briefcase";
+                case "on_break":
+                    return "fa-mug-hot";
+                case "on_away":
+                    return "fa-walking";
+                default:
+                    return "fa-clock";
+            }
+        },
+
+        /**
+         * メインアクションボタンのツールチップテキストを返します。
+         */
+        get primaryActionTooltip() {
+            if (this.hasActiveWorkLog && this.status === "working") {
+                return "実行中の作業があるため操作できません";
+            }
+            return this.primaryActionText;
+        },
+
+        /**
+         * メインアクションボタンがクリックされたときに実行される関数です。
+         */
+        performPrimaryAction() {
+            switch (this.status) {
+                case "clocked_out":
+                    this.clock("clock_in");
+                    break;
+                case "working":
+                    this.clock("break_start");
+                    break;
+                case "on_break":
+                    this.clock("break_end");
+                    break;
+                case "on_away":
+                    this.clock("away_end");
+                    break;
+            }
+        },
+        // ▲▲▲【追加ここまで】▲▲▲
+
         init() {
+            // `running-work-logs-data`スクリプトタグから初期データを読み込む
+            const runningLogsDataElement = document.getElementById(
+                "running-work-logs-data"
+            );
+            if (runningLogsDataElement) {
+                const runningLogs = JSON.parse(
+                    runningLogsDataElement.textContent
+                );
+                this.hasActiveWorkLog = runningLogs.length > 0;
+            }
+
             window.addEventListener("work-log-status-changed", (event) => {
                 this.hasActiveWorkLog = event.detail.hasActiveWorkLog;
             });
@@ -58,7 +155,7 @@ document.addEventListener("alpine:init", () => {
                 }
 
                 this.status = data.new_status;
-                alert(data.message);
+                // alert(data.message); // 打刻のたびにアラートが出るのはUXを損なうためコメントアウト。代わりにToastなどの通知を推奨。
 
                 // 1. bodyのdata属性を更新
                 document.body.dataset.attendanceStatus = data.new_status;
@@ -69,8 +166,10 @@ document.addEventListener("alpine:init", () => {
                     })
                 );
 
-                // ドロップダウンを閉じる
-                this.$data.open = false;
+                // ドロップダウンを閉じる（存在すれば）
+                if (this.$data.open) {
+                    this.$data.open = false;
+                }
             } catch (error) {
                 console.error("Attendance clock error:", error);
                 alert("エラー: " + error.message);

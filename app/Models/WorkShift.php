@@ -23,7 +23,8 @@ class WorkShift extends Model
         'break_minutes',
         'type',
         'notes',
-        'name', // 統合により追加されたカラム
+        'name',
+        'location',
     ];
 
     /**

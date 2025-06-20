@@ -180,6 +180,7 @@ class ProcessBouncedEmails extends Command
                     $baseReasonForDsnParsing = $processedThisMessageByFallback ? ($parsedBounceReasonFromBody ?? "Fallback Bounce (UID: {$uid})") : "Bounce (ID Match; UID: {$uid})";
                     list($finalBounceReason, $isHardBounce) = $this->parseDsnDetailsFromMessage($message, $uid, $subjectString, $baseReasonForDsnParsing);
 
+                    // 1. SentEmailLogのステータスを 'bounced' に更新
                     $sentEmailLog->status = 'bounced';
                     $sentEmailLog->error_message = Str::limit($finalBounceReason, 1000);
                     $sentEmailLog->processed_at = now();
@@ -187,22 +188,25 @@ class ProcessBouncedEmails extends Command
                     $updatedLogCount++;
                     Log::info("SentEmailLog ID {$sentEmailLog->id} updated to 'bounced'. Reason: {$finalBounceReason}. Hard bounce: " . ($isHardBounce ? "Yes" : "No"));
 
-                    // ★★★ Subscriber のステータス更新処理を削除（またはコメントアウト） ★★★
-                    /*
+                    // ★★★ ここから修正・追加 ★★★
+                    // 2. バウンスが確認された時点で、関連する購読者のステータスを「解除済」に更新します。
+                    //    これはソフト・ハード問わず全てのバウンスで実行されます。
                     if ($sentEmailLog->subscriber) {
-                        $newSubscriberStatus = $isHardBounce ? 'bounced_hard' : 'bounced_soft';
-                        if ($sentEmailLog->subscriber->status !== $newSubscriberStatus) {
-                            $sentEmailLog->subscriber->status = $newSubscriberStatus;
-                            $sentEmailLog->subscriber->save();
-                            Log::info("Subscriber ID {$sentEmailLog->subscriber_id} status updated to '{$newSubscriberStatus}'.");
+                        $subscriber = $sentEmailLog->subscriber;
+                        if ($subscriber->status !== 'unsubscribed') {
+                            $subscriber->status = 'unsubscribed';
+                            $subscriber->unsubscribed_at = now(); // 解除日時を記録
+                            $subscriber->save();
+                            Log::info("Subscriber ID {$subscriber->id} (Email: {$subscriber->email}) status updated to 'unsubscribed' due to bounce.");
                         }
-                        // $updatedSubscriberCount++; // ★ 購読者更新数のカウントを削除
                     }
-                    */
-                    // ★★★ Subscriber のステータス更新処理ここまで ★★★
+                    // ★★★ ここまで修正・追加 ★★★
 
+                    // 3. ハードバウンスの場合、さらにブラックリストへの登録とManagedContactの更新を実行します。
                     if ($isHardBounce) {
                         $emailToBlacklist = $sentEmailLog->recipient_email;
+
+                        // ブラックリストに登録
                         $blacklistEntry = BlacklistEntry::firstOrCreate(
                             ['email' => $emailToBlacklist],
                             [
@@ -215,6 +219,21 @@ class ProcessBouncedEmails extends Command
                             $blacklistedCount++;
                         } else {
                             Log::info("ProcessBouncedEmails (UID {$uid}): Email {$emailToBlacklist} was already in blacklist (hard bounce detected again).");
+                        }
+
+                        // 関連するManagedContactのステータスを更新
+                        if ($sentEmailLog->subscriber && $sentEmailLog->subscriber->managedContact) {
+                            $contact = $sentEmailLog->subscriber->managedContact;
+
+                            if ($contact->status === 'active') {
+                                $contact->status = 'do_not_contact';
+                                $note = "自動更新: メールがハードバウンスしたためステータスを「連絡不要」に変更 (" . now()->format('Y-m-d') . ")";
+                                $contact->notes = trim(($contact->notes ? $contact->notes . "\n" : "") . $note);
+                                $contact->save();
+                                Log::info("ManagedContact ID {$contact->id} (Email: {$contact->email}) status updated to 'do_not_contact' due to hard bounce.");
+                            }
+                        } else {
+                            Log::warning("ProcessBouncedEmails (UID {$uid}): Could not find associated ManagedContact for SentEmailLog ID {$sentEmailLog->id} to update status.");
                         }
                     }
 

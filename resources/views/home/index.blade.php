@@ -241,6 +241,42 @@
 
             {{-- ▼▼▼ 右カラム（サイド情報） ▼▼▼ --}}
             <div class="space-y-6">
+                {{-- オンラインのメンバー --}}
+                <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg">
+                    <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                        <h5 class="text-lg font-semibold text-gray-700 dark:text-gray-300 flex items-center">
+                            <i class="fas fa-satellite-dish text-green-500 mr-2"></i>
+                            オンラインのメンバー
+                        </h5>
+                    </div>
+                    @if($onlineUsers->isEmpty())
+                        <p class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">現在出勤中のメンバーはいません</p>
+                    @else
+                        @php
+                            // ステータスごとのラベルとスタイルを定義
+                            $statusLabels = [
+                                'working'  => '出勤中',
+                                'on_break' => '休憩中',
+                                'on_away'  => '中抜け中',
+                            ];
+                            $statusClasses = [
+                                'working'  => 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
+                                'on_break' => 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
+                                'on_away'  => 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300',
+                            ];
+                        @endphp
+                        <ul class="divide-y divide-gray-200 dark:divide-gray-700">
+                            @foreach($onlineUsers as $log)
+                                <li class="px-6 py-3 flex items-center justify-between">
+                                    <span class="text-sm font-medium text-gray-800 dark:text-gray-200">{{ $log->user->name }}</span>
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ $statusClasses[$log->current_status] ?? '' }}">
+                                        {{ $statusLabels[$log->current_status] ?? '不明' }}
+                                    </span>
+                                </li>
+                            @endforeach
+                        </ul>
+                    @endif
+                </div>
                 {{-- 本日の休日取得者 --}}
                 <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg">
                     <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">

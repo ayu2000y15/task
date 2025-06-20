@@ -4,12 +4,8 @@ const csrfToken = document
     .querySelector('meta[name="csrf-token"]')
     .getAttribute("content");
 
-// ▼▼▼【ここから追加】UI更新のための関数を tasks-index.js から移動 ▼▼▼
-
 /**
  * ステータスに応じたアイコンのHTMLを返す
- * @param {string} status
- * @returns {string}
  */
 function getStatusIconHtml(status) {
     switch (status) {
@@ -29,18 +25,13 @@ function getStatusIconHtml(status) {
 
 /**
  * タスク行のUI（アイコン、進捗、セレクトボックス）を更新する
- * @param {HTMLElement} row
- * @param {string} newStatus
- * @param {number} newProgress
  */
 function updateTaskRowUI(row, newStatus, newProgress) {
-    if (!row) {
-        return;
-    }
+    if (!row) return;
+
     const iconWrapper = row.querySelector(".task-status-icon-wrapper");
     if (iconWrapper) {
         let isSpecialTask = false;
-        // tr (テーブル行) または li (リスト項目) 内のアイコンかチェック
         if (row.tagName.toLowerCase() === "tr") {
             const taskNameCell = row.querySelector(
                 "td:nth-child(2), td:nth-child(1)"
@@ -58,14 +49,13 @@ function updateTaskRowUI(row, newStatus, newProgress) {
             );
         }
 
-        // 重要納期やフォルダでなければアイコンを更新
         if (!isSpecialTask) {
             iconWrapper.innerHTML = getStatusIconHtml(newStatus);
         }
     }
+
     row.dataset.progress = newProgress;
 
-    // ステータスセレクトボックスがあれば、値も同期する
     const selectElement = row.querySelector(".task-status-select");
     if (selectElement) {
         selectElement.value = newStatus;
@@ -80,19 +70,16 @@ function listenForExternalTaskUpdates() {
         const { taskId, newStatus, newProgress } = event.detail;
         if (!taskId || !newStatus) return;
 
-        // ページ上の該当するすべてのタスク行を探す (trまたはli要素)
         const rows = document.querySelectorAll(
             `tr[data-task-id="${taskId}"], li[data-task-id="${taskId}"]`
         );
         if (rows.length > 0) {
             rows.forEach((row) => {
-                // 既存のUI更新関数を呼び出す
                 updateTaskRowUI(row, newStatus, newProgress);
             });
         }
     });
 }
-// ▲▲▲【追加ここまで】▲▲▲
 
 /**
  * 表示専用UIを描画する関数
@@ -126,6 +113,7 @@ function renderTimerDisplay(container) {
         iconClass = "far fa-circle";
         colorClass = "text-gray-400 dark:text-gray-500";
     }
+
     const displayElement = document.createElement("div");
     displayElement.className = `text-sm font-medium ${colorClass}`;
     displayElement.innerHTML = `<i class="${iconClass} fa-fw mr-1"></i>${statusText}`;
@@ -153,12 +141,10 @@ function dispatchWorkLogStatus() {
     }
 
     const currentUserId = userData.id;
-    // ログイン中のユーザーに、'active'なログがあるか
     const hasActiveLog = activeWorkLogs.some(
         (log) => log.user_id === currentUserId && log.status === "active"
     );
 
-    // グローバルイベントを発行
     window.dispatchEvent(
         new CustomEvent("work-log-status-changed", {
             detail: { hasActiveWorkLog: hasActiveLog },
@@ -170,7 +156,6 @@ function dispatchWorkLogStatus() {
  * 特定のタスクのタイマーUIを描画する
  */
 function renderTimerControls(container, log, isPaused, taskStatus, assignees) {
-    // ▼▼▼【追加】現在の勤怠ステータスを取得 ▼▼▼
     const attendanceStatus = document.body.dataset.attendanceStatus;
     const isWorking = attendanceStatus === "working";
 
@@ -218,8 +203,10 @@ function renderTimerControls(container, log, isPaused, taskStatus, assignees) {
             displayContainer.innerHTML = `作業中 (開始: <span class="font-semibold text-gray-800 dark:text-gray-200">${formattedStartTime}</span>)`;
             container.appendChild(displayContainer);
         }
+
         const buttonGroup = document.createElement("div");
         buttonGroup.className = "flex items-center space-x-2";
+
         const pauseButton = document.createElement("button");
         if (viewMode === "compact") {
             pauseButton.innerHTML = `<i class="fas fa-pause"></i>`;
@@ -233,6 +220,7 @@ function renderTimerControls(container, log, isPaused, taskStatus, assignees) {
         }
         pauseButton.onclick = () => handleTimerAction(taskId, "pause");
         buttonGroup.appendChild(pauseButton);
+
         const stopButton = document.createElement("button");
         if (viewMode === "compact") {
             stopButton.innerHTML = `<i class="fas fa-check-circle"></i>`;
@@ -250,6 +238,7 @@ function renderTimerControls(container, log, isPaused, taskStatus, assignees) {
     } else {
         const buttonContainer = document.createElement("div");
         buttonContainer.className = "flex items-center space-x-2";
+
         if (isPaused || (log && log.status === "stopped")) {
             if (viewMode === "full") {
                 const displayContainer = document.createElement("div");
@@ -258,8 +247,8 @@ function renderTimerControls(container, log, isPaused, taskStatus, assignees) {
                 displayContainer.textContent = "[一時停止中]";
                 container.appendChild(displayContainer);
             }
+
             const resumeButton = document.createElement("button");
-            // ▼▼▼【ここから変更】「再開」ボタンの制御 ▼▼▼
             if (viewMode === "compact") {
                 resumeButton.innerHTML = `<i class="fas fa-play"></i>`;
                 resumeButton.className = `inline-flex items-center justify-center px-2 py-1 text-xs font-medium text-white rounded-md shadow-sm transition ${
@@ -287,11 +276,9 @@ function renderTimerControls(container, log, isPaused, taskStatus, assignees) {
             } else {
                 resumeButton.disabled = true;
             }
-            // ▲▲▲【変更ここまで】▲▲▲
             buttonContainer.appendChild(resumeButton);
         } else {
             const startButton = document.createElement("button");
-            // ▼▼▼【ここから変更】「開始」ボタンの制御 ▼▼▼
             if (viewMode === "compact") {
                 startButton.innerHTML = `<i class="fas fa-play"></i>`;
                 startButton.className = `inline-flex items-center justify-center px-2 py-1 text-xs font-medium text-white rounded-md shadow-sm transition ${
@@ -319,7 +306,6 @@ function renderTimerControls(container, log, isPaused, taskStatus, assignees) {
             } else {
                 startButton.disabled = true;
             }
-            // ▲▲▲【変更ここまで】▲▲▲
             buttonContainer.appendChild(startButton);
         }
         container.appendChild(buttonContainer);
@@ -334,7 +320,7 @@ function openAssigneeSelectionModal(taskId, assignees) {
     );
 }
 
-window.handleStartTimerWithSelection = function (taskId, assigneeIds) {
+window.handleStartTimerWithSelection = (taskId, assigneeIds) => {
     if (!assigneeIds || assigneeIds.length === 0) {
         alert("担当者を少なくとも1人選択してください。");
         return;
@@ -345,6 +331,7 @@ window.handleStartTimerWithSelection = function (taskId, assigneeIds) {
 async function handleTimerAction(taskId, action, assigneeIds = []) {
     let url, body;
     const method = "POST";
+
     if (action === "start") {
         url = "/work-logs/start";
         body = { task_id: taskId, assignee_ids: assigneeIds };
@@ -397,9 +384,8 @@ async function handleTimerAction(taskId, action, assigneeIds = []) {
 
         const data = await response.json();
 
-        // ▼▼▼【ここから変更】タイマー操作後に、実行中ログのJSONを更新してイベントを発行 ▼▼▼
+        // タイマー操作後に、実行中ログのJSONを更新してイベントを発行
         if (data.running_logs) {
-            // サーバーから最新の実行中ログリストを受け取るようにする
             const runningLogsElement = document.getElementById(
                 "running-work-logs-data"
             );
@@ -409,8 +395,9 @@ async function handleTimerAction(taskId, action, assigneeIds = []) {
                 );
             }
         }
-        dispatchWorkLogStatus(); // 状態をチェックしてイベント発行
+        dispatchWorkLogStatus();
 
+        // タイマーUIを更新
         document
             .querySelectorAll(`.timer-controls[data-task-id="${taskId}"]`)
             .forEach((container) => {
@@ -420,15 +407,17 @@ async function handleTimerAction(taskId, action, assigneeIds = []) {
                     container.dataset.isPaused = data.is_paused
                         ? "true"
                         : "false";
-                let logForRender =
+
+                const logForRender =
                     action === "start"
                         ? {
                               status: "active",
                               start_time: new Date().toISOString(),
                           }
                         : null;
-                let isPausedForRender =
+                const isPausedForRender =
                     action === "pause" || data.is_paused === true;
+
                 renderTimerControls(
                     container,
                     logForRender,
@@ -452,7 +441,8 @@ async function handleTimerAction(taskId, action, assigneeIds = []) {
 
         if (data.message) alert(data.message);
 
-        let finalStatus = data.task_status;
+        // ステータス更新イベントを発行
+        const finalStatus = data.task_status;
         if (finalStatus) {
             window.dispatchEvent(
                 new CustomEvent("task-status-updated", {
@@ -477,11 +467,56 @@ async function handleTimerAction(taskId, action, assigneeIds = []) {
     }
 }
 
+// ▼▼▼【新機能】タイマーUI更新イベントのリスナー ▼▼▼
+window.addEventListener("timer-ui-update", (event) => {
+    const { taskId, newStatus, newProgress } = event.detail;
+
+    // 該当するタイマーコンテナを再描画
+    const timerContainers = document.querySelectorAll(
+        `.timer-controls[data-task-id="${taskId}"], .timer-display-only[data-task-id="${taskId}"]`
+    );
+
+    timerContainers.forEach((container) => {
+        container.dataset.taskStatus = newStatus;
+
+        if (container.classList.contains("timer-controls")) {
+            // アクティブなWorkLogを取得
+            const runningLogsElement = document.getElementById(
+                "running-work-logs-data"
+            );
+            let activeWorkLogs = [];
+            if (runningLogsElement) {
+                try {
+                    activeWorkLogs = JSON.parse(runningLogsElement.textContent);
+                } catch (e) {}
+            }
+
+            const logForThisTask = activeWorkLogs.find(
+                (log) => String(log.task_id) === String(taskId)
+            );
+            const isPaused = container.dataset.isPaused === "true";
+            const assignees = JSON.parse(container.dataset.assignees || "[]");
+
+            renderTimerControls(
+                container,
+                logForThisTask,
+                isPaused,
+                newStatus,
+                assignees
+            );
+        } else if (container.classList.contains("timer-display-only")) {
+            renderTimerDisplay(container);
+        }
+    });
+});
+// ▲▲▲【新機能ここまで】▲▲▲
+
 export function initializeWorkTimers() {
     const timerContainers = document.querySelectorAll(".timer-controls");
     const displayOnlyContainers = document.querySelectorAll(
         ".timer-display-only"
     );
+
     if (timerContainers.length === 0 && displayOnlyContainers.length === 0)
         return;
 
@@ -523,8 +558,8 @@ export function initializeWorkTimers() {
         renderTimerDisplay(container);
     });
 
+    // 勤怠ステータス変更時の再描画
     window.addEventListener("attendance-status-changed", () => {
-        // 勤怠ステータスが変わったら、ページ上のすべてのタイマーUIを再描画する
         const timerContainers = document.querySelectorAll(".timer-controls");
         const runningLogsElement = document.getElementById(
             "running-work-logs-data"
@@ -554,6 +589,6 @@ export function initializeWorkTimers() {
         });
     });
 
-    // ▼▼▼【追加】イベントリスナーの初期化をここで行う ▼▼▼
+    // イベントリスナーの初期化
     listenForExternalTaskUpdates();
 }

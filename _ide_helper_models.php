@@ -312,6 +312,7 @@ namespace App\Models{
  * 
  *
  * @property int $id
+ * @property int|null $project_id
  * @property int $display_order 表示順
  * @property int|null $character_id
  * @property string $item_description
@@ -336,6 +337,7 @@ namespace App\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Cost whereId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Cost whereItemDescription($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Cost whereNotes($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Cost whereProjectId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Cost whereType($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Cost whereUpdatedAt($value)
  */
@@ -352,6 +354,7 @@ namespace App\Models{
  * @property int $is_workday
  * @property string|null $start_time
  * @property string|null $end_time
+ * @property string $location
  * @property int $break_minutes
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
@@ -364,6 +367,7 @@ namespace App\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|DefaultShiftPattern whereEndTime($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|DefaultShiftPattern whereId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|DefaultShiftPattern whereIsWorkday($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|DefaultShiftPattern whereLocation($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|DefaultShiftPattern whereStartTime($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|DefaultShiftPattern whereUpdatedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|DefaultShiftPattern whereUserId($value)
@@ -1613,6 +1617,7 @@ namespace App\Models{
  * @property string $type
  * @property string|null $notes
  * @property string|null $name
+ * @property string|null $location
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read \App\Models\User $user
@@ -1624,6 +1629,7 @@ namespace App\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|WorkShift whereDate($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|WorkShift whereEndTime($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|WorkShift whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|WorkShift whereLocation($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|WorkShift whereName($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|WorkShift whereNotes($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|WorkShift whereStartTime($value)

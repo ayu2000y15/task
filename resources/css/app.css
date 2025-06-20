@@ -249,6 +249,15 @@
     @apply text-sm;
 }
 
+/* ▼▼▼【ここに追加】▼▼▼ */
+/* FullCalendar Tooltip Clipping Fix */
+.fc-view,
+.fc-scrollgrid,
+.fc-daygrid-body,
+.fc-daygrid-day-frame {
+    overflow: visible !important;
+}
+
 /* ツールバーのボタンを既存のボタンに合わせる */
 .fc .fc-button {
     @apply bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 shadow-sm

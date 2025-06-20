@@ -96,6 +96,7 @@
                         <tr>
                             <th class="px-6 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">メールアドレス</th>
                             <th class="px-6 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">購読者名</th>
+                            <th class="px-6 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">送信日時</th>
                             <th class="px-6 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">ステータス</th>
                             <th class="px-6 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">開封日時</th>
                             <th class="px-6 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">最終クリック日時</th>
@@ -107,6 +108,7 @@
                             <tr>
                                 <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-700 dark:text-gray-200">{{ $log->recipient_email }}</td>
                                 <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{{ $log->subscriber->name ?? '-' }}</td>
+                                <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{{ $log->processed_at ? $log->processed_at->format('Y/m/d H:i:s') : '-' }}</td>
                                 <td class="px-6 py-2 whitespace-nowrap text-sm">
                                      @php
                                         $logStatusKey = $log->status; // 英語のステータスキー

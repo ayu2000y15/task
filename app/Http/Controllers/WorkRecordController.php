@@ -92,7 +92,7 @@ class WorkRecordController extends Controller
     {
         $workLogItems = $workLogs->map(fn($log) => (object)['timestamp' => $log->start_time, 'type' => 'work_log', 'model' => $log]);
         $attendanceLogItems = $attendanceLogs->map(fn($log) => (object)['timestamp' => $log->timestamp, 'type' => 'attendance_log', 'model' => $log]);
-        return $workLogItems->merge($attendanceLogItems);
+        return $workLogItems->toBase()->merge($attendanceLogItems);
     }
 
     /**

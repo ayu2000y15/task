@@ -83,7 +83,12 @@ class ScheduleController extends Controller
                     'id' => 'shift_' . $shift->id,
                     'start' => $shift->date->format('Y-m-d'),
                     'allDay' => true,
-                    'extendedProps' => ['user_name' => $shift->user->name]
+                    'extendedProps' => [
+                        'user_name' => $shift->user->name,
+                        'notes' => $shift->notes,
+                        'location' => $shift->location,
+                        'type' => $shift->type,
+                    ]
                 ];
 
                 switch ($shift->type) {
@@ -91,7 +96,16 @@ class ScheduleController extends Controller
                         $startTime = Carbon::parse($shift->start_time)->format('H:i');
                         $endTime = Carbon::parse($shift->end_time)->format('H:i');
                         $eventData['title'] = $shift->user->name . ": " . $startTime . " - " . $endTime;
-                        $eventData['color'] = '#93c5fd'; // 青系
+                        if ($shift->location === 'remote') {
+                            $eventData['color'] = '#3b82f6'; // 在宅用の色 (濃い青)
+                        } else {
+                            $eventData['color'] = '#93c5fd'; // 出勤用の色 (薄い青)
+                        }
+                        break;
+                    case 'location_only':
+                        $eventData['title'] = $shift->user->name;
+                        $eventData['color'] = '#a5b4fc'; // 紫系の色
+                        $eventData['textColor'] = '#312e81';
                         break;
                     case 'full_day_off':
                         $eventData['title'] = $shift->user->name . ": " . ($shift->name ?? '全休');

@@ -13,6 +13,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use App\Models\WorkLog;
 use App\Services\ProductivityService;
+use App\Models\AttendanceLog;
 
 class HomeController extends Controller
 {
@@ -75,6 +76,34 @@ class HomeController extends Controller
 
         uasort($workItemsByAssignee, fn($a, $b) => strcmp($a['assignee']->name, $b['assignee']->name));
 
+        // 出勤中のユーザー情報を取得
+        $latestAttendanceLogs = AttendanceLog::with('user')
+            ->whereHas('user', function ($query) {
+                // 有効なユーザーのみを対象とする
+                $query->where('status', '!=', 'inactive');
+            })
+            ->whereDate('timestamp', $targetDate)
+            ->orderBy('timestamp', 'desc')
+            ->get()
+            // 各ユーザーの最新のログ1件に絞り込む
+            ->unique('user_id');
+
+        // 最新のログが 'clock_out' (退勤) でないユーザーを「オンライン」とみなし、表示用のステータスを付与する
+        $onlineUsers = $latestAttendanceLogs
+            ->where('type', '!=', 'clock_out')
+            ->filter(fn($log) => $log->user) // ユーザーがnullでないことを確認
+            ->map(function ($log) {
+                // 勤怠ログのタイプから表示用のステータスを決定
+                $log->current_status = match ($log->type) {
+                    'break_start' => 'on_break',
+                    'away_start'  => 'on_away',
+                    default       => 'working', // 'clock_in', 'break_end', 'away_end' は 'working' 扱い
+                };
+                return $log;
+            })
+            ->sortBy(fn($log) => $log->user->name); // ユーザー名でソート
+
+
         // (その他のデータ取得は変更なし)
         $projectCount = Project::count();
         $activeProjectCount = Project::where('status', 'in_progress')->count();
@@ -109,7 +138,8 @@ class HomeController extends Controller
             'workItemsByAssignee',
             'targetDate',
             'runningWorkLogs',
-            'productivitySummaries'
+            'productivitySummaries',
+            'onlineUsers'
         ));
     }
 }

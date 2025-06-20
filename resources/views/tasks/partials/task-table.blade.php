@@ -85,7 +85,7 @@
                     @endif
 
                     {{-- ステータス --}}
-                     @if(!($isFolderView ?? false))
+                     {{-- @if(!($isFolderView ?? false))
                      <th scope="col" class="sticky top-0 z-10 bg-gray-50 dark:bg-gray-700 hidden sm:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-36 min-w-[140px]">
                         @php
                              $linkParamsStatus = array_merge(request()->query(), ['sort_by' => 'status', 'sort_order' => ($sortBy == 'status' && $sortOrder == 'asc') ? 'desc' : 'asc']);
@@ -99,7 +99,7 @@
                              @endif
                          </a>
                      </th>
-                     @endif
+                     @endif --}}
                     {{-- ▲▲▲【ここまで変更】▲▲▲ --}}
 
                     {{-- 操作 (ソート対象外) --}}
@@ -355,7 +355,7 @@
                             </td>
                             @endif
 
-                            @if(!($isFolderView ?? false))
+                            {{-- @if(!($isFolderView ?? false))
                             <td class="hidden sm:table-cell px-4 py-3 whitespace-nowrap text-sm align-top">
                                 @if(!$task->is_milestone && !$task->is_folder)
                                 <select class="task-status-select form-select block w-full pl-3 pr-10 py-2 text-base border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md dark:bg-gray-700 dark:text-gray-300" data-task-id="{{ $task->id }}" data-project-id="{{ $task->project_id }}">
@@ -369,7 +369,7 @@
                                 <span class="text-sm text-gray-500 dark:text-gray-400">-</span>
                                 @endif
                             </td>
-                            @endif
+                            @endif --}}
 
                             <td class="px-3 py-3 whitespace-nowrap text-sm font-medium align-top">
                                 <div class="flex items-center space-x-1">

@@ -38,6 +38,9 @@ class User extends Authenticatable
         'last_access',
         'status', // statusカラムをfillableに追加
         'hourly_rate',
+        'default_transportation_departure',
+        'default_transportation_destination',
+        'default_transportation_amount',
     ];
     protected $hidden = [
         'password',

@@ -1,7 +1,7 @@
 // resources/js/page-specific/tasks-index.js
 import axios from "axios";
+import TomSelect from "tom-select";
 
-// ▼▼▼【再追加】このファイル内でUIを直接更新するために、共通関数を再度設置します ▼▼▼
 function getStatusIconHtml(status) {
     switch (status) {
         case "completed":
@@ -19,9 +19,8 @@ function getStatusIconHtml(status) {
 }
 
 function updateTaskRowUI(row, newStatus, newProgress) {
-    if (!row) {
-        return;
-    }
+    if (!row) return;
+
     const iconWrapper = row.querySelector(".task-status-icon-wrapper");
     if (iconWrapper) {
         let isSpecialTask = false;
@@ -52,8 +51,167 @@ function updateTaskRowUI(row, newStatus, newProgress) {
     if (selectElement) {
         selectElement.value = newStatus;
     }
+
+    // ▼▼▼【新機能】タイマーUIの更新 ▼▼▼
+    updateTimerDisplayForTask(row.dataset.taskId, newStatus, newProgress);
+    // ▲▲▲【新機能ここまで】▲▲▲
 }
-// ▲▲▲【再追加ここまで】▲▲▲
+
+// ▼▼▼【新機能】タイマー表示の更新 ▼▼▼
+function updateTimerDisplayForTask(taskId, newStatus, newProgress) {
+    const timerContainers = document.querySelectorAll(
+        `.timer-controls[data-task-id="${taskId}"], .timer-display-only[data-task-id="${taskId}"]`
+    );
+
+    timerContainers.forEach((container) => {
+        container.dataset.taskStatus = newStatus;
+
+        // タイマーUIの再描画をトリガー
+        if (window.initializeWorkTimers) {
+            // work-timer.jsの関数を呼び出してUIを更新
+            const event = new CustomEvent("timer-ui-update", {
+                detail: { taskId, newStatus, newProgress },
+            });
+            window.dispatchEvent(event);
+        }
+    });
+}
+// ▲▲▲【新機能ここまで】▲▲▲
+
+// ▼▼▼【新機能】確認ダイアログ付きステータス更新 ▼▼▼
+async function updateTaskStatus(
+    taskId,
+    projectId,
+    newStatus,
+    newProgress,
+    element
+) {
+    try {
+        const response = await axios.post(
+            `/projects/${projectId}/tasks/${taskId}/progress`,
+            {
+                status: newStatus,
+                progress: newProgress,
+            }
+        );
+
+        if (response.data.success) {
+            handleSuccessfulStatusUpdate(
+                element,
+                newStatus,
+                newProgress,
+                response.data
+            );
+        }
+    } catch (error) {
+        if (error.response?.data?.requires_confirmation) {
+            // 警告ダイアログの処理
+            const confirmed = await showConfirmationDialogs(
+                error.response.data.warnings
+            );
+            if (confirmed) {
+                // ユーザーが全ての警告に「はい」と答えた場合、強制実行
+                try {
+                    const forceResponse = await axios.post(
+                        `/projects/${projectId}/tasks/${taskId}/progress`,
+                        {
+                            status: newStatus,
+                            progress: newProgress,
+                            force_update: true, // 強制実行フラグ
+                        }
+                    );
+
+                    if (forceResponse.data.success) {
+                        handleSuccessfulStatusUpdate(
+                            element,
+                            newStatus,
+                            newProgress,
+                            forceResponse.data
+                        );
+                    }
+                } catch (forceError) {
+                    console.error("Force update failed:", forceError);
+                    alert("ステータスの更新に失敗しました。");
+                    revertStatusChange(element); // 失敗したら元に戻す
+                }
+            } else {
+                // ユーザーが「いいえ」を選んだ場合、元の値に戻す
+                revertStatusChange(element);
+            }
+        } else {
+            console.error("Status update failed:", error);
+            const errorMessage =
+                error.response?.data?.message ||
+                "ステータスの更新に失敗しました。";
+            alert(errorMessage);
+            revertStatusChange(element);
+        }
+    }
+}
+
+function handleSuccessfulStatusUpdate(
+    element,
+    newStatus,
+    newProgress,
+    responseData
+) {
+    const row = element.closest("tr, li");
+    updateTaskRowUI(row, newStatus, newProgress);
+
+    if (responseData.work_log_message) {
+        showWorkLogNotification(responseData.work_log_message);
+    }
+
+    if (responseData.running_logs) {
+        const runningLogsElement = document.getElementById(
+            "running-work-logs-data"
+        );
+        if (runningLogsElement) {
+            runningLogsElement.textContent = JSON.stringify(
+                responseData.running_logs
+            );
+        }
+        window.dispatchEvent(
+            new CustomEvent("work-log-status-changed", {
+                detail: {
+                    hasActiveWorkLog: responseData.running_logs.length > 0,
+                },
+            })
+        );
+    }
+}
+
+function revertStatusChange(element) {
+    // セレクトボックスの場合、元の値に戻す
+    if (element.tagName.toLowerCase() === "select") {
+        const row = element.closest("tr, li");
+        const currentStatus = row.dataset.taskStatus || "not_started";
+        element.value = currentStatus;
+    }
+    // チェックボックスの場合、チェックを外す
+    else if (element.type === "checkbox") {
+        element.checked = false;
+    }
+}
+
+/**
+ * 複数の警告ダイアログを順番に表示する関数
+ * @param {Array} warnings サーバーから受け取った警告の配列
+ * @returns {Promise<boolean>} ユーザーが全てに同意した場合はtrue、途中でキャンセルした場合はfalse
+ */
+async function showConfirmationDialogs(warnings) {
+    for (const warning of warnings) {
+        // warning.message にはサーバーで生成されたメッセージが入っています
+        const confirmed = confirm(
+            warning.message + "\n\nこのまま続行しますか？"
+        );
+        if (!confirmed) {
+            return false; // ユーザーが「キャンセル」を選んだら、即座にfalseを返す
+        }
+    }
+    return true; // 全ての警告ダイアログで「OK」が押された
+}
+// ▲▲▲【新機能ここまで】▲▲▲
 
 function initializeTaskCheckboxes() {
     document.querySelectorAll(".task-status-checkbox").forEach((checkbox) => {
@@ -75,8 +233,8 @@ function initializeTaskCheckboxes() {
 
             let newStatus = "not_started";
             let newProgress = 0;
-            let currentProgressOnRow =
-                parseInt(row.dataset.progress || "0") || 0;
+            const currentProgressOnRow =
+                Number.parseInt(row.dataset.progress || "0") || 0;
 
             if (this.checked) {
                 if (action === "set-in-progress" && completedCheckbox)
@@ -95,17 +253,10 @@ function initializeTaskCheckboxes() {
                 newStatus = "completed";
                 newProgress = 100;
             }
-            axios
-                .post(`/projects/${projectId}/tasks/${taskId}/progress`, {
-                    status: newStatus,
-                    progress: newProgress,
-                })
-                .then((response) => {
-                    // ▼▼▼【修正】直接UI更新関数を呼び出すように戻します ▼▼▼
-                    if (response.data.success) {
-                        updateTaskRowUI(row, newStatus, newProgress);
-                    }
-                });
+
+            // ▼▼▼【変更】新しい確認ダイアログ付き更新関数を使用 ▼▼▼
+            updateTaskStatus(taskId, projectId, newStatus, newProgress, this);
+            // ▲▲▲【変更ここまで】▲▲▲
         });
     });
 }
@@ -117,8 +268,10 @@ function initializeTaskStatusUpdater() {
             const projectId = this.dataset.projectId;
             const newStatus = this.value;
             let newProgress = 0;
-            let currentProgress =
-                parseInt(this.closest("tr, li")?.dataset.progress || "0") || 0;
+            const currentProgress =
+                Number.parseInt(
+                    this.closest("tr, li")?.dataset.progress || "0"
+                ) || 0;
 
             if (newStatus === "completed") newProgress = 100;
             else if (newStatus === "in_progress")
@@ -127,20 +280,29 @@ function initializeTaskStatusUpdater() {
                         ? currentProgress
                         : 10;
 
-            axios
-                .post(`/projects/${projectId}/tasks/${taskId}/progress`, {
-                    status: newStatus,
-                    progress: newProgress,
-                })
-                .then((response) => {
-                    // ▼▼▼【修正】直接UI更新関数を呼び出すように戻します ▼▼▼
-                    if (response.data.success) {
-                        const row = this.closest("tr, li");
-                        updateTaskRowUI(row, newStatus, newProgress);
-                    }
-                });
+            // ▼▼▼【変更】新しい確認ダイアログ付き更新関数を使用 ▼▼▼
+            updateTaskStatus(taskId, projectId, newStatus, newProgress, this);
+            // ▲▲▲【変更ここまで】▲▲▲
         });
     });
+}
+
+function showWorkLogNotification(message) {
+    const notification = document.createElement("div");
+    notification.className =
+        "fixed top-4 right-4 bg-blue-500 text-white px-4 py-2 rounded-md shadow-lg z-50 transition-opacity duration-300";
+    notification.textContent = message;
+
+    document.body.appendChild(notification);
+
+    setTimeout(() => {
+        notification.style.opacity = "0";
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 300);
+    }, 3000);
 }
 
 function initializeEditableMultipleAssignees() {
@@ -171,7 +333,7 @@ function initializeEditableMultipleAssignees() {
         );
 
         editableCells.forEach((cell) => {
-            cell.addEventListener("click", function (event) {
+            cell.addEventListener("click", (event) => {
                 if (cell.querySelector(".ts-control")) {
                     return;
                 }
@@ -225,7 +387,9 @@ function initializeEditableMultipleAssignees() {
                     axios
                         .post(
                             `/projects/${projectId}/tasks/${taskId}/assignee`,
-                            { assignees: newAssigneeIds }
+                            {
+                                assignees: newAssigneeIds,
+                            }
                         )
                         .then((response) => {
                             if (response.data.success) {
@@ -278,14 +442,17 @@ function initializeFolderFileToggle() {
     });
 }
 
-// listenForExternalTaskUpdates は work-timer.js に移動したため、このファイルには不要です
-
-try {
-    // このファイルに残った、ページ固有の初期化処理を実行
-    initializeTaskStatusUpdater();
-    initializeTaskCheckboxes();
-    initializeEditableMultipleAssignees();
-    initializeFolderFileToggle();
-} catch (e) {
-    console.error("Error during tasks-index.js specific initialization:", e);
+// 初期化関数をエクスポート
+export default function initTasksIndex() {
+    try {
+        initializeTaskStatusUpdater();
+        initializeTaskCheckboxes();
+        initializeEditableMultipleAssignees();
+        initializeFolderFileToggle();
+    } catch (e) {
+        console.error(
+            "Error during tasks-index.js specific initialization:",
+            e
+        );
+    }
 }

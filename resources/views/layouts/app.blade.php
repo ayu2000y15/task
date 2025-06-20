@@ -494,79 +494,6 @@
                     @endcan
                 </nav>
 
-                {{-- 勤怠登録 --}}
-                @auth
-                    <div x-data="attendanceTimer({ initialStatus: '{{ $currentAttendanceStatus }}' })" class="relative">
-                        <div class="flex items-center space-x-1">
-                            <span class="hidden sm:inline-flex items-center px-2 py-1 text-xs font-medium rounded-md"
-                                :class="{
-                                    'bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-gray-200': status === 'clocked_out',
-                                    'bg-blue-100 text-blue-800 dark:bg-blue-600 dark:text-blue-100': status === 'working',
-                                    'bg-yellow-100 text-yellow-800 dark:bg-yellow-600 dark:text-yellow-100': status === 'on_break',
-                                    'bg-purple-100 text-purple-800 dark:bg-purple-600 dark:text-purple-100': status === 'on_away',
-                                }" x-text="statusText">
-                            </span>
-
-                            <div class="relative" x-data="{ open: false }">
-                                <button @click="open = !open" class="flex items-center px-2 py-2 text-sm font-medium text-gray-700 rounded-md dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none">
-                                    <i class="fas fa-clock"></i>
-                                    <i class="fas fa-chevron-down fa-xs ml-1"></i>
-                                </button>
-
-                                <div x-show="open" @click.away="open = false"
-                                    x-transition
-                                    class="absolute right-0 mt-2 w-40 py-1 bg-white rounded-md shadow-lg dark:bg-gray-700 ring-1 ring-black ring-opacity-5 z-50"
-                                    style="display: none;">
-
-                                    <template x-if="status === 'clocked_out'">
-                                        <a href="#" @click.prevent="clock('clock_in')" class="block px-4 py-2 text-sm text-green-600 dark:text-green-400 hover:bg-gray-100 dark:hover:bg-gray-600">出勤</a>
-                                    </template>
-
-                                    <template x-if="status === 'working'">
-                                        <div>
-                                            <a href="#" @click.prevent="clock('break_start')"
-                                                class="block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-600"
-                                                :class="{
-                                                    'text-gray-700 dark:text-gray-200': !hasActiveWorkLog,
-                                                    'text-gray-400 dark:text-gray-500 cursor-not-allowed': hasActiveWorkLog
-                                                }"
-                                                :title="hasActiveWorkLog ? '実行中の作業があるため操作できません' : ''">
-                                                休憩開始
-                                            </a>
-
-                                            <a href="#" @click.prevent="clock('away_start')"
-                                                class="block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-600"
-                                                :class="{
-                                                    'text-gray-700 dark:text-gray-200': !hasActiveWorkLog,
-                                                    'text-gray-400 dark:text-gray-500 cursor-not-allowed': hasActiveWorkLog
-                                                }"
-                                                :title="hasActiveWorkLog ? '実行中の作業があるため操作できません' : ''">
-                                                中抜け開始
-                                            </a>
-                                            <a href="#" @click.prevent="clock('clock_out')"
-                                                class="block px-4 py-2 text-sm  hover:bg-gray-100 dark:hover:bg-gray-600"
-                                                :class="{
-                                                    'text-red-600 dark:text-red-400': !hasActiveWorkLog,
-                                                    'text-gray-400 dark:text-gray-500 cursor-not-allowed': hasActiveWorkLog
-                                                }"
-                                                :title="hasActiveWorkLog ? '実行中の作業があるため退勤できません' : ''"
-                                                >退勤</a>
-                                        </div>
-                                    </template>
-
-                                    <template x-if="status === 'on_break'">
-                                        <a href="#" @click.prevent="clock('break_end')" class="block px-4 py-2 text-sm text-blue-600 dark:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-600">休憩終了</a>
-                                    </template>
-
-                                    <template x-if="status === 'on_away'">
-                                        <a href="#" @click.prevent="clock('away_end')" class="block px-4 py-2 text-sm text-blue-600 dark:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-600">戻り</a>
-                                    </template>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                @endauth
-
                 <div class="flex items-center space-x-1 sm:space-x-2 pl-1 sm:pl-2">
                     @can('viewAny', App\Models\ProcessTemplate::class)
                     <div x-data="{ adminMenuOpenOnHeader: false }" class="relative">
@@ -853,6 +780,99 @@
                     </div>
                     @endauth
                 </div>
+
+                {{-- 勤怠登録 --}}
+                @auth
+                    <div x-data="attendanceTimer({ initialStatus: '{{ $currentAttendanceStatus }}' })" class="relative">
+                        <div class="flex items-center space-x-1">
+                            {{-- 提案1: ワンクリック打刻ボタン --}}
+                            <button @click.prevent="performPrimaryAction()"
+                                    class="hidden sm:inline-flex items-center px-3 py-2 text-sm font-medium rounded-md text-white transition-colors duration-200"
+                                    :class="{
+                                        'bg-green-500 hover:bg-green-600': status === 'clocked_out',
+                                        'bg-yellow-500 hover:bg-yellow-600': status === 'working',
+                                        'bg-blue-500 hover:bg-blue-600': status === 'on_break' || status === 'on_away',
+                                        'bg-gray-400 cursor-not-allowed': hasActiveWorkLog && (status === 'working' || status === 'clocked_out')
+                                    }"
+                                    :disabled="hasActiveWorkLog && (status === 'working' || status === 'clocked_out')"
+                                    :title="primaryActionTooltip">
+                                <i class="fas fa-fw mr-1" :class="primaryActionIcon"></i>
+                                <span x-text="primaryActionText"></span>
+                            </button>
+
+                            {{-- 提案2: ステータスアイコン（スマホ表示用） --}}
+                            <span class="inline-flex sm:hidden items-center px-2 py-1 text-xs font-medium rounded-md"
+                                :class="{
+                                    'bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-gray-200': status === 'clocked_out',
+                                    'bg-blue-100 text-blue-800 dark:bg-blue-600 dark:text-blue-100': status === 'working',
+                                    'bg-yellow-100 text-yellow-800 dark:bg-yellow-600 dark:text-yellow-100': status === 'on_break',
+                                    'bg-purple-100 text-purple-800 dark:bg-purple-600 dark:text-purple-100': status === 'on_away',
+                                }">
+                                <i class="fas fa-fw text-base" :class="statusIcon"></i>
+                            </span>
+
+
+                            {{-- その他の操作用ドロップダウン --}}
+                            <div class="relative" x-data="{ open: false }">
+                                <button @click="open = !open" class="flex items-center px-2 py-2 text-sm font-medium text-gray-700 rounded-md dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none" title="その他の操作">
+                                    <i class="fas fa-chevron-down fa-xs"></i>
+                                </button>
+
+                                <div x-show="open" @click.away="open = false"
+                                    x-transition
+                                    class="absolute right-0 mt-2 w-40 py-1 bg-white rounded-md shadow-lg dark:bg-gray-700 ring-1 ring-black ring-opacity-5 z-50"
+                                    style="display: none;">
+
+                                    {{-- ドロップダウンの中身は元のコードと同じ --}}
+                                    <template x-if="status === 'clocked_out'">
+                                        <a href="#" @click.prevent="clock('clock_in')" class="block px-4 py-2 text-sm text-green-600 dark:text-green-400 hover:bg-gray-100 dark:hover:bg-gray-600">出勤</a>
+                                    </template>
+
+                                    <template x-if="status === 'working'">
+                                        <div>
+                                            <a href="#" @click.prevent="clock('break_start')"
+                                                class="block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-600"
+                                                :class="{
+                                                    'text-gray-700 dark:text-gray-200': !hasActiveWorkLog,
+                                                    'text-gray-400 dark:text-gray-500 cursor-not-allowed': hasActiveWorkLog
+                                                }"
+                                                :title="hasActiveWorkLog ? '実行中の作業があるため操作できません' : ''">
+                                                休憩開始
+                                            </a>
+
+                                            <a href="#" @click.prevent="clock('away_start')"
+                                                class="block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-600"
+                                                :class="{
+                                                    'text-gray-700 dark:text-gray-200': !hasActiveWorkLog,
+                                                    'text-gray-400 dark:text-gray-500 cursor-not-allowed': hasActiveWorkLog
+                                                }"
+                                                :title="hasActiveWorkLog ? '実行中の作業があるため操作できません' : ''">
+                                                中抜け開始
+                                            </a>
+                                            <a href="#" @click.prevent="clock('clock_out')"
+                                                class="block px-4 py-2 text-sm  hover:bg-gray-100 dark:hover:bg-gray-600"
+                                                :class="{
+                                                    'text-red-600 dark:text-red-400': !hasActiveWorkLog,
+                                                    'text-gray-400 dark:text-gray-500 cursor-not-allowed': hasActiveWorkLog
+                                                }"
+                                                :title="hasActiveWorkLog ? '実行中の作業があるため退勤できません' : ''"
+                                                >退勤</a>
+                                        </div>
+                                    </template>
+
+                                    <template x-if="status === 'on_break'">
+                                        <a href="#" @click.prevent="clock('break_end')" class="block px-4 py-2 text-sm text-blue-600 dark:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-600">休憩終了</a>
+                                    </template>
+
+                                    <template x-if="status === 'on_away'">
+                                        <a href="#" @click.prevent="clock('away_end')" class="block px-4 py-2 text-sm text-blue-600 dark:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-600">戻り</a>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                        {{-- ▲▲▲【変更ここまで】▲▲▲ --}}
+                    </div>
+                @endauth
             </header>
 
             <main class="flex-1 p-4 md:p-6 overflow-y-auto h-full">
@@ -864,6 +884,11 @@
                 @if(session('error'))
                 <div class="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-md dark:bg-red-700 dark:text-red-100 dark:border-red-600" role="alert">
                     {{ session('error') }}
+                </div>
+                @endif
+                @if (session('info'))
+                <div class="mb-4 p-4 bg-blue-100 border border-blue-400 text-blue-700 rounded-md dark:bg-blue-700 dark:text-blue-100 dark:border-blue-600" role="alert">
+                    {{ session('info') }}
                 </div>
                 @endif
                 @yield('content')
