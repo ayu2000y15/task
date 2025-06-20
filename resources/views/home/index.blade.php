@@ -120,6 +120,13 @@
                         <h5 class="text-lg font-semibold text-gray-700 dark:text-gray-300 flex items-center">
                             <i class="fas fa-chart-line mr-2 text-purple-500"></i>
                             全ユーザーの生産性
+                        <i class="far fa-question-circle text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-help ml-2"
+                               title="【生産性バーの見方】
+                                ■ バー全体：その日（または月）の総拘束時間（最初の出勤から最後の退勤まで）を表します。
+                                ■ 青色（作業）：作業ログに記録された、実際のタスクに費やされた時間です。
+                                ■ 黄色（休憩等）：勤怠ログに記録された、休憩や中抜けの時間です。
+                                ■ 灰色（その他）：上記のいずれにも分類されない時間です。会議や準備、移動、または記録されていない作業などが含まれます。
+                                "></i>
                         </h5>
                         <button aria-label="生産性を展開/折りたたむ">
                             <i class="fas fa-fw transition-transform" :class="open ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
@@ -135,7 +142,7 @@
                                 <div class="mt-3">
                                     <div class="flex justify-between text-xs text-gray-600 dark:text-gray-400">
                                         <span>昨日</span>
-                                        <span>空き: <strong class="text-red-500">{{ gmdate('H:i', $summary->yesterday->unaccountedSeconds) }}</strong></span>
+                                        <span>その他: <strong class="text-red-500">{{ gmdate('H:i', $summary->yesterday->unaccountedSeconds) }}</strong></span>
                                     </div>
                                     @if($summary->yesterday->totalAttendanceSeconds > 0)
                                         <div class="mt-1 flex w-full h-2.5 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden" title="作業:{{ gmdate('H:i', $summary->yesterday->totalWorkLogSeconds) }} | 休憩等:{{ gmdate('H:i', $summary->yesterday->totalBreakSeconds) }}">
@@ -150,7 +157,7 @@
                                 <div class="mt-3">
                                     <div class="flex justify-between text-xs text-gray-600 dark:text-gray-400">
                                         <span>今月</span>
-                                        <span>総空き: <strong class="text-red-500">{{ floor($summary->month->unaccountedSeconds / 3600) }}h</strong></span>
+                                        <span>総その他: <strong class="text-red-500">{{ floor($summary->month->unaccountedSeconds / 3600) }}h</strong></span>
                                     </div>
                                     @if($summary->month->totalAttendanceSeconds > 0)
                                         <div class="mt-1 flex w-full h-2.5 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden" title="総作業:{{ floor($summary->month->totalWorkLogSeconds / 3600) }}h | 総休憩等:{{ floor($summary->month->totalBreakSeconds / 3600) }}h">
@@ -167,7 +174,7 @@
                             <div class="flex justify-center space-x-4 text-xs text-gray-500 mt-1">
                                 <span><i class="fas fa-square text-blue-500"></i> 作業</span>
                                 <span><i class="fas fa-square text-yellow-400"></i> 休憩等</span>
-                                <span><i class="fas fa-square text-gray-300 dark:text-gray-500"></i> 空き</span>
+                                <span><i class="fas fa-square text-gray-300 dark:text-gray-500"></i> その他</span>
                             </div>
                         </div>
                     </div>

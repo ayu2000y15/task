@@ -121,8 +121,8 @@
                             ■ バー全体：その日（または月）の総拘束時間（最初の出勤から最後の退勤まで）を表します。
                             ■ 青色（作業）：作業ログに記録された、実際のタスクに費やされた時間です。
                             ■ 黄色（休憩等）：勤怠ログに記録された、休憩や中抜けの時間です。
-                            ■ 灰色（空き）：上記のいずれにも分類されない時間です。会議や準備、移動、または記録されていない作業などが含まれます。
-                            目標は、この灰色の「空き時間」をできるだけ減らし、全ての業務を青色の「作業時間」として記録することです。"></i>
+                            ■ 灰色（その他）：上記のいずれにも分類されない時間です。会議や準備、移動、または記録されていない作業などが含まれます。
+                            "></i>
                     </div>
                     <i class="fas fa-fw text-xs" :class="{'fa-chevron-down': openProductivity, 'fa-chevron-right': !openProductivity}"></i>
                 </div>
@@ -138,18 +138,18 @@
                                 <div class="mt-3">
                                     <div class="flex justify-between text-xs text-gray-600 dark:text-gray-400">
                                         <span>昨日</span>
-                                        <span>空き: <strong class="text-red-500">{{ gmdate('H:i', $currentUserProductivitySummary->yesterday->unaccountedSeconds) }}</strong> / {{ gmdate('H:i', $currentUserProductivitySummary->yesterday->totalAttendanceSeconds) }}</span>
+                                        <span>その他: <strong class="text-red-500">{{ gmdate('H:i', $currentUserProductivitySummary->yesterday->unaccountedSeconds) }}</strong> / {{ gmdate('H:i', $currentUserProductivitySummary->yesterday->totalAttendanceSeconds) }}</span>
                                     </div>
                                     @if($currentUserProductivitySummary->yesterday->totalAttendanceSeconds > 0)
                                         <div class="mt-1 flex w-full h-3 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden"
-                                             title="作業:{{ gmdate('H:i', $currentUserProductivitySummary->yesterday->totalWorkLogSeconds) }} | 休憩等:{{ gmdate('H:i', $currentUserProductivitySummary->yesterday->totalBreakSeconds) }} | 空き:{{ gmdate('H:i', $currentUserProductivitySummary->yesterday->unaccountedSeconds) }}">
+                                             title="作業:{{ gmdate('H:i', $currentUserProductivitySummary->yesterday->totalWorkLogSeconds) }} | 休憩等:{{ gmdate('H:i', $currentUserProductivitySummary->yesterday->totalBreakSeconds) }} | その他:{{ gmdate('H:i', $currentUserProductivitySummary->yesterday->unaccountedSeconds) }}">
                                             <div class="bg-blue-500" style="width: {{ $currentUserProductivitySummary->yesterday->workLogPercentage }}%"></div>
                                             <div class="bg-yellow-400" style="width: {{ $currentUserProductivitySummary->yesterday->breakPercentage }}%"></div>
                                         </div>
                                         <div class="flex justify-end space-x-2 text-xs text-gray-500 mt-1">
                                             <span><i class="fas fa-square text-blue-500"></i> 作業</span>
                                             <span><i class="fas fa-square text-yellow-400"></i> 休憩等</span>
-                                            <span><i class="fas fa-square text-gray-300 dark:text-gray-500"></i> 空き</span>
+                                            <span><i class="fas fa-square text-gray-300 dark:text-gray-500"></i> その他</span>
                                         </div>
                                     @else
                                         <p class="text-xs text-gray-400 mt-1">昨日の勤怠記録がありません。</p>
@@ -160,11 +160,11 @@
                                 <div class="mt-4">
                                     <div class="flex justify-between text-xs text-gray-600 dark:text-gray-400">
                                         <span>今月</span>
-                                        <span>総空き: <strong class="text-red-500">{{ floor($currentUserProductivitySummary->month->unaccountedSeconds / 3600) }}h</strong> / {{ floor($currentUserProductivitySummary->month->totalAttendanceSeconds / 3600) }}h</span>
+                                        <span>総その他: <strong class="text-red-500">{{ floor($currentUserProductivitySummary->month->unaccountedSeconds / 3600) }}h</strong> / {{ floor($currentUserProductivitySummary->month->totalAttendanceSeconds / 3600) }}h</span>
                                     </div>
                                     @if($currentUserProductivitySummary->month->totalAttendanceSeconds > 0)
                                         <div class="mt-1 flex w-full h-3 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden"
-                                             title="総作業:{{ floor($currentUserProductivitySummary->month->totalWorkLogSeconds / 3600) }}h | 総休憩等:{{ floor($currentUserProductivitySummary->month->totalBreakSeconds / 3600) }}h | 総空き:{{ floor($currentUserProductivitySummary->month->unaccountedSeconds / 3600) }}h">
+                                             title="総作業:{{ floor($currentUserProductivitySummary->month->totalWorkLogSeconds / 3600) }}h | 総休憩等:{{ floor($currentUserProductivitySummary->month->totalBreakSeconds / 3600) }}h | 総その他:{{ floor($currentUserProductivitySummary->month->unaccountedSeconds / 3600) }}h">
                                             <div class="bg-blue-500" style="width: {{ $currentUserProductivitySummary->month->workLogPercentage }}%"></div>
                                             <div class="bg-yellow-400" style="width: {{ $currentUserProductivitySummary->month->breakPercentage }}%"></div>
                                         </div>
