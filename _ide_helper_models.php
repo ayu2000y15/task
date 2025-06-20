@@ -1555,6 +1555,32 @@ namespace App\Models{
  * 
  *
  * @property int $id
+ * @property int|null $user_id
+ * @property string $name
+ * @property \Illuminate\Support\Carbon $date
+ * @property string $period_type
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\User|null $user
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserHoliday newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserHoliday newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserHoliday query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserHoliday whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserHoliday whereDate($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserHoliday whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserHoliday whereName($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserHoliday wherePeriodType($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserHoliday whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserHoliday whereUserId($value)
+ */
+	class UserHoliday extends \Eloquent {}
+}
+
+namespace App\Models{
+/**
+ * 
+ *
+ * @property int $id
  * @property int $user_id
  * @property int $task_id
  * @property \Illuminate\Support\Carbon|null $start_time

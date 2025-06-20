@@ -99,7 +99,7 @@
                                 @php
                                     $date = $report['date'];
                                     $rowClass = '';
-                                    if ($report['user_holiday']) {
+                                    if (isset($report['work_shift']) && in_array($report['work_shift']->type, ['full_day_off', 'am_off', 'pm_off'])) {
                                         $rowClass = 'bg-yellow-50 dark:bg-yellow-900/30';
                                     } elseif ($date->isSaturday()) {
                                         $rowClass = 'bg-blue-50 dark:bg-blue-900/30';

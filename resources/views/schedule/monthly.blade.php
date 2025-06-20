@@ -78,7 +78,7 @@
                                 }
                             @endphp
                             <tr id="row-{{ $date->format('Y-m-d') }}" x-data="scheduleRow(
-                                    '{{ $day['override']?->type ?? 'work' }}',
+                                    '{{ $day['override']?->type ?? 'location_only' }}',
                                     '{{ $day['override']?->location ?? 'office' }}',
                                     '{{ optional($day['override'])->start_time ? \Carbon\Carbon::parse($day['override']->start_time)->format('H:i') : (optional($day['default'])->start_time ? \Carbon\Carbon::parse($day['default']->start_time)->format('H:i') : '') }}',
                                     '{{ optional($day['override'])->end_time ? \Carbon\Carbon::parse($day['override']->end_time)->format('H:i') : (optional($day['default'])->end_time ? \Carbon\Carbon::parse($day['default']->end_time)->format('H:i') : '') }}',
@@ -162,8 +162,8 @@
                                             <div class="space-y-3 p-2">
                                                 <div class="flex flex-wrap items-center gap-2">
                                                     <select x-model="type" @change="handleTypeChange()" class="form-select-sm dark:bg-gray-700 dark:border-gray-600 rounded-md text-sm">
-                                                        <option value="work">時間変更</option>
                                                         <option value="location_only">場所のみ変更</option>
+                                                        <option value="work">時間変更</option>
                                                         <option value="full_day_off">全休</option>
                                                         <option value="am_off">午前休</option>
                                                         <option value="pm_off">午後休</option>

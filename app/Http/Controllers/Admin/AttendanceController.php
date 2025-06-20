@@ -7,7 +7,7 @@ use App\Models\User;
 use App\Models\WorkLog;
 use App\Models\Attendance;
 use App\Models\AttendanceLog; // ▼▼▼【追加】勤怠ログモデルをインポート
-use App\Models\UserHoliday;
+use App\Models\WorkShift;
 use App\Models\Holiday;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
@@ -23,25 +23,28 @@ class AttendanceController extends Controller
         $startDate = $targetMonth->copy()->startOfMonth();
         $endDate = $targetMonth->copy()->endOfMonth();
 
-        // --- 1. 必要なデータを全て取得 ---
+        // --- 1. 必要なデータを全て取得 (ShiftControllerと同様) ---
         $holidays = Holiday::whereBetween('date', [$startDate, $endDate])
             ->get()->keyBy(fn($item) => $item->date->format('Y-m-d'));
 
-        $userHolidays = UserHoliday::where('user_id', $user->id)
+        // ユーザーのスケジュール設定（休日や勤務変更）を一括取得
+        $workShifts = WorkShift::where('user_id', $user->id)
             ->whereBetween('date', [$startDate, $endDate])
             ->get()->keyBy(fn($item) => $item->date->format('Y-m-d'));
-        $workLogs = WorkLog::where('user_id', $user->id)->where('status', 'stopped')
-            ->whereBetween('start_time', [$startDate, $endDate])
-            ->with('task.project', 'task.character')->orderBy('start_time')->get();
-        $attendanceLogs = AttendanceLog::where('user_id', $user->id)
-            ->whereBetween('timestamp', [$startDate, $endDate])->orderBy('timestamp')->get();
 
-        // ▼▼▼ この変数をビューに渡す必要があります ▼▼▼
-        $applicableRates = $user->getApplicableRatesForMonth($targetMonth);
-
+        // 手動編集された勤怠データを取得
         $overriddenAttendances = Attendance::where('user_id', $user->id)
             ->whereBetween('date', [$startDate, $endDate])
             ->get()->keyBy(fn($item) => $item->date->format('Y-m-d'));
+
+        $workLogs = WorkLog::where('user_id', $user->id)->where('status', 'stopped')
+            ->whereBetween('start_time', [$startDate, $endDate])
+            ->with('task.project', 'task.character')->orderBy('start_time')->get();
+
+        $attendanceLogs = AttendanceLog::where('user_id', $user->id)
+            ->whereBetween('timestamp', [$startDate, $endDate])->orderBy('timestamp')->get();
+
+        $applicableRates = $user->getApplicableRatesForMonth($targetMonth);
 
 
         // --- 2. 月の全日分の表示データを生成 ---
@@ -50,28 +53,33 @@ class AttendanceController extends Controller
             $currentDate = $targetMonth->copy()->day($day);
             $dateString = $currentDate->format('Y-m-d');
 
+            // ▼▼▼【ここからロジックを修正】▼▼▼
+            // その日のデータをそれぞれ取得
+            $workShiftForDay = $workShifts->get($dateString); // ユーザー設定
+            $manualAttendance = $overriddenAttendances->get($dateString); // 手動編集データ
+            $dayAttendanceLogs = $attendanceLogs->filter(fn($log) => $log->timestamp->isSameDay($currentDate)); // 勤怠ログ
+
+            // ビューに渡す基本データを作成
             $reportData = [
                 'date' => $currentDate,
-                'user_holiday' => $userHolidays->get($dateString),
                 'public_holiday' => $holidays->get($dateString),
+                'work_shift' => $workShiftForDay, // 'user_holiday'の代わりに'work_shift'として渡す
             ];
 
-            $overrideData = $overriddenAttendances->get($dateString);
-
-            if ($overrideData) {
+            // 表示タイプを決定する
+            if ($manualAttendance) {
+                // 手動編集データが最優先
                 $reportData['type'] = 'edited';
-                $reportData['summary'] = $overrideData;
-                $reportData['logs'] = $workLogs->where('start_time', '>=', $overrideData->start_time)
-                    ->where('end_time', '<=', $overrideData->end_time);
+                $reportData['summary'] = $manualAttendance;
+                $reportData['logs'] = $workLogs->filter(fn($log) => $log->start_time->isSameDay($currentDate));
+            } elseif ($dayAttendanceLogs->isNotEmpty()) {
+                // 勤怠ログがあれば「勤務日」
+                $reportData['type'] = 'workday';
+                $reportData['sessions'] = $this->calculateSessionsFromLogs($dayAttendanceLogs, $workLogs, $user);
             } else {
-                $dayAttendanceLogs = $attendanceLogs->filter(fn($log) => $log->timestamp->isSameDay($currentDate));
-                if ($dayAttendanceLogs->isNotEmpty()) {
-                    $reportData['type'] = 'workday';
-                    $reportData['sessions'] = $this->calculateSessionsFromLogs($dayAttendanceLogs, $workLogs, $user);
-                } else {
-                    $reportData['type'] = 'day_off';
-                    $reportData['sessions'] = [];
-                }
+                // ログがなければ「休日」
+                $reportData['type'] = 'day_off';
+                $reportData['sessions'] = [];
             }
             $monthlyReport[$dateString] = $reportData;
         }

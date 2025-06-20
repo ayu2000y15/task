@@ -2,23 +2,26 @@
 @php
     $summary = $report['summary'];
     $hasLogs = $report['logs']->isNotEmpty();
-    $holidayName = optional($report['public_holiday'])->name ?? optional($report['user_holiday'])->name;
+    // ▼▼▼【ここから修正】'user_holiday'を'work_shift'に変更 ▼▼▼
+    $holidayName = optional($report['public_holiday'])->name;
+    if ($report['work_shift'] && in_array($report['work_shift']->type, ['full_day_off', 'am_off', 'pm_off'])) {
+        $holidayName = $report['work_shift']->name;
+    }
 @endphp
 <tr class="{{ $rowClass }} @if($hasLogs) summary-row hover:bg-gray-50 dark:hover:bg-gray-700/50 @endif" @if($hasLogs)
 data-details-target="details-{{ $date->format('Y-m-d') }}" @endif>
-
     <td class="px-2 py-3 text-center">
         @if($hasLogs)
             <i class="fas fa-chevron-down details-icon text-gray-400"></i>
         @endif
     </td>
-
     <td class="px-2 py-3 whitespace-nowrap">
         <div class="flex items-center justify-between">
             <div>
                 <div class="font-medium">{{ $date->format('n/j') }} ({{ $weekMap[$date->dayOfWeek] }})</div>
                 @if($holidayName)
-                <div class="text-xs text-gray-600 dark:text-gray-400">{{ $holidayName }}</div> @endif
+                    <div class="text-xs text-gray-600 dark:text-gray-400">{{ $holidayName }}</div>
+                @endif
             </div>
         </div>
     </td>

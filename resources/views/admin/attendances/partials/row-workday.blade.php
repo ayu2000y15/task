@@ -3,7 +3,11 @@
     @php
         $hasLogs = $session['logs']->isNotEmpty();
         $dayHasAnyLogs = collect($report['sessions'])->some(fn($s) => $s['logs']->isNotEmpty());
-        $holidayName = optional($report['public_holiday'])->name ?? optional($report['user_holiday'])->name;
+        $holidayName = optional($report['public_holiday'])->name;
+        if (isset($report['work_shift']) && in_array($report['work_shift']->type, ['full_day_off', 'am_off', 'pm_off'])) {
+            // ユーザー設定の休日名があれば、それで祝日名を上書きする
+            $holidayName = $report['work_shift']->name ?? $holidayName;
+        }
     @endphp
     <tr class="{{ $rowClass }} @if($index > 0) !border-t-0 @else border-t-2 border-gray-400 dark:border-gray-500 @endif @if($hasLogs) summary-row hover:bg-gray-50 dark:hover:bg-gray-700/50 @endif"
         @if($hasLogs) data-details-target="details-{{ $date->format('Y-m-d') }}-{{$index}}" @endif>
