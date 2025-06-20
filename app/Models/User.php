@@ -151,16 +151,6 @@ class User extends Authenticatable
     }
 
     /**
-     * ▼▼▼【ここを追加】ユーザーが登録した休日を取得します ▼▼▼
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
-     */
-    public function holidays()
-    {
-        return $this->hasMany(UserHoliday::class);
-    }
-
-    /**
      * このユーザーが作成した依頼
      */
     public function createdRequests(): HasMany
