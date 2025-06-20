@@ -77,12 +77,17 @@ class HomeController extends Controller
         uasort($workItemsByAssignee, fn($a, $b) => strcmp($a['assignee']->name, $b['assignee']->name));
 
         // 出勤中のユーザー情報を取得
+        $searchWindowStart = $targetDate->copy()->endOfDay()->subHours(48);
+
         $latestAttendanceLogs = AttendanceLog::with('user')
             ->whereHas('user', function ($query) {
                 // 有効なユーザーのみを対象とする
                 $query->where('status', '!=', 'inactive');
             })
-            ->whereDate('timestamp', $targetDate)
+            // 検索範囲を48時間に広げる
+            ->where('timestamp', '>=', $searchWindowStart)
+            // 表示している日付より未来のログは含めない
+            ->where('timestamp', '<=', $targetDate->copy()->endOfDay())
             ->orderBy('timestamp', 'desc')
             ->get()
             // 各ユーザーの最新のログ1件に絞り込む
@@ -102,7 +107,6 @@ class HomeController extends Controller
                 return $log;
             })
             ->sortBy(fn($log) => $log->user->name); // ユーザー名でソート
-
 
         // (その他のデータ取得は変更なし)
         $projectCount = Project::count();
