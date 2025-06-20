@@ -8,6 +8,7 @@ use App\Console\Commands\ExportActivityLogCommand; // ★ 追加
 use App\Console\Commands\PruneOldActivityLogsCommand; // ★ 追加
 use App\Console\Commands\BackupTablesToBkCommand;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Stringable;
 
 class Kernel extends ConsoleKernel
 {
@@ -29,45 +30,55 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule): void
     {
-        // ★ 毎日AM2:00に指定テーブルのバックアップを実行するスケジュール
+        $logPath = storage_path('logs/schedule.log'); // ★ ログパスを変数に格納
+
+        // ★ 6時間ごとに指定テーブルのバックアップを実行するスケジュール
         $schedule->command(BackupTablesToBkCommand::class)
-            ->dailyAt('02:00')
-            ->onSuccess(function () {
-                \Illuminate\Support\Facades\Log::channel('schedule')->info('BackupTablesToBkCommand: Schedule completed successfully.');
+            ->everySixHours()
+            ->before(function () {
+                Log::channel('schedule')->info('BackupTablesToBkCommand: 処理を開始します。');
             })
-            ->onFailure(function () {
-                \Illuminate\Support\Facades\Log::channel('schedule')->error('BackupTablesToBkCommand: Schedule failed.');
-            });
+            ->onSuccess(function (Stringable $output) {
+                Log::channel('schedule')->info('BackupTablesToBkCommand: 処理が正常に完了しました。');
+            })
+            ->onFailure(function (Stringable $output) {
+                Log::channel('schedule')->error('BackupTablesToBkCommand: 処理が失敗しました。');
+            })
+            ->appendOutputTo($logPath); // ★ ログパスを統一
+
 
         // ★ 毎日AM3:00に前日のログをCSVにエクスポートするスケジュール
         $schedule->command(ExportActivityLogCommand::class)
             ->dailyAt('03:00')
-            ->onSuccess(function () {
-                // 成功時の処理 (例: ログ出力)
-                \Illuminate\Support\Facades\Log::channel('schedule')->info('ExportActivityLogCommand: Successfully completed.');
+            ->before(function () {
+                Log::channel('schedule')->info('ExportActivityLogCommand: 処理を開始します。');
             })
-            ->onFailure(function () {
-                // 失敗時の処理 (例: エラーログ出力、通知など)
-                \Illuminate\Support\Facades\Log::channel('schedule')->error('ExportActivityLogCommand: Failed.');
-            });
+            ->onSuccess(function (Stringable $output) {
+                Log::channel('schedule')->info('ExportActivityLogCommand: 処理が正常に完了しました。');
+            })
+            ->onFailure(function (Stringable $output) {
+                Log::channel('schedule')->error('ExportActivityLogCommand: 処理が失敗しました。');
+            })
+            ->appendOutputTo($logPath); // ★ ログパスを統一
 
-        // ★ 毎日AM3:30に1年以上古いログをDBから削除するスケジュール (エクスポート後が良いでしょう)
-        $schedule->command(PruneOldActivityLogsCommand::class, ['--days' => 365]) // デフォルトは365日だが明示
+
+        // ★ 毎日AM3:30に1年以上古いログをDBから削除するスケジュール
+        $schedule->command(PruneOldActivityLogsCommand::class, ['--days' => 365])
             ->dailyAt('03:30')
-            ->onSuccess(function () {
-                \Illuminate\Support\Facades\Log::channel('schedule')->info('PruneOldActivityLogsCommand: Successfully completed.');
+            ->before(function () {
+                Log::channel('schedule')->info('PruneOldActivityLogsCommand: 処理を開始します。');
             })
-            ->onFailure(function () {
-                \Illuminate\Support\Facades\Log::channel('schedule')->error('PruneOldActivityLogsCommand: Failed.');
-            });
+            ->onSuccess(function (Stringable $output) {
+                Log::channel('schedule')->info('PruneOldActivityLogsCommand: 処理が正常に完了しました。');
+            })
+            ->onFailure(function (Stringable $output) {
+                Log::channel('schedule')->error('PruneOldActivityLogsCommand: 処理が失敗しました。');
+            })
+            ->appendOutputTo($logPath); // ★ ログパスを統一
 
-        // 1分ごとにキューワーカーを起動し、キューが空なら停止、タイムアウト60秒
+        // (↓これ以降のスケジュールは変更なし)
         $schedule->command('queue:work --stop-when-empty --tries=3 --timeout=60')->everyMinute()->withoutOverlapping();
-
-        // 例: 1時間ごとにバウンスメール処理コマンドを実行
-        $schedule->command('emails:process-bounces')
-            ->hourly() // または ->everyThirtyMinutes() など適切な頻度で
-            ->withoutOverlapping();
+        $schedule->command('emails:process-bounces')->hourly()->withoutOverlapping();
     }
 
     /**

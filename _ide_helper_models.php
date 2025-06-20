@@ -26,6 +26,8 @@ namespace App\Models{
  * @property string $status ステータス: calculated, edited, confirmed
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \Spatie\Activitylog\Models\Activity> $activities
+ * @property-read int|null $activities_count
  * @property-read int $attendance_seconds
  * @property-read float $daily_salary
  * @property-read \App\Models\User $user
@@ -58,6 +60,8 @@ namespace App\Models{
  * @property string|null $memo
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \Spatie\Activitylog\Models\Activity> $activities
+ * @property-read int|null $activities_count
  * @property-read \App\Models\User $user
  * @method static \Illuminate\Database\Eloquent\Builder<static>|AttendanceLog newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|AttendanceLog newQuery()
@@ -1461,6 +1465,8 @@ namespace App\Models{
  * @property string|null $notes
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \Spatie\Activitylog\Models\Activity> $activities
+ * @property-read int|null $activities_count
  * @property-read \App\Models\Project|null $project
  * @property-read \App\Models\User $user
  * @method static \Illuminate\Database\Eloquent\Builder<static>|TransportationExpense newModelQuery()
@@ -1493,6 +1499,9 @@ namespace App\Models{
  * @property string $status
  * @property string|null $hourly_rate
  * @property string $password
+ * @property string|null $default_transportation_departure デフォルト交通費: 出発地
+ * @property string|null $default_transportation_destination デフォルト交通費: 到着地
+ * @property int|null $default_transportation_amount デフォルト交通費: 金額
  * @property string|null $remember_token
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
@@ -1509,8 +1518,6 @@ namespace App\Models{
  * @property-read int|null $board_posts_count
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Request> $createdRequests
  * @property-read int|null $created_requests_count
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\UserHoliday> $holidays
- * @property-read int|null $holidays_count
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\HourlyRate> $hourlyRates
  * @property-read int|null $hourly_rates_count
  * @property-read \Illuminate\Notifications\DatabaseNotificationCollection<int, \Illuminate\Notifications\DatabaseNotification> $notifications
@@ -1527,6 +1534,9 @@ namespace App\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User query()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereAccessId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereDefaultTransportationAmount($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereDefaultTransportationDeparture($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereDefaultTransportationDestination($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereEmail($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereEmailVerifiedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereHourlyRate($value)
@@ -1538,32 +1548,6 @@ namespace App\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereUpdatedAt($value)
  */
 	class User extends \Eloquent {}
-}
-
-namespace App\Models{
-/**
- * 
- *
- * @property int $id
- * @property int|null $user_id
- * @property string $name
- * @property \Illuminate\Support\Carbon $date
- * @property string $period_type
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
- * @property-read \App\Models\User|null $user
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserHoliday newModelQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserHoliday newQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserHoliday query()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserHoliday whereCreatedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserHoliday whereDate($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserHoliday whereId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserHoliday whereName($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserHoliday wherePeriodType($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserHoliday whereUpdatedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserHoliday whereUserId($value)
- */
-	class UserHoliday extends \Eloquent {}
 }
 
 namespace App\Models{
@@ -1620,6 +1604,8 @@ namespace App\Models{
  * @property string|null $location
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \Spatie\Activitylog\Models\Activity> $activities
+ * @property-read int|null $activities_count
  * @property-read \App\Models\User $user
  * @method static \Illuminate\Database\Eloquent\Builder<static>|WorkShift newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|WorkShift newQuery()

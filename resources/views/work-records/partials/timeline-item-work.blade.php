@@ -28,6 +28,9 @@
                 {{ optional($log->end_time)->format('H:i') ?? '継続中' }})</span>
         </span>
 
+        <strong class="font-medium text-gray-600 dark:text-gray-400 text-right">メモ:</strong>
+        <span class="text-gray-700 dark:text-gray-200">{{ $log->memo ?? 'なし' }}</span>
+
     </div>
     {{-- ▲▲▲【変更ここまで】▲▲▲ --}}
 </div>

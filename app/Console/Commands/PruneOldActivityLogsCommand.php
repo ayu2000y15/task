@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use Spatie\Activitylog\Models\Activity;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Log; // ★ Logファサードをuse
 
 class PruneOldActivityLogsCommand extends Command
 {
@@ -13,14 +14,14 @@ class PruneOldActivityLogsCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'activitylog:prune-old {--days=30 : Delete records older than this number of days. Defaults to 30 days.}';
+    protected $signature = 'activitylog:prune-old {--days=30 : 指定した日数より古いレコードを削除します。デフォルトは30日です。}';
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = 'Prune old activity log records from the database (older than 1 year by default).';
+    protected $description = '古いアクティビティログのレコードをデータベースから削除します。';
 
     /**
      * Execute the console command.
@@ -31,11 +32,13 @@ class PruneOldActivityLogsCommand extends Command
     {
         $days = (int) $this->option('days');
         if ($days <= 0) {
-            $this->error('The --days option must be a positive integer.');
+            $this->error('--days オプションには正の整数を指定してください。');
             return Command::FAILURE;
         }
 
-        $this->info("Pruning activity logs older than {$days} days...");
+        $startMessage = "PruneOldActivityLogsCommand: {$days}日より古いアクティビティログを削除します...";
+        $this->info($startMessage);
+        Log::channel('schedule')->info($startMessage); // ★ ログ出力追加
 
         $cutOffDate = Carbon::now()->subDays($days)->startOfDay();
 
@@ -43,12 +46,18 @@ class PruneOldActivityLogsCommand extends Command
             $deletedCount = Activity::where('created_at', '<', $cutOffDate)->delete();
 
             if ($deletedCount > 0) {
-                $this->info("Successfully pruned {$deletedCount} old activity log records created before " . $cutOffDate->toDateString() . ".");
+                $successMessage = "PruneOldActivityLogsCommand: {$cutOffDate->toDateString()} より前に作成された {$deletedCount} 件の古いアクティビティログを正常に削除しました。";
+                $this->info($successMessage);
+                Log::channel('schedule')->info($successMessage); // ★ ログ出力追加
             } else {
-                $this->info('No old activity log records found to prune.');
+                $noRecordsMessage = 'PruneOldActivityLogsCommand: 削除対象の古いアクティビティログは見つかりませんでした。';
+                $this->info($noRecordsMessage);
+                Log::channel('schedule')->info($noRecordsMessage); // ★ ログ出力追加
             }
         } catch (\Exception $e) {
-            $this->error("An error occurred while pruning old activity logs: " . $e->getMessage());
+            $errorMessage = "PruneOldActivityLogsCommand: 古いアクティビティログの削除中にエラーが発生しました: " . $e->getMessage();
+            $this->error($errorMessage);
+            Log::channel('schedule')->error($errorMessage); // ★ ログ出力追加
             return Command::FAILURE;
         }
 

@@ -5,7 +5,7 @@ namespace App\Console\Commands;
 use App\Models\BlacklistEntry;
 use Illuminate\Console\Command;
 use App\Models\SentEmailLog;
-use App\Models\Subscriber; // Subscriberモデルのuseは残しても問題ありませんが、直接の更新はなくなります
+use App\Models\Subscriber;
 use App\Models\SentEmail;
 use Illuminate\Support\Facades\Log;
 use Webklex\PHPIMAP\ClientManager;
@@ -16,12 +16,12 @@ use Illuminate\Support\Str;
 class ProcessBouncedEmails extends Command
 {
     protected $signature = 'emails:process-bounces';
-    protected $description = 'Checks the bounce mailbox, updates sent email log statuses, and blacklists hard bounces.'; // 説明を調整
+    protected $description = 'バウンスメールボックスを確認し、送信メールログのステータスを更新し、ハードバウンスをブラックリストに登録します。';
 
     public function handle(): int
     {
-        $this->info('Starting to process bounced emails...');
-        Log::info('ProcessBouncedEmails command started.');
+        $this->info('バウンスメールの処理を開始します...');
+        Log::channel('schedule')->info('ProcessBouncedEmails コマンドを開始しました。');
 
         $config = [
             'host'          => config('mail.bounce_mailbox.host'),
@@ -34,8 +34,8 @@ class ProcessBouncedEmails extends Command
         ];
 
         if (empty($config['host']) || empty($config['username']) || empty($config['password'])) {
-            $this->error('Bounce mailbox connection details are not configured correctly.');
-            Log::error('ProcessBouncedEmails: Bounce mailbox connection details not configured.');
+            $this->error('バウンスメールボックスの接続情報が正しく設定されていません。');
+            Log::channel('schedule')->error('ProcessBouncedEmails: バウンスメールボックスの接続情報が設定されていません。');
             return Command::FAILURE;
         }
 
@@ -43,21 +43,20 @@ class ProcessBouncedEmails extends Command
             $clientManager = new ClientManager();
             $client = $clientManager->make($config);
             $client->connect();
-            $this->info("Successfully connected to the bounce mailbox: " . $config['host']);
+            $this->info("バウンスメールボックスへの接続に成功しました: " . $config['host']);
 
             $inbox = $client->getFolder('INBOX');
             $messages = $inbox->messages()->unseen()->leaveUnread(false)->get();
 
             if ($messages->isEmpty()) {
-                $this->info('No new bounced emails to process.');
-                Log::info('ProcessBouncedEmails: No new messages found.');
+                $this->info('処理対象の新しいバウンスメールはありません。');
+                Log::channel('schedule')->info('ProcessBouncedEmails: 新しいメッセージは見つかりませんでした。');
                 return Command::SUCCESS;
             }
 
-            $this->info("Found {$messages->count()} new messages to process.");
+            $this->info("処理対象の新しいメッセージを {$messages->count()} 件見つけました。");
             $processedCount = 0;
             $updatedLogCount = 0;
-            // $updatedSubscriberCount = 0; // ★ 購読者更新数のカウントを削除
             $blacklistedCount = 0;
 
             foreach ($messages as $message) {
@@ -65,19 +64,19 @@ class ProcessBouncedEmails extends Command
                 $uid = $message->getUid();
                 $messageSubjectHeader = $message->getSubject();
                 $subjectString = $messageSubjectHeader instanceof Header ? $messageSubjectHeader->toString() : (is_string($messageSubjectHeader) ? $messageSubjectHeader : 'N/A');
-                $this->line("Processing message UID: {$uid} Subject: {$subjectString}");
-                Log::info("ProcessBouncedEmails: Processing UID {$uid}, Subject: {$subjectString}");
+                $this->line("メッセージを処理中 UID: {$uid} 件名: {$subjectString}");
+                Log::channel('schedule')->info("ProcessBouncedEmails: UID {$uid} を処理中, 件名: {$subjectString}");
 
                 $messageIdentifier = null;
                 $sentEmailLog = null;
                 $processedThisMessageByFallback = false;
                 $parsedBounceReasonFromBody = null;
 
-                // Attempt 1-4: Find X-Mailer-Message-Identifier (既存のロジック)
+                // 試行1-4: X-Mailer-Message-Identifier の探索
                 $customIdentifierHeader = $message->getHeader('x-mailer-message-identifier');
                 if ($customIdentifierHeader instanceof Header && $customIdentifierHeader->count() > 0) {
                     $messageIdentifier = trim($customIdentifierHeader->first());
-                    Log::info("ProcessBouncedEmails (UID {$uid}): Found X-Mailer-Message-Identifier in direct headers: {$messageIdentifier}");
+                    Log::channel('schedule')->info("ProcessBouncedEmails (UID {$uid}): X-Mailer-Message-Identifierを直接のヘッダーで発見: {$messageIdentifier}");
                 }
                 if (empty($messageIdentifier) && $message->hasAttachments()) {
                     $attachments = $message->getAttachments();
@@ -87,7 +86,7 @@ class ProcessBouncedEmails extends Command
                                 $content = $attachment->getContent();
                                 if (preg_match('/^X-Mailer-Message-Identifier:\s*(.*)$/im', (string)$content, $matches)) {
                                     $messageIdentifier = trim($matches[1]);
-                                    Log::info("ProcessBouncedEmails (UID {$uid}): Found X-Mailer-Message-Identifier in attachment: {$messageIdentifier}");
+                                    Log::channel('schedule')->info("ProcessBouncedEmails (UID {$uid}): X-Mailer-Message-Identifierを添付ファイル内で発見: {$messageIdentifier}");
                                     break;
                                 }
                             }
@@ -101,7 +100,7 @@ class ProcessBouncedEmails extends Command
                             if (is_object($part) && isset($part->content_type) && strtolower($part->content_type) == 'message/rfc822' && isset($part->content)) {
                                 if (preg_match('/^X-Mailer-Message-Identifier:\s*(.*)$/im', (string)$part->content, $matches)) {
                                     $messageIdentifier = trim($matches[1]);
-                                    Log::info("ProcessBouncedEmails (UID {$uid}): Found X-Mailer-Message-Identifier in part: {$messageIdentifier}");
+                                    Log::channel('schedule')->info("ProcessBouncedEmails (UID {$uid}): X-Mailer-Message-Identifierをパート内で発見: {$messageIdentifier}");
                                     break;
                                 }
                             }
@@ -111,27 +110,27 @@ class ProcessBouncedEmails extends Command
                 if (empty($messageIdentifier)) {
                     $bodyForSearch = ($message->hasTextBody() ? $message->getTextBody() : "") . "\n" . ($message->hasHTMLBody() ? $message->getHTMLBody() : "");
                     if (!empty($bodyForSearch)) {
-                        Log::debug("ProcessBouncedEmails (UID {$uid}): Searching for X-Mailer-Message-Identifier in body.", ['body_snippet' => Str::limit($bodyForSearch, 200)]);
+                        Log::channel('schedule')->debug("ProcessBouncedEmails (UID {$uid}): 本文内でX-Mailer-Message-Identifierを探索中...", ['body_snippet' => Str::limit($bodyForSearch, 200)]);
                         if (preg_match('/(?:^|\n|\r)\s*X-Mailer-Message-Identifier:\s*([^\s\n\r]+)/im', $bodyForSearch, $matches)) {
                             $messageIdentifier = trim($matches[1]);
-                            Log::info("ProcessBouncedEmails (UID {$uid}): Found X-Mailer-Message-Identifier in body: {$messageIdentifier}");
+                            Log::channel('schedule')->info("ProcessBouncedEmails (UID {$uid}): X-Mailer-Message-Identifierを本文内で発見: {$messageIdentifier}");
                         }
                     }
                 }
 
-                // --- Main Processing Logic ---
+                // --- メイン処理ロジック ---
                 if (!empty($messageIdentifier)) {
-                    $sentEmailLog = SentEmailLog::where('message_identifier', $messageIdentifier)
+                    $sentEmailLog = SentEmailLog::channel('schedule')->where('message_identifier', $messageIdentifier)
                         ->whereIn('status', ['queued', 'sent'])
                         ->first();
                     if (!$sentEmailLog) {
-                        Log::warning("ProcessBouncedEmails (UID {$uid}): Identifier '{$messageIdentifier}' found, but no matching SentEmailLog. Bounce not processed against a log for this identifier.");
+                        Log::channel('schedule')->warning("ProcessBouncedEmails (UID {$uid}): 識別子 '{$messageIdentifier}' は見つかりましたが、一致するSentEmailLogがありません。この識別子でのバウンス処理は行われません。");
                     }
                 } else {
-                    // --- Attempt 5: Fallback - Identify by recipient email in bounce body ---
-                    Log::info("ProcessBouncedEmails (UID {$uid}): X-Mailer-Message-Identifier not found. Attempting fallback by recipient email.");
+                    // --- 試行5: フォールバック - バウンス本文内の受信者メールアドレスで特定 ---
+                    Log::channel('schedule')->info("ProcessBouncedEmails (UID {$uid}): X-Mailer-Message-Identifierが見つかりません。受信者メールアドレスによるフォールバックを試みます。");
                     $bouncedRecipientEmail = null;
-                    $parsedBounceReasonFromBody = "Bounce (UID: {$uid})";
+                    $parsedBounceReasonFromBody = "バウンス (UID: {$uid})";
 
                     $fallbackBodySearch = "";
                     $textBody = $message->getTextBody();
@@ -140,11 +139,11 @@ class ProcessBouncedEmails extends Command
                     if (is_string($htmlBody) && !empty($htmlBody)) $fallbackBodySearch .= "\n" . $htmlBody;
 
                     if (!empty($fallbackBodySearch)) {
-                        Log::debug("ProcessBouncedEmails (UID {$uid}): Fallback search in body.", ['body_snippet' => Str::limit($fallbackBodySearch, 500)]);
+                        Log::channel('schedule')->debug("ProcessBouncedEmails (UID {$uid}): 本文内でフォールバック検索中...", ['body_snippet' => Str::limit($fallbackBodySearch, 500)]);
                         if (preg_match('/<([^>@\s]+@[^>@\s]+)>[:\s]+(.+)/im', $fallbackBodySearch, $matchesEmailReason)) {
                             $bouncedRecipientEmail = trim($matchesEmailReason[1]);
                             $parsedBounceReasonFromBody = trim($matchesEmailReason[2]);
-                            Log::info("ProcessBouncedEmails (UID {$uid}): Fallback parsed recipient '{$bouncedRecipientEmail}' and reason '{$parsedBounceReasonFromBody}' from body (Pattern <email>:reason).");
+                            Log::channel('schedule')->info("ProcessBouncedEmails (UID {$uid}): フォールバックにより、本文から受信者 '{$bouncedRecipientEmail}' と理由 '{$parsedBounceReasonFromBody}' を解析しました (パターン <email>:reason)。");
                         } elseif (preg_match_all('/(?:Failed Recipient|Final-Recipient)\s*:\s*(?:rfc822\s*;\s*)?([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i', $fallbackBodySearch, $recipientMatches)) {
                             if (!empty($recipientMatches[1])) {
                                 $bouncedRecipientEmail = trim($recipientMatches[1][0]);
@@ -153,31 +152,31 @@ class ProcessBouncedEmails extends Command
                                 } elseif (preg_match('/Status\s*:\s*(\d\.\d\.\d+)/im', $fallbackBodySearch, $statusMatches)) {
                                     $parsedBounceReasonFromBody = "Status: " . trim($statusMatches[1]);
                                 }
-                                Log::info("ProcessBouncedEmails (UID {$uid}): Fallback parsed recipient '{$bouncedRecipientEmail}' from body (Pattern Final-Recipient). Reason hint: {$parsedBounceReasonFromBody}");
+                                Log::channel('schedule')->info("ProcessBouncedEmails (UID {$uid}): フォールバックにより、本文から受信者 '{$bouncedRecipientEmail}' を解析しました (パターン Final-Recipient)。理由のヒント: {$parsedBounceReasonFromBody}");
                             }
                         }
                     }
 
                     if ($bouncedRecipientEmail) {
-                        $sentEmailLog = SentEmailLog::where('recipient_email', $bouncedRecipientEmail)
+                        $sentEmailLog = SentEmailLog::channel('schedule')->where('recipient_email', $bouncedRecipientEmail)
                             ->whereIn('status', ['sent', 'queued'])
                             ->orderBy('created_at', 'desc')
                             ->first();
 
                         if ($sentEmailLog) {
-                            Log::info("ProcessBouncedEmails (UID {$uid}): Fallback found SentEmailLog ID {$sentEmailLog->id} for recipient {$bouncedRecipientEmail}. Base reason: '{$parsedBounceReasonFromBody}'");
+                            Log::channel('schedule')->info("ProcessBouncedEmails (UID {$uid}): フォールバックにより、受信者 {$bouncedRecipientEmail} のSentEmailLog ID {$sentEmailLog->id} を発見しました。理由のベース: '{$parsedBounceReasonFromBody}'");
                             $processedThisMessageByFallback = true;
                         } else {
-                            Log::warning("ProcessBouncedEmails (UID {$uid}): Fallback parsed recipient {$bouncedRecipientEmail}, but no matching 'sent' or 'queued' SentEmailLog found.");
+                            Log::channel('schedule')->warning("ProcessBouncedEmails (UID {$uid}): フォールバックで受信者 {$bouncedRecipientEmail} を解析しましたが、一致する 'sent' または 'queued' 状態のSentEmailLogが見つかりませんでした。");
                         }
                     } else {
-                        Log::warning("ProcessBouncedEmails (UID {$uid}): Fallback could not parse a recipient email from body.");
+                        Log::channel('schedule')->warning("ProcessBouncedEmails (UID {$uid}): フォールバックで本文から受信者のメールアドレスを解析できませんでした。");
                     }
                 }
 
-                // --- Process DSN and Update Log (if $sentEmailLog is set by either method) ---
+                // --- DSNの処理とログの更新 (いずれかの方法で $sentEmailLog が設定された場合) ---
                 if ($sentEmailLog) {
-                    $baseReasonForDsnParsing = $processedThisMessageByFallback ? ($parsedBounceReasonFromBody ?? "Fallback Bounce (UID: {$uid})") : "Bounce (ID Match; UID: {$uid})";
+                    $baseReasonForDsnParsing = $processedThisMessageByFallback ? ($parsedBounceReasonFromBody ?? "フォールバックによるバウンス (UID: {$uid})") : "バウンス (ID一致; UID: {$uid})";
                     list($finalBounceReason, $isHardBounce) = $this->parseDsnDetailsFromMessage($message, $uid, $subjectString, $baseReasonForDsnParsing);
 
                     // 1. SentEmailLogのステータスを 'bounced' に更新
@@ -186,74 +185,63 @@ class ProcessBouncedEmails extends Command
                     $sentEmailLog->processed_at = now();
                     $sentEmailLog->save();
                     $updatedLogCount++;
-                    Log::info("SentEmailLog ID {$sentEmailLog->id} updated to 'bounced'. Reason: {$finalBounceReason}. Hard bounce: " . ($isHardBounce ? "Yes" : "No"));
+                    Log::channel('schedule')->info("SentEmailLog ID {$sentEmailLog->id} を 'bounced' に更新しました。理由: {$finalBounceReason}。ハードバウンス: " . ($isHardBounce ? "はい" : "いいえ"));
 
-                    // ★★★ ここから修正・追加 ★★★
-                    // 2. バウンスが確認された時点で、関連する購読者のステータスを「解除済」に更新します。
-                    //    これはソフト・ハード問わず全てのバウンスで実行されます。
+                    // 2. バウンスが確認された時点で、関連する購読者のステータスを「解除済」に更新
                     if ($sentEmailLog->subscriber) {
                         $subscriber = $sentEmailLog->subscriber;
                         if ($subscriber->status !== 'unsubscribed') {
                             $subscriber->status = 'unsubscribed';
-                            $subscriber->unsubscribed_at = now(); // 解除日時を記録
+                            $subscriber->unsubscribed_at = now();
                             $subscriber->save();
-                            Log::info("Subscriber ID {$subscriber->id} (Email: {$subscriber->email}) status updated to 'unsubscribed' due to bounce.");
+                            Log::channel('schedule')->info("バウンスのため、購読者ID {$subscriber->id} (Email: {$subscriber->email}) のステータスを「解除済」に更新しました。");
                         }
                     }
-                    // ★★★ ここまで修正・追加 ★★★
 
-                    // 3. ハードバウンスの場合、さらにブラックリストへの登録とManagedContactの更新を実行します。
+                    // 3. ハードバウンスの場合、ブラックリスト登録と連絡先担当者の更新を実行
                     if ($isHardBounce) {
                         $emailToBlacklist = $sentEmailLog->recipient_email;
 
-                        // ブラックリストに登録
                         $blacklistEntry = BlacklistEntry::firstOrCreate(
                             ['email' => $emailToBlacklist],
-                            [
-                                'reason' => Str::limit("Hard bounce: " . $finalBounceReason, 255),
-                                'added_by_user_id' => null
-                            ]
+                            ['reason' => Str::limit("ハードバウンス: " . $finalBounceReason, 255), 'added_by_user_id' => null]
                         );
                         if ($blacklistEntry->wasRecentlyCreated) {
-                            Log::info("ProcessBouncedEmails (UID {$uid}): Email {$emailToBlacklist} added to blacklist due to hard bounce.");
+                            Log::channel('schedule')->info("ProcessBouncedEmails (UID {$uid}): ハードバウンスのため、メールアドレス {$emailToBlacklist} をブラックリストに追加しました。");
                             $blacklistedCount++;
                         } else {
-                            Log::info("ProcessBouncedEmails (UID {$uid}): Email {$emailToBlacklist} was already in blacklist (hard bounce detected again).");
+                            Log::channel('schedule')->info("ProcessBouncedEmails (UID {$uid}): メールアドレス {$emailToBlacklist} は既にブラックリストに登録されていました（ハードバウンスを再検出）。");
                         }
 
-                        // 関連するManagedContactのステータスを更新
                         if ($sentEmailLog->subscriber && $sentEmailLog->subscriber->managedContact) {
                             $contact = $sentEmailLog->subscriber->managedContact;
-
                             if ($contact->status === 'active') {
                                 $contact->status = 'do_not_contact';
                                 $note = "自動更新: メールがハードバウンスしたためステータスを「連絡不要」に変更 (" . now()->format('Y-m-d') . ")";
                                 $contact->notes = trim(($contact->notes ? $contact->notes . "\n" : "") . $note);
                                 $contact->save();
-                                Log::info("ManagedContact ID {$contact->id} (Email: {$contact->email}) status updated to 'do_not_contact' due to hard bounce.");
+                                Log::channel('schedule')->info("ハードバウンスのため、連絡先担当者ID {$contact->id} (Email: {$contact->email}) のステータスを「連絡不要」に更新しました。");
                             }
                         } else {
-                            Log::warning("ProcessBouncedEmails (UID {$uid}): Could not find associated ManagedContact for SentEmailLog ID {$sentEmailLog->id} to update status.");
+                            Log::channel('schedule')->warning("ProcessBouncedEmails (UID {$uid}): ステータスを更新する対象の連絡先担当者が見つかりませんでした (SentEmailLog ID {$sentEmailLog->id})。");
                         }
                     }
 
                     $this->updateParentSentEmailStatusIfNeeded($sentEmailLog->sent_email_id);
-
                     $message->setFlag('Seen');
                     $processedCount++;
                 } else {
-                    Log::warning("ProcessBouncedEmails (UID {$uid}): No SentEmailLog to update. Message will be marked as seen and skipped.", ['subject' => $subjectString, 'identifier_found' => !empty($messageIdentifier)]);
+                    Log::channel('schedule')->warning("ProcessBouncedEmails (UID {$uid}): 更新対象のSentEmailLogがありません。このメッセージは既読にしてスキップします。", ['subject' => $subjectString, 'identifier_found' => !empty($messageIdentifier)]);
                     $message->setFlag('Seen');
                 }
-            } // End foreach message
+            } // foreach終了
 
-            // ★ ログメッセージから $updatedSubscriberCount を削除
-            $this->info("Finished processing. Total new: {$messages->count()}, Processed: {$processedCount}, Updated Logs: {$updatedLogCount}, Added to Blacklist: {$blacklistedCount}.");
-            Log::info("ProcessBouncedEmails command finished. Total new: {$messages->count()}, Processed: {$processedCount}, Updated Logs: {$updatedLogCount}, Blacklisted: {$blacklistedCount}.");
+            $this->info("処理を終了しました。新規合計: {$messages->count()}, 処理済: {$processedCount}, ログ更新数: {$updatedLogCount}, ブラックリスト追加数: {$blacklistedCount}.");
+            Log::channel('schedule')->info("ProcessBouncedEmails コマンドを終了しました。新規合計: {$messages->count()}, 処理済: {$processedCount}, ログ更新数: {$updatedLogCount}, ブラックリスト追加数: {$blacklistedCount}.");
             return Command::SUCCESS;
         } catch (\Throwable $e) {
-            $this->error("An error occurred while processing bounces: " . $e->getMessage());
-            Log::error("ProcessBouncedEmails CRITICAL error: " . $e->getMessage() . "\n" . $e->getTraceAsString());
+            $this->error("バウンスメールの処理中にエラーが発生しました: " . $e->getMessage());
+            Log::channel('schedule')->error("ProcessBouncedEmails 重大エラー: " . $e->getMessage() . "\n" . $e->getTraceAsString());
             return Command::FAILURE;
         }
     }
@@ -285,12 +273,12 @@ class ProcessBouncedEmails extends Command
                         if (Str::startsWith($matchesStatus[1], '5.')) $isHardBounce = true;
                         else if (Str::startsWith($matchesStatus[1], '4.')) $isHardBounce = false;
                     }
-                    Log::info("ProcessBouncedEmails (UID {$uid}): Parsed DSN part. Reason: {$bounceReason}, Initial HardBounce: " . ($isHardBounce ? "Yes" : "No"));
+                    Log::channel('schedule')->info("ProcessBouncedEmails (UID {$uid}): DSNパートを解析しました。理由: {$bounceReason}, 初期ハードバウンス判定: " . ($isHardBounce ? "はい" : "いいえ"));
                     break;
                 }
             }
         } else {
-            Log::warning("ProcessBouncedEmails (UID {$uid}): getParts() non-iterable for DSN parsing. Relying on reason: '{$defaultReason}'.", ['subject' => $subjectString]);
+            Log::channel('schedule')->warning("ProcessBouncedEmails (UID {$uid}): DSN解析でgetParts()がイテレート不可能でした。理由: '{$defaultReason}' に基づいて処理を継続します。", ['subject' => $subjectString]);
         }
 
         if (!$diagnosticCode) {
@@ -301,7 +289,7 @@ class ProcessBouncedEmails extends Command
             }
         }
         if (Str::contains($bounceReason, ['Host not found', 'Host or domain name not found', 'Name service error for name='], true) && !$isHardBounce) {
-            Log::info("ProcessBouncedEmails (UID {$uid}): Reason '{$bounceReason}' suggests hard bounce, setting isHardBounce to true.");
+            Log::channel('schedule')->info("ProcessBouncedEmails (UID {$uid}): 理由 '{$bounceReason}' がハードバウンスを示唆するため、isHardBounceをtrueに設定します。");
             $isHardBounce = true;
         }
 
@@ -334,7 +322,7 @@ class ProcessBouncedEmails extends Command
         if ($sentEmail->status !== $newStatus) {
             $sentEmail->status = $newStatus;
             $sentEmail->save();
-            Log::info("Parent SentEmail ID {$sentEmailId} status updated to '{$newStatus}'. Stats: S:{$successful}, F/B:{$bouncedOrFailed}, Skip:{$skipped}, Queue:{$stillQueued}, Total:{$totalLogs}, InitialTargets: {$initialTargetCount}");
+            Log::channel('schedule')->info("親のSentEmail ID {$sentEmailId} のステータスを '{$newStatus}' に更新しました。統計: 成功:{$successful}, 失敗/バウンス:{$bouncedOrFailed}, スキップ:{$skipped}, キュー内:{$stillQueued}, 合計:{$totalLogs}, 初期対象:{$initialTargetCount}");
         }
     }
 }

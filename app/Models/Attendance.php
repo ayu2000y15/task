@@ -6,10 +6,12 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Carbon\Carbon;
+use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\Activitylog\LogOptions;
 
 class Attendance extends Model
 {
-    use HasFactory;
+    use HasFactory, LogsActivity;
 
     protected $fillable = [
         'user_id',
@@ -54,5 +56,30 @@ class Attendance extends Model
             return 0;
         }
         return ($this->actual_work_seconds / 3600) * $hourlyRate;
+    }
+
+    // アクティビティログのオプション設定
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly($this->fillable)
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->setDescriptionForEvent(fn(string $eventName) => "日次勤怠(ID:{$this->id})が {$this->getEventDescription($eventName)}されました");
+    }
+
+    // イベント名を日本語に変換するヘルパーメソッド
+    protected function getEventDescription(string $eventName): string
+    {
+        switch ($eventName) {
+            case 'created':
+                return '作成';
+            case 'updated':
+                return '更新';
+            case 'deleted':
+                return '削除';
+            default:
+                return $eventName;
+        }
     }
 }

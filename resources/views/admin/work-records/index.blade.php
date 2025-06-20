@@ -8,9 +8,9 @@
 
 @section('content')
     <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8" x-data="{
-        filtersOpen: {{ count(array_filter(request()->except(['page', 'sort', 'direction']))) > 0 ? 'true' : 'false' }},
-        rateFormOpen: false
-        }">
+                                filtersOpen: {{ count(array_filter(request()->except(['page', 'sort', 'direction']))) > 0 ? 'true' : 'false' }},
+                                rateFormOpen: false
+                                }">
 
         <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
             <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-200">作業実績一覧 (管理者用)</h1>
@@ -66,7 +66,8 @@
                                     <input type="hidden" name="rates[{{ $loop->index }}][user_id]" value="{{ $user->id }}">
                                     <td
                                         class="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
-                                        {{ $user->name }}</td>
+                                        {{ $user->name }}
+                                    </td>
                                     {{-- ▼▼▼【変更箇所】過去2回分の時給を表示するロジック ▼▼▼ --}}
                                     <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                                         @forelse($user->hourlyRates as $rate)
@@ -227,7 +228,7 @@
                                 時給</th>
                             @include('admin.work-records.partials.sortable-th', ['label' => '概算給与', 'sortKey' => 'salary', 'currentSort' => $sort, 'currentDirection' => $direction])
                             <th scope="col"
-                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider min-[180px]:">
                                 メモ</th>
                         </tr>
                     </thead>
@@ -269,8 +270,8 @@
                                         -
                                     @endif
                                 </td>
-                                <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 whitespace-pre-wrap">
-                                    {{ $log->memo }}
+                                <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 ">
+                                    {!! nl2br($log->memo) !!}
                                 </td>
                             </tr>
                         @empty
