@@ -162,7 +162,7 @@ return [
         'parent_id' => '親工程',
         'status' => 'ステータス',
         'color' => '工程カラー',
-        'is_milestone' => '重要納期',
+        'is_milestone' => '予定',
         'is_folder' => 'フォルダ',
     ],
 ];

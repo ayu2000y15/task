@@ -23,13 +23,26 @@
                 <x-secondary-button as="a" href="{{ route('shifts.default.edit') }}">
                     <i class="fas fa-cog mr-2"></i> デフォルトパターン設定
                 </x-secondary-button>
-                <form action="{{ route('transportation-expenses.batch-store') }}" method="POST" onsubmit="return confirm('{{ $targetMonth->format('Y年n月') }}の未登録の出勤日に、デフォルト交通費を一括登録します。よろしいですか？');">
+                {{-- ▼▼▼【ここから変更】▼▼▼ --}}
+                <form action="{{ route('transportation-expenses.batch-store') }}" method="POST"
+                    onsubmit="
+                        // デフォルト交通費が設定されているかチェック
+                        if (!{{ auth()->user()->default_transportation_amount > 0 ? 'true' : 'false' }}) {
+                            alert('デフォルトの交通費が設定されていません。先に「デフォルトパターン設定」から交通費を登録してください。');
+                            return false; // フォームの送信を中止
+                        }
+                        // 確認ダイアログを表示
+                        return confirm('{{ $targetMonth->format('Y年n月') }}の未登録の出勤日に、デフォルト交通費を一括登録します。よろしいですか？');
+                    "
+                >
                     @csrf
                     <input type="hidden" name="month" value="{{ $targetMonth->format('Y-m') }}">
-                    <x-primary-button type="submit" :disabled="!auth()->user()->default_transportation_amount">
+                    {{-- disabled属性を削除 --}}
+                    <x-primary-button type="submit">
                         <i class="fas fa-bus mr-2"></i> 交通費一括登録
                     </x-primary-button>
                 </form>
+                {{-- ▲▲▲【ここまで変更】▲▲▲ --}}
             </div>
 
 

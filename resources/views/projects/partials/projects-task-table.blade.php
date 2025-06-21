@@ -161,7 +161,7 @@
                                 </div>
                             </td>
                             @endcan
-                        @elseif(!($isFolderView ?? false)) {{-- 通常の工程または重要納期の場合 --}}
+                        @elseif(!($isFolderView ?? false)) {{-- 通常の工程または予定の場合 --}}
                             {{-- ▼▼▼【追加】時間記録用のセルとボタン表示ロジック ▼▼▼ --}}
                             <td class="px-4 py-3 align-top">
                                 @if(!$task->is_folder && !$task->is_milestone)
@@ -222,7 +222,7 @@
                                             @endif
                                         </div>
                                         <span class="task-status-icon-wrapper mr-2 mt-1 flex-shrink-0">
-                                            @if($task->is_milestone) <i class="fas fa-flag text-red-500" title="重要納期"></i>
+                                            @if($task->is_milestone) <i class="fas fa-flag text-red-500" title="予定"></i>
                                             @elseif($task->is_folder) <i class="fas fa-folder text-blue-500" title="フォルダ"></i>
                                             @else
                                                 @switch($task->status)

@@ -187,17 +187,30 @@ class TaskController extends Controller
             ->get();
 
         if ($request->ajax()) {
-            $tasksToList = $tasks->where('is_milestone', false)->where('is_folder', false);
-            $tableId = 'task-table-index';
+            $isMilestoneView = $request->input('list_type') === 'milestones';
 
-            $html = view('tasks.partials.task-table', compact(
-                'tasksToList',
-                'assigneeOptions',
-                'sortBy',
-                'sortOrder',
-                'tableId'
-            ))->render();
+            if ($isMilestoneView) {
+                $tasksToList = $tasks->where('is_milestone', true);
+                $viewParams = [
+                    'tasksToList' => $tasksToList,
+                    'tableId' => 'milestones-list-table',
+                    'isMilestoneView' => true,
+                    'assigneeOptions' => $assigneeOptions,
+                    'sortBy' => $sortBy,
+                    'sortOrder' => $sortOrder,
+                ];
+            } else {
+                $tasksToList = $tasks->where('is_milestone', false)->where('is_folder', false);
+                $viewParams = [
+                    'tasksToList' => $tasksToList,
+                    'tableId' => 'tasks-list-table',
+                    'assigneeOptions' => $assigneeOptions,
+                    'sortBy' => $sortBy,
+                    'sortOrder' => $sortOrder,
+                ];
+            }
 
+            $html = view('tasks.partials.task-table', $viewParams)->render();
             return response()->json(['html' => $html]);
         }
 
@@ -226,6 +239,9 @@ class TaskController extends Controller
             $parentTask = Task::findOrFail($request->parent);
         }
 
+        $preselectedType = $request->query('type', 'task');
+        $preselectedDate = $request->query('date', now()->format('Y-m-d'));
+
         $potentialParentTasks = $project->tasks()
             ->with('character')
             ->where('is_folder', false)
@@ -246,7 +262,17 @@ class TaskController extends Controller
         $assigneeOptions = User::where('status', User::STATUS_ACTIVE)->orderBy('name')->pluck('name', 'id');
         $selectedAssignees = old('assignees', []); // バリデーション失敗時のための選択済み担当者
 
-        return view('tasks.create', compact('project', 'parentTask', 'processTemplates', 'parentTaskOptions', 'characterParentTaskIds', 'assigneeOptions', 'selectedAssignees'));
+        return view('tasks.create', compact(
+            'project',
+            'parentTask',
+            'processTemplates',
+            'parentTaskOptions',
+            'characterParentTaskIds',
+            'assigneeOptions',
+            'selectedAssignees',
+            'preselectedType',
+            'preselectedDate'
+        ));
     }
 
     public function store(Request $request, Project $project): \Illuminate\Http\RedirectResponse
@@ -268,7 +294,7 @@ class TaskController extends Controller
                 'nullable',
                 'date',
                 Rule::requiredIf(fn() => $taskTypeInput === 'task'),
-                Rule::prohibitedIf(fn() => $taskTypeInput === 'milestone'),
+                // Rule::prohibitedIf(fn() => $taskTypeInput === 'milestone'),
                 function ($attribute, $value, $fail) use ($request) {
                     if ($request->filled('start_date') && $request->filled($attribute)) {
                         if (Carbon::parse($value)->lt(Carbon::parse($request->input('start_date')))) {
@@ -347,10 +373,13 @@ class TaskController extends Controller
             $baseTaskData['progress'] = $isFolder ? null : 0;
             $baseTaskData['status'] = $isFolder ? null : ($validated['status'] ?? 'not_started');
         } elseif ($isMilestone) {
-            $startDate = isset($validated['start_date']) ? Carbon::parse($validated['start_date']) : null;
-            $baseTaskData['start_date'] = $startDate;
-            $baseTaskData['end_date'] = $startDate ? $startDate->copy() : null;
-            $baseTaskData['duration'] = 0;
+            $baseTaskData['start_date'] = isset($validated['start_date']) ? Carbon::parse($validated['start_date']) : null;
+            // 終了日時をリクエストから受け取るように変更
+            $baseTaskData['end_date'] = isset($validated['end_date']) ? Carbon::parse($validated['end_date']) : $baseTaskData['start_date'];
+            $baseTaskData['duration'] = 0; // マイルストーンの工数は0固定
+            // キャラクターと親工程を強制的にnullにする
+            $baseTaskData['character_id'] = null;
+            $baseTaskData['parent_id'] = null;
         } else {
             $durationValue = (float)$validated['duration_value'];
             $durationUnit = $validated['duration_unit'];
@@ -462,6 +491,15 @@ class TaskController extends Controller
         $this->authorize('update', $task);
         $project->load(['characters', 'tasks.assignees']); // ★ assigneesをロード
 
+        $taskType = 'task';
+        if ($task->is_milestone) {
+            $taskType = 'milestone';
+        } elseif ($task->is_folder) {
+            $taskType = 'folder';
+        } elseif (!$task->start_date && !$task->end_date && !$task->is_milestone && !$task->is_folder) {
+            $taskType = 'todo_task';
+        }
+
         $files = $task->is_folder ? $task->files()->orderBy('original_name')->get() : collect();
 
         $descendantAndSelfIds = $task->getAllDescendants()->pluck('id')->push($task->id)->all();
@@ -487,7 +525,16 @@ class TaskController extends Controller
         $assigneeOptions = User::where('status', User::STATUS_ACTIVE)->orderBy('name')->pluck('name', 'id');
         $selectedAssignees = old('assignees', $task->assignees->pluck('id')->toArray());
 
-        return view('tasks.edit', compact('project', 'task', 'files', 'parentTaskOptions', 'characterParentTaskIds', 'assigneeOptions', 'selectedAssignees'));
+        return view('tasks.edit', compact(
+            'project',
+            'task',
+            'taskType',
+            'files',
+            'parentTaskOptions',
+            'characterParentTaskIds',
+            'assigneeOptions',
+            'selectedAssignees'
+        ));
     }
 
 
@@ -513,7 +560,7 @@ class TaskController extends Controller
                 'nullable',
                 'date',
                 Rule::requiredIf(fn() => $currentTaskType === 'task'),
-                Rule::prohibitedIf(fn() => $currentTaskType === 'milestone'),
+                // Rule::prohibitedIf(fn() => $currentTaskType === 'milestone'),
                 function ($attribute, $value, $fail) use ($request) {
                     if ($request->filled('start_date') && $request->filled($attribute)) {
                         if (Carbon::parse($value)->lt(Carbon::parse($request->input('start_date')))) {
@@ -590,11 +637,14 @@ class TaskController extends Controller
             $taskDataForCurrent['end_date'] = $task->end_date;
             $taskDataForCurrent['duration'] = $task->duration;
         } elseif ($currentTaskType === 'milestone') {
-            $startDate = $request->filled('start_date') ? Carbon::parse($validated['start_date']) : $task->start_date;
-            $taskDataForCurrent['start_date'] = $startDate;
-            $taskDataForCurrent['end_date'] = $startDate ? $startDate->copy() : null;
+            $taskDataForCurrent['start_date'] = $request->filled('start_date') ? Carbon::parse($validated['start_date']) : $task->start_date;
+            // 終了日時をリクエストから受け取るように変更
+            $taskDataForCurrent['end_date'] = $request->filled('end_date') ? Carbon::parse($validated['end_date']) : $taskDataForCurrent['start_date'];
             $taskDataForCurrent['duration'] = 0;
             $taskDataForCurrent['status'] = $validated['status'] ?? $task->status;
+            // キャラクターと親工程を強制的にnullにする
+            $taskDataForCurrent['character_id'] = null;
+            $taskDataForCurrent['parent_id'] = null;
         } elseif ($currentTaskType === 'todo_task') {
             $taskDataForCurrent['start_date'] = null;
             $taskDataForCurrent['end_date'] = null;

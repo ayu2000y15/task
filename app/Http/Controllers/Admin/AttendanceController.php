@@ -71,7 +71,9 @@ class AttendanceController extends Controller
                 // 手動編集データが最優先
                 $reportData['type'] = 'edited';
                 $reportData['summary'] = $manualAttendance;
-                $reportData['logs'] = $workLogs->filter(fn($log) => $log->start_time->isSameDay($currentDate));
+                $dayWorkLogs = $workLogs->filter(fn($log) => $log->start_time->isSameDay($currentDate));
+                $reportData['logs'] = $dayWorkLogs;
+                $reportData['worklog_total_seconds'] = $dayWorkLogs->sum('effective_duration'); // WorkLogベースの実働時間を追加
             } elseif ($dayAttendanceLogs->isNotEmpty()) {
                 // 勤怠ログがあれば「勤務日」
                 $reportData['type'] = 'workday';
@@ -89,7 +91,7 @@ class AttendanceController extends Controller
         $monthTotalActualWorkSeconds = 0;
         foreach ($monthlyReport as $report) {
             if ($report['type'] === 'edited') {
-                $monthTotalActualWorkSeconds += $report['summary']->actual_work_seconds;
+                $monthTotalActualWorkSeconds += $report['worklog_total_seconds']; // 実働時間をWorkLogベースで集計
                 $monthTotalSalary += $report['summary']->daily_salary;
             } elseif ($report['type'] === 'workday') {
                 $monthTotalActualWorkSeconds += collect($report['sessions'])->sum('actual_work_seconds');
@@ -134,16 +136,30 @@ class AttendanceController extends Controller
         return collect($sessions)->map(function ($session) use ($allWorkLogs, $user) {
             $startTime = $session['start_time'];
             $endTime = $session['end_time'];
+
+            // ▼▼▼【ここから修正】給与計算のロジックを拘束時間ベースに変更 ▼▼▼
+            $breakSeconds = $this->calculateTimeDifference($session['logs'], 'break_start', 'break_end') + $this->calculateTimeDifference($session['logs'], 'away_start', 'away_end');
+            $payableWorkSeconds = 0;
+            $detentionSeconds = 0;
+
+            // 退勤打刻がある場合のみ、勤務時間を計算する
+            if ($endTime) {
+                $detentionSeconds = $startTime->diffInSeconds($endTime);
+                $payableWorkSeconds = max(0, $detentionSeconds - $breakSeconds); // 給与計算用の時間は拘束時間ベース
+            }
+            // ▲▲▲【ここまで修正】▲▲▲
+
             $sessionWorkLogs = $allWorkLogs->where('start_time', '>=', $startTime)
                 ->when($endTime, fn($q) => $q->where('end_time', '<=', $endTime));
-            $actualWorkSeconds = $sessionWorkLogs->sum('effective_duration');
+            $actualWorkSeconds = $sessionWorkLogs->sum('effective_duration'); // 実働時間はWorkLogベースに戻す
             $rateForDay = $user->getHourlyRateForDate($startTime);
             return [
                 'start_time' => $startTime,
                 'end_time' => $endTime,
-                'break_seconds' => $this->calculateTimeDifference($session['logs'], 'break_start', 'break_end') + $this->calculateTimeDifference($session['logs'], 'away_start', 'away_end'),
-                'actual_work_seconds' => $actualWorkSeconds,
-                'daily_salary' => $rateForDay > 0 ? round(($actualWorkSeconds / 3600) * $rateForDay) : 0,
+                'detention_seconds' => $detentionSeconds, // 拘束時間
+                'break_seconds' => $breakSeconds, // 休憩・中抜け時間
+                'actual_work_seconds' => $actualWorkSeconds, // 実働時間
+                'daily_salary' => $rateForDay > 0 ? round(($payableWorkSeconds / 3600) * $rateForDay) : 0, // 新しい基準で給与を計算
                 'logs' => $sessionWorkLogs,
             ];
         });

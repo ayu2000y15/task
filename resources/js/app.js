@@ -41,18 +41,31 @@ document.addEventListener("DOMContentLoaded", () => {
         "closePreviewModalBtnGlobal",
         "preview-image"
     );
-    // ★ 追加: タイマー機能の初期化
     initializeWorkTimers();
 
     // --- Page-specific JavaScript ---
+    // ▼▼▼【ここから最終修正】▼▼▼
+    // 動的インポート後、モジュールのデフォルトエクスポート（初期化関数）を必ず実行する
     if (
-        document.querySelector(".task-status-select, .editable-cell") &&
+        (document.querySelector(".task-status-select") ||
+            document.querySelector("[class*='editable-cell']")) &&
         !document.getElementById("ganttTable")
     ) {
-        import("./page-specific/tasks-index.js").catch((error) =>
-            console.error("Error loading tasks-index.js:", error)
-        );
+        import("./page-specific/tasks-index.js")
+            .then((module) => {
+                if (module.default) {
+                    module.default(); // initTasksIndex() を実行
+                }
+            })
+            .catch((error) =>
+                console.error(
+                    "Error loading or initializing tasks-index.js:",
+                    error
+                )
+            );
     }
+    // ▲▲▲【最終修正ここまで】▲▲▲
+
     if (document.getElementById("project-show-main-container")) {
         import("./page-specific/project-show-main.js").catch((error) =>
             console.error("Error loading project-show-main.js:", error)
@@ -79,7 +92,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         if (document.getElementById("feedback-table")) {
-            // Re-check, seems redundant from above
             import("./page-specific/admin-feedbacks-index.js").catch((error) =>
                 console.error("Error loading admin-feedbacks-index.js:", error)
             );

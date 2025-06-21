@@ -75,6 +75,21 @@
                 <span class="px-2 py-0.5 bg-yellow-100 dark:bg-yellow-900/40 rounded">登録休日</span>
             </div>
 
+            {{-- 計算方法の注釈エリア --}}
+            <div
+                class="p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg mb-4 text-xs border border-blue-200 dark:border-blue-800">
+                <h4 class="font-semibold text-gray-800 dark:text-gray-200 flex items-center mb-1">
+                    <i class="fas fa-info-circle mr-2 text-blue-500"></i>各項目の計算方法について
+                </h4>
+                <ul class="list-disc list-inside pl-2 space-y-1 text-gray-700 dark:text-gray-300">
+                    <li><strong>拘束時間:</strong> 「退勤時刻」から「出勤時刻」を引いた合計時間です。</li>
+                    <li><strong>実働時間:</strong> 作業ログ(WorkLog)に記録された、純粋な作業時間の合計です。</li>
+                    <li><strong>日給合計:</strong> (拘束時間 - 休憩等)
+                        の時間に時給を掛けて算出されます。<strong><u>実働時間とは異なる基準</u></strong>で計算される点にご注意ください。
+                    </li>
+                </ul>
+            </div>
+
             {{-- 勤怠テーブル --}}
             <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
                 <div class="overflow-x-auto h-[75vh] overflow-y-auto">
@@ -87,6 +102,7 @@
                                 <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">状態</th>
                                 <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">出勤</th>
                                 <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">退勤</th>
+                                <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">拘束時間</th>
                                 <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">休憩等</th>
                                 <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">実働時間</th>
                                 <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">日給合計</th>
@@ -121,13 +137,13 @@
                         </tbody>
                         <tfoot class="bg-gray-100 dark:bg-gray-700 sticky bottom-0">
                             <tr class="border-t-2 border-gray-300 dark:border-gray-600 font-bold">
-                                <td class="px-2 py-3 text-left" colspan="6">月の合計</td>
+                                <td class="px-2 py-3 text-left" colspan="7">月の合計</td>
                                 <td class="px-2 py-3 text-left whitespace-nowrap">
                                     {{ gmdate('H:i:s', $monthTotalActualWorkSeconds) }}
                                 </td>
                                 <td class="px-2 py-3 text-left whitespace-nowrap">¥{{ number_format($monthTotalSalary, 0) }}
                                 </td>
-                                <td class="px-2 py-3" colspan="2"></td>
+                                <td class="px-2 py-3"></td>
                             </tr>
                         </tfoot>
                     </table>

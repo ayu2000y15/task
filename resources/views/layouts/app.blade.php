@@ -223,7 +223,7 @@
                                         <div class="w-12 mr-2 mt-[1px]"></div>
                                     @endif --}}
                                     <span class="task-status-icon-wrapper mr-2 mt-[1px] flex-shrink-0">
-                                        @if($task->is_milestone) <i class="fas fa-flag text-red-500" title="重要納期"></i>
+                                        @if($task->is_milestone) <i class="fas fa-flag text-red-500" title="予定"></i>
                                         @elseif($task->is_folder) <i class="fas fa-folder text-blue-500" title="フォルダ"></i>
                                         @else
                                             @switch($task->status)

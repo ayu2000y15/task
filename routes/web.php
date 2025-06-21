@@ -279,8 +279,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/attendances/{user}/{date}', [AdminAttendanceController::class, 'updateSingle'])->name('attendances.update-single');
 
         // 全員のスケジュールカレンダー
-        Route::get('/schedule-calendar', [AdminScheduleController::class, 'showCalendar'])->name('schedule.calendar');
-
+        Route::get('/schedule/calendar', [AdminScheduleController::class, 'calendar'])->name('schedule.calendar');
         // 交通費一覧
         Route::get('/transportation-expenses', [AdminTransportationExpenseController::class, 'index'])->name('transportation-expenses.index');
     });

@@ -8,12 +8,12 @@
     "name": "sortable.esm"
   },
   "resources/css/app.css": {
-    "file": "assets/app-CXl5gMHV.css",
+    "file": "assets/app-Bp-WYhgV.css",
     "src": "resources/css/app.css",
     "isEntry": true
   },
   "resources/js/admin/feedback-categories-sortable.js": {
-    "file": "assets/feedback-categories-sortable-BAzbGV6o.js",
+    "file": "assets/feedback-categories-sortable-nkUQ6QS3.js",
     "name": "feedback-categories-sortable",
     "src": "resources/js/admin/feedback-categories-sortable.js",
     "isDynamicEntry": true,
@@ -32,7 +32,7 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-BCPFMjEm.js",
+    "file": "assets/app-1eckidOG.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
@@ -50,7 +50,7 @@
     ]
   },
   "resources/js/page-specific/admin-feedbacks-index.js": {
-    "file": "assets/admin-feedbacks-index-CvoBiJS8.js",
+    "file": "assets/admin-feedbacks-index-CMeKR0AE.js",
     "name": "admin-feedbacks-index",
     "src": "resources/js/page-specific/admin-feedbacks-index.js",
     "isDynamicEntry": true,
@@ -59,7 +59,7 @@
     ]
   },
   "resources/js/page-specific/gantt-chart.js": {
-    "file": "assets/gantt-chart-DwA6sDEL.js",
+    "file": "assets/gantt-chart-ivcSFbhu.js",
     "name": "gantt-chart",
     "src": "resources/js/page-specific/gantt-chart.js",
     "isDynamicEntry": true,
@@ -69,7 +69,7 @@
     ]
   },
   "resources/js/page-specific/project-show-main.js": {
-    "file": "assets/project-show-main-DQgUVhEN.js",
+    "file": "assets/project-show-main-D_1DtJcC.js",
     "name": "project-show-main",
     "src": "resources/js/page-specific/project-show-main.js",
     "isDynamicEntry": true,
@@ -93,13 +93,13 @@
     ]
   },
   "resources/js/page-specific/tasks-form.js": {
-    "file": "assets/tasks-form-YIvtuyFs.js",
+    "file": "assets/tasks-form-CgaqgsmV.js",
     "name": "tasks-form",
     "src": "resources/js/page-specific/tasks-form.js",
     "isDynamicEntry": true
   },
   "resources/js/page-specific/tasks-index.js": {
-    "file": "assets/tasks-index-B2SeyDLg.js",
+    "file": "assets/tasks-index-CHx0Imvm.js",
     "name": "tasks-index",
     "src": "resources/js/page-specific/tasks-index.js",
     "isDynamicEntry": true,

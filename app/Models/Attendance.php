@@ -58,6 +58,17 @@ class Attendance extends Model
         return ($this->actual_work_seconds / 3600) * $hourlyRate;
     }
 
+    /**
+     * 拘束時間（秒）を計算するアクセサ
+     */
+    public function getDetentionSecondsAttribute(): int
+    {
+        if (!$this->start_time || !$this->end_time) {
+            return 0;
+        }
+        return $this->start_time->diffInSeconds($this->end_time);
+    }
+
     // アクティビティログのオプション設定
     public function getActivitylogOptions(): LogOptions
     {

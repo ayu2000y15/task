@@ -40,6 +40,17 @@ class Task extends Model
         'is_paused' => 'boolean', // ★ is_paused を追加
     ];
 
+    /**
+     * 工程のステータスオプション
+     */
+    public const STATUS_OPTIONS = [
+        'not_started' => '未着手',
+        'in_progress' => '進行中',
+        'completed' => '完了',
+        'on_hold' => '一時停止中',
+        'cancelled' => 'キャンセル',
+    ];
+
     // ★ アクティビティログのオプション設定
     public function getActivitylogOptions(): LogOptions
     {

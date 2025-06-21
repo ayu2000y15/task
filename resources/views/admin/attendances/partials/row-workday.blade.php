@@ -34,9 +34,18 @@
         </td>
         <td class="px-2 py-3 font-mono text-sm">{{ $session['start_time']->format('H:i') }}</td>
         <td class="px-2 py-3 font-mono text-sm">{{ optional($session['end_time'])->format('H:i') ?? '未退勤' }}</td>
+        <td class="px-2 py-3 font-mono text-sm">
+            {{ $session['end_time'] ? gmdate('H:i:s', $session['detention_seconds']) : '-' }}</td>
         <td class="px-2 py-3 font-mono text-sm">{{ gmdate('H:i:s', $session['break_seconds']) }}</td>
         <td class="px-2 py-3 font-mono text-sm font-semibold">{{ gmdate('H:i:s', $session['actual_work_seconds']) }}</td>
-        <td class="px-2 py-3 font-mono text-sm">¥{{ number_format($session['daily_salary']) }}</td>
+        <td class="px-2 py-3 font-mono text-sm">
+            @if(is_null($session['end_time']))
+                <span class="text-xs font-semibold text-yellow-600 dark:text-yellow-400"
+                    title="退勤打刻が行われていないため、給与が計算できません。勤怠編集を行ってください。">勤怠未完了</span>
+            @else
+                ¥{{ number_format($session['daily_salary']) }}
+            @endif
+        </td>
         <td class="px-2 py-3 text-center">
             @if($index === 0)
                 <button

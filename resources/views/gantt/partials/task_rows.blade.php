@@ -61,7 +61,7 @@
                                 <i class="fas fa-folder-open"></i>
                             </a>
                         @elseif($task->is_milestone)
-                            <i class="fas fa-flag text-red-600" title="重要納期"></i>
+                            <i class="fas fa-flag text-red-600" title="予定"></i>
                         @endif
                         </span>
 
@@ -216,7 +216,7 @@
                     <div class="milestone-diamond" style="background-color: {{ $barColor }}; opacity: 0.3;"></div>
                     <div class="gantt-tooltip" style="top: -50px; left: 50%; transform: translateX(-50%);">
                         <div class="gantt-tooltip-content">
-                            {{ $task->name }} (重要納期)<br>
+                            {{ $task->name }} (予定)<br>
                             {{ $taskStartDate ? \Carbon\Carbon::parse($taskStartDate)->format('n/j') : '' }}
                         </div>
                         <div class="gantt-tooltip-arrow"></div>
@@ -259,7 +259,7 @@
                                 <i class="fas fa-folder-open"></i>
                             </a>
                         @elseif($task->is_milestone)
-                            <i class="fas fa-flag text-red-600" title="重要納期"></i>
+                            <i class="fas fa-flag text-red-600" title="予定"></i>
                         @endif
                         </span>
 
@@ -414,7 +414,7 @@
                     <div class="milestone-diamond" style="background-color: {{ $barColor }}; opacity: 0.3;"></div>
                     <div class="gantt-tooltip" style="top: -50px; left: 50%; transform: translateX(-50%);">
                         <div class="gantt-tooltip-content">
-                            {{ $task->name }} (重要納期)<br>
+                            {{ $task->name }} (予定)<br>
                             {{ $taskStartDate ? \Carbon\Carbon::parse($taskStartDate)->format('n/j') : '' }}
                         </div>
                         <div class="gantt-tooltip-arrow"></div>

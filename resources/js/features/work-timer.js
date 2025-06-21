@@ -127,11 +127,11 @@ function dispatchWorkLogStatus() {
     const runningLogsElement = document.getElementById(
         "running-work-logs-data"
     );
-    const userData = JSON.parse(
-        document.getElementById("user-data-container").dataset.user
-    );
+    const userDataEl = document.getElementById("user-data-container");
+    if (!runningLogsElement || !userDataEl) return;
 
-    if (!runningLogsElement || !userData) return;
+    const userData = JSON.parse(userDataEl.dataset.user);
+    if (!userData) return;
 
     let activeWorkLogs = [];
     try {
@@ -161,9 +161,10 @@ function renderTimerControls(container, log, isPaused, taskStatus, assignees) {
 
     const taskId = container.dataset.taskId,
         viewMode = container.dataset.viewMode || "full";
-    const userData = JSON.parse(
-        document.getElementById("user-data-container").dataset.user
-    );
+    const userDataEl = document.getElementById("user-data-container");
+    if (!userDataEl) return;
+
+    const userData = JSON.parse(userDataEl.dataset.user);
     const isSharedAccount = userData && userData.status === "shared";
     const hasMultipleAssignees = assignees && assignees.length > 1;
     container.innerHTML = "";
@@ -384,7 +385,6 @@ async function handleTimerAction(taskId, action, assigneeIds = []) {
 
         const data = await response.json();
 
-        // タイマー操作後に、実行中ログのJSONを更新してイベントを発行
         if (data.running_logs) {
             const runningLogsElement = document.getElementById(
                 "running-work-logs-data"
@@ -397,7 +397,6 @@ async function handleTimerAction(taskId, action, assigneeIds = []) {
         }
         dispatchWorkLogStatus();
 
-        // タイマーUIを更新
         document
             .querySelectorAll(`.timer-controls[data-task-id="${taskId}"]`)
             .forEach((container) => {
@@ -441,7 +440,6 @@ async function handleTimerAction(taskId, action, assigneeIds = []) {
 
         if (data.message) alert(data.message);
 
-        // ステータス更新イベントを発行
         const finalStatus = data.task_status;
         if (finalStatus) {
             window.dispatchEvent(
@@ -467,20 +465,15 @@ async function handleTimerAction(taskId, action, assigneeIds = []) {
     }
 }
 
-// ▼▼▼【新機能】タイマーUI更新イベントのリスナー ▼▼▼
 window.addEventListener("timer-ui-update", (event) => {
-    const { taskId, newStatus, newProgress } = event.detail;
-
-    // 該当するタイマーコンテナを再描画
+    const { taskId, newStatus } = event.detail;
     const timerContainers = document.querySelectorAll(
         `.timer-controls[data-task-id="${taskId}"], .timer-display-only[data-task-id="${taskId}"]`
     );
 
     timerContainers.forEach((container) => {
         container.dataset.taskStatus = newStatus;
-
         if (container.classList.contains("timer-controls")) {
-            // アクティブなWorkLogを取得
             const runningLogsElement = document.getElementById(
                 "running-work-logs-data"
             );
@@ -490,13 +483,11 @@ window.addEventListener("timer-ui-update", (event) => {
                     activeWorkLogs = JSON.parse(runningLogsElement.textContent);
                 } catch (e) {}
             }
-
             const logForThisTask = activeWorkLogs.find(
                 (log) => String(log.task_id) === String(taskId)
             );
             const isPaused = container.dataset.isPaused === "true";
             const assignees = JSON.parse(container.dataset.assignees || "[]");
-
             renderTimerControls(
                 container,
                 logForThisTask,
@@ -509,7 +500,6 @@ window.addEventListener("timer-ui-update", (event) => {
         }
     });
 });
-// ▲▲▲【新機能ここまで】▲▲▲
 
 export function initializeWorkTimers() {
     const timerContainers = document.querySelectorAll(".timer-controls");
@@ -558,7 +548,6 @@ export function initializeWorkTimers() {
         renderTimerDisplay(container);
     });
 
-    // 勤怠ステータス変更時の再描画
     window.addEventListener("attendance-status-changed", () => {
         const timerContainers = document.querySelectorAll(".timer-controls");
         const runningLogsElement = document.getElementById(
@@ -570,7 +559,6 @@ export function initializeWorkTimers() {
                 activeWorkLogs = JSON.parse(runningLogsElement.textContent);
             } catch (e) {}
         }
-
         timerContainers.forEach((container) => {
             const taskId = container.dataset.taskId;
             const taskStatus = container.dataset.taskStatus;
@@ -589,6 +577,8 @@ export function initializeWorkTimers() {
         });
     });
 
-    // イベントリスナーの初期化
     listenForExternalTaskUpdates();
 }
+
+// ▼▼▼【ここから変更】外部から呼び出せるように関数をグローバルに公開 ▼▼▼
+window.initializeWorkTimers = initializeWorkTimers;

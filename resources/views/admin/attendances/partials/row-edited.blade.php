@@ -29,8 +29,11 @@ data-details-target="details-{{ $date->format('Y-m-d') }}" @endif>
     <td class="px-2 py-3"><span title="手動編集"><i class="fas fa-pencil-alt text-gray-500"></i></span></td>
     <td class="px-2 py-3 font-mono text-sm">{{ optional($summary->start_time)->format('H:i') }}</td>
     <td class="px-2 py-3 font-mono text-sm">{{ optional($summary->end_time)->format('H:i') }}</td>
+    <td class="px-2 py-3 font-mono text-sm">
+        {{ $summary->end_time ? gmdate('H:i:s', $summary->detention_seconds) : '-' }}
+    </td>
     <td class="px-2 py-3 font-mono text-sm">{{ gmdate('H:i:s', $summary->break_seconds) }}</td>
-    <td class="px-2 py-3 font-mono text-sm font-semibold">{{ gmdate('H:i:s', $summary->actual_work_seconds) }}</td>
+    <td class="px-2 py-3 font-mono text-sm font-semibold">{{ gmdate('H:i:s', $report['worklog_total_seconds']) }}</td>
     <td class="px-2 py-3 font-mono text-sm">¥{{ number_format($summary->daily_salary) }}</td>
     <td class="px-2 py-3 text-center">
         <button

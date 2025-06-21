@@ -10,6 +10,7 @@ use App\Models\User;
 use Carbon\Carbon;
 use App\Services\TaskService;
 use App\Models\WorkShift;
+use Carbon\CarbonPeriod;
 
 class CalendarController extends Controller
 {
@@ -20,7 +21,6 @@ class CalendarController extends Controller
     {
         $this->authorize('viewAny', Project::class);
 
-        // ... 既存のフィルター処理（変更なし） ...
         $filters = [
             'project_id' => $request->input('project_id', ''),
             'character_id' => $request->input('character_id', ''),
@@ -30,9 +30,37 @@ class CalendarController extends Controller
             'search' => $request->input('search', ''),
         ];
 
+        // 1. 表示する月の決定
+        $month = $request->input('month', now()->format('Y-m'));
+        $targetMonth = Carbon::parse($month)->startOfMonth();
+        $startDate = $targetMonth->copy()->startOfMonth()->startOfWeek(Carbon::SUNDAY);
+        $endDate = $targetMonth->copy()->endOfMonth()->endOfWeek(Carbon::SATURDAY);
 
-        // ... 既存のタスクイベント生成処理（変更なし） ...
-        // (projectsQuery, eventsの生成など)
+        // 2. カレンダーデータの器を準備
+        $calendarData = [];
+        $period = CarbonPeriod::create($startDate, $endDate);
+        foreach ($period as $date) {
+            $calendarData[$date->format('Y-m-d')] = [
+                'date' => $date,
+                'is_current_month' => $date->isSameMonth($targetMonth),
+                'public_holiday' => null,
+                'schedules' => collect(), // スケジュール格納用のコレクション
+            ];
+        }
+
+        // 3. 祝日データを取得し、カレンダーにマージ
+        $holidays = Holiday::whereBetween('date', [$startDate, $endDate])->get();
+        foreach ($holidays as $holiday) {
+            $dateString = $holiday->date->format('Y-m-d');
+            if (isset($calendarData[$dateString])) {
+                $calendarData[$dateString]['public_holiday'] = $holiday;
+                // 祝日自体もイベントとして追加
+                $holiday->type = 'holiday'; // タイプを動的に追加
+                $calendarData[$dateString]['schedules']->push($holiday);
+            }
+        }
+
+        // 4. 工程データを取得し、カレンダーにマージ
         $taskQueryLogic = function ($query) use ($filters, $taskService) {
             $taskService->applyAssigneeFilter($query, $filters['assignee']);
             $taskService->applyCharacterFilter($query, $filters['character_id']);
@@ -45,124 +73,83 @@ class CalendarController extends Controller
                 });
             }
 
-            $query->where('tasks.status', '!=', 'completed');
+            // フィルターでステータスが指定されていない場合、完了タスクを除外する
+            if (empty($filters['status'])) {
+                $query->where('tasks.status', '!=', 'completed');
+            }
         };
 
-        $projectsQuery = Project::with(['tasks' => function ($query) use ($taskQueryLogic) {
-            $query->with(['character', 'assignees'])->where($taskQueryLogic);
+        $projectsQuery = Project::with(['tasks' => function ($query) use ($taskQueryLogic, $startDate, $endDate) {
+            $query->with(['character', 'assignees'])
+                ->where($taskQueryLogic)
+                ->whereNotNull('start_date') // 開始日がないものは対象外
+                ->where(function ($q) use ($startDate, $endDate) {
+                    $q->where('start_date', '<=', $endDate)
+                        ->where('end_date', '>=', $startDate);
+                });
         }])->whereHas('tasks', $taskQueryLogic);
 
         if (!empty($filters['project_id'])) {
             $projectsQuery->where('id', $filters['project_id']);
         }
-
         $projects = $projectsQuery->get();
-        $events = [];
 
         foreach ($projects as $project) {
             foreach ($project->tasks as $task) {
-                if ($task->is_folder) continue;
-                $isAllDay = $task->start_date ? ($task->start_date->format('H:i:s') === '00:00:00') : true;
-                $start = $task->start_date ? ($isAllDay ? $task->start_date->format('Y-m-d') : $task->start_date->toIso8601String()) : null;
-                $end = $task->end_date ? ($isAllDay ? $task->end_date->addDay()->format('Y-m-d') : $task->end_date->toIso8601String()) : null;
-                $events[] = [
-                    'id' => 'task_' . $task->id,
-                    'title' => $task->name,
-                    'start' => $start,
-                    'end' => $end,
-                    'color' => $project->color,
-                    'textColor' => '#ffffff',
-                    'allDay' => $isAllDay,
-                    'url' => route('projects.tasks.edit', [$project, $task]),
-                    'classNames' => ['task-event', $task->is_milestone ? 'milestone-event' : ''],
-                    'extendedProps' => [
-                        'type' => $task->is_milestone ? 'milestone' : 'task',
-                        'description' => $task->description,
-                        'assignee_names' => $task->assignees->isNotEmpty() ? $task->assignees->pluck('name')->join(', ') : null,
-                        'progress' => $task->progress,
-                        'status' => $task->status,
-                        'project_id' => $project->id,
-                        'project_title' => $project->title,
-                        'project_color' => $project->color,
-                        'character_name' => optional($task->character)->name,
-                    ]
-                ];
+                // タスクの期間を一日ずつループ
+                $periodForTask = CarbonPeriod::create($task->start_date, $task->end_date ?? $task->start_date);
+                foreach ($periodForTask as $dateInPeriod) {
+                    $dateString = $dateInPeriod->format('Y-m-d');
+                    if (isset($calendarData[$dateString])) {
+                        $clonedTask = clone $task; // 元のタスクオブジェクトを変更しないようにクローン
+                        $clonedTask->type = $clonedTask->is_milestone ? 'milestone' : 'task';
+                        $clonedTask->project_title = $project->title;
+                        $clonedTask->color = $project->color;
+
+                        // 表示位置（開始/中間/終了/単日）を判定してプロパティを追加
+                        $isStartDate = $dateInPeriod->isSameDay($task->start_date);
+                        $isEndDate = $task->end_date && $dateInPeriod->isSameDay($task->end_date);
+                        $isSingleDay = !$task->end_date || $task->start_date->isSameDay($task->end_date);
+
+                        if ($isSingleDay) {
+                            $clonedTask->position = 'single';
+                        } elseif ($isStartDate) {
+                            $clonedTask->position = 'start';
+                        } elseif ($isEndDate) {
+                            $clonedTask->position = 'end';
+                        } else {
+                            $clonedTask->position = 'middle';
+                        }
+
+                        $calendarData[$dateString]['schedules']->push($clonedTask);
+                    }
+                }
             }
         }
 
-
-        // ... 既存の祝日イベント生成処理 ...
-        $startDate = Carbon::now()->subMonths(3)->startOfMonth();
-        $endDate = Carbon::now()->addMonths(6)->endOfMonth();
-
-        $holidays = Holiday::whereBetween('date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])->get();
-
-        foreach ($holidays as $holiday) {
-            // ▼▼▼【変更】祝日を背景でなく、通常のイベントとして表示するように変更します ▼▼▼
-            $events[] = [
-                'id' => 'holiday_' . $holiday->id,
-                'title' => $holiday->name,
-                'start' => $holiday->date->format('Y-m-d'),
-                'allDay' => true,
-                'backgroundColor' => '#ef4444', // 赤色
-                'borderColor' => '#ef4444',
-                'textColor' => '#ffffff',
-                'classNames' => ['holiday-event'],
-                'extendedProps' => ['type' => 'holiday']
-            ];
-        }
-
-        // ▼▼▼【ここから休日データを追加】▼▼▼
+        // 5. ユーザーの休日シフトを取得し、カレンダーにマージ
         $userShifts = WorkShift::with('user')
-            ->whereIn('type', ['full_day_off', 'am_off', 'pm_off']) // 休日タイプのシフトのみ取得
-            ->whereBetween('date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
+            ->whereIn('type', ['full_day_off', 'am_off', 'pm_off'])
+            ->whereBetween('date', [$startDate, $endDate])
             ->get();
 
         foreach ($userShifts as $shift) {
-            if ($shift->user) {
-                $eventTitle = '';
-                $eventColor = '';
-
-                switch ($shift->type) {
-                    case 'full_day_off':
-                        $eventTitle = '休み(全日): ' . $shift->user->name;
-                        $eventColor = '#16a34a'; // 緑色
-                        break;
-                    case 'am_off':
-                        $eventTitle = '休み(午前): ' . $shift->user->name;
-                        $eventColor = '#f97316'; // オレンジ色
-                        break;
-                    case 'pm_off':
-                        $eventTitle = '休み(午後): ' . $shift->user->name;
-                        $eventColor = '#ca8a04'; // 黄色
-                        break;
-                }
-
-                $events[] = [
-                    'id' => 'usershift_' . $shift->id,
-                    'title' => $eventTitle,
-                    'start' => $shift->date->format('Y-m-d'),
-                    'allDay' => true,
-                    'backgroundColor' => $eventColor,
-                    'borderColor' => $eventColor,
-                    'textColor' => '#ffffff',
-                    'classNames' => ['holiday-event'],
-                    'extendedProps' => [
-                        'type' => 'holiday',
-                        'description' => $shift->name // 登録された休日の名称
-                    ]
-                ];
+            $dateString = $shift->date->format('Y-m-d');
+            if (isset($calendarData[$dateString])) {
+                $shift->type_original = $shift->type; // 元のタイプを保持
+                $shift->type = 'usershift'; // 共通のタイプを設定
+                $calendarData[$dateString]['schedules']->push($shift);
             }
         }
 
-        // ... 既存のフィルター用データ取得処理（変更なし） ...
+        // 6. 各日付のスケジュールをソート
+        foreach ($calendarData as &$dayData) {
+            $dayData['schedules'] = $dayData['schedules']->sortBy('start_date');
+        }
+
+        // フィルター用のデータ取得
         $allAssignees = User::whereHas('tasks')->orderBy('name')->get()->pluck('name', 'id');
-        $statusOptions = [
-            'not_started' => '未着手',
-            'in_progress' => '進行中',
-            'on_hold' => '一時停止中',
-            'cancelled' => 'キャンセル',
-        ];
+        $statusOptions = Task::STATUS_OPTIONS;
         $allProjects = Project::orderBy('title')->get();
         $charactersForFilter = collect();
         if (!empty($filters['project_id'])) {
@@ -173,7 +160,8 @@ class CalendarController extends Controller
         }
 
         return view('calendar.index', [
-            'events' => json_encode($events),
+            'targetMonth' => $targetMonth,
+            'calendarData' => $calendarData,
             'filters' => $filters,
             'allProjects' => $allProjects,
             'charactersForFilter' => $charactersForFilter,

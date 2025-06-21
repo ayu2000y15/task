@@ -30,6 +30,7 @@ namespace App\Models{
  * @property-read int|null $activities_count
  * @property-read int $attendance_seconds
  * @property-read float $daily_salary
+ * @property-read int $detention_seconds
  * @property-read \App\Models\User $user
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Attendance newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Attendance newQuery()

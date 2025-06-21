@@ -1,7 +1,7 @@
 <tr class="details-row"
     id="details-{{ $date->format('Y-m-d') }}{{ is_null($sessionIndex) ? '' : '-' . $sessionIndex }}">
     {{-- ▼▼▼【変更】colspanを9に修正（アイコン列が追加されたため）▼▼▼ --}}
-    <td colspan="9" class="p-0">
+    <td colspan="10" class="p-0">
         <div class="bg-gray-100 dark:bg-gray-900/50 p-4 border-l-4 border-blue-400">
             <h6 class="font-semibold text-sm mb-2">
                 作業ログ詳細

@@ -4,6 +4,7 @@
 
 @push('styles')
     <link href="https://cdnjs.cloudflare.com/ajax/libs/dropzone/5.9.3/min/dropzone.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
     <style>
         .dropzone-custom-style {
             @apply border-2 border-dashed border-blue-500 rounded-md p-4 flex flex-wrap gap-3 min-h-[150px] bg-gray-50 dark:bg-gray-700/50;
@@ -52,7 +53,7 @@
 
 @section('content')
     <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8" id="task-form-page" data-project-id="{{ $project->id }}"
-        data-task-id="{{ $task->id }}">
+        data-task-id="{{ $task->id }}" data-task-type="{{ $taskType }}" data-task-status="{{ $task->status }}">
         <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
             <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-200">
                 工程編集 - <span class="font-normal text-xl truncate"
@@ -79,8 +80,7 @@
         </div>
 
         @if ($errors->any())
-            <div
-                class="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-md dark:bg-red-700 dark:text-red-100 dark:border-red-600">
+            <div class="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-md dark:bg-red-700 dark:text-red-100 dark:border-red-600">
                 <ul class="list-disc list-inside text-sm">
                     @foreach ($errors->all() as $error)
                         <li>{{ $error }}</li>
@@ -90,31 +90,18 @@
         @endif
 
         @php
-            $taskType = 'task';
-            if ($task->is_milestone) {
-                $taskType = 'milestone';
-            } elseif ($task->is_folder) {
-                $taskType = 'folder';
-            } elseif (!$task->start_date && !$task->end_date && !$task->is_milestone && !$task->is_folder) {
-                $taskType = 'todo_task';
-            }
-
             $displayDurationValue = old('duration_value');
             $displayDurationUnit = old('duration_unit', 'days');
-
             if (!$errors->any() && $task->duration !== null) {
                 $totalMinutes = $task->duration;
-                if ($totalMinutes == 0 && $taskType !== 'milestone') {
+                 if ($taskType === 'milestone') {
                     $displayDurationValue = 0;
                     $displayDurationUnit = 'minutes';
-                } elseif ($taskType === 'milestone') {
-                    $displayDurationValue = 0;
-                    $displayDurationUnit = 'minutes';
-                } elseif ($totalMinutes > 0) {
-                    if ($totalMinutes % (24 * 60) === 0 && ($totalMinutes / (24 * 60)) >=1 ) {
-                        $displayDurationValue = $totalMinutes / (24 * 60);
+                } elseif ($totalMinutes >= 0) {
+                     if ($totalMinutes % (8 * 60) === 0 && $totalMinutes / (8 * 60) >= 1) {
+                        $displayDurationValue = $totalMinutes / (8 * 60);
                         $displayDurationUnit = 'days';
-                    } elseif ($totalMinutes % 60 === 0 && ($totalMinutes / 60) >= 1) {
+                    } elseif ($totalMinutes % 60 === 0 && $totalMinutes / 60 >= 1) {
                         $displayDurationValue = $totalMinutes / 60;
                         $displayDurationUnit = 'hours';
                     } else {
@@ -122,14 +109,7 @@
                         $displayDurationUnit = 'minutes';
                     }
                 }
-            } elseif (is_null($displayDurationValue) && $taskType === 'task') {
-                 $displayDurationValue = 1;
-                 $displayDurationUnit = 'days';
-            } elseif (is_null($displayDurationValue)) {
-                $displayDurationValue = 0;
-                $displayDurationUnit = 'minutes';
             }
-            $isDurationDisabled = $taskType === 'milestone' || $taskType === 'todo_task' || $taskType === 'folder';
         @endphp
 
         <div class="max-w-3xl mx-auto bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
@@ -142,17 +122,10 @@
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">工程種別</label>
                             <div class="p-2 bg-gray-100 dark:bg-gray-700 rounded-md text-sm text-gray-600 dark:text-gray-300">
                                 @switch($taskType)
-                                    @case('milestone')
-                                        <i class="fas fa-flag mr-1 text-red-500"></i>重要納期
-                                        @break
-                                    @case('folder')
-                                        <i class="fas fa-folder mr-1 text-blue-500"></i>フォルダ
-                                        @break
-                                    @case('todo_task')
-                                        <i class="fas fa-list-check mr-1 text-purple-500"></i>タスク(期限なし)
-                                        @break
-                                    @default
-                                        <i class="fas fa-tasks mr-1 text-green-500"></i>工程
+                                    @case('milestone') <i class="fas fa-flag mr-1 text-red-500"></i>予定 @break
+                                    @case('folder') <i class="fas fa-folder mr-1 text-blue-500"></i>フォルダ @break
+                                    @case('todo_task') <i class="fas fa-list-check mr-1 text-purple-500"></i>タスク(期限なし) @break
+                                    @default <i class="fas fa-tasks mr-1 text-green-500"></i>工程
                                 @endswitch
                             </div>
                         </div>
@@ -164,52 +137,37 @@
                             <x-input-error :messages="$errors->get('name')" class="mt-2" />
                         </div>
 
-                        <div id="parent_id_wrapper_individual_edit" {{ $taskType === 'folder' ? 'style="display:none;"' : '' }}>
+                        <div id="parent_id_wrapper_individual_edit">
                             <x-select-input label="親工程" name="parent_id" id="parent_id_individual_edit"
-                                :options="$parentTaskOptions"
-                                :selected="old('parent_id', $task->parent_id)"
-                                emptyOptionText="なし"
-                                :hasError="$errors->has('parent_id')"
-                                :disabled="$taskType === 'folder'" />
+                                :options="$parentTaskOptions" :selected="old('parent_id', $task->parent_id)"
+                                emptyOptionText="なし" :hasError="$errors->has('parent_id')" />
                            <x-input-error :messages="$errors->get('parent_id')" class="mt-2" />
                         </div>
 
-                        <div id="character_id_wrapper_individual_edit" {{ $taskType === 'folder' ? 'style="display:none;"' : '' }}>
+                        <div id="character_id_wrapper_individual_edit">
                             <x-select-input label="所属先キャラクター" name="character_id" id="character_id_individual_edit"
-                                :options="$project->characters->pluck('name', 'id')"
-                                :selected="old('character_id', $task->character_id)"
-                                emptyOptionText="キャラクターを選択してください"
-                                :hasError="$errors->has('character_id')"
-                                {{-- :required="$taskType !== 'folder' && !old('parent_id', $task->parent_id) && !old('apply_edit_to_all_characters_same_name')" --}}
-                                :disabled="old('apply_edit_to_all_characters_same_name', false) || $taskType === 'folder' || old('parent_id', $task->parent_id) !== null" />
+                                :options="$project->characters->pluck('name', 'id')" :selected="old('character_id', $task->character_id)"
+                                emptyOptionText="キャラクターを選択してください" :hasError="$errors->has('character_id')" />
                             <x-input-error :messages="$errors->get('character_id')" class="mt-2" />
-
-                            @if ($taskType !== 'folder')
                             <div class="mt-2">
                                 <x-input-label for="apply_edit_to_all_characters_same_name" class="inline-flex items-center">
-                                    <input type="checkbox" id="apply_edit_to_all_characters_same_name" name="apply_edit_to_all_characters_same_name" value="1" class="rounded dark:bg-gray-900 border-gray-300 dark:border-gray-700 text-indigo-600 shadow-sm focus:ring-indigo-500 dark:focus:ring-indigo-600 dark:focus:ring-offset-gray-800" {{ old('apply_edit_to_all_characters_same_name') ? 'checked' : '' }} {{ old('parent_id', $task->parent_id) !== null ? 'disabled' : '' }}>
+                                    <input type="checkbox" id="apply_edit_to_all_characters_same_name" name="apply_edit_to_all_characters_same_name" value="1" class="rounded dark:bg-gray-900 border-gray-300 dark:border-gray-700 text-indigo-600 shadow-sm focus:ring-indigo-500 dark:focus:ring-indigo-600 dark:focus:ring-offset-gray-800" {{ old('apply_edit_to_all_characters_same_name') ? 'checked' : '' }}>
                                     <span class="ml-2 text-sm text-gray-600 dark:text-gray-400">この案件のすべてのキャラクターの同名工程に同じ内容を反映する</span>
                                 </x-input-label>
-                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">注意: このオプションを有効にすると、現在編集中の工程と同じ名前を持つ、この案件内の他のキャラクターに紐づいた工程の内容が上書きされます。（親工程が選択されている場合は無効です）</p>
                             </div>
-                            @endif
                         </div>
 
-
-                        @if($taskType === 'folder')
-                            @can('fileView', $task)
-                                <div id="file-management-section" class="mb-3">
+                        <div id="file-management-section">
+                            @if($taskType === 'folder')
+                                @can('fileView', $task)
                                     <hr class="my-4 dark:border-gray-600">
-                                    <h3 class="text-md font-semibold text-gray-700 dark:text-gray-200 mb-2"><i
-                                            class="fas fa-file-alt mr-2"></i>ファイル管理</h3>
+                                    <h3 class="text-md font-semibold text-gray-700 dark:text-gray-200 mb-2"><i class="fas fa-file-alt mr-2"></i>ファイル管理</h3>
                                     @can('fileUpload', $task)
                                         <div class="dropzone dropzone-custom-style mb-3" id="file-upload-dropzone-edit">
                                             <div class="dz-message text-center" data-dz-message>
                                                 <p class="mb-2">ここにファイルをドラッグ＆ドロップ</p>
                                                 <p class="mb-3 text-xs text-gray-500 dark:text-gray-400">または</p>
-                                                <button type="button" class="dz-button-bootstrap">
-                                                    <i class="fas fa-folder-open mr-1"></i>ファイルを選択
-                                                </button>
+                                                <button type="button" class="dz-button-bootstrap"><i class="fas fa-folder-open mr-1"></i>ファイルを選択</button>
                                             </div>
                                         </div>
                                     @endcan
@@ -218,9 +176,9 @@
                                         @include('tasks.partials.file-list-tailwind', ['files' => $files, 'project' => $project, 'task' => $task])
                                     </ul>
                                     <hr class="mt-4 dark:border-gray-600">
-                                </div>
-                            @endcan
-                        @endif
+                                @endcan
+                            @endif
+                        </div>
 
                         <div>
                             <x-input-label for="description_individual" value="メモ" />
@@ -229,27 +187,29 @@
                             <x-input-error :messages="$errors->get('description')" class="mt-2" />
                         </div>
 
-                        <div id="task-fields-individual" class="space-y-4" {{ $taskType === 'folder' ? 'style="display:none;"' : '' }}>
-                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-4">
+                        <div id="task-fields-individual" class="space-y-4">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
                                 <div>
                                     <x-input-label for="start_date_individual" value="開始日時" required/>
                                     <x-text-input type="datetime-local" id="start_date_individual" name="start_date"
-                                        class="mt-1 block w-full"
-                                        :value="old('start_date', optional($task->start_date)->format('Y-m-d\TH:i'))"
-                                        :disabled="$isDurationDisabled"
+                                        class="mt-1 block w-full" :value="old('start_date', optional($task->start_date)->format('Y-m-d\TH:i'))"
                                         :hasError="$errors->has('start_date')" />
                                     <x-input-error :messages="$errors->get('start_date')" class="mt-2" />
                                 </div>
                                 <div>
+                                    <x-input-label for="end_date_individual" value="終了日時" required/>
+                                    <x-text-input type="datetime-local" id="end_date_individual" name="end_date"
+                                        class="mt-1 block w-full" :value="old('end_date', optional($task->end_date)->format('Y-m-d\TH:i'))"
+                                        :hasError="$errors->has('end_date')" />
+                                    <x-input-error :messages="$errors->get('end_date')" class="mt-2" />
+                                </div>
+                                <div id="duration_wrapper_individual_edit">
                                     <x-input-label for="duration_value" value="工数" required/>
                                     <div class="flex items-center mt-1 space-x-2">
                                         <x-text-input type="number" id="duration_value" name="duration_value" class="block w-1/2"
-                                            :value="$displayDurationValue" min="0" step="any"
-                                            :disabled="$isDurationDisabled"
-                                            :hasError="$errors->has('duration_value')" />
+                                            :value="$displayDurationValue" min="0" step="any" :hasError="$errors->has('duration_value')" />
                                         <select name="duration_unit" id="duration_unit"
-                                                class="block w-1/2 mt-0 form-select rounded-md shadow-sm border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 dark:focus:border-indigo-500 dark:focus:ring-indigo-500 {{ $isDurationDisabled ? 'bg-gray-100 dark:bg-gray-800 cursor-not-allowed' : '' }} {{ $errors->has('duration_unit') ? 'border-red-500' : '' }}"
-                                                {{ $isDurationDisabled ? 'disabled' : '' }}>
+                                                class="block w-1/2 mt-0 form-select rounded-md shadow-sm border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 dark:focus:border-indigo-500 dark:focus:ring-indigo-500 {{ $errors->has('duration_unit') ? 'border-red-500' : '' }}">
                                             <option value="days" @if($displayDurationUnit == 'days') selected @endif>日</option>
                                             <option value="hours" @if($displayDurationUnit == 'hours') selected @endif>時間</option>
                                             <option value="minutes" @if($displayDurationUnit == 'minutes') selected @endif>分</option>
@@ -258,42 +218,23 @@
                                     <x-input-error :messages="$errors->get('duration_value')" class="mt-2" />
                                     <x-input-error :messages="$errors->get('duration_unit')" class="mt-2" />
                                 </div>
-                                <div>
-                                    <x-input-label for="end_date_individual" value="終了日時" required/>
-                                    <x-text-input type="datetime-local" id="end_date_individual" name="end_date"
-                                        class="mt-1 block w-full"
-                                        :value="old('end_date', optional($task->end_date)->format('Y-m-d\TH:i'))"
-                                        :disabled="$isDurationDisabled"
-                                        :hasError="$errors->has('end_date')" />
-                                    <x-input-error :messages="$errors->get('end_date')" class="mt-2" />
-                                </div>
-                            </div>
-                            <div
-                                class="p-2 text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded-md dark:bg-blue-700/30 dark:text-blue-200 dark:border-blue-500">
-                                <i class="fas fa-info-circle mr-1"></i>
-                                工数の1日は8時間として計算しています。
                             </div>
                         </div>
 
-                        {{-- ▼▼▼【変更】担当者選択UI ▼▼▼ --}}
-                        <div id="assignees_wrapper_individual" {{ $taskType === 'folder' ? 'style="display:none;"' : '' }}>
+                        <div id="assignees_wrapper_individual">
                             <x-input-label for="assignees_select" value="担当者" />
-                            <select name="assignees[]" id="assignees_select" multiple class="mt-1 block w-full">
+                            <select name="assignees[]" id="assignees_select" multiple>
                                 @foreach($assigneeOptions as $id => $name)
-                                    <option value="{{ $id }}" {{ in_array($id, $selectedAssignees) ? 'selected' : '' }}>
-                                        {{ $name }}
-                                    </option>
+                                    <option value="{{ $id }}" {{ in_array($id, $selectedAssignees) ? 'selected' : '' }}>{{ $name }}</option>
                                 @endforeach
                             </select>
                             <x-input-error :messages="$errors->get('assignees')" class="mt-2" />
                             <x-input-error :messages="$errors->get('assignees.*')" class="mt-2" />
                         </div>
-                        {{-- ▲▲▲【変更】ここまで ▲▲▲ --}}
 
-
-                        <div id="status-field-individual" {{ $taskType === 'folder' ? 'style="display:none;"' : '' }}>
+                        <div id="status-field-individual">
                             <x-select-input label="ステータス" name="status" id="status_individual"
-                                :options="['not_started' => '未着手', 'in_progress' => '進行中', 'completed' => '完了', 'on_hold' => '一時停止中', 'cancelled' => 'キャンセル']"
+                                :options="\App\Models\Task::STATUS_OPTIONS"
                                 :selected="old('status', $task->status)"
                                 :hasError="$errors->has('status')" />
                             <x-input-error :messages="$errors->get('status')" class="mt-2" />
@@ -301,12 +242,8 @@
                     </div>
 
                     <div class="mt-8 pt-5 border-t border-gray-200 dark:border-gray-700 flex justify-end space-x-3">
-                        <x-secondary-button as="a" href="{{ route('projects.show', $project) }}">
-                            キャンセル
-                        </x-secondary-button>
-                        <x-primary-button type="submit">
-                            <i class="fas fa-save mr-2"></i> 更新
-                        </x-primary-button>
+                        <x-secondary-button as="a" href="{{ route('projects.show', $project) }}">キャンセル</x-secondary-button>
+                        <x-primary-button type="submit"><i class="fas fa-save mr-2"></i> 更新</x-primary-button>
                     </div>
                 </form>
             </div>
@@ -314,232 +251,87 @@
     </div>
 @endsection
 
+{{-- ▼▼▼【ここから変更】▼▼▼ --}}
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    const taskType = "{{ $taskType }}";
-    const taskFieldsIndividual = document.getElementById('task-fields-individual');
-    const characterIdWrapperEdit = document.getElementById('character_id_wrapper_individual_edit');
-    const characterIdSelectEdit = document.getElementById('character_id_individual_edit');
-    const applyEditToAllCharsCheckbox = document.getElementById('apply_edit_to_all_characters_same_name');
-
-    const statusField = document.getElementById('status-field-individual');
-    const startDateInput = document.getElementById('start_date_individual');
-    const durationValueInput = document.getElementById('duration_value');
-    const durationUnitSelect = document.getElementById('duration_unit');
-    const endDateInput = document.getElementById('end_date_individual');
-    const parentIdSelectEdit = document.getElementById('parent_id_individual_edit');
-
-    const assigneeWrapper = document.getElementById('assignees_wrapper_individual');
-    const parentIdWrapperEdit = document.getElementById('parent_id_wrapper_individual_edit');
-
-    let tomSelectInstance = null;
-    if (document.getElementById('assignees_select')) {
-        tomSelectInstance = new TomSelect('#assignees_select',{
-            plugins: ['remove_button'],
-            create: false,
-            placeholder: '担当者を検索・選択...'
-        });
-    }
-
-    // ▼▼▼【ここから】工程編集画面用のステータス更新機能（警告処理付き）▼▼▼
-    const statusSelect = document.getElementById("status_individual");
-    const taskFormPage = document.getElementById("task-form-page");
+    const statusSelect = document.getElementById('status_individual');
+    const taskFormPage = document.getElementById('task-form-page');
 
     if (statusSelect && taskFormPage) {
         const taskId = taskFormPage.dataset.taskId;
         const projectId = taskFormPage.dataset.projectId;
-        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-        let originalValue = statusSelect.value;
-        let isUpdating = false;
+        // ページロード時の元のステータスをdata属性から取得
+        let originalStatus = taskFormPage.dataset.taskStatus;
 
-        statusSelect.addEventListener("change", async function () {
-            if (isUpdating) return;
-            isUpdating = true;
+        statusSelect.addEventListener('change', async function() {
             const newStatus = this.value;
 
+            // ステータスが実際に変更されたか確認
+            if (newStatus === originalStatus) return;
+
+            // 「進行中」への変更時に確認ダイアログを表示
+            if (newStatus === 'in_progress' && originalStatus !== 'in_progress') {
+                if (!confirm('タスクを「進行中」にしますか？\nこの操作により作業タイマーが開始されます。')) {
+                    this.value = originalStatus; // ユーザーがキャンセルした場合、表示を元に戻す
+                    return;
+                }
+            }
+
             try {
-                await sendUpdateRequest(newStatus, false);
-                originalValue = newStatus; // 成功時に元の値を更新
-            } catch (error) {
-                if (error.requires_confirmation) {
-                    const confirmed = await showConfirmationDialogs(error.warnings);
-                    if (confirmed) {
-                        try {
-                            await sendUpdateRequest(newStatus, true); // 強制更新
-                            originalValue = newStatus; // 成功時に元の値を更新
-                        } catch (finalError) {
-                            alert(finalError.message || "ステータスの更新に失敗しました。");
-                            this.value = originalValue; // 最終的に失敗したら元に戻す
-                        }
-                    } else {
-                        this.value = originalValue; // キャンセルされたら元に戻す
+                // ステータス更新リクエストをサーバーに送信
+                const response = await axios.post(`/projects/${projectId}/tasks/${taskId}/progress`, {
+                    status: newStatus,
+                    progress: newStatus === 'completed' ? 100 : (newStatus === 'in_progress' ? 10 : 0)
+                });
+
+                if (response.data.success) {
+                    // 更新が成功したら、保持している元のステータスを更新
+                    originalStatus = newStatus;
+                    taskFormPage.dataset.taskStatus = newStatus;
+
+                    // 成功メッセージの通知（任意）
+                    if (response.data.work_log_message) {
+                        const notification = document.createElement("div");
+                        notification.className = "fixed top-4 right-4 bg-blue-500 text-white px-4 py-2 rounded-md shadow-lg z-50 transition-opacity duration-300";
+                        notification.textContent = response.data.work_log_message;
+                        document.body.appendChild(notification);
+                        setTimeout(() => {
+                            notification.style.opacity = "0";
+                            setTimeout(() => { notification.remove(); }, 300);
+                        }, 3000);
                     }
+
+                    // タイマーUIなど、他のコンポーネントに変更を通知
+                    window.dispatchEvent(
+                        new CustomEvent("timer-ui-update", {
+                            detail: { taskId, newStatus },
+                        })
+                    );
                 } else {
-                    alert(error.message || "ステータスの更新中にエラーが発生しました。");
-                    this.value = originalValue; // エラー時も元に戻す
+                     // サーバー側でバリデーションエラーなどが発生した場合
+                    alert(response.data.message || 'ステータスの更新に失敗しました。');
+                    this.value = originalStatus;
                 }
-            } finally {
-                isUpdating = false;
+            } catch (error) {
+                console.error("Status update failed:", error);
+                const errorMessage = error.response?.data?.message || "ステータスの更新中に予期せぬエラーが発生しました。";
+                alert(errorMessage);
+                this.value = originalStatus; // 失敗した場合、表示を元に戻す
             }
         });
 
-        async function sendUpdateRequest(status, force = false) {
-            const response = await fetch(`/projects/${projectId}/tasks/${taskId}/status`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken,
-                    'Accept': 'application/json',
-                },
-                body: JSON.stringify({ status: status, force_update: force })
-            });
-
-            const data = await response.json();
-            if (!response.ok) {
-                const error = new Error(data.message || 'サーバーエラーが発生しました。');
-                if (data.requires_confirmation) {
-                    error.requires_confirmation = true;
-                    error.warnings = data.warnings;
-                }
-                throw error;
-            }
-            handleSuccess(data);
-        }
-
-        async function showConfirmationDialogs(warnings) {
-            for (const warning of warnings) {
-                const confirmed = confirm(warning.message + "\n\nこのまま続行しますか？");
-                if (!confirmed) return false;
-            }
-            return true;
-        }
-
-        function handleSuccess(data) {
-            if (data.work_log_message) {
-                showWorkLogNotification(data.work_log_message);
-            }
-            if (data.updated_assignees && tomSelectInstance) {
-                const newAssigneeIds = data.updated_assignees.map(assignee => assignee.id);
-                tomSelectInstance.setValue(newAssigneeIds, true); // 第2引数 true でイベントを発火させずに更新
-            }
-
-            updateTimerDisplayInEdit(data);
-        }
-
-        function updateTimerDisplayInEdit(responseData) {
-            const timerContainers = document.querySelectorAll('.timer-controls, .timer-display-only');
-            timerContainers.forEach(container => {
-                if (responseData.task_status) {
-                    container.dataset.taskStatus = responseData.task_status;
-                }
-                if (typeof responseData.is_paused !== 'undefined') {
-                    container.dataset.isPaused = responseData.is_paused ? 'true' : 'false';
-                }
-            });
-
-            if (responseData.running_logs) {
-                const runningLogsElement = document.getElementById("running-work-logs-data");
-                if (runningLogsElement) {
-                    runningLogsElement.textContent = JSON.stringify(responseData.running_logs);
-                }
-                window.dispatchEvent(
-                    new CustomEvent("work-log-status-changed", {
-                        detail: { hasActiveWorkLog: responseData.running_logs.some(log => log.status === 'active') },
-                    })
-                );
-            }
-
-            if (window.initializeWorkTimers) {
-                window.initializeWorkTimers();
-            }
-        }
-
-        function showWorkLogNotification(message) {
-            const notification = document.createElement("div");
-            notification.className = "fixed top-4 right-4 bg-blue-500 text-white px-4 py-2 rounded-md shadow-lg z-50 transition-opacity duration-300";
-            notification.textContent = message;
-            document.body.appendChild(notification);
-            setTimeout(() => {
-                notification.style.opacity = "0";
-                setTimeout(() => notification.remove(), 300);
-            }, 3000);
-        }
-    }
-    // ▲▲▲【ここまで】▲▲▲
-
-
-    function handleParentIdChangeForEdit() {
-        const parentIsSelected = parentIdSelectEdit.value !== '';
-
-        if (characterIdSelectEdit) {
-            characterIdSelectEdit.disabled = parentIsSelected || taskType === 'folder' || (applyEditToAllCharsCheckbox && applyEditToAllCharsCheckbox.checked);
-        }
-        if (applyEditToAllCharsCheckbox) {
-            applyEditToAllCharsCheckbox.disabled = parentIsSelected || taskType === 'folder';
-            if (parentIsSelected) {
-                applyEditToAllCharsCheckbox.checked = false;
-            }
-        }
-    }
-
-    function setFieldsBasedOnTaskType(currentTaskType) {
-        // (この関数は元のままで変更なし)
-        const isFolder = currentTaskType === 'folder';
-        const isMilestone = currentTaskType === 'milestone';
-        const isTodoTask = currentTaskType === 'todo_task';
-        const isDateTimeDisabled = isFolder || isMilestone || isTodoTask;
-
-        if (taskFieldsIndividual) taskFieldsIndividual.style.display = isFolder ? 'none' : 'block';
-        if (statusField) statusField.style.display = isFolder ? 'none' : 'block';
-        if (assigneeWrapper) assigneeWrapper.style.display = isFolder ? 'none' : 'block';
-
-        if (parentIdWrapperEdit) parentIdWrapperEdit.style.display = isFolder ? 'none' : 'block';
-        if (characterIdWrapperEdit) characterIdWrapperEdit.style.display = isFolder ? 'none' : 'block';
-
-        if (startDateInput) startDateInput.disabled = isDateTimeDisabled;
-        if (durationValueInput) durationValueInput.disabled = isDateTimeDisabled;
-        if (durationUnitSelect) durationUnitSelect.disabled = isDateTimeDisabled;
-        if (endDateInput) endDateInput.disabled = isDateTimeDisabled;
-
-        if (parentIdSelectEdit) parentIdSelectEdit.disabled = isFolder;
-
-        if (isFolder) {
-            if (characterIdSelectEdit) characterIdSelectEdit.disabled = true;
-            if (applyEditToAllCharsCheckbox) {
-                applyEditToAllCharsCheckbox.checked = false;
-                applyEditToAllCharsCheckbox.disabled = true;
-            }
-        } else {
-             handleParentIdChangeForEdit();
-        }
-         if (isMilestone) {
-            if (durationValueInput) durationValueInput.value = 0;
-            if (durationUnitSelect) durationUnitSelect.value = 'minutes';
-        } else if (isTodoTask || isFolder) {
-            if (startDateInput && !startDateInput.value) startDateInput.value = '';
-            if (durationValueInput && !durationValueInput.value) durationValueInput.value = '';
-            if (endDateInput && !endDateInput.value) endDateInput.value = '';
-        }
-    }
-
-    setFieldsBasedOnTaskType(taskType);
-
-    if (parentIdSelectEdit) {
-        parentIdSelectEdit.addEventListener('change', handleParentIdChangeForEdit);
-    }
-
-    if (applyEditToAllCharsCheckbox && characterIdSelectEdit) {
-        applyEditToAllCharsCheckbox.addEventListener('change', function() {
-            if (!parentIdSelectEdit || parentIdSelectEdit.value === '') {
-                 characterIdSelectEdit.disabled = this.checked || taskType === 'folder';
+        // work-timer.jsなど外部からステータスが更新された場合に備える
+        window.addEventListener('task-status-updated', (event) => {
+            const { taskId: updatedTaskId, newStatus } = event.detail;
+            if (String(updatedTaskId) === String(taskId)) {
+                statusSelect.value = newStatus;
+                originalStatus = newStatus;
+                taskFormPage.dataset.taskStatus = newStatus;
             }
         });
     }
-    handleParentIdChangeForEdit();
-
-    // (元のDropzoneなどのロジックがあれば、この下に続きます)
-
 });
 </script>
 @endpush
+{{-- ▲▲▲【変更ここまで】▲▲▲ --}}
