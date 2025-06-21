@@ -89,9 +89,9 @@
                                     :checked="old('is_milestone_or_folder', $preselectedType ?? 'task') == 'todo_task'" />
                                 <x-radio-input name="is_milestone_or_folder" id="is_task_type_milestone" value="milestone"
                                     :label="'<i class=\'fas fa-flag mr-1\'></i>予定'" :checked="old('is_milestone_or_folder', $preselectedType ?? 'task') == 'milestone'" />
-                                <x-radio-input name="is_milestone_or_folder" id="is_task_type_folder" value="folder"
+                                {{-- <x-radio-input name="is_milestone_or_folder" id="is_task_type_folder" value="folder"
                                     :label="'<i class=\'fas fa-folder mr-1\'></i>フォルダ'"
-                                    :checked="old('is_milestone_or_folder', $preselectedType ?? 'task') == 'folder'" />
+                                    :checked="old('is_milestone_or_folder', $preselectedType ?? 'task') == 'folder'" /> --}}
                             </div>
                         </div>
 
@@ -175,7 +175,8 @@
                             <select name="assignees[]" id="assignees_select" multiple class="mt-1 block w-full">
                                 @foreach($assigneeOptions as $id => $name)
                                     <option value="{{ $id }}" {{ in_array($id, $selectedAssignees) ? 'selected' : '' }}>
-                                        {{ $name }}</option>
+                                        {{ $name }}
+                                    </option>
                                 @endforeach
                             </select>
                             <x-input-error :messages="$errors->get('assignees')" class="mt-2" />
