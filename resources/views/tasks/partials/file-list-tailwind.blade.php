@@ -49,7 +49,7 @@
                             title="{{ $file->original_name }}">{{ Str::limit($file->original_name, 40) }}</span>
                     @endcan
                     <span class="text-gray-500 text-xs block">{{ number_format($file->size / 1024, 1) }} KB |
-                        {{ $file->created_at->format('Y/m/d H:i') }}</span>
+                        {{ $file->created_at->format('Y/m/d H:i:s') }}</span>
                 </div>
             </div>
             <div class="flex-shrink-0 ml-2">
