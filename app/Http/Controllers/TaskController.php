@@ -17,6 +17,7 @@ use App\Models\User;
 use App\Models\WorkLog;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Http\RedirectResponse;
 
 class TaskController extends Controller
 {
@@ -275,7 +276,7 @@ class TaskController extends Controller
         ));
     }
 
-    public function store(Request $request, Project $project): \Illuminate\Http\RedirectResponse
+    public function store(Request $request, Project $project): RedirectResponse|JsonResponse
     {
         $this->authorize('create', Task::class);
 
@@ -484,8 +485,159 @@ class TaskController extends Controller
             }
         }
 
+        if ($request->expectsJson()) {
+            $html = '';
+            // 担当者オプションは一度だけ取得
+            $assigneeOptions = User::where('status', User::STATUS_ACTIVE)->orderBy('name')->get();
+
+            // 作成された全てのタスクについてHTMLを生成
+            foreach ($createdTasks as $createdTask) {
+                $createdTask->load(['assignees', 'parent', 'children', 'project', 'character']);
+                $html .= view('projects.partials.task-table-row', [
+                    'task' => $createdTask,
+                    'assigneeOptions' => $assigneeOptions
+                ])->render();
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => $message, // 既存の動的メッセージを利用
+                'html' => $html, // 生成したHTMLをすべて結合して返す
+                'tasks' => $createdTasks, // 作成されたタスクの配列も返す
+            ]);
+        }
+
         return redirect()->route('projects.show', $project)->with('success', $message);
     }
+
+    /**
+     * 複数の工程を一括で登録します。
+     * (動的フォーム・メモ欄対応版)
+     */
+    public function batchStore(Request $request, Project $project)
+    {
+        $this->authorize('create', [Task::class, $project]);
+
+        // ▼▼▼【修正】バリデーションルールを全面的に強化 ▼▼▼
+        $validated = $request->validate([
+            'tasks' => 'required|array|min:1',
+            'tasks.*.name' => 'required|string|max:255',
+            'tasks.*.start_date' => 'required|date',
+            'tasks.*.end_date' => 'required|date|after_or_equal:tasks.*.start_date',
+            'tasks.*.duration_value' => [
+                'required',
+                'numeric',
+                'min:0',
+                // 工数が期間内に収まるかチェックするカスタムルール
+                function ($attribute, $value, $fail) use ($request) {
+                    // tasks.0.duration_value のような文字列からインデックス '0' を取得
+                    $index = explode('.', $attribute)[1];
+                    $task = $request->input('tasks')[$index];
+
+                    if (!empty($task['start_date']) && !empty($task['end_date']) && !empty($task['duration_unit'])) {
+                        $startDate = Carbon::parse($task['start_date']);
+                        $endDate = Carbon::parse($task['end_date']);
+                        $diffInMinutes = $startDate->diffInMinutes($endDate);
+
+                        $durationValue = (float)$value;
+                        $durationUnit = $task['duration_unit'];
+                        $inputDurationInMinutes = 0;
+
+                        switch ($durationUnit) {
+                            case 'days':
+                                $inputDurationInMinutes = $durationValue * 8 * 60;
+                                break;
+                            case 'hours':
+                                $inputDurationInMinutes = $durationValue * 60;
+                                break;
+                            case 'minutes':
+                                $inputDurationInMinutes = $durationValue;
+                                break;
+                        }
+
+                        if (round($inputDurationInMinutes) > $diffInMinutes) {
+                            $fail(($index + 1) . '行目の工数が、開始日時と終了日時の期間を超えています。');
+                        }
+                    }
+                },
+            ],
+            'tasks.*.duration_unit' => 'required|string|in:days,hours,minutes',
+            'tasks.*.character_id' => [
+                'nullable',
+                Rule::exists('characters', 'id')->where('project_id', $project->id),
+            ],
+            'tasks.*.description' => 'nullable|string',
+        ], [
+            'tasks.*.name.required' => ':position行目の工程名は必須です。',
+            'tasks.*.start_date.required' => ':position行目の開始日時は必須です。',
+            'tasks.*.end_date.required' => ':position行目の終了日時は必須です。',
+            'tasks.*.end_date.after_or_equal' => ':position行目の終了日は、開始日以降に設定してください。',
+            'tasks.*.duration_value.required' => ':position行目の工数は必須です。',
+            'tasks.*.duration_unit.required' => ':position行目の工数の単位は必須です。',
+        ]);
+
+        $createdTasks = [];
+        $newRowsHtml = '';
+        $assigneeOptions = User::where('status', User::STATUS_ACTIVE)->orderBy('name')->get(['id', 'name'])->map(fn($user) => ['id' => $user->id, 'name' => $user->name])->values()->all();
+
+        DB::beginTransaction();
+        try {
+            foreach ($validated['tasks'] as $taskData) {
+                $task = new Task();
+
+                $task->project_id = $project->id;
+                $task->name = $taskData['name'];
+                $task->status = 'not_started';
+                $task->start_date = $taskData['start_date'];
+                $task->end_date = $taskData['end_date'];
+                $task->description = $taskData['description'] ?? null;
+                $task->character_id = !empty($taskData['character_id']) ? $taskData['character_id'] : null;
+
+                // ▼▼▼【修正】単位に合わせて工数（分）を計算して保存 ▼▼▼
+                $durationValue = (float)$taskData['duration_value'];
+                $durationUnit = $taskData['duration_unit'];
+                $calculatedDurationInMinutes = 0;
+                switch ($durationUnit) {
+                    case 'days':
+                        $calculatedDurationInMinutes = $durationValue * 8 * 60;
+                        break;
+                    case 'hours':
+                        $calculatedDurationInMinutes = $durationValue * 60;
+                        break;
+                    case 'minutes':
+                        $calculatedDurationInMinutes = $durationValue;
+                        break;
+                }
+                $task->duration = $calculatedDurationInMinutes;
+                // ▲▲▲
+
+                $task->save();
+
+                $task->load(['assignees', 'parent', 'children', 'project', 'character']);
+                $createdTasks[] = $task;
+
+                $newRowsHtml .= view('projects.partials.task-table-row', [
+                    'task' => $task,
+                    'assigneeOptions' => $assigneeOptions
+                ])->render();
+            }
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Task batch store failed: ' . $e->getMessage(), ['exception' => $e]);
+            return response()->json(['success' => false, 'message' => '一括登録中にエラーが発生しました。'], 500);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => count($createdTasks) . '件の工程を一括登録しました。',
+            'html' => $newRowsHtml,
+            'tasks' => $createdTasks
+        ]);
+    }
+
+
+
     public function edit(Project $project, Task $task)
     {
         $this->authorize('update', $task);

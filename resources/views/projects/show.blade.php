@@ -91,6 +91,11 @@
                 </div>
             </div>
             <div class="flex flex-wrap gap-2 mt-3 sm:mt-0 self-start sm:self-center">
+                @can('create', App\Models\Task::class)
+                    <button type="button" x-data @click="$dispatch('open-modal', 'batch-task-modal')" class="inline-flex items-center px-3 py-2 bg-white/20 hover:bg-white/30 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest transition ease-in-out duration-150">
+                        <i class="fas fa-stream mr-1"></i> 一括登録
+                    </button>
+                @endcan
                  @can('create', App\Models\Task::class)
                     <a href="{{ route('projects.tasks.create', $project) }}" class="inline-flex items-center px-3 py-2 bg-white/20 hover:bg-white/30 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest transition ease-in-out duration-150">
                         <i class="fas fa-plus mr-1"></i> 工程追加
@@ -759,56 +764,77 @@
                  }"
                  class="bg-white dark:bg-gray-800 shadow-md rounded-lg">
                 <div class="px-5 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center cursor-pointer" @click="expanded = !expanded">
-                    <div class="flex items-center"> <i class="fas fa-users mr-2 text-gray-600 dark:text-gray-300"></i> <h5 class="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-0">登場キャラクター</h5> </div>
-                    @can('manageCosts', $project)
-                    <div class="text-sm text-gray-500 dark:text-gray-400 flex items-center"> <span class="mr-2">{{ $project->characters->count() }}体</span> @if($project->characters->count() > 0) <span class="mr-2 hidden sm:inline">合計コスト: {{ number_format($project->characters->sum(function ($char) { return $char->costs->sum('amount'); })) }}円</span> @endif <i class="fas" :class="expanded ? 'fa-chevron-up' : 'fa-chevron-down'"></i> </div>
-                    @endcan
+                    <div class="flex items-center"> <i class="fas fa-users mr-2 text-gray-600 dark:text-gray-300"></i> <h5 class="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-0">キャラクター</h5> </div>
+                    <div class="text-sm text-gray-500 dark:text-gray-400 flex items-center">
+                        <span class="mr-2">{{ $project->characters->count() }}体</span>
+                        {{-- @can('manageCosts', $project)
+                        @if($project->characters->count() > 0)
+                        <span class="mr-2 hidden sm:inline">合計コスト: {{ number_format($project->characters->sum(function ($char) { return $char->costs->sum('amount'); })) }}円</span>
+                        @endif
+                        @endcan --}}
+
+                        <i class="fas" :class="expanded ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
+                    </div>
                 </div>
                 <div x-show="expanded" x-collapse class="p-1 sm:p-3 md:p-5 border-t border-gray-200 dark:border-gray-700">
                     @can('update', $project)
-                        <div class="mb-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-dashed border-gray-300 dark:border-gray-600 hover:border-blue-500 dark:hover:border-blue-400 transition-colors">
-                            <h6 class="text-md font-semibold text-gray-700 dark:text-gray-200 mb-3"><i class="fas fa-plus mr-2"></i>新しいキャラクターを追加</h6>
-                            <form action="{{ route('projects.characters.store', $project) }}" method="POST">
-                                @csrf
-                                <div class="space-y-4">
-                                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 items-start">
-                                        <div class="sm:col-span-2">
-                                            <label for="new_character_name" class="block text-xs font-medium text-gray-700 dark:text-gray-300">キャラクター名 <span class="text-red-500">*</span></label>
-                                            <input type="text" name="name" id="new_character_name" class="form-input mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200" placeholder="例: 主人公" required value="{{ old('name') }}">
-                                            @error('name', 'characterCreation')<span class="text-xs text-red-500">{{ $message }}</span>@enderror
+                    <div x-data="{ open: {{ $errors->characterCreation->any() ? 'true' : 'false' }} }" class="mb-6 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-dashed border-gray-300 dark:border-gray-600 hover:border-blue-500 dark:hover:border-blue-400 transition-colors overflow-hidden">
+                        {{-- クリックで開閉するためのヘッダー --}}
+                        <div @click="open = !open" class="p-4 cursor-pointer flex justify-between items-center">
+                            <h6 class="text-md font-semibold text-gray-700 dark:text-gray-200 mb-0">
+                                <i class="fas fa-plus mr-2"></i>新しいキャラクターを追加
+                            </h6>
+                            <button type="button" class="text-gray-500 dark:text-gray-400">
+                                <i class="fas" :class="open ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
+                            </button>
+                        </div>
+
+                        {{-- 開閉するフォーム本体 --}}
+                        <div x-show="open" x-collapse>
+                            <div class="p-4 border-t border-gray-200 dark:border-gray-700">
+                                <form action="{{ route('projects.characters.store', $project) }}" method="POST">
+                                    @csrf
+                                    <div class="space-y-4">
+                                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 items-start">
+                                            <div class="sm:col-span-2">
+                                                <label for="new_character_name" class="block text-xs font-medium text-gray-700 dark:text-gray-300">キャラクター名 <span class="text-red-500">*</span></label>
+                                                <input type="text" name="name" id="new_character_name" class="form-input mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200" placeholder="例: 主人公" required value="{{ old('name') }}">
+                                                @error('name', 'characterCreation')<span class="text-xs text-red-500">{{ $message }}</span>@enderror
+                                            </div>
+                                            <div>
+                                                <label for="new_character_gender" class="block text-xs font-medium text-gray-700 dark:text-gray-300">性別</label>
+                                                <select name="gender" id="new_character_gender" class="form-select mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 text-sm">
+                                                    <option value="" @selected(old('gender') == '')>選択しない</option>
+                                                    <option value="male" @selected(old('gender') == 'male')>男性</option>
+                                                    <option value="female" @selected(old('gender') == 'female')>女性</option>
+                                                </select>
+                                                @error('gender', 'characterCreation')<span class="text-xs text-red-500">{{ $message }}</span>@enderror
+                                            </div>
                                         </div>
                                         <div>
-                                            <label for="new_character_gender" class="block text-xs font-medium text-gray-700 dark:text-gray-300">性別</label>
-                                            <select name="gender" id="new_character_gender" class="form-select mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 text-sm">
-                                                <option value="" @selected(old('gender') == '')>選択しない</option>
-                                                <option value="male" @selected(old('gender') == 'male')>男性</option>
-                                                <option value="female" @selected(old('gender') == 'female')>女性</option>
-                                            </select>
-                                            @error('gender', 'characterCreation')<span class="text-xs text-red-500">{{ $message }}</span>@enderror
+                                            <label for="new_character_description" class="block text-xs font-medium text-gray-700 dark:text-gray-300">備考</label>
+                                            <textarea name="description" id="new_character_description" rows="3" class="form-input mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200" placeholder="例: メイン衣装">{{ old('description') }}</textarea>
+                                            @error('description', 'characterCreation')<span class="text-xs text-red-500">{{ $message }}</span>@enderror
+                                        </div>
+                                        <div class="flex justify-end">
+                                            <button type="submit" class="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 active:bg-blue-800 focus:outline-none focus:border-blue-800 focus:ring ring-blue-300 disabled:opacity-25 transition ease-in-out duration-150">
+                                                <i class="fas fa-plus mr-1 sm:mr-2"></i><span class="hidden sm:inline">追加</span><span class="sm:hidden">追加</span>
+                                            </button>
                                         </div>
                                     </div>
-                                    <div>
-                                        <label for="new_character_description" class="block text-xs font-medium text-gray-700 dark:text-gray-300">備考</label>
-                                        <textarea name="description" id="new_character_description" rows="3" class="form-input mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200" placeholder="例: メイン衣装">{{ old('description') }}</textarea>
-                                        @error('description', 'characterCreation')<span class="text-xs text-red-500">{{ $message }}</span>@enderror
-                                    </div>
-                                    <div class="flex justify-end">
-                                        <button type="submit" class="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 active:bg-blue-800 focus:outline-none focus:border-blue-800 focus:ring ring-blue-300 disabled:opacity-25 transition ease-in-out duration-150">
-                                            <i class="fas fa-plus mr-1 sm:mr-2"></i><span class="hidden sm:inline">追加</span><span class="sm:hidden">追加</span>
-                                        </button>
-                                    </div>
-                                </div>
-                                @if ($errors->characterCreation->any() && !$errors->characterCreation->has('name') && !$errors->characterCreation->has('gender') && !$errors->characterCreation->has('description'))
-                                    <div class="mt-2 text-xs text-red-500">
-                                        <ul>
-                                            @foreach ($errors->characterCreation->all() as $error)
-                                                <li>{{ $error }}</li>
-                                            @endforeach
-                                        </ul>
-                                    </div>
-                                @endif
-                            </form>
+                                    @if ($errors->characterCreation->any() && !$errors->characterCreation->has('name') && !$errors->characterCreation->has('gender') && !$errors->characterCreation->has('description'))
+                                        <div class="mt-2 text-xs text-red-500">
+                                            <ul>
+                                                @foreach ($errors->characterCreation->all() as $error)
+                                                    <li>{{ $error }}</li>
+                                                @endforeach
+                                            </ul>
+                                        </div>
+                                    @endif
+                                </form>
+                            </div>
                         </div>
+                    </div>
                     @endcan
                     {{-- ▼▼▼【追加】並び順保存ボタン ▼▼▼ --}}
                     <button type="button" id="save-character-order-btn" class="hidden inline-flex items-center px-3 py-1 bg-green-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-green-700">
@@ -820,14 +846,35 @@
                         <div id="character-list" class="space-y-6">
                             @foreach($project->characters->sortBy('display_order') as $character)
                             <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden js-character-card" data-id="{{ $character->id }}">                                    <div class="px-5 py-3 flex justify-between items-center border-b dark:border-gray-700" style="background: linear-gradient(135deg, {{ $project->color ?? '#6c757d' }}1A, {{ $project->color ?? '#6c757d' }}0A); border-left: 3px solid {{ $project->color ?? '#6c757d' }};">
-                                        <h6 class="text-md font-semibold text-gray-800 dark:text-gray-100 truncate" title="{{ $character->name }}">
-                                            <span class="drag-handle text-gray-400 mr-3 cursor-move" title="ドラッグして並び替え"><i class="fas fa-grip-vertical"></i></span>
-                                            <i class="fas fa-user mr-2" style="color: {{ $project->color ?? '#6c757d' }};"></i>
-                                            {{ $character->name }}
-                                            @if($character->gender)
-                                                <span class="text-xs font-normal text-gray-500 dark:text-gray-400 ml-1">({{ $character->gender_label }})</span>
-                                            @endif
-                                        </h6>
+                                <h6 class="text-md font-semibold text-gray-800 dark:text-gray-100 flex items-center flex-grow truncate">
+
+                                    {{-- ドラッグハンドル --}}
+                                    <span class="drag-handle text-gray-400 mr-3 cursor-move flex-shrink-0" title="ドラッグして並び替え"><i class="fas fa-grip-vertical"></i></span>
+
+                                    {{-- キャラクター名 --}}
+                                    <span class="truncate" title="{{ $character->name }}">
+                                        <i class="fas fa-user mr-2" style="color: {{ $project->color ?? '#6c757d' }};"></i>
+                                        {{ $character->name }}
+                                    </span>
+
+                                    {{-- 性別 --}}
+                                    @if($character->gender)
+                                        <span class="text-xs font-normal text-gray-500 dark:text-gray-400 ml-2 flex-shrink-0">({{ $character->gender_label }})</span>
+                                    @endif
+                                </h6>
+
+                                        {{-- コスト情報表示 --}}
+                                        @can('manageCosts', $project)
+                                        <span class="flex-shrink-0 text-xs font-mono bg-gray-100 dark:bg-gray-900/50 px-2 py-1 rounded mr-3" title="">
+                                            <span title="実績コスト: ¥{{ number_format($character->actual_total_cost ?? 0) }}">
+                                                実績コスト: ¥{{ number_format($character->actual_total_cost ?? 0) }}
+                                            </span>
+                                            {{-- <span class="mx-1">/</span> --}}
+                                            {{-- <span class="text-gray-500 dark:text-gray-400" title="目標コスト: ¥{{ number_format($character->target_total_cost ?? 0) }}">
+                                                ¥{{ number_format($character->target_total_cost ?? 0) }}
+                                            </span> --}}
+                                        </span>
+                                        @endcan
                                         @can('update', $project)
                                         <div class="flex space-x-1 flex-shrink-0">
                                             <x-icon-button :href="route('characters.edit', $character)" icon="fas fa-edit" title="編集" color="blue" size="sm" />
@@ -921,7 +968,13 @@
                                                     });
                                                 }">
 
-                                                @include('projects.partials.character-tasks-tailwind', ['tasks' => $character->tasks()->orderByRaw('ISNULL(start_date), start_date ASC, name ASC')->get(), 'project' => $project, 'character' => $character])
+                                                @include('projects.partials.character-tasks-table', [
+                                                    'tasksToList' => $character->tasks()->orderByRaw('ISNULL(start_date), start_date ASC, name ASC')->get(),
+                                                    'tableId' => 'character-tasks-table-' . $character->id,
+                                                    'project' => $project,
+                                                    'character' => $character,
+                                                    'assigneeOptions' => $assigneeOptions ?? []
+                                                ])
                                             </div>
                                             @endcan
                                             @can('manageCosts', $project)
@@ -956,7 +1009,7 @@
             </div>
 
             {{-- 作業依頼 --}}
-            <div x-data="{ expanded: true }" class="bg-white dark:bg-gray-800 shadow-md rounded-lg">
+            {{-- <div x-data="{ expanded: true }" class="bg-white dark:bg-gray-800 shadow-md rounded-lg">
                 <div class="px-5 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center cursor-pointer" @click="expanded = !expanded">
                     <div class="flex items-center">
                         <i class="fas fa-clipboard-list mr-2 text-gray-600 dark:text-gray-300"></i>
@@ -976,15 +1029,113 @@
                         </p>
                     @endforelse
                 </div>
-            </div>
+            </div> --}}
         </div>
     </div>
+
+    {{-- resources/views/projects/show.blade.php の中の一括登録モーダル部分 --}}
+    @can('create', [App\Models\Task::class, $project])
+    <x-modal name="batch-task-modal" focusable max-width="4xl">
+        <div x-data="{
+            tasks: [ { name: '', character_id: '', start_date: '', end_date: '', duration_value: '', duration_unit: 'minutes', description: '' } ],
+            characters: {{ $project->characters->map->only(['id', 'name'])->values() }},
+            addRow() { this.tasks.push({ name: '', character_id: '', start_date: '', end_date: '', duration_value: '', duration_unit: 'minutes', description: '' }); },
+            removeRow(index) { if (this.tasks.length > 1) this.tasks.splice(index, 1); }
+        }">
+            <form id="batch-task-form" class="p-6" onsubmit="return false;">
+                @csrf
+                <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100">
+                    <i class="fas fa-stream mr-2"></i>工程の一括登録
+                </h2>
+                <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                    複数の工程情報をまとめて登録します。「行を追加」ボタンで入力欄を増やせます。
+                </p>
+
+                <div class="mt-6 space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+                    <template x-for="(task, index) in tasks" :key="index">
+                        <div class="p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800/50 relative">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-3">
+
+                                {{-- ▼▼▼【ここから下の :for, :id の部分を全て修正】▼▼▼ --}}
+
+                                <div class="md:col-span-2">
+                                    <x-input-label x-bind:for="'task_name_' + index" value="工程名" :required="true" />
+                                    <x-text-input type="text" x-model="task.name" x-bind:name="`tasks[${index}][name]`" x-bind:id="'task_name_' + index" class="mt-1 block w-full" required />
+                                </div>
+
+                                {{-- 所属キャラクター --}}
+                                <div class="md:col-span-2">
+                                    <x-input-label x-bind:for="'task_character_' + index" value="所属キャラクター" />
+                                    <select x-model="task.character_id" x-bind:name="`tasks[${index}][character_id]`" x-bind:id="'task_character_' + index" class="form-select mt-1 block w-full rounded-md border-gray-300 shadow-sm dark:bg-gray-900 dark:border-gray-600 dark:text-gray-200">
+                                        <option value="">案件全体 (キャラクターなし)</option>
+                                        <template x-for="character in characters" :key="character.id">
+                                            <option :value="character.id" x-text="character.name"></option>
+                                        </template>
+                                    </select>
+                                </div>
+
+                                {{-- 開始日時 --}}
+                                <div>
+                                    <x-input-label x-bind:for="'task_start_date_' + index" value="開始日時" :required="true" />
+                                    <x-text-input type="datetime-local" x-model="task.start_date" x-bind:name="`tasks[${index}][start_date]`" x-bind:id="'task_start_date_' + index" class="mt-1 block w-full" required />
+                                </div>
+                                {{-- 終了日時 --}}
+                                <div>
+                                    <x-input-label x-bind:for="'task_end_date_' + index" value="終了日時" :required="true" />
+                                    <x-text-input type="datetime-local" x-model="task.end_date" x-bind:name="`tasks[${index}][end_date]`" x-bind:id="'task_end_date_' + index" class="mt-1 block w-full" required />
+                                </div>
+
+                                {{-- 予定工数 --}}
+                                <div class="md:col-span-2">
+                                    <x-input-label x-bind:for="'task_duration_value_' + index" value="予定工数" :required="true" />
+                                    <div class="flex items-center mt-1 space-x-2">
+                                        <x-text-input type="number" x-model="task.duration_value" x-bind:name="`tasks[${index}][duration_value]`" x-bind:id="'task_duration_value_' + index" class="block w-1/2" min="0" step="any" placeholder="例: 8" required />
+                                        <select x-model="task.duration_unit" x-bind:name="`tasks[${index}][duration_unit]`" x-bind:id="'task_duration_unit_' + index" class="block w-1/2 mt-0 form-select rounded-md shadow-sm border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 dark:focus:border-indigo-500 dark:focus:ring-indigo-500">
+                                            <option value="days">日</option>
+                                            <option value="hours">時間</option>
+                                            <option value="minutes">分</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {{-- メモ欄 --}}
+                                <div class="md:col-span-2">
+                                    <x-input-label x-bind:for="'task_description_' + index" value="メモ" />
+                                    <x-textarea-input x-model="task.description" x-bind:name="`tasks[${index}][description]`" x-bind:id="'task_description_' + index" class="mt-1 block w-full" rows="2"></x-textarea-input>
+                                </div>
+
+                            </div>
+                            <button type="button" @click="removeRow(index)" x-show="tasks.length > 1" class="absolute top-2 right-2 text-gray-400 hover:text-red-500 dark:hover:text-red-400" title="この行を削除">
+                                <i class="fas fa-times-circle"></i>
+                            </button>
+                        </div>
+                    </template>
+                </div>
+
+                <div class="mt-4">
+                    <x-secondary-button type="button" @click="addRow()">
+                        <i class="fas fa-plus mr-2"></i>行を追加
+                    </x-secondary-button>
+                </div>
+
+                <div id="batch-task-form-errors" class="text-sm text-red-600 space-y-1 mt-2"></div>
+
+                <div class="mt-6 flex justify-end">
+                    <x-secondary-button type="button" x-on:click="$dispatch('close')">キャンセル</x-secondary-button>
+                    <x-primary-button type="submit" class="ml-3">
+                        <i class="fas fa-check mr-2"></i>この内容で登録する
+                    </x-primary-button>
+                </div>
+            </form>
+        </div>
+    </x-modal>
+    @endcan
 </div>
 @include('projects.partials.image-measurement-batch-modal')
 @endsection
 
 @push('scripts')
-@include('requests.partials.request-card-scripts')
+{{-- @include('requests.partials.request-card-scripts') --}}
 
 {{-- Dropzone.jsライブラリを読み込みます --}}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dropzone/5.9.3/min/dropzone.min.js"></script>

@@ -1,13 +1,15 @@
-{{-- resources/views/projects/partials/projects-task-table.blade.php --}}
+{{-- resources/views/projects/partials/character-tasks-table.blade.php --}}
 @php
-    $formIdentifier = 'project';
+    $isCharacterView = isset($character);
+    $formIdentifier = $isCharacterView ? $character->id : 'project';
 @endphp
 
 <div id="task-list-container-{{ $tableId }}">
     <div class="mb-4">
         @php
             $hideCompletedParams = request()->query();
-            $hideCompletedParams['context'] = 'project';
+            $hideCompletedParams['context'] = 'character';
+            $hideCompletedParams['character_id'] = $character->id;
 
             $isHidingCompleted = $hideCompleted ?? false;
 
@@ -68,8 +70,8 @@
                     @include('projects.partials.task-table-row', ['task' => $task, 'assigneeOptions' => $assigneeOptions ?? []])
                 @empty
                     <tr>
-                        <td colspan="7" class="px-6 py-12 text-center text-sm text-gray-500 dark:text-gray-400">表示する工程がありません
-                        </td>
+                        <td colspan="7" class="px-6 py-12 text-center text-sm text-gray-500 dark:text-gray-400">
+                            このキャラクターの工程はありません</td>
                     </tr>
                 @endforelse
             </tbody>
@@ -79,17 +81,17 @@
 @can('create', [App\Models\Task::class, $project])
     <div class="mx-6 my-2 pt-6 border-t border-gray-200 dark:border-gray-700">
         <h6 class="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-3">
-            <i class="fas fa-plus-circle mr-2 text-green-500"></i>工程を新規追加
+            <i class="fas fa-plus-circle mr-2 text-green-500"></i>このキャラクターに工程を新規追加
         </h6>
         <form id="task-form-{{ $formIdentifier }}" class="space-y-4 bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg"
             onsubmit="return false;">
             @csrf
-            <input type="hidden" name="character_id" value="">
+            <input type="hidden" name="character_id" value="{{ $character->id }}">
 
             <div>
                 <x-input-label for="task-name-{{ $formIdentifier }}" value="工程名" :required="true" />
                 <x-text-input id="task-name-{{ $formIdentifier }}" name="name" type="text" class="mt-1 block w-full"
-                    placeholder="例: 全体共有事項" required />
+                    placeholder="例: パターン作成" required />
             </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>

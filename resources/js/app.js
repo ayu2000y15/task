@@ -45,8 +45,6 @@ document.addEventListener("DOMContentLoaded", () => {
     initializeWorkTimers();
 
     // --- Page-specific JavaScript ---
-    // ▼▼▼【ここから最終修正】▼▼▼
-    // 動的インポート後、モジュールのデフォルトエクスポート（初期化関数）を必ず実行する
     if (
         (document.querySelector(".task-status-select") ||
             document.querySelector("[class*='editable-cell']")) &&
@@ -65,13 +63,14 @@ document.addEventListener("DOMContentLoaded", () => {
                 )
             );
     }
-    // ▲▲▲【最終修正ここまで】▲▲▲
 
+    // ★修正箇所: 案件詳細ページ専用のJSを動的に読み込むように修正
     if (document.getElementById("project-show-main-container")) {
         import("./page-specific/project-show-main.js").catch((error) =>
             console.error("Error loading project-show-main.js:", error)
         );
     }
+
     if (document.getElementById("project-form-page")) {
         import("./page-specific/projects-form.js").catch((error) =>
             console.error("Error loading projects-form.js:", error)

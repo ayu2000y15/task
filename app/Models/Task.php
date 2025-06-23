@@ -25,7 +25,7 @@ class Task extends Model
         'status',
         'progress',
         'is_paused', // ★ is_paused を追加
-        'assignee',
+        // 'assignee',
         'is_milestone',
         'is_folder',
     ];

@@ -78,6 +78,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/projects/{project}/tasks/{task}/status', [TaskController::class, 'updateStatusFromEdit'])
         ->name('tasks.updateStatusFromEdit');
 
+    Route::post('/projects/{project}/tasks/batch', [App\Http\Controllers\TaskController::class, 'batchStore'])->name('projects.tasks.batchStore');
+
     // ファイル関連のルート
     Route::post('/projects/{project}/tasks/{task}/files', [TaskController::class, 'uploadFiles'])->name('projects.tasks.files.upload');
     Route::get('/projects/{project}/tasks/{task}/files', [TaskController::class, 'getFiles'])->name('projects.tasks.files.index');

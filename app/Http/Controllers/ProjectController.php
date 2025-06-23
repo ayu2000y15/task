@@ -670,6 +670,53 @@ class ProjectController extends Controller
             }
         ]);
 
+        // 案件全体の目標人件費レートを取得
+        $target_labor_cost_rate = $project->target_labor_cost_rate ?? 0;
+
+        // 各キャラクターのコスト情報を計算して、キャラクターオブジェクトにプロパティとして追加
+        foreach ($project->characters as $character) {
+            // 1. 実績コストの計算
+            // 1-1. 実績材料費 (Costテーブルから)
+            $actual_material_cost_char = $character->costs()->where('type', '材料費')->sum('amount');
+
+            // 1-2. 実績人件費 (Costテーブルから手動計上分 '作業費', '交通費' など)
+            $actual_labor_cost_from_costs_char = $character->costs()->whereIn('type', ['作業費', '交通費'])->sum('amount');
+
+            // 1-3. 実績人件費 (WorkLogから自動計算分)
+            $actual_labor_cost_from_logs_char = 0;
+            // 関連リレーションをEager Loadしておく（N+1問題対策）
+            $character->loadMissing('tasks.workLogs.user.hourlyRates');
+            $completed_tasks_char = $character->tasks->where('status', 'completed');
+
+            foreach ($completed_tasks_char as $task) {
+                foreach ($task->workLogs as $log) {
+                    if ($log->user && $log->effective_duration > 0) {
+                        // UserモデルのgetHourlyRateForDateメソッドで時給を取得
+                        $rate = $log->user->getHourlyRateForDate($log->start_time);
+                        if ($rate > 0) {
+                            $actual_labor_cost_from_logs_char += ($log->effective_duration / 3600) * $rate;
+                        }
+                    }
+                }
+            }
+
+            // 1-4. キャラクターごとの実績人件費合計と、実績総コスト
+            $actual_labor_cost_char = $actual_labor_cost_from_costs_char + $actual_labor_cost_from_logs_char;
+            $character->actual_total_cost = $actual_material_cost_char + $actual_labor_cost_char;
+
+            // 2. 目標コストの計算
+            // 2-1. 目標材料費 (現状、キャラクターごとに目標材料費を設定する項目がないため、関連する材料の目標コストを合計します)
+            // Note: Materialモデルに target_cost カラムが存在しない場合は、この行を $target_material_cost_char = 0; に変更してください。
+            $target_material_cost_char = 0;
+
+            // 2-2. 目標人件費 (キャラクターに紐づくタスクの予定工数から計算)
+            $total_duration_minutes_char = $character->tasks()->where('is_folder', false)->where('is_milestone', false)->sum('duration');
+            $target_labor_cost_char = ($total_duration_minutes_char / 60) * $target_labor_cost_rate;
+
+            // 2-3. キャラクターごとの目標総コスト
+            $character->target_total_cost = $target_material_cost_char + $target_labor_cost_char;
+        }
+
         $tasksToList = $project->tasksWithoutCharacter()->orderByRaw('ISNULL(start_date), start_date ASC, name ASC')->get();
         foreach ($project->characters as $character) {
             $characterTasksCollection = $character->tasks;

@@ -2,6 +2,11 @@
 import { initializeMeasurementInteractions } from "./project-show-measurements.js";
 import { initializeMaterialInteractions } from "./project-show-materials.js";
 import { initializeCostInteractions } from "./project-show-costs.js";
+// ★修正箇所: 一括登録用の初期化関数もインポート
+import {
+    initializeTaskForms,
+    initializeBatchTaskRegistration,
+} from "./project-show-tasks.js";
 import {
     handleProjectFlagOrStatusUpdate,
     getCsrfToken,
@@ -32,6 +37,11 @@ function initializeProjectShowPage() {
             );
         }
     }
+
+    // 個別タスクフォームを初期化
+    initializeTaskForms(mainContainer);
+    // ★修正箇所: 一括登録フォームを初期化
+    initializeBatchTaskRegistration();
 
     mainContainer.addEventListener("change", function (event) {
         const flagSelect = event.target.closest(
