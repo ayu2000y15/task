@@ -2,21 +2,66 @@
 @section('title', '作業依頼一覧')
 
 @section('content')
-    <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8" x-data="{ tab: 'assigned' }">
+    <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8" x-data="{
+                        tab: 'assigned',
+                        filtersOpen: {{ count(array_filter(request()->except('page', 'tab'))) > 0 ? 'true' : 'false' }}
+                    }">
         <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
             <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-200">作業依頼一覧</h1>
-            <x-primary-button as="a" href="{{ route('requests.create') }}">
-                <i class="fas fa-plus mr-2"></i>新規依頼を作成
-            </x-primary-button>
+            <div class="flex items-center space-x-2">
+                <x-secondary-button @click="filtersOpen = !filtersOpen">
+                    <i class="fas fa-filter mr-1"></i>フィルター
+                    <span x-show="filtersOpen" style="display:none;"><i class="fas fa-chevron-up fa-xs ml-2"></i></span>
+                    <span x-show="!filtersOpen"><i class="fas fa-chevron-down fa-xs ml-2"></i></span>
+                </x-secondary-button>
+                <x-primary-button as="a" href="{{ route('requests.create') }}">
+                    <i class="fas fa-plus mr-2"></i>新規依頼を作成
+                </x-primary-button>
+            </div>
         </div>
+
+        {{-- ▼▼▼【ここから追加】フィルターパネル ▼▼▼ --}}
+        <div x-show="filtersOpen" x-collapse class="mb-6 bg-white dark:bg-gray-800 shadow-md rounded-lg p-4 sm:p-6">
+            <form action="{{ route('requests.index') }}" method="GET">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    <div>
+                        <x-input-label for="filter_category_id" value="カテゴリ" />
+                        <x-select-input id="filter_category_id" name="category_id" class="mt-1 block w-full"
+                            :emptyOptionText="'すべてのカテゴリ'">
+                            @foreach($categories as $category)
+                                <option value="{{ $category->id }}" @if(request('category_id') == $category->id) selected @endif>
+                                    {{ $category->name }}
+                                </option>
+                            @endforeach
+                        </x-select-input>
+                    </div>
+                    <div>
+                        <x-input-label for="filter_date" value="日付" />
+                        <x-text-input id="filter_date" name="date" type="date" class="mt-1 block w-full"
+                            :value="request('date')" />
+                    </div>
+                </div>
+                <div class="mt-6 flex items-center justify-end space-x-3">
+                    <a href="{{ route('requests.index') }}"
+                        class="inline-flex items-center px-4 py-2 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-md font-semibold text-xs text-gray-700 dark:text-gray-200 uppercase tracking-widest shadow-sm hover:bg-gray-50 dark:hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 disabled:opacity-25 transition ease-in-out duration-150">
+                        リセット
+                    </a>
+                    <x-primary-button type="submit">
+                        <i class="fas fa-search mr-2"></i> 絞り込む
+                    </x-primary-button>
+                </div>
+            </form>
+        </div>
+        {{-- ▲▲▲【追加ここまで】▲▲▲ --}}
+
         <div class="p-2 text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded-md dark:bg-blue-700/30 dark:text-blue-200 dark:border-blue-500"
             role="alert">
             <i class="fas fa-info-circle mr-1"></i>
-            各項目の日付を設定すると、その日のホーム画面「やることリスト」にタスクが表示され、日々の計画に役立ちます。
+            各項目の開始・終了日時を設定すると、カレンダーやホーム画面にタスクが表示されます。
         </div>
 
         {{-- タブ切り替え --}}
-        <div class="border-b border-gray-200 dark:border-gray-700 mb-6">
+        <div class="border-b border-gray-200 dark:border-gray-700 mb-6 mt-4">
             <nav class="-mb-px flex space-x-6 sm:space-x-8 overflow-x-auto" aria-label="Tabs">
                 <button @click="tab = 'assigned'"
                     :class="tab === 'assigned' ? 'font-semibold border-blue-600 text-blue-600 dark:text-blue-500' : 'border-transparent text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-500'"
@@ -50,12 +95,11 @@
             @include('requests.partials.request-list', ['title' => '完了済みの受信依頼', 'requests' => $completedAssigned, 'isEmptyMessage' => '完了済みの受信依頼はありません。', 'collapsible' => true])
         </div>
 
-        {{-- ▼▼▼【ここから追加】「自分用」パネル ▼▼▼ --}}
+        {{-- 自分用パネル --}}
         <div x-show="tab === 'personal'" x-cloak class="space-y-8">
             @include('requests.partials.request-list', ['title' => '未完了の自分用タスク', 'requests' => $pendingPersonal, 'isEmptyMessage' => '未完了のタスクはありません。'])
             @include('requests.partials.request-list', ['title' => '完了済みの自分用タスク', 'requests' => $completedPersonal, 'isEmptyMessage' => '完了済みのタスクはありません。', 'collapsible' => true])
         </div>
-        {{-- ▲▲▲【追加ここまで】▲▲▲ --}}
 
         {{-- 送信依頼パネル --}}
         <div x-show="tab === 'created'" x-cloak class="space-y-8">
@@ -66,165 +110,6 @@
 @endsection
 
 @push('scripts')
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-
-            // =================================================================
-            // 機能1: 日付ピッカーで「やることリスト」の計画日を設定する
-            // =================================================================
-
-            // 計画日を設定/解除する共通関数
-            function updateMyDayDate(itemId, dateValue) {
-                fetch(`/requests/items/${itemId}/set-my-day`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': csrfToken,
-                        'Accept': 'application/json',
-                    },
-                    body: JSON.stringify({ date: dateValue })
-                })
-                    .then(response => {
-                        if (!response.ok) throw new Error('Update failed');
-                        return response.json();
-                    })
-                    .then(data => {
-                        if (!data.success) {
-                            alert('計画日の更新に失敗しました。');
-                        }
-                        // 日付をクリアした場合、クリアボタンを消すためにページをリロードするのが簡単で確実です
-                        if (dateValue === null) {
-                            window.location.reload();
-                        }
-                    })
-                    .catch(error => {
-                        alert('計画日の更新中にエラーが発生しました。');
-                        console.error('Error:', error);
-                    });
-            }
-
-            // 日付ピッカーの変更を監視
-            document.querySelectorAll('.my-day-date-input').forEach(input => {
-                input.addEventListener('change', function () {
-                    const itemId = this.dataset.itemId;
-                    const newDate = this.value;
-                    // 日付が設定されたら、ページをリロードしてクリアボタンを表示させる
-                    if (newDate) {
-                        updateMyDayDate(itemId, newDate);
-                        // 成功を待たずにUIを即時変更したい場合はここに記述
-                        // ただし、リロードした方が確実です
-                    }
-                });
-            });
-
-            // 日付クリアボタンのクリックを監視
-            document.querySelectorAll('.my-day-clear-btn').forEach(button => {
-                button.addEventListener('click', function () {
-                    const itemId = this.dataset.itemId;
-                    const dateInput = document.querySelector(`.my-day-date-input[data-item-id="${itemId}"]`);
-                    if (dateInput) {
-                        dateInput.value = ''; // 視覚的に入力欄を空にする
-                    }
-                    updateMyDayDate(itemId, null); // サーバーにnullを送って日付をクリア
-                });
-            });
-
-
-            // =================================================================
-            // 機能2: チェックボックスで項目の完了/未完了を切り替える
-            // =================================================================
-            const checkboxes = document.querySelectorAll('.request-item-checkbox');
-            checkboxes.forEach(checkbox => {
-                // 重複してイベントリスナーが登録されるのを防ぐ
-                if (checkbox.dataset.initialized) return;
-                checkbox.dataset.initialized = true;
-
-                checkbox.addEventListener('change', function () {
-                    const itemId = this.dataset.itemId;
-                    const isCompleted = this.checked;
-                    const label = this.closest('li').querySelector('label');
-                    const statusSpan = document.getElementById(`status-${itemId}`);
-
-                    fetch(`/requests/items/${itemId}`, {
-                        method: 'PATCH',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': csrfToken,
-                            'Accept': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            is_completed: isCompleted
-                        })
-                    })
-                        .then(response => {
-                            if (!response.ok) {
-                                throw new Error('Network response was not ok');
-                            }
-                            return response.json();
-                        })
-                        .then(data => {
-                            if (data.success) {
-                                if (isCompleted) {
-                                    label.classList.add('line-through', 'text-gray-500');
-                                    if (statusSpan && data.item.completed_by) {
-                                        const completedDate = new Date(data.item.completed_at).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric' });
-                                        statusSpan.innerHTML = ` - ${data.item.completed_by.name}が完了 (${completedDate})`;
-                                        statusSpan.classList.remove('hidden');
-                                    }
-                                } else {
-                                    label.classList.remove('line-through', 'text-gray-500');
-                                    if (statusSpan) {
-                                        statusSpan.classList.add('hidden');
-                                    }
-                                }
-                            } else {
-                                this.checked = !isCompleted; // 失敗したらチェックボックスを元に戻す
-                            }
-                        })
-                        .catch(error => {
-                            console.error('There was a problem with the fetch operation:', error);
-                            alert('更新に失敗しました。');
-                            this.checked = !isCompleted;
-                        });
-                });
-            });
-
-            // 終了予定日時を更新する共通関数
-            function updateDueDate(itemId, dateValue) {
-                fetch(`/requests/items/${itemId}/set-due-date`, { // ★ ルート変更
-                    method: 'PATCH', // ★ PATCHに変更
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': csrfToken,
-                        'Accept': 'application/json',
-                    },
-                    body: JSON.stringify({ due_date: dateValue }) // ★ キーを due_date に変更
-                })
-                    .then(response => {
-                        if (!response.ok) throw new Error('Update failed');
-                        return response.json();
-                    })
-                    .then(data => {
-                        if (!data.success) {
-                            alert('終了予定日時の更新に失敗しました。');
-                        }
-                        // 成功時は何もしない（画面はそのまま）
-                    })
-                    .catch(error => {
-                        alert('終了予定日時の更新中にエラーが発生しました。');
-                        console.error('Error:', error);
-                    });
-            }
-
-            // 終了予定日時ピッカーの変更を監視
-            document.querySelectorAll('.due-date-input').forEach(input => {
-                input.addEventListener('change', function () {
-                    const itemId = this.dataset.itemId;
-                    const newDate = this.value;
-                    updateDueDate(itemId, newDate);
-                });
-            });
-        });
-    </script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    @include('requests.partials.request-card-scripts')
 @endpush

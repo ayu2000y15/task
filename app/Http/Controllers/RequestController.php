@@ -18,14 +18,36 @@ class RequestController extends Controller
     /**
      * 自分に割り当てられた依頼の一覧を表示します。
      */
-    public function index()
+    public function index(Request $request)
     {
         $user = Auth::user();
-        $commonQuery = fn($query) => $query->with(['requester', 'items.completedBy', 'assignees', 'project', 'category'])->latest();
+        $filterCategoryId = $request->input('category_id');
+        $filterDate = $request->input('date');
+
+        // クエリ共通部分
+        $commonQuery = function ($query) use ($filterCategoryId, $filterDate) {
+            $query->with(['requester', 'items.completedBy', 'assignees', 'project', 'category'])
+                ->latest();
+
+            // カテゴリでの絞り込み
+            if ($filterCategoryId) {
+                $query->where('request_category_id', $filterCategoryId);
+            }
+
+            // 日付での絞り込み (その日に開始または終了するタスク、あるいは期間中のタスク)
+            if ($filterDate) {
+                $query->whereHas('items', function ($itemQuery) use ($filterDate) {
+                    $itemQuery->where(function ($q) use ($filterDate) {
+                        $q->whereDate('start_at', '<=', $filterDate)
+                            ->whereDate('end_at', '>=', $filterDate);
+                    });
+                });
+            }
+        };
 
         // 自分に割り当てられた依頼（他人から）
         $assignedRequests = $user->assignedRequests()
-            ->where('requester_id', '!=', $user->id) // ★ 自分自身からの依頼は除外
+            ->where('requester_id', '!=', $user->id)
             ->where($commonQuery)
             ->get();
         [$pendingAssigned, $completedAssigned] = $assignedRequests->partition(fn($req) => is_null($req->completed_at));
@@ -33,21 +55,23 @@ class RequestController extends Controller
         // 自分が作成した依頼（他人へ）
         $createdRequests = $user->createdRequests()
             ->whereHas('assignees', function ($query) use ($user) {
-                $query->where('users.id', '!=', $user->id); // ★ 担当者に自分しかいない場合は除外
+                $query->where('users.id', '!=', $user->id);
             })
             ->where($commonQuery)
             ->get();
         [$pendingCreated, $completedCreated] = $createdRequests->partition(fn($req) => is_null($req->completed_at));
 
-        // 自分用の依頼（自分で作成し、自分に割り当てたもの）
+        // 自分用の依頼
         $personalRequests = $user->createdRequests()
             ->whereHas('assignees', function ($query) use ($user) {
-                $query->where('users.id', $user->id); // ★ 担当者に自分がいる
+                $query->where('users.id', $user->id);
             })
             ->where($commonQuery)
             ->get();
         [$pendingPersonal, $completedPersonal] = $personalRequests->partition(fn($req) => is_null($req->completed_at));
 
+        // フィルター用のカテゴリ一覧
+        $categories = \App\Models\RequestCategory::orderBy('name')->get();
 
         return view('requests.index', compact(
             'pendingAssigned',
@@ -55,7 +79,8 @@ class RequestController extends Controller
             'pendingCreated',
             'completedCreated',
             'pendingPersonal',
-            'completedPersonal' // ★ Viewに渡す変数を追加
+            'completedPersonal',
+            'categories' // フィルター用
         ));
     }
 
@@ -161,29 +186,6 @@ class RequestController extends Controller
         ]);
 
         return response()->json(['success' => true, 'message' => '終了予定日時を更新しました。']);
-    }
-
-    /**
-     * 項目を「今日のやること」リストへ追加/削除します。
-     */
-    public function setMyDay(Request $request, RequestItem $item)
-    {
-        // 担当者でなければ操作不可
-        $this->authorize('update', $item);
-
-        $validated = $request->validate([
-            // dateはnullableなので、空で送られてきたら解除、日付があれば設定
-            'date' => 'nullable|date',
-        ]);
-
-        $item->update([
-            'my_day_date' => $validated['date'] ?? null,
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'message' => '計画日を設定しました。'
-        ]);
     }
 
     /**
@@ -294,5 +296,49 @@ class RequestController extends Controller
         $request->delete(); // ★ $taskRequest を $request に変更
 
         return redirect()->route('requests.index')->with('success', '依頼を削除しました。');
+    }
+
+    /**
+     * 依頼項目の開始日時を更新します。
+     */
+    public function updateItemStartAt(Request $request, RequestItem $item)
+    {
+        $this->authorize('update', $item);
+        $validated = $request->validate(['start_at' => 'nullable|date']);
+        $item->update(['start_at' => $validated['start_at'] ?? null]);
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * 依頼項目の終了日時を更新します。
+     */
+    public function updateItemEndAt(Request $request, RequestItem $item)
+    {
+        $this->authorize('update', $item);
+        $validated = $request->validate(['end_at' => 'nullable|date']);
+        $item->update(['end_at' => $validated['end_at'] ?? null]);
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * 依頼のチェックリスト項目の並び順を更新します。
+     */
+    public function updateItemOrder(Request $httpRequest, \App\Models\Request $request)
+    {
+        $this->authorize('update', $request);
+        $validated = $httpRequest->validate([
+            'item_ids' => 'required|array',
+            'item_ids.*' => 'required|string|exists:request_items,id',
+        ]);
+        try {
+            DB::transaction(function () use ($validated, $request) {
+                foreach ($validated['item_ids'] as $index => $itemId) {
+                    $request->items()->where('id', $itemId)->update(['order' => $index + 1]);
+                }
+            });
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => '作業依頼の並び順の更新中にエラーが発生しました。'], 500);
+        }
+        return response()->json(['success' => true, 'message' => '作業依頼の並び順を更新しました。']);
     }
 }

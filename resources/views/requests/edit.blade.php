@@ -110,12 +110,12 @@
                                             placeholder="依頼内容を入力..." required />
                                     </div>
 
-                                    {{-- 終了予定日時
+                                    終了予定日時
                                     <div class="flex-shrink-0">
                                         <input type="datetime-local" x-bind:name="'items[' + index + '][due_date]'"
                                             x-model="item.due_date"
                                             class="block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded-md shadow-sm text-sm" />
-                                    </div> --}}
+                                    </div>
 
                                     {{-- 削除ボタン --}}
                                     <div class="flex-shrink-0">

@@ -48,6 +48,22 @@
         .dropzone-custom-style .dz-remove {
             @apply absolute top-1 right-1 bg-red-600/80 hover:bg-red-700/90 text-white rounded-full w-[18px] h-[18px] text-xs leading-[18px] text-center font-bold no-underline cursor-pointer opacity-100 z-30;
         }
+
+        .loader {
+            border-top-color: #3498db; /* スピナーの色 */
+            -webkit-animation: spinner 1.5s linear infinite;
+            animation: spinner 1.5s linear infinite;
+        }
+
+        @-webkit-keyframes spinner {
+            0% { -webkit-transform: rotate(0deg); }
+            100% { -webkit-transform: rotate(360deg); }
+        }
+
+        @keyframes spinner {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 @endpush
 
@@ -112,7 +128,14 @@
             }
         @endphp
 
-        <div class="max-w-3xl mx-auto bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
+        <div class="max-w-3xl mx-auto bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden relative">
+            <div id="upload-loader-overlay" class="hidden absolute inset-0 bg-white/70 dark:bg-gray-800/80 z-40 flex items-center justify-center rounded-lg">
+                <div class="flex flex-col items-center text-center">
+                    <div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12 mb-4"></div>
+                    <p class="text-lg font-semibold text-gray-700 dark:text-gray-200">アップロード中...</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">完了までしばらくお待ちください</p>
+                </div>
+            </div>
             <div class="p-6 sm:p-8">
                 <form action="{{ route('projects.tasks.update', [$project, $task]) }}" method="POST" id="task-edit-form">
                     @csrf
@@ -163,11 +186,14 @@
                                     <hr class="my-4 dark:border-gray-600">
                                     <h3 class="text-md font-semibold text-gray-700 dark:text-gray-200 mb-2"><i class="fas fa-file-alt mr-2"></i>ファイル管理</h3>
                                     @can('fileUpload', $task)
-                                        <div class="dropzone dropzone-custom-style mb-3" id="file-upload-dropzone-edit">
+                                        <div class="dropzone dropzone-custom-style mb-2" id="file-upload-dropzone-edit">
                                             <div class="dz-message text-center" data-dz-message>
                                                 <p class="mb-2">ここにファイルをドラッグ＆ドロップ</p>
                                                 <p class="mb-3 text-xs text-gray-500 dark:text-gray-400">または</p>
                                                 <button type="button" class="dz-button-bootstrap"><i class="fas fa-folder-open mr-1"></i>ファイルを選択</button>
+                                                <p class="mt-2 text-xs">
+                                                    最大ファイルサイズ: 100MB。<br>対応拡張子: jpg, png, gif, pdf, docx, xlsx など
+                                                </p>
                                             </div>
                                         </div>
                                     @endcan
@@ -251,7 +277,7 @@
     </div>
 @endsection
 
-{{-- ▼▼▼【ここから変更】▼▼▼ --}}
+
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function () {
@@ -380,4 +406,3 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 @endpush
-{{-- ▲▲▲【変更ここまで】▲▲▲ --}}

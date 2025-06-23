@@ -16,8 +16,7 @@ return new class extends Migration
             $table->dateTime('my_day_date')->nullable()->comment('開始日時')->change();
             $table->renameColumn('my_day_date', 'start_at');
 
-            $table->dateTime('due_date')->nullable()->comment('終了日時')->change();
-            $table->renameColumn('due_date', 'end_at');
+            $table->dateTime('end_at')->nullable()->after('start_at')->comment('終了日時');
         });
     }
 
@@ -25,7 +24,7 @@ return new class extends Migration
     {
         Schema::table('request_items', function (Blueprint $table) {
             $table->renameColumn('start_at', 'my_day_date');
-            $table->renameColumn('end_at', 'due_date');
+            $table->dropColumn('end_at');
         });
     }
 };

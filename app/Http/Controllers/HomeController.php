@@ -58,7 +58,7 @@ class HomeController extends Controller
             }
         }
         // --- データソースB: ピックアップされた依頼項目を取得 ---
-        $myDayItems = RequestItem::where('my_day_date', $targetDate->format('Y-m-d'))
+        $myDayItems = RequestItem::where('start_at', $targetDate->format('Y-m-d'))
             ->with(['request.assignees', 'request.requester'])
             ->get();
 

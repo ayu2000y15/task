@@ -649,12 +649,27 @@ class ProjectController extends Controller
         // --- 通常のページ読み込み時のデータ準備 ---
         $project->load([
             'characters' => function ($query) {
-                $query->with(['tasks.children', 'tasks.parent', 'tasks.project', 'tasks.character', 'tasks.files', 'tasks.assignees', 'measurements' => fn($query) => $query->orderBy('display_order'), 'materials' => fn($query) => $query->orderBy('display_order'), 'costs' => fn($query) => $query->orderBy('display_order')])->orderBy('name');
+                $query->with([
+                    'tasks.children',
+                    'tasks.parent',
+                    'tasks.project',
+                    'tasks.character',
+                    'tasks.files',
+                    'tasks.assignees',
+                    'measurements' => fn($q) => $q->orderBy('display_order'),
+                    'materials' => fn($q) => $q->orderBy('display_order'),
+                    'costs' => fn($q) => $q->orderBy('display_order')
+                ])->orderBy('name');
             },
             'tasks' => function ($query) {
                 $query->with(['children', 'parent', 'project', 'character', 'files', 'assignees']);
+            },
+            // ★ 以下のリレーションを追加
+            'requests' => function ($query) {
+                $query->with(['requester', 'assignees', 'items.completedBy', 'category', 'project'])->latest();
             }
         ]);
+
         $tasksToList = $project->tasksWithoutCharacter()->orderByRaw('ISNULL(start_date), start_date ASC, name ASC')->get();
         foreach ($project->characters as $character) {
             $characterTasksCollection = $character->tasks;

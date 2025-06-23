@@ -138,12 +138,13 @@ Route::middleware('auth')->group(function () {
     Route::get('requests/create', [RequestController::class, 'create'])->name('requests.create');
     Route::post('requests', [RequestController::class, 'store'])->name('requests.store');
     Route::patch('requests/items/{item}', [RequestController::class, 'updateItem'])->name('requests.items.update');
-    Route::post('requests/items/{item}/set-my-day', [RequestController::class, 'setMyDay'])->name('requests.items.set_my_day');
     Route::get('requests/{request}/edit', [RequestController::class, 'edit'])->name('requests.edit');
     Route::patch('requests/{request}', [RequestController::class, 'update'])->name('requests.update');
     Route::delete('requests/{request}', [RequestController::class, 'destroy'])->name('requests.destroy');
 
-    Route::patch('/requests/items/{item}/set-due-date', [RequestController::class, 'updateItemDueDate'])->name('requests.items.setDueDate');
+    Route::post('/requests/items/{item}/set-start-at', [RequestController::class, 'updateItemStartAt'])->name('requests.items.setStartAt');
+    Route::post('/requests/items/{item}/set-end-at', [RequestController::class, 'updateItemEndAt'])->name('requests.items.setEndAt');
+    Route::post('/requests/{request}/items/update-order', [RequestController::class, 'updateItemOrder'])->name('requests.items.updateOrder');
     // -------------------------------------------------------------------------
     // 社内掲示板
     // -------------------------------------------------------------------------

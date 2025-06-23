@@ -1133,8 +1133,8 @@ namespace App\Models{
  * @property int|null $completed_by 完了者ID
  * @property \Illuminate\Support\Carbon|null $completed_at 完了日時
  * @property int $order 表示順
- * @property \Illuminate\Support\Carbon|null $my_day_date 「今日のやること」に追加した日付
- * @property \Illuminate\Support\Carbon|null $due_date
+ * @property \Illuminate\Support\Carbon|null $start_at 「今日のやること」に追加した日付
+ * @property \Illuminate\Support\Carbon|null $end_at 終了日時
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read \App\Models\User|null $completedBy
@@ -1146,12 +1146,12 @@ namespace App\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|RequestItem whereCompletedBy($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|RequestItem whereContent($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|RequestItem whereCreatedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|RequestItem whereDueDate($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|RequestItem whereEndAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|RequestItem whereId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|RequestItem whereIsCompleted($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|RequestItem whereMyDayDate($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|RequestItem whereOrder($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|RequestItem whereRequestId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|RequestItem whereStartAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|RequestItem whereUpdatedAt($value)
  */
 	class RequestItem extends \Eloquent {}
