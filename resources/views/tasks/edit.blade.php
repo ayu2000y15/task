@@ -192,7 +192,7 @@
                                                 <p class="mb-3 text-xs text-gray-500 dark:text-gray-400">または</p>
                                                 <button type="button" class="dz-button-bootstrap"><i class="fas fa-folder-open mr-1"></i>ファイルを選択</button>
                                                 <p class="mt-2 text-xs">
-                                                    最大ファイルサイズ: 100MB。<br>対応拡張子: jpg, png, gif, pdf, docx, xlsx など
+                                                    最大ファイルサイズ: 100MB
                                                 </p>
                                             </div>
                                         </div>
