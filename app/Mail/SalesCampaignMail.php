@@ -55,7 +55,7 @@ class SalesCampaignMail extends Mailable implements ShouldQueue
             'url' => $contact ? $contact->url : null,
             'representative_name' => $contact ? $contact->representative_name : null,
             // 日付が設定されている場合のみフォーマットする
-            'establishment_date' => ($contact && $contact->establishment_date) ? $contact->establishment_date->format('Y年n月j日') : null,
+            'establishment_date' => $contact ? $contact->establishment_date : null,
             'industry' => $contact ? $contact->industry : null,
         ];
     }
