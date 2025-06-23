@@ -9,6 +9,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use App\Models\Project;
+use App\Models\RequestCategory;
+
 
 class RequestController extends Controller
 {
@@ -18,7 +21,7 @@ class RequestController extends Controller
     public function index()
     {
         $user = Auth::user();
-        $commonQuery = fn($query) => $query->with(['requester', 'items.completedBy', 'assignees'])->latest();
+        $commonQuery = fn($query) => $query->with(['requester', 'items.completedBy', 'assignees', 'project', 'category'])->latest();
 
         // 自分に割り当てられた依頼（他人から）
         $assignedRequests = $user->assignedRequests()
@@ -61,12 +64,11 @@ class RequestController extends Controller
      */
     public function create()
     {
-        $assigneeCandidates = User::where('status', User::STATUS_ACTIVE)
-            // ->where('id', '!=', Auth::id()) // この行を削除またはコメントアウト
-            ->orderBy('name')
-            ->get();
+        $assigneeCandidates = User::where('status', User::STATUS_ACTIVE)->orderBy('name')->get();
+        $projects = Project::orderBy('title')->get(); // ★ 追加
+        $categories = RequestCategory::orderBy('name')->get(); // ★ 追加
 
-        return view('requests.create', compact('assigneeCandidates'));
+        return view('requests.create', compact('assigneeCandidates', 'projects', 'categories'));
     }
 
     /**
@@ -79,15 +81,28 @@ class RequestController extends Controller
             'notes' => 'nullable|string|max:2000',
             'assignees' => 'required|array|min:1',
             'assignees.*' => 'required|exists:users,id',
+            'project_id' => 'nullable|exists:projects,id',
+            'request_category_id' => 'required|exists:request_categories,id',
             'items' => 'required|array|min:1',
-            'items.*' => 'required|string|max:1000',
+            'items.*.content' => 'required|string|max:1000',
+            'items.*.due_date' => 'nullable|date',
         ]);
         try {
-            DB::transaction(function () use ($validated) {
-                $taskRequest = TaskRequest::create(['requester_id' => Auth::id(), 'title' => $validated['title'], 'notes' => $validated['notes']]);
+            DB::transaction(function () use ($validated, $request) {
+                $taskRequest = TaskRequest::create([
+                    'requester_id' => Auth::id(),
+                    'title' => $validated['title'],
+                    'notes' => $validated['notes'],
+                    'project_id' => $validated['project_id'],
+                    'request_category_id' => $validated['request_category_id'],
+                ]);
                 $taskRequest->assignees()->sync($validated['assignees']);
-                foreach ($validated['items'] as $index => $content) {
-                    $taskRequest->items()->create(['content' => $content, 'order' => $index + 1]);
+                foreach ($validated['items'] as $index => $itemData) {
+                    $taskRequest->items()->create([
+                        'content' => $itemData['content'],
+                        'due_date' => $itemData['due_date'] ?? null,
+                        'order' => $index + 1
+                    ]);
                 }
             });
         } catch (\Exception $e) {
@@ -131,6 +146,24 @@ class RequestController extends Controller
     }
 
     /**
+     * 依頼項目の終了予定日時を更新します。
+     */
+    public function updateItemDueDate(Request $request, RequestItem $item)
+    {
+        $this->authorize('update', $item);
+
+        $validated = $request->validate([
+            'due_date' => 'nullable|date',
+        ]);
+
+        $item->update([
+            'due_date' => $validated['due_date'] ?? null,
+        ]);
+
+        return response()->json(['success' => true, 'message' => '終了予定日時を更新しました。']);
+    }
+
+    /**
      * 項目を「今日のやること」リストへ追加/削除します。
      */
     public function setMyDay(Request $request, RequestItem $item)
@@ -140,7 +173,7 @@ class RequestController extends Controller
 
         $validated = $request->validate([
             // dateはnullableなので、空で送られてきたら解除、日付があれば設定
-            'date' => 'nullable|date_format:Y-m-d',
+            'date' => 'nullable|date',
         ]);
 
         $item->update([
@@ -161,11 +194,11 @@ class RequestController extends Controller
         $this->authorize('update', $request);
 
         $assigneeCandidates = User::where('status', User::STATUS_ACTIVE)->orderBy('name')->get();
-
-        // 選択済みの担当者IDの配列を取得
         $selectedAssignees = $request->assignees->pluck('id')->all();
+        $projects = Project::orderBy('title')->get();
+        $categories = RequestCategory::orderBy('name')->get();
 
-        return view('requests.edit', compact('request', 'assigneeCandidates', 'selectedAssignees'));
+        return view('requests.edit', compact('request', 'assigneeCandidates', 'selectedAssignees', 'projects', 'categories'));
     }
 
     /**
@@ -187,9 +220,12 @@ class RequestController extends Controller
             'notes' => 'nullable|string|max:2000',
             'assignees' => 'required|array|min:1',
             'assignees.*' => 'required|exists:users,id',
+            'project_id' => 'nullable|exists:projects,id',
+            'request_category_id' => 'required|exists:request_categories,id',
             'items' => 'required|array|min:1',
             'items.*.id' => ['nullable', 'integer', $itemExistsRule],
             'items.*.content' => 'required|string|max:1000',
+            'items.*.due_date' => 'nullable|date',
         ], [
             'title.required' => '件名は必ず入力してください。',
             'assignees.required' => '担当者は必ず選択してください。',
@@ -204,6 +240,8 @@ class RequestController extends Controller
                 $request->update([
                     'title' => $validated['title'],
                     'notes' => $validated['notes'],
+                    'project_id' => $validated['project_id'],
+                    'request_category_id' => $validated['request_category_id'],
                 ]);
 
                 // 2. 担当者を更新
@@ -222,6 +260,7 @@ class RequestController extends Controller
                         [
                             'content' => $itemData['content'],
                             'order' => $index + 1,
+                            'due_date' => $itemData['due_date'] ?? null,
                         ]
                     );
                     $submittedItemIds[] = $item->id;
@@ -243,6 +282,7 @@ class RequestController extends Controller
 
         return redirect()->route('requests.index')->with('success', '作業依頼を更新しました。');
     }
+
     /**
      * 指定された依頼を削除します。
      * @param \App\Models\Request $request // ★ 変数名を $taskRequest から $request に変更

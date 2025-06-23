@@ -1030,6 +1030,8 @@ namespace App\Models{
  * @property-read int|null $characters_count
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Cost> $costs
  * @property-read int|null $costs_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Request> $requests
+ * @property-read int|null $requests_count
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Task> $tasks
  * @property-read int|null $tasks_count
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Task> $tasksWithoutCharacter
@@ -1069,6 +1071,8 @@ namespace App\Models{
  *
  * @property int $id
  * @property int $requester_id 依頼者ID
+ * @property int|null $project_id
+ * @property int|null $request_category_id
  * @property string $title 依頼の件名
  * @property string|null $notes 補足事項
  * @property \Illuminate\Support\Carbon|null $completed_at 全ての項目が完了した日時
@@ -1076,8 +1080,10 @@ namespace App\Models{
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\User> $assignees
  * @property-read int|null $assignees_count
+ * @property-read \App\Models\RequestCategory|null $category
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\RequestItem> $items
  * @property-read int|null $items_count
+ * @property-read \App\Models\Project|null $project
  * @property-read \App\Models\User $requester
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Request newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Request newQuery()
@@ -1086,11 +1092,34 @@ namespace App\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Request whereCreatedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Request whereId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Request whereNotes($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Request whereProjectId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Request whereRequestCategoryId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Request whereRequesterId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Request whereTitle($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Request whereUpdatedAt($value)
  */
 	class Request extends \Eloquent {}
+}
+
+namespace App\Models{
+/**
+ * 
+ *
+ * @property int $id
+ * @property string $name
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Request> $requests
+ * @property-read int|null $requests_count
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|RequestCategory newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|RequestCategory newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|RequestCategory query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|RequestCategory whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|RequestCategory whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|RequestCategory whereName($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|RequestCategory whereUpdatedAt($value)
+ */
+	class RequestCategory extends \Eloquent {}
 }
 
 namespace App\Models{
@@ -1105,6 +1134,7 @@ namespace App\Models{
  * @property \Illuminate\Support\Carbon|null $completed_at 完了日時
  * @property int $order 表示順
  * @property \Illuminate\Support\Carbon|null $my_day_date 「今日のやること」に追加した日付
+ * @property \Illuminate\Support\Carbon|null $due_date
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read \App\Models\User|null $completedBy
@@ -1116,6 +1146,7 @@ namespace App\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|RequestItem whereCompletedBy($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|RequestItem whereContent($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|RequestItem whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|RequestItem whereDueDate($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|RequestItem whereId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|RequestItem whereIsCompleted($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|RequestItem whereMyDayDate($value)

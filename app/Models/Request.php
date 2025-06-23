@@ -14,6 +14,8 @@ class Request extends Model
 
     protected $fillable = [
         'requester_id',
+        'project_id',
+        'request_category_id',
         'title',
         'notes',
         'completed_at',
@@ -45,5 +47,21 @@ class Request extends Model
     public function assignees(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'request_assignees');
+    }
+
+    /**
+     * この依頼が紐づく案件 (nullable)
+     */
+    public function project(): BelongsTo
+    {
+        return $this->belongsTo(Project::class);
+    }
+
+    /**
+     * この依頼のカテゴリ
+     */
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(RequestCategory::class, 'request_category_id');
     }
 }

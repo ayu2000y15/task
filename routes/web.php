@@ -143,6 +143,7 @@ Route::middleware('auth')->group(function () {
     Route::patch('requests/{request}', [RequestController::class, 'update'])->name('requests.update');
     Route::delete('requests/{request}', [RequestController::class, 'destroy'])->name('requests.destroy');
 
+    Route::patch('/requests/items/{item}/set-due-date', [RequestController::class, 'updateItemDueDate'])->name('requests.items.setDueDate');
     // -------------------------------------------------------------------------
     // 社内掲示板
     // -------------------------------------------------------------------------

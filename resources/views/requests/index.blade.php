@@ -189,6 +189,42 @@
                         });
                 });
             });
+
+            // 終了予定日時を更新する共通関数
+            function updateDueDate(itemId, dateValue) {
+                fetch(`/requests/items/${itemId}/set-due-date`, { // ★ ルート変更
+                    method: 'PATCH', // ★ PATCHに変更
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify({ due_date: dateValue }) // ★ キーを due_date に変更
+                })
+                    .then(response => {
+                        if (!response.ok) throw new Error('Update failed');
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (!data.success) {
+                            alert('終了予定日時の更新に失敗しました。');
+                        }
+                        // 成功時は何もしない（画面はそのまま）
+                    })
+                    .catch(error => {
+                        alert('終了予定日時の更新中にエラーが発生しました。');
+                        console.error('Error:', error);
+                    });
+            }
+
+            // 終了予定日時ピッカーの変更を監視
+            document.querySelectorAll('.due-date-input').forEach(input => {
+                input.addEventListener('change', function () {
+                    const itemId = this.dataset.itemId;
+                    const newDate = this.value;
+                    updateDueDate(itemId, newDate);
+                });
+            });
         });
     </script>
 @endpush

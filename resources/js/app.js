@@ -3,6 +3,7 @@ import "./bootstrap";
 
 import Alpine from "alpinejs";
 import collapse from "@alpinejs/collapse";
+import Sortable from "sortablejs";
 
 // 他のAlpine.jsプラグインや案件依頼ストアがあればここに
 

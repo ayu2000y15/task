@@ -7,8 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 use Illuminate\Support\Arr;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Spatie\Activitylog\Traits\LogsActivity; // ★ 追加
-use Spatie\Activitylog\LogOptions;          // ★ 追加
+use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\Activitylog\LogOptions;
+use App\Models\Request as TaskRequest;
 
 class Project extends Model
 {
@@ -136,5 +137,13 @@ class Project extends Model
     public function costs(): HasMany
     {
         return $this->hasMany(Cost::class);
+    }
+
+    /**
+     * この案件に紐づく作業依頼
+     */
+    public function requests(): HasMany
+    {
+        return $this->hasMany(TaskRequest::class);
     }
 }

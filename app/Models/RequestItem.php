@@ -18,12 +18,14 @@ class RequestItem extends Model
         'completed_at',
         'order',
         'my_day_date',
+        'due_date',
     ];
 
     protected $casts = [
         'is_completed' => 'boolean',
         'completed_at' => 'datetime',
         'my_day_date' => 'date',
+        'due_date' => 'datetime',
     ];
 
     /**
