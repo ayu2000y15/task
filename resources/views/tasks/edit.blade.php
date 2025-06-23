@@ -331,6 +331,52 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     }
+
+    const fileListContainer = document.querySelector('#file-list-edit');
+    if (fileListContainer) {
+        fileListContainer.addEventListener('change', async function(event) {
+            if (event.target.classList.contains('soft-delete-file-checkbox')) {
+                const checkbox = event.target;
+                const url = checkbox.dataset.toggleUrl;
+                const fileItem = checkbox.closest('li');
+                const fileTextContainer = fileItem.querySelector('.truncate');
+
+                // 楽観的UI: 先にUIを変更
+                checkbox.disabled = true;
+                const isTrashed = checkbox.checked;
+                fileItem.classList.toggle('opacity-60', isTrashed);
+                fileTextContainer.classList.toggle('line-through', isTrashed);
+                fileTextContainer.classList.toggle('text-gray-500', isTrashed);
+                fileTextContainer.classList.toggle('dark:text-gray-500', isTrashed);
+
+
+                try {
+                    const response = await axios.post(url, {
+                        _token: '{{ csrf_token() }}'
+                    });
+
+                    if (response.data.success) {
+                        // 成功したので何もしない (UIは更新済み)
+                        checkbox.title = response.data.is_trashed ? '復元する' : '論理削除する';
+                    } else {
+                        // 失敗した場合はUIを元に戻す
+                        throw new Error(response.data.message || '操作に失敗しました。');
+                    }
+                } catch (error) {
+                    console.error('File soft delete toggle failed:', error);
+                    alert(error.message || 'エラーが発生しました。ページをリロードしてください。');
+                    // UIを元に戻す
+                    checkbox.checked = !isTrashed;
+                    fileItem.classList.toggle('opacity-60', !isTrashed);
+                    fileTextContainer.classList.toggle('line-through', !isTrashed);
+                    fileTextContainer.classList.toggle('text-gray-500', !isTrashed);
+                    fileTextContainer.classList.toggle('dark:text-gray-500', !isTrashed);
+                } finally {
+                    checkbox.disabled = false;
+                }
+            }
+        });
+    }
 });
 </script>
 @endpush

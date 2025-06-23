@@ -500,7 +500,7 @@ class TaskController extends Controller
             $taskType = 'todo_task';
         }
 
-        $files = $task->is_folder ? $task->files()->orderBy('original_name')->get() : collect();
+        $files = $task->is_folder ? $task->files()->withTrashed()->orderBy('created_at', 'desc')->get() : collect();
 
         $descendantAndSelfIds = $task->getAllDescendants()->pluck('id')->push($task->id)->all();
 
@@ -738,6 +738,10 @@ class TaskController extends Controller
         }
 
         $message = '工程が更新されました。';
+
+        if ($currentTaskType === 'folder') {
+            $message = 'フォルダが更新されました。';
+        }
         if ($workLogMessage) {
             $message .= ' ' . $workLogMessage;
         }
@@ -1232,7 +1236,7 @@ class TaskController extends Controller
             ->withProperties(['task_name' => $task->name, 'project_name' => $project->title])
             ->log("ファイル「{$taskFile->original_name}」が工程フォルダ「{$task->name}」(ID:{$task->id}) にアップロードされました。");
 
-        $files = $task->fresh()->files()->orderBy('original_name')->get();
+        $files = $task->fresh()->files()->withTrashed()->orderBy('created_at', 'desc')->get();
         $updatedHtml = view('tasks.partials.file-list-tailwind', compact('files', 'project', 'task'))->render();
 
         return response()->json([
@@ -1247,7 +1251,7 @@ class TaskController extends Controller
     public function getFiles(Project $project, Task $task)
     {
         $this->authorize('update', $task); // ファイル一覧表示も更新権限で制御（または専用の閲覧権限）
-        $files = $task->files()->orderBy('original_name')->get();
+        $files = $task->files()->withTrashed()->orderBy('created_at', 'desc')->get();
         return view('tasks.partials.file-list-tailwind', ['files' => $files, 'project' => $project, 'task' => $task])->render();
     }
 
@@ -1297,25 +1301,56 @@ class TaskController extends Controller
      */
     public function deleteFile(Project $project, Task $task, TaskFile $file)
     {
-        $this->authorize('update', $task); // 削除権限は更新権限で代用（または専用権限 tasks.file-delete）
+        // このメソッドは物理削除（forceDelete）の役割を担うように変更
+        $this->authorize('delete', $task); // 強い権限が必要
         if ($file->task_id !== $task->id) {
             abort(404);
         }
 
-        $originalFileName = $file->original_name; // 削除前にファイル名を取得
+        $originalFileName = $file->original_name;
 
         Storage::disk('local')->delete($file->path);
-        $file->delete(); // これによりTaskFileモデルにLogsActivityがあれば発火するが、今回は手動ログで詳細を記録
+        $file->forceDelete(); // 物理削除
 
-        // ★ ログ記録: ファイル削除
         activity()
             ->causedBy(auth()->user())
-            ->performedOn($task) // 親であるTaskモデルを対象とする (TaskFileは既に削除されているため)
+            ->performedOn($task)
             ->withProperties(['deleted_file_name' => $originalFileName, 'task_name' => $task->name, 'project_name' => $project->title])
-            ->log("ファイル「{$originalFileName}」が工程フォルダ「{$task->name}」(ID:{$task->id}) から削除されました。");
+            ->log("ファイル「{$originalFileName}」が工程フォルダ「{$task->name}」(ID:{$task->id}) から完全に削除されました。");
 
+        return response()->json(['success' => true, 'message' => 'ファイルを完全に削除しました。']);
+    }
 
-        return response()->json(['success' => true, 'message' => 'ファイルを削除しました。']);
+    /**
+     * ファイルの論理削除/復元をトグルする
+     */
+    public function toggleSoftDeleteFile(Request $request, Project $project, Task $task, $fileId)
+    {
+        $this->authorize('update', $task); // 変更権限で操作可能
+
+        $file = TaskFile::withTrashed()->findOrFail($fileId);
+
+        if ($file->task_id !== $task->id) {
+            abort(404);
+        }
+
+        if ($file->trashed()) {
+            $file->restore();
+            $message = 'ファイルを復元しました。';
+            $logMessage = "ファイル「{$file->original_name}」が復元されました。";
+        } else {
+            $file->delete(); // 論理削除
+            $message = 'ファイルを論理削除しました。';
+            $logMessage = "ファイル「{$file->original_name}」が論理削除されました。";
+        }
+
+        activity()
+            ->causedBy(auth()->user())
+            ->performedOn($file)
+            ->withProperties(['task_name' => $task->name])
+            ->log($logMessage);
+
+        return response()->json(['success' => true, 'message' => $message, 'is_trashed' => $file->trashed()]);
     }
 
     public function storeFromTemplate(Request $request, Project $project): \Illuminate\Http\RedirectResponse

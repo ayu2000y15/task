@@ -84,6 +84,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/projects/{project}/tasks/{task}/files/{file}/download', [TaskController::class, 'downloadFile'])->name('projects.tasks.files.download');
     Route::get('/projects/{project}/tasks/{task}/files/{file}/show', [TaskController::class, 'showFile'])->name('projects.tasks.files.show');
     Route::delete('/projects/{project}/tasks/{task}/files/{file}', [TaskController::class, 'deleteFile'])->name('projects.tasks.files.destroy');
+    Route::post('/projects/{project}/tasks/{task}/files/{file}/toggle-soft-delete', [TaskController::class, 'toggleSoftDeleteFile'])->name('projects.tasks.files.toggleSoftDelete');
 
     // ガントチャート
     Route::get('gantt', [GanttChartController::class, 'index'])->name('gantt.index');

@@ -1434,11 +1434,14 @@ namespace App\Models{
  * @property int $size
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
  * @property-read \App\Models\Task $task
  * @method static \Illuminate\Database\Eloquent\Builder<static>|TaskFile newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|TaskFile newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TaskFile onlyTrashed()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|TaskFile query()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|TaskFile whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TaskFile whereDeletedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|TaskFile whereId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|TaskFile whereMimeType($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|TaskFile whereOriginalName($value)
@@ -1447,6 +1450,8 @@ namespace App\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|TaskFile whereStoredName($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|TaskFile whereTaskId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|TaskFile whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TaskFile withTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TaskFile withoutTrashed()
  */
 	class TaskFile extends \Eloquent {}
 }
