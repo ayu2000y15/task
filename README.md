@@ -1,66 +1,115 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# ---
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+**Task Management System**
 
-## About Laravel
+## **概要**
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+このプロジェクトは、タスク管理、プロジェクト管理、勤怠管理、セールス支援など、多岐にわたる業務を一元管理するためのWebアプリケーションです。チームの生産性向上と業務の可視化を目的としています。
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## **主要機能**
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+本システムは以下の機能を提供します。
 
-## Learning Laravel
+* **プロジェクト管理**: 案件やプロジェクトの情報を管理し、進捗を追跡します。  
+* **タスク管理**:  
+  * プロジェクトに紐づくタスクの作成、更新、担当者割り当て。  
+  * ガントチャートによるタスクスケジュールの可視化。  
+  * タスクごとの工数記録。  
+* **勤怠・シフト管理**:  
+  * 日々の出退勤打刻。  
+  * 月次の勤怠状況の確認。  
+  * シフトパターンの管理と申請。  
+* **工数・生産性管理**:  
+  * タスクやプロジェクトごとの作業時間を記録・集計。  
+  * 生産性の分析。  
+* **在庫・発注管理**:  
+  * 資材・在庫アイテムの管理。  
+  * 発注依頼とステータス管理。  
+* **情報共有**:  
+  * 掲示板機能によるチーム内の情報共有。  
+  * フィードバック機能による意見収集。  
+* **セールス支援**:  
+  * メールリスト管理と一括メール配信。  
+  * メール開封追跡。  
+* **ユーザー・権限管理**:  
+  * 役割（Role）に基づいた柔軟な権限設定。
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## **使用技術**
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+### **バックエンド**
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+* PHP: ^8.2  
+* Laravel Framework: ^11.9  
+* データベース: MySQL  
+* **主要なライブラリ**:  
+  * spatie/laravel-permission: 役割と権限の管理  
+  * spatie/laravel-activitylog: 操作ログの記録  
+  * barryvdh/laravel-debugbar: 開発用のデバッグバー  
+  * mews/purifier: HTMLサニタイズ
 
-## Laravel Sponsors
+### **フロントエンド**
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+* JavaScript  
+* Tailwind CSS: ^3.4  
+* Alpine.js: ^3.4  
+* Vite: フロントエンドビルドツール  
+* Dropzone.js: ファイルアップロード  
+* SortableJS: ドラッグ＆ドロップによる並び替え
 
-### Premium Partners
+## **開発環境の構築手順**
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[WebReinvent](https://webreinvent.com/)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Jump24](https://jump24.co.uk)**
-- **[Redberry](https://redberry.international/laravel/)**
-- **[Active Logic](https://activelogic.com)**
-- **[byte5](https://byte5.de)**
-- **[OP.GG](https://op.gg)**
+1. **リポジトリをクローンする**  
+   Bash  
+   git clone \[リポジトリURL\]  
+   cd \[プロジェクトディレクトリ\]
 
-## Contributing
+2. .env ファイルを作成する  
+   .env.example ファイルをコピーして .env ファイルを作成し、データベース接続情報などを設定してください。  
+   Bash  
+   cp .env.example .env
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+3. **アプリケーションキーを生成する**  
+   Bash  
+   php artisan key:generate
 
-## Code of Conduct
+4. **PHPの依存関係をインストールする**  
+   Bash  
+   composer install
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+5. **JavaScriptの依存関係をインストールする**  
+   Bash  
+   npm install
 
-## Security Vulnerabilities
+6. データベースをマイグレートする  
+   テーブル構造をデータベースに反映させます。  
+   Bash  
+   php artisan migrate
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+7. 初期データを投入する（任意）  
+   役割、権限、休日などの初期データを投入します。  
+   Bash  
+   php artisan db:seed
 
-## License
+8. ストレージリンクを作成する  
+   公開ストレージへシンボリックリンクを張ります。  
+   Bash  
+   php artisan storage:link
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+9. **開発サーバーを起動する**  
+   Bash  
+   npm run dev
+
+   別のターミナルで以下も実行します。  
+   Bash  
+   php artisan serve
+
+10. アクセス  
+    ブラウザで <http://127.0.0.1:8000> にアクセスします。
+
+## **テストの実行**
+
+以下のコマンドでPHPUnitテストを実行できます。
+
+Bash
+
+php artisan test  
