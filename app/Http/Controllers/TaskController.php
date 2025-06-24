@@ -126,7 +126,7 @@ class TaskController extends Controller
                     case 'project_title':
                         return $task->project->title ?? '';
                     case 'character_name':
-                        return $eagerLoadedTask->character->name ?? '';
+                        return $task->character->name ?? '';
                     default:
                         return $task->{$sortBy} ?? '';
                 }

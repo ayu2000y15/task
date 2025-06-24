@@ -480,21 +480,30 @@ class ProjectController extends Controller
     {
         $this->authorize('view', $project);
 
-        // ▼▼▼【ここから修正】ソートロジックをID順に変更 ▼▼▼
-        $appendTasksRecursively = function ($parentId, $tasksGroupedByParent, &$sortedTasksList) use (&$appendTasksRecursively) {
+        // TaskControllerのindexメソッドを参考にした、より堅牢な階層ソート用のクロージャ
+        $appendTasksRecursively = function ($parentId, $tasksGroupedByParent, &$sortedTasksList, $fixedSort = true) use (&$appendTasksRecursively) {
             $keyForGrouping = $parentId === null ? '' : $parentId;
             if (!$tasksGroupedByParent->has($keyForGrouping)) {
                 return;
             }
-            // 兄弟関係のタスクを、開始日時順ではなくID順（作成順）でソートする
-            $childrenOfCurrentParent = $tasksGroupedByParent->get($keyForGrouping)->sortBy('id');
 
-            foreach ($childrenOfCurrentParent as $task) {
+            $childrenOfCurrentParent = $tasksGroupedByParent->get($keyForGrouping);
+
+            if ($fixedSort) {
+                // ProjectController@showでは、ソート順を「開始日時の昇順」に固定
+                $sortedChildren = $childrenOfCurrentParent->sortBy(function ($task) {
+                    return [$task->start_date === null ? PHP_INT_MAX : $task->start_date->getTimestamp(), $task->name];
+                });
+            } else {
+                // （将来的な利用のために）ソートしない場合のパスも残す
+                $sortedChildren = $childrenOfCurrentParent;
+            }
+
+            foreach ($sortedChildren as $task) {
                 $sortedTasksList->push($task);
-                $appendTasksRecursively($task->id, $tasksGroupedByParent, $sortedTasksList);
+                $appendTasksRecursively($task->id, $tasksGroupedByParent, $sortedTasksList, $fixedSort);
             }
         };
-        // ▲▲▲【ここまで修正】▲▲▲
 
         if ($request->ajax()) {
             $hideCompleted = $request->boolean('hide_completed');
@@ -502,101 +511,81 @@ class ProjectController extends Controller
             $character = null;
             $tasksToList = collect();
             $tableId = 'project-tasks-table';
-            $matchingTaskIds = collect();
+
+            $query = Task::query()->with(['children', 'parent', 'project', 'character', 'files', 'assignees']);
 
             if ($context === 'character' && $request->has('character_id')) {
-                // キャラクターの工程表を更新する場合 (変更なし)
-                $character = $project->characters()->with(['tasks.children', 'tasks.parent'])->find($request->input('character_id'));
-                if ($character) {
-                    $allCharacterTasks = $character->tasks;
-                    $tasksForHierarchy = $allCharacterTasks;
-                    $matchingTaskIds = $allCharacterTasks->pluck('id');
-                    if ($hideCompleted) {
-                        $matchingTasks = $allCharacterTasks->where('status', '!=', 'completed');
-                        $matchingTaskIds = $matchingTasks->pluck('id');
-                        $requiredTaskIds = collect();
-                        if ($matchingTaskIds->isNotEmpty()) {
-                            $allTasksLookup = $allCharacterTasks->keyBy('id');
-                            $tasksToProcess = $matchingTaskIds->toArray();
-                            $processedIds = collect();
-                            while (!empty($tasksToProcess)) {
-                                $currentId = array_pop($tasksToProcess);
-                                if ($processedIds->contains($currentId)) continue;
-                                $requiredTaskIds->push($currentId);
-                                $processedIds->push($currentId);
-                                $task = $allTasksLookup->get($currentId);
-                                if ($task && $task->parent_id) array_push($tasksToProcess, $task->parent_id);
-                            }
-                        }
-                        $tasksForHierarchy = $allCharacterTasks->whereIn('id', $requiredTaskIds->unique());
-                    }
-                    $tasksGrouped = $tasksForHierarchy->groupBy('parent_id');
-                    $sortedList = collect();
-                    $appendTasksRecursively(null, $tasksGrouped, $sortedList);
-                    $tasksToList = $hideCompleted ? $sortedList->filter(fn($task) => $matchingTaskIds->contains($task->id)) : $sortedList;
-                    $tableId = 'character-tasks-table-' . $character->id;
-                }
+                $query->where('character_id', $request->input('character_id'));
+                $character = $project->characters()->find($request->input('character_id'));
+                $tableId = 'character-tasks-table-' . $character->id;
             } else {
-                $allProjectTasks = $project->tasksWithoutCharacter()->with(['children', 'parent', 'project', 'character', 'files', 'assignees'])->get();
-                $tasksForHierarchy = $allProjectTasks;
-                $matchingTaskIds = $allProjectTasks->pluck('id');
-
-                if ($hideCompleted) {
-                    $matchingTasks = $allProjectTasks->where('status', '!=', 'completed');
-                    $matchingTaskIds = $matchingTasks->pluck('id');
-                    $requiredTaskIds = collect();
-                    if ($matchingTaskIds->isNotEmpty()) {
-                        $allTasksLookup = $allProjectTasks->keyBy('id');
-                        $tasksToProcess = $matchingTaskIds->toArray();
-                        $processedIds = collect();
-                        while (!empty($tasksToProcess)) {
-                            $currentId = array_pop($tasksToProcess);
-                            if ($processedIds->contains($currentId)) continue;
-                            $requiredTaskIds->push($currentId);
-                            $processedIds->push($currentId);
-                            $task = $allTasksLookup->get($currentId);
-                            if ($task && $task->parent_id) array_push($tasksToProcess, $task->parent_id);
-                        }
-                    }
-                    $tasksForHierarchy = $allProjectTasks->whereIn('id', $requiredTaskIds->unique());
-                }
-
-                $tasksGrouped = $tasksForHierarchy->groupBy('parent_id');
-                $sortedList = collect();
-                $appendTasksRecursively(null, $tasksGrouped, $sortedList);
-
-                $tasksToList = $hideCompleted ? $sortedList->filter(fn($task) => $matchingTaskIds->contains($task->id)) : $sortedList;
-                $tableId = 'project-tasks-table';
+                $query->where('project_id', $project->id)->whereNull('character_id');
             }
+
+            $allTasksInScope = $query->get();
+
+            // フィルター対象タスクのIDを取得（この場合は表示範囲内の全タスク）
+            $matchingTaskIdsQuery = $allTasksInScope->toQuery();
+            if ($hideCompleted) {
+                $matchingTaskIdsQuery->where('status', '!=', 'completed');
+            }
+            $matchingTaskIds = $matchingTaskIdsQuery->pluck('id');
+
+            // 表示に必要なタスク（フィルター対象とその親）のIDをすべて取得
+            $requiredTaskIds = collect();
+            if ($matchingTaskIds->isNotEmpty()) {
+                $allTasksLookup = $allTasksInScope->keyBy('id');
+                $tasksToProcess = $matchingTaskIds->toArray();
+                $processedIds = collect();
+
+                while (!empty($tasksToProcess)) {
+                    $currentId = array_pop($tasksToProcess);
+                    if ($processedIds->contains($currentId)) continue;
+
+                    $requiredTaskIds->push($currentId);
+                    $processedIds->push($currentId);
+
+                    $task = $allTasksLookup->get($currentId);
+                    if ($task && $task->parent_id) {
+                        array_push($tasksToProcess, $task->parent_id);
+                    }
+                }
+            }
+            $requiredTaskIds = $requiredTaskIds->unique();
+
+            // 必要なタスクのみで階層を再構築
+            $tasksForHierarchy = $allTasksInScope->whereIn('id', $requiredTaskIds);
+            $tasksGrouped = $tasksForHierarchy->groupBy('parent_id');
+            $sortedList = collect();
+            $appendTasksRecursively(null, $tasksGrouped, $sortedList);
+
+            // 最終的に表示するのはフィルターに直接マッチしたものだけ
+            $tasksToList = $hideCompleted ? $sortedList->filter(fn($task) => $matchingTaskIds->contains($task->id)) : $sortedList;
 
             $assigneeOptions = User::where('status', User::STATUS_ACTIVE)->orderBy('name')->get(['id', 'name'])->map(fn($user) => ['id' => $user->id, 'name' => $user->name])->values()->all();
             $viewData = compact('tasksToList', 'tableId', 'project', 'assigneeOptions', 'hideCompleted', 'character');
-            $html = view('projects.partials.projects-task-table', $viewData)->render();
+
+            // ビューを返す部分
+            if ($context === 'character') {
+                $html = view('projects.partials.character-tasks-table', $viewData)->render();
+            } else {
+                $html = view('projects.partials.projects-task-table', $viewData)->render();
+            }
+
             return response()->json(['html' => $html]);
         }
 
-        // 1. 全キャラクターのコストレコードを一度に取得
-        $all_costs = Cost::with('character')
-            ->where('project_id', $project->id)
-            ->get();
+        // --- 通常のページ読み込み時のデータ準備 ---
 
-        // 2. 実績材料費の計算と内訳の取得
-        // 'type'カラムが「材料費」のものをフィルタリングして合計
+        // (コスト計算部分は変更なし)
+        $all_costs = Cost::with('character')->where('project_id', $project->id)->get();
         $material_cost_breakdown = $all_costs->whereIn('type', ['材料費', 'その他'])->sortByDesc('amount');
         $actual_material_cost = $material_cost_breakdown->sum('amount');
-        // 3. 実績人件費の計算と内訳の取得
-        // 3-1. 作業費（コストテーブルから）
         $manual_labor_related_costs = $all_costs->whereIn('type', ['作業費', '交通費']);
         $actual_labor_cost_from_costs = $manual_labor_related_costs->sum('amount');
-
-        // 3-2. 人件費（作業ログから）
         $actual_labor_cost_from_logs = 0;
-        $labor_cost_breakdown = []; // 内訳を格納する配列
-        $completed_tasks = Task::where('project_id', $project->id)
-            ->where('status', 'completed')
-            ->with('workLogs.user.hourlyRates')
-            ->get();
-
+        $labor_cost_breakdown = [];
+        $completed_tasks = Task::where('project_id', $project->id)->where('status', 'completed')->with('workLogs.user.hourlyRates')->get();
         foreach ($completed_tasks as $task) {
             $actual_work_seconds_per_task = 0;
             $cost_per_task = 0;
@@ -611,89 +600,44 @@ class ProjectController extends Controller
                 $actual_work_seconds_per_task += $log->effective_duration;
             }
             if ($actual_work_seconds_per_task > 0) {
-                $labor_cost_breakdown[] = [
-                    'task_name' => $task->name,
-                    'character_name' => $task->character->name ?? '',
-                    'estimated_duration_seconds' => ($task->duration ?? 0) * 60,
-                    'actual_work_seconds' => $actual_work_seconds_per_task,
-                ];
+                $labor_cost_breakdown[] = ['task_name' => $task->name, 'character_name' => $task->character->name ?? '', 'estimated_duration_seconds' => ($task->duration ?? 0) * 60, 'actual_work_seconds' => $actual_work_seconds_per_task];
             }
             $actual_labor_cost_from_logs += $cost_per_task;
         }
-
-        // 3-3. 実績人件費の合計 (作業費 + ログからの人件費)
         $actual_labor_cost = $actual_labor_cost_from_costs + $actual_labor_cost_from_logs;
-        // 人件費の内訳には「作業費」も追加
         foreach ($manual_labor_related_costs->sortByDesc('amount') as $cost) {
-            array_unshift($labor_cost_breakdown, [
-                'task_name' => "{$cost->type}: {$cost->item_description} ({$cost->amount}円)",
-                'character_name' => $cost->character->name ?? '案件全体',
-                'estimated_duration_seconds' => 0,
-                'actual_work_seconds' => 0,
-            ]);
+            array_unshift($labor_cost_breakdown, ['task_name' => "{$cost->type}: {$cost->item_description} ({$cost->amount}円)", 'character_name' => $cost->character->name ?? '案件全体', 'estimated_duration_seconds' => 0, 'actual_work_seconds' => 0]);
         }
-
-        // 4. 目標人件費の計算 (変更なし)
         $target_labor_cost = 0;
         if ($project->target_labor_cost_rate > 0) {
-            $total_duration_minutes = $project->tasks()
-                ->where('is_folder', false)
-                ->where('is_milestone', false)
-                ->where('is_rework_task', false) // ★★★ 「直し」工程を目標工数から除外 ★★★
-                ->sum('duration');
+            $total_duration_minutes = $project->tasks()->where('is_folder', false)->where('is_milestone', false)->where('is_rework_task', false)->sum('duration');
             $target_labor_cost = ($total_duration_minutes / 60) * $project->target_labor_cost_rate;
         }
-
-        // 5. 目標合計コストの計算 (変更なし)
         $total_target_cost = ($project->target_material_cost ?? 0) + $target_labor_cost;
 
-
-        // --- 通常のページ読み込み時のデータ準備 ---
         $project->load([
             'characters' => function ($query) {
-                $query->with([
-                    'tasks.children',
-                    'tasks.parent',
-                    'tasks.project',
-                    'tasks.character',
-                    'tasks.files',
-                    'tasks.assignees',
-                    'measurements' => fn($q) => $q->orderBy('display_order'),
-                    'materials' => fn($q) => $q->orderBy('display_order'),
-                    'costs' => fn($q) => $q->orderBy('display_order')
-                ])->orderBy('name');
+                $query->with(['tasks.children', 'tasks.parent', 'tasks.project', 'tasks.character', 'tasks.files', 'tasks.assignees', 'measurements' => fn($q) => $q->orderBy('display_order'), 'materials' => fn($q) => $q->orderBy('display_order'), 'costs' => fn($q) => $q->orderBy('display_order')])->orderBy('name');
             },
             'tasks' => function ($query) {
                 $query->with(['children', 'parent', 'project', 'character', 'files', 'assignees']);
             },
-            // ★ 以下のリレーションを追加
             'requests' => function ($query) {
                 $query->with(['requester', 'assignees', 'items.completedBy', 'category', 'project'])->latest();
             }
         ]);
 
-        // 案件全体の目標人件費レートを取得
+        // (キャラクターコスト計算部分は変更なし)
         $target_labor_cost_rate = $project->target_labor_cost_rate ?? 0;
-
-        // 各キャラクターのコスト情報を計算して、キャラクターオブジェクトにプロパティとして追加
         foreach ($project->characters as $character) {
-            // 1. 実績コストの計算
-            // 1-1. 実績材料費 (Costテーブルから)
             $actual_material_cost_char = $character->costs()->whereIn('type', ['材料費', 'その他'])->sum('amount');
-
-            // 1-2. 実績人件費 (Costテーブルから手動計上分 '作業費', '交通費' など)
             $actual_labor_cost_from_costs_char = $character->costs()->whereIn('type', ['作業費', '交通費'])->sum('amount');
-
-            // 1-3. 実績人件費 (WorkLogから自動計算分)
             $actual_labor_cost_from_logs_char = 0;
-            // 関連リレーションをEager Loadしておく（N+1問題対策）
             $character->loadMissing('tasks.workLogs.user.hourlyRates');
             $completed_tasks_char = $character->tasks->where('status', 'completed');
-
             foreach ($completed_tasks_char as $task) {
                 foreach ($task->workLogs as $log) {
                     if ($log->user && $log->effective_duration > 0) {
-                        // UserモデルのgetHourlyRateForDateメソッドで時給を取得
                         $rate = $log->user->getHourlyRateForDate($log->start_time);
                         if ($rate > 0) {
                             $actual_labor_cost_from_logs_char += ($log->effective_duration / 3600) * $rate;
@@ -701,45 +645,43 @@ class ProjectController extends Controller
                     }
                 }
             }
-
-            // 1-4. キャラクターごとの実績人件費合計と、実績総コスト
             $actual_labor_cost_char = $actual_labor_cost_from_costs_char + $actual_labor_cost_from_logs_char;
             $character->actual_total_cost = $actual_material_cost_char + $actual_labor_cost_char;
-
-            // 2. 目標コストの計算
-            // 2-1. 目標材料費 (現状、キャラクターごとに目標材料費を設定する項目がないため、関連する材料の目標コストを合計します)
-            // Note: Materialモデルに target_cost カラムが存在しない場合は、この行を $target_material_cost_char = 0; に変更してください。
             $target_material_cost_char = 0;
-
-            // 2-2. 目標人件費 (キャラクターに紐づくタスクの予定工数から計算)
             $total_duration_minutes_char = $character->tasks()->where('is_folder', false)->where('is_milestone', false)->sum('duration');
             $target_labor_cost_char = ($total_duration_minutes_char / 60) * $target_labor_cost_rate;
-
-            // 2-3. キャラクターごとの目標総コスト
             $character->target_total_cost = $target_material_cost_char + $target_labor_cost_char;
         }
 
+        // ▼▼▼【ここから修正】案件全体とキャラクター毎の工程リストの生成ロジックを統一 ▼▼▼
+
+        // 案件全体の工程リストを生成
         $allProjectTasks = $project->tasksWithoutCharacter()->with(['children', 'parent', 'project', 'character', 'files', 'assignees'])->get();
         $tasksGroupedByParent = $allProjectTasks->groupBy('parent_id');
-        $sortedTasksList = new Collection();
-        // 親がいないトップレベルの工程から再帰的にリストを構築
-        $appendTasksRecursively(null, $tasksGroupedByParent, $sortedTasksList);
-        $tasksToList = $sortedTasksList;
+        $tasksToList = new Collection();
+        $appendTasksRecursively(null, $tasksGroupedByParent, $tasksToList, true);
 
+        // 各キャラクターの工程リストを生成
         foreach ($project->characters as $character) {
             $characterTasksCollection = $character->tasks;
-            if (!($characterTasksCollection instanceof Collection)) $characterTasksCollection = collect($characterTasksCollection);
+            if (!($characterTasksCollection instanceof Collection)) {
+                $characterTasksCollection = new Collection($characterTasksCollection);
+            }
             $tasksGroupedForCharacter = $characterTasksCollection->groupBy('parent_id');
-            $sortedCharacterTasks = collect();
-            $appendTasksRecursively(null, $tasksGroupedForCharacter, $sortedCharacterTasks);
+            $sortedCharacterTasks = new Collection();
+            $appendTasksRecursively(null, $tasksGroupedForCharacter, $sortedCharacterTasks, true);
             $character->sorted_tasks = $sortedCharacterTasks;
         }
+
+        // ▲▲▲【ここまで修正】▲▲▲
+
         $customFormFields = $this->getProjectCustomFieldDefinitions($project);
         $completionDataMasterFolderName = '_project_completion_data_';
         $masterFolder = $project->tasks()->where('name', $completionDataMasterFolderName)->where('is_folder', true)->firstOrCreate(['name' => $completionDataMasterFolderName, 'project_id' => $project->id], ['is_folder' => true, 'parent_id' => null, 'character_id' => null]);
         $completionDataFolders = Task::where('parent_id', $masterFolder->id)->where('is_folder', true)->with('files')->orderBy('name')->get();
         $availableInventoryItems = InventoryItem::where('quantity',  '>', 0)->orderBy('name')->get();
         $assigneeOptions = User::where('status', User::STATUS_ACTIVE)->orderBy('name')->get(['id', 'name'])->map(fn($user) => ['id' => $user->id, 'name' => $user->name])->values()->all();
+
         return view('projects.show', compact(
             'project',
             'customFormFields',
