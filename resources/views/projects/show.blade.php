@@ -1002,7 +1002,7 @@
                 <div x-show="expanded" x-collapse class="border-t border-gray-200 dark:border-gray-700">
                     <div class="overflow-x-auto max-h-[60vh] overflow-y-auto">
                         @include('projects.partials.projects-task-table',
-                        ['tasksToList' => $project->tasksWithoutCharacter()->orderByRaw('ISNULL(start_date), start_date ASC, name ASC')->get(),
+                        ['tasksToList' => $tasksToList,
                         'tableId' => 'project-tasks-table',
                         'projectForTable' => $project,
                         'isProjectTaskView' => true])

@@ -720,7 +720,12 @@ class ProjectController extends Controller
             $character->target_total_cost = $target_material_cost_char + $target_labor_cost_char;
         }
 
-        $tasksToList = $project->tasksWithoutCharacter()->orderByRaw('ISNULL(start_date), start_date ASC, name ASC')->get();
+        $allProjectTasks = $project->tasksWithoutCharacter()->with(['children', 'parent', 'project', 'character', 'files', 'assignees'])->get();
+        $tasksGroupedByParent = $allProjectTasks->groupBy('parent_id');
+        $sortedTasksList = new Collection();
+        // 親がいないトップレベルの工程から再帰的にリストを構築
+        $appendTasksRecursively(null, $tasksGroupedByParent, $sortedTasksList);
+        $tasksToList = $sortedTasksList;
         foreach ($project->characters as $character) {
             $characterTasksCollection = $character->tasks;
             if (!($characterTasksCollection instanceof Collection)) $characterTasksCollection = collect($characterTasksCollection);
