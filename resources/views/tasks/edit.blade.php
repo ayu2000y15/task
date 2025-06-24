@@ -263,12 +263,20 @@
                                 // 編集画面では「直し」を選択肢から除外する
                                 $statusOptionsForEdit = \Illuminate\Support\Arr::except(App\Models\Task::STATUS_OPTIONS, 'rework');
                             @endphp
-                            <x-select-input label="ステータス" name="status" id="status_individual"
-                                :options="$statusOptionsForEdit"
-                                :selected="old('status', $task->status)"
-                                :hasError="$errors->has('status')"
-                                :disabled="$task->status === 'rework'"
-                                />
+                            @if($task->status === 'rework')
+                                <x-select-input label="ステータス" name="status" id="status_individual"
+                                    :options="App\Models\Task::STATUS_OPTIONS"
+                                    :selected="old('status', $task->status)"
+                                    :hasError="$errors->has('status')"
+                                    :disabled="true"
+                                    />
+                            @else
+                                <x-select-input label="ステータス" name="status" id="status_individual"
+                                    :options="$statusOptionsForEdit"
+                                    :selected="old('status', $task->status)"
+                                    :hasError="$errors->has('status')"
+                                    />
+                            @endif
                             <x-input-error :messages="$errors->get('status')" class="mt-2" />
 
                             {{-- ▼▼▼ この注意書きブロックを追加 ▼▼▼ --}}
