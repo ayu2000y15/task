@@ -184,8 +184,12 @@
                         </div>
 
                         <div id="status-field-individual">
+                            @php
+                                // 編集画面では「直し」を選択肢から除外する
+                                $statusOptionsForEdit = \Illuminate\Support\Arr::except(App\Models\Task::STATUS_OPTIONS, 'rework');
+                            @endphp
                             <x-select-input label="ステータス" name="status" id="status_individual"
-                                :options="\App\Models\Task::STATUS_OPTIONS" :selected="old('status', 'not_started')"
+                                :options="$statusOptionsForEdit" :selected="old('status', 'not_started')"
                                 :hasError="$errors->has('status')" />
                             <x-input-error :messages="$errors->get('status')" class="mt-2" />
                         </div>

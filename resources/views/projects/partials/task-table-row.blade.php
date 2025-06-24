@@ -28,29 +28,37 @@
     {{-- フォルダ以外の表示 (通常の工程または予定) --}}
     <td class="px-4 py-3 align-top">
         @if(!$task->is_milestone)
-            @if($task->assignees->isNotEmpty())
-                @php
-                    $isAssigned = $task->assignees->contains('id', Auth::id());
-                    $isSharedAccount = Auth::check() && Auth::user()->status === \App\Models\User::STATUS_SHARED;
-                @endphp
-                @if($isAssigned || $isSharedAccount)
-                    <div class="timer-controls"
-                    data-task-id="{{ $task->id }}"
-                    data-task-status="{{ $task->status }}"
-                    data-is-paused="{{ $task->is_paused ? 'true' : 'false' }}"
-                    data-assignees='{{ json_encode($task->assignees->map->only(['id', 'name'])->values()) }}'>
-                        {{-- JavaScriptがこの中身を生成します --}}
-                    </div>
-                @else
-                    <div class="timer-display-only"
+            @if ($task->status === 'rework')
+                {{-- 親工程のステータスが「直し」の場合、ラベルを表示 --}}
+                <div class="inline-flex items-center px-2 py-1 bg-orange-100 text-orange-800 text-xs font-medium rounded-full dark:bg-orange-900 dark:text-orange-300" title="子工程の作業時間を記録してください">
+                    <i class="fas fa-wrench mr-1"></i>
+                    直し
+                </div>
+            @else
+                @if($task->assignees->isNotEmpty())
+                    @php
+                        $isAssigned = $task->assignees->contains('id', Auth::id());
+                        $isSharedAccount = Auth::check() && Auth::user()->status === \App\Models\User::STATUS_SHARED;
+                    @endphp
+                    @if($isAssigned || $isSharedAccount)
+                        <div class="timer-controls"
                         data-task-id="{{ $task->id }}"
                         data-task-status="{{ $task->status }}"
-                        data-is-paused="{{ $task->is_paused ? 'true' : 'false' }}">
-                        {{-- JavaScriptがこの中身を生成します --}}
-                    </div>
+                        data-is-paused="{{ $task->is_paused ? 'true' : 'false' }}"
+                        data-assignees='{{ json_encode($task->assignees->map->only(['id', 'name'])->values()) }}'>
+                            {{-- JavaScriptがこの中身を生成します --}}
+                        </div>
+                    @else
+                        <div class="timer-display-only"
+                            data-task-id="{{ $task->id }}"
+                            data-task-status="{{ $task->status }}"
+                            data-is-paused="{{ $task->is_paused ? 'true' : 'false' }}">
+                            {{-- JavaScriptがこの中身を生成します --}}
+                        </div>
+                    @endif
+                @else
+                    <span class="text-xs text-gray-400 dark:text-gray-500">-</span>
                 @endif
-            @else
-                <span class="text-xs text-gray-400 dark:text-gray-500">-</span>
             @endif
         @else
             <span class="text-xs text-gray-400 dark:text-gray-500">-</span>
@@ -115,6 +123,11 @@
             </div>
         </div>
     </td>
+    @if($showCharacterColumn ?? false)
+    <td class="hidden sm:table-cell px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 align-top">
+        {{ $task->character->name ?? '-' }}
+    </td>
+    @endif
 
     @if(!($isFolderView ?? false) && !($isMilestoneView ?? false))
     <td class="px-4 py-3 text-sm text-gray-500 dark:text-gray-400 align-top editable-cell-assignees cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/50"

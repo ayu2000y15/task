@@ -259,11 +259,23 @@
                         </div>
 
                         <div id="status-field-individual">
+                            @php
+                                // 編集画面では「直し」を選択肢から除外する
+                                $statusOptionsForEdit = \Illuminate\Support\Arr::except(App\Models\Task::STATUS_OPTIONS, 'rework');
+                            @endphp
                             <x-select-input label="ステータス" name="status" id="status_individual"
-                                :options="\App\Models\Task::STATUS_OPTIONS"
+                                :options="$statusOptionsForEdit"
                                 :selected="old('status', $task->status)"
-                                :hasError="$errors->has('status')" />
+                                :hasError="$errors->has('status')"
+                                :disabled="$task->status === 'rework'"
+                                />
                             <x-input-error :messages="$errors->get('status')" class="mt-2" />
+
+                            {{-- ▼▼▼ この注意書きブロックを追加 ▼▼▼ --}}
+                            <div id="rework-status-note" class="mt-2 p-2 text-xs bg-yellow-50 text-yellow-700 border border-yellow-200 rounded-md dark:bg-yellow-700/30 dark:text-yellow-200 dark:border-yellow-500 {{ $task->status !== 'rework' ? 'hidden' : '' }}">
+                                <i class="fas fa-info-circle mr-1"></i>
+                                「直し」ステータスの工程は、関連する「直し」の子工程をすべて完了することで自動的に「完了」ステータスに更新されます。
+                            </div>
                         </div>
                     </div>
 

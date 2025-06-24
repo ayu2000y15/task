@@ -230,6 +230,7 @@
                                                 @case('completed') <i class="fas fa-check-circle text-green-500" title="完了"></i> @break
                                                 @case('in_progress') <i class="fas fa-play-circle text-blue-500" title="進行中"></i> @break
                                                 @case('on_hold') <i class="fas fa-pause-circle text-yellow-500" title="一時停止中"></i> @break
+                                                @case('rework')<i class="fas fa-wrench text-orange-500" title="直し"></i>@break
                                                 @case('cancelled') <i class="fas fa-times-circle text-red-500" title="キャンセル"></i> @break
                                                 @default <i class="far fa-circle text-gray-400" title="未着手"></i>
                                             @endswitch
@@ -244,6 +245,9 @@
                                     </p>
                                     <a href="{{ route('projects.tasks.edit', [$task->project, $task]) }}" class="font-medium text-gray-800 dark:text-gray-100 whitespace-normal break-words leading-tight hover:text-blue-600 dark:hover:text-blue-400" title="タスク: {{ $task->name }}">
                                         {{ $task->name }}
+                                        @if($task->is_rework_task)
+                                            <i class="fas fa-wrench text-orange-500" title="直し"></i>
+                                        @endif
                                     </a>
                                     <p class="text-xs text-gray-500 dark:text-gray-400 truncate mt-1">
                                         <i class="fas fa-dragon fa-fw mr-1 text-gray-400"></i> {{ $task->character->name ?? 'キャラクター未設定' }}
@@ -274,21 +278,29 @@
                                 {{-- ▲▲▲【変更】ここまで ▲▲▲ --}}
                                 <div class="mt-2">
                                     @if(!$task->is_folder && !$task->is_milestone)
-                                        @if($task->assignees->isNotEmpty())
-                                            @php
-                                                $isAssigned = $task->assignees->contains('id', Auth::id());
-                                                $isSharedAccount = Auth::check() && Auth::user()->status === \App\Models\User::STATUS_SHARED;
-                                            @endphp
-                                            @if($isAssigned || $isSharedAccount)
-                                                <div class="timer-controls"
-                                                    data-task-id="{{ $task->id }}"
-                                                    data-task-status="{{ $task->status }}"
-                                                    data-is-paused="{{ $task->is_paused ? 'true' : 'false' }}"
-                                                    data-assignees='{{ json_encode($task->assignees->map->only(['id', 'name'])->values()) }}'
-                                                    data-view-mode="compact" {{-- ▼▼▼【この属性を追加】▼▼▼ --}}
-                                                    >
-                                                    {{-- JavaScriptがこの中身を生成します --}}
-                                                </div>
+                                        @if ($task->status === 'rework')
+                                            {{-- 親工程のステータスが「直し」の場合、ラベルを表示 --}}
+                                            <div class="inline-flex items-center px-2 py-1 bg-orange-100 text-orange-800 text-xs font-medium rounded-full dark:bg-orange-900 dark:text-orange-300" title="子工程の作業時間を記録してください">
+                                                <i class="fas fa-wrench mr-1"></i>
+                                                直し
+                                            </div>
+                                        @else
+                                            @if($task->assignees->isNotEmpty())
+                                                @php
+                                                    $isAssigned = $task->assignees->contains('id', Auth::id());
+                                                    $isSharedAccount = Auth::check() && Auth::user()->status === \App\Models\User::STATUS_SHARED;
+                                                @endphp
+                                                @if($isAssigned || $isSharedAccount)
+                                                    <div class="timer-controls"
+                                                        data-task-id="{{ $task->id }}"
+                                                        data-task-status="{{ $task->status }}"
+                                                        data-is-paused="{{ $task->is_paused ? 'true' : 'false' }}"
+                                                        data-assignees='{{ json_encode($task->assignees->map->only(['id', 'name'])->values()) }}'
+                                                        data-view-mode="compact" {{-- ▼▼▼【この属性を追加】▼▼▼ --}}
+                                                        >
+                                                        {{-- JavaScriptがこの中身を生成します --}}
+                                                    </div>
+                                                @endif
                                             @endif
                                         @endif
                                     @endif
@@ -324,9 +336,12 @@
                     @php
                         $_projectStatusOptionsSb = ['' => '未設定'] + (\App\Models\Project::PROJECT_STATUS_OPTIONS ?? []);
                         $_projectStatusIconsSb = [
-                            'not_started' => 'fa-minus-circle text-gray-400 dark:text-gray-500', 'in_progress' => 'fa-play-circle text-blue-400 dark:text-blue-500',
-                            'completed'   => 'fa-check-circle text-green-400 dark:text-green-500', 'on_hold'     => 'fa-pause-circle text-yellow-400 dark:text-yellow-500',
-                            'cancelled'   => 'fa-times-circle text-red-400 dark:text-red-500', '' => 'fa-question-circle text-gray-400 dark:text-gray-500',
+                            'not_started' => 'fa-minus-circle text-gray-400 dark:text-gray-500', '
+                            in_progress' => 'fa-play-circle text-blue-400 dark:text-blue-500',
+                            'completed'   => 'fa-check-circle text-green-400 dark:text-green-500',
+                            'on_hold'     => 'fa-pause-circle text-yellow-400 dark:text-yellow-500',
+                            'cancelled'   => 'fa-times-circle text-red-400 dark:text-red-500',
+                            '' => 'fa-question-circle text-gray-400 dark:text-gray-500',
                         ];
                         $_currentProjectStatusSb = $project->status ?? '';
                         $_projectStatusTooltipSb = $_projectStatusOptionsSb[$_currentProjectStatusSb] ?? $_currentProjectStatusSb;

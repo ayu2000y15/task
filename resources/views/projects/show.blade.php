@@ -742,14 +742,16 @@
                     <div class="grid grid-cols-2 gap-3 mb-4">
                         <div class="text-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-md"><div class="text-xl font-bold text-gray-500 dark:text-gray-400">{{ $project->tasks()->where('is_milestone', false)->where('is_folder', false)->where('status', 'not_started')->count() }}</div><small class="text-gray-500 dark:text-gray-400">未着手</small></div>
                         <div class="text-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-md"><div class="text-xl font-bold text-blue-500 dark:text-blue-400">{{ $project->tasks()->where('is_milestone', false)->where('is_folder', false)->where('status', 'in_progress')->count() }}</div><small class="text-gray-500 dark:text-gray-400">進行中</small></div>
-                        <div class="text-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-md"><div class="text-xl font-bold text-green-500 dark:text-green-400">{{ $project->tasks()->where('is_milestone', false)->where('is_folder', false)->where('status', 'completed')->count() }}</div><small class="text-gray-500 dark:text-gray-400">完了</small></div>
+                        <div class="text-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-md"><div class="text-xl font-bold text-orange-500 dark:text-orange-400">{{ $project->tasks()->where('is_milestone', false)->where('is_folder', false)->where('status', 'rework')->count() }}</div><small class="text-gray-500 dark:text-gray-400">直し</small></div>
                         <div class="text-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-md"><div class="text-xl font-bold text-yellow-500 dark:text-yellow-400">{{ $project->tasks()->where('is_milestone', false)->where('is_folder', false)->where('status', 'on_hold')->count() }}</div><small class="text-gray-500 dark:text-gray-400">一時停止中</small></div>
+                        <div class="text-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-md"><div class="text-xl font-bold text-green-500 dark:text-green-400">{{ $project->tasks()->where('is_milestone', false)->where('is_folder', false)->where('status', 'completed')->count() }}</div><small class="text-gray-500 dark:text-gray-400">完了</small></div>
                     </div>
                     <h6 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-3">タイプ別工程数</h6>
                     <div class="space-y-2">
                         <div class="flex justify-between items-center text-sm"><span class="text-gray-600 dark:text-gray-300">通常工程</span><span class="px-2 py-0.5 text-xs font-semibold text-blue-800 bg-blue-100 dark:bg-blue-700 dark:text-blue-200 rounded-full">{{ $project->tasks->where('is_milestone', false)->where('is_folder', false)->count() }}</span></div>
                         <div class="flex justify-between items-center text-sm"><span class="text-gray-600 dark:text-gray-300">予定</span><span class="px-2 py-0.5 text-xs font-semibold text-red-800 bg-red-100 dark:bg-red-700 dark:text-red-200 rounded-full">{{ $project->tasks->where('is_milestone', true)->count() }}</span></div>
-                        <div class="flex justify-between items-center text-sm"><span class="text-gray-600 dark:text-gray-300">フォルダ</span><span class="px-2 py-0.5 text-xs font-semibold text-gray-800 bg-gray-100 dark:bg-gray-600 dark:text-gray-200 rounded-full">{{ $project->tasks->where('is_folder', true)->count() }}</span></div>
+                        <div class="flex justify-between items-center text-sm"><span class="text-gray-600 dark:text-gray-300">フォルダ</span><span class="px-2 py-0.5 text-xs font-semibold text-gray-800 bg-gray-100 dark:bg-gray-600 dark:text-gray-200 rounded-full">{{ $project->tasks->where('is_folder', true)->count()-1 }}</span></div>
+                        <div class="flex justify-between items-center text-sm"><span class="text-gray-600 dark:text-gray-300">直し</span><span class="px-2 py-0.5 text-xs font-semibold text-orange-800 bg-orange-100 dark:bg-orange-600 dark:text-orange-200 rounded-full">{{ $project->tasks->where('is_rework_task', true)->count() }}</span></div>
                     </div>
                 </div>
             </div>
@@ -1444,7 +1446,7 @@
         });
 
         // キャラクター並び替えの初期化
-         const characterList = document.getElementById('character-list');
+        const characterList = document.getElementById('character-list');
         if (characterList) {
             const saveBtn = document.getElementById('save-character-order-btn');
             const projectId = document.getElementById('project-show-main-container').dataset.projectId;
@@ -1485,63 +1487,6 @@
                     this.innerHTML = '<i class="fas fa-save mr-1"></i>並び順を保存';
                     this.disabled = false;
                 });
-            });
-        }
-
-        // ▼▼▼【差し替え後の「直し」ボタン処理】▼▼▼
-        const mainContainer = document.getElementById('project-show-main-container');
-        if (mainContainer) {
-            mainContainer.addEventListener('click', async function(event) {
-                const reworkButton = event.target.closest('.rework-task-btn');
-                if (!reworkButton) {
-                    return;
-                }
-
-                event.preventDefault();
-
-                const taskId = reworkButton.dataset.taskId;
-                const taskName = reworkButton.dataset.taskName;
-                const projectId = reworkButton.dataset.projectId;
-
-                if (!confirm(`工程「${taskName}」をコピーして「直し」工程を作成します。よろしいですか？`)) {
-                    return;
-                }
-
-                reworkButton.disabled = true;
-                reworkButton.innerHTML = '<i class="fas fa-spinner fa-spin fa-sm"></i>';
-
-                try {
-                    const url = `/projects/${projectId}/tasks/${taskId}/rework`;
-                    const response = await axios.post(url, {}); // ボディは空
-
-                    if (response.data.success) {
-                        const parentRow = document.querySelector(`tr[data-task-id="${response.data.parentTaskId}"]`);
-                        if (parentRow) {
-                            // 親行のUIを更新
-                            const statusIconWrapper = parentRow.querySelector('.task-status-icon-wrapper');
-                            if (statusIconWrapper) {
-                                statusIconWrapper.innerHTML = '<i class="fas fa-wrench text-orange-500" title="直し"></i>';
-                            }
-                            reworkButton.style.display = 'none';
-
-                            // 新しい子工程の行を親行の下に挿入
-                            parentRow.insertAdjacentHTML('afterend', response.data.newRowHtml);
-
-                            // 新しく追加された行のJS機能を再初期化
-                            if (window.initTasksIndex) initTasksIndex();
-                            if (window.initializeWorkTimers) initializeWorkTimers();
-                        }
-                        alert(response.data.message);
-                    } else {
-                        throw new Error(response.data.message || '処理に失敗しました。');
-                    }
-                } catch (error) {
-                    console.error('Rework request failed:', error);
-                    alert(error.response?.data?.message || 'エラーが発生しました。');
-                } finally {
-                    reworkButton.disabled = false;
-                    reworkButton.innerHTML = '<i class="fas fa-wrench fa-sm"></i>';
-                }
             });
         }
     });

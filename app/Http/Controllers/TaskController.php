@@ -343,7 +343,7 @@ class TaskController extends Controller
             'assignees' => 'nullable|array',
             'assignees.*' => 'exists:users,id',
             'parent_id' => ['nullable', Rule::exists('tasks', 'id')->where('is_folder', false)],
-            'status' => ['nullable', Rule::in(['not_started', 'in_progress', 'completed', 'on_hold', 'cancelled'])],
+            'status' => ['nullable', Rule::in(['not_started', 'in_progress', 'completed', 'rework', 'on_hold', 'cancelled'])],
             'apply_individual_to_all_characters' => 'nullable|boolean',
             'apply_to_all_character_siblings_of_parent' => 'nullable|boolean',
         ], [
@@ -760,7 +760,7 @@ class TaskController extends Controller
             'assignees' => 'nullable|array',
             'assignees.*' => 'exists:users,id',
             'parent_id' => 'nullable|exists:tasks,id',
-            'status' => ['nullable', Rule::in(['not_started', 'in_progress', 'completed', 'on_hold', 'cancelled'])],
+            'status' => ['nullable', Rule::in(['not_started', 'in_progress', 'completed', 'rework', 'on_hold', 'cancelled'])],
             'apply_edit_to_all_characters_same_name' => 'nullable|boolean',
         ], [
             'end_date.required_if' => '工程の場合、終了日時は必須です。',
@@ -948,7 +948,7 @@ class TaskController extends Controller
         $this->authorize('update', $task);
 
         $validated = $request->validate([
-            'status' => 'required|string|in:not_started,in_progress,completed,on_hold,cancelled',
+            'status' => 'required|string|in:not_started,in_progress,completed,rework,on_hold,cancelled',
             'force_update' => 'sometimes|boolean',
         ]);
 
@@ -1112,7 +1112,7 @@ class TaskController extends Controller
 
         $validated = $request->validate([
             'progress' => 'sometimes|required|integer|min:0|max:100',
-            'status' => 'required|string|in:not_started,in_progress,completed,on_hold,cancelled',
+            'status' => 'required|string|in:not_started,in_progress,completed,rework,on_hold,cancelled',
             'force_update' => 'sometimes|boolean',
         ]);
 
@@ -1383,10 +1383,13 @@ class TaskController extends Controller
             $reworkTask->load(['assignees', 'project', 'character', 'parent']);
             $assigneeOptions = User::where('status', User::STATUS_ACTIVE)->orderBy('name')->get(['id', 'name'])->map(fn($user) => ['id' => $user->id, 'name' => $user->name])->values()->all();
 
+            $showCharacterColumn = $request->input('view_context') === 'tasks-index';
+
             $newRowHtml = view('projects.partials.task-table-row', [
-                'task'    => $reworkTask,
-                'project' => $project, // ★★★ この行を追加 ★★★
-                'assigneeOptions' => $assigneeOptions
+                'task'                 => $reworkTask,
+                'project'              => $project,
+                'assigneeOptions'      => $assigneeOptions,
+                'showCharacterColumn'  => $showCharacterColumn, // ★ ビューに表示フラグを渡す
             ])->render();
 
             return response()->json([

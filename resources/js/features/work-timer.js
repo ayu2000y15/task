@@ -87,39 +87,65 @@ function listenForExternalTaskUpdates() {
  * 表示専用UIを描画する関数
  */
 function renderTimerDisplay(container) {
-    container.innerHTML = "";
-    let statusText = "未定義",
-        iconClass = "fas fa-question-circle",
-        colorClass = "text-gray-400";
-    const taskStatus = container.dataset.taskStatus,
-        isPaused = container.dataset.isPaused === "true";
+    container.innerHTML = ""; // コンテナをクリア
+    const taskStatus = container.dataset.taskStatus;
+    const isPaused = container.dataset.isPaused === "true";
 
-    if (taskStatus === "in_progress" && !isPaused) {
-        statusText = "作業中";
-        iconClass = "fas fa-play-circle";
-        colorClass = "text-blue-500 dark:text-blue-400";
-    } else if (taskStatus === "completed") {
-        statusText = "完了済";
-        iconClass = "fas fa-check-circle";
-        colorClass = "text-green-500 dark:text-green-400";
-    } else if (taskStatus === "on_hold" || isPaused) {
-        statusText = "一時停止中";
-        iconClass = "fas fa-pause-circle";
-        colorClass = "text-yellow-500 dark:text-yellow-400";
-    } else if (taskStatus === "cancelled") {
-        statusText = "キャンセル済";
-        iconClass = "fas fa-times-circle";
-        colorClass = "text-red-500 dark:text-red-400";
-    } else {
-        statusText = "未着手";
-        iconClass = "far fa-circle";
-        colorClass = "text-gray-400 dark:text-gray-500";
+    let text = "未定義";
+    let iconClass = "fas fa-question-circle";
+    let badgeClass =
+        "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300";
+
+    let effectiveStatus = taskStatus;
+    if ((taskStatus === "in_progress" || taskStatus === "rework") && isPaused) {
+        effectiveStatus = "on_hold";
     }
 
-    const displayElement = document.createElement("div");
-    displayElement.className = `text-sm font-medium ${colorClass}`;
-    displayElement.innerHTML = `<i class="${iconClass} fa-fw mr-1"></i>${statusText}`;
-    container.appendChild(displayElement);
+    switch (effectiveStatus) {
+        case "completed":
+            text = "完了済";
+            iconClass = "fas fa-check-circle";
+            badgeClass =
+                "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300";
+            break;
+        case "in_progress":
+            text = "作業中";
+            iconClass = "fas fa-play-circle";
+            badgeClass =
+                "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300";
+            break;
+        case "on_hold":
+            text = "一時停止中";
+            iconClass = "fas fa-pause-circle";
+            badgeClass =
+                "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300";
+            break;
+        case "rework":
+            text = "直し";
+            iconClass = "fas fa-wrench";
+            badgeClass =
+                "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300";
+            break;
+        case "cancelled":
+            text = "キャンセル";
+            iconClass = "fas fa-times-circle";
+            badgeClass =
+                "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300";
+            break;
+        case "not_started":
+        default:
+            text = "未着手";
+            iconClass = "far fa-circle";
+            badgeClass =
+                "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300";
+            break;
+    }
+
+    const badge = document.createElement("div");
+    badge.className = `inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${badgeClass}`;
+    badge.innerHTML = `<i class="${iconClass} mr-1.5"></i> ${text}`;
+
+    container.appendChild(badge);
 }
 
 /**
@@ -171,7 +197,11 @@ function renderTimerControls(container, log, isPaused, taskStatus, assignees) {
     const hasMultipleAssignees = assignees && assignees.length > 1;
     container.innerHTML = "";
 
-    if (taskStatus === "completed" || taskStatus === "cancelled") {
+    if (
+        taskStatus === "completed" ||
+        taskStatus === "cancelled" ||
+        taskStatus === "rework"
+    ) {
         const statusDisplay = document.createElement("div");
         statusDisplay.className = "text-sm font-semibold";
         if (taskStatus === "completed") {

@@ -227,27 +227,35 @@
                         @else
                              {{-- 通常の工程の場合のセル --}}
                             <td class="px-4 py-3 align-top">
-                                @if($task->assignees->isNotEmpty())
-                                    @php
-                                        $isAssigned = $task->assignees->contains('id', Auth::id());
-                                        $isSharedAccount = Auth::check() && Auth::user()->status === \App\Models\User::STATUS_SHARED;
-                                    @endphp
-                                    @if($isAssigned || $isSharedAccount)
-                                        <div class="timer-controls"
-                                        data-task-id="{{ $task->id }}"
-                                        data-task-status="{{ $task->status }}"
-                                        data-is-paused="{{ $task->is_paused ? 'true' : 'false' }}"
-                                        data-assignees='{{ json_encode($task->assignees->map->only(['id', 'name'])->values()) }}'>
-                                        </div>
-                                    @else
-                                        <div class="timer-display-only"
+                                @if ($task->status === 'rework')
+                                    {{-- 親工程のステータスが「直し」の場合、ラベルを表示 --}}
+                                    <div class="inline-flex items-center px-2 py-1 bg-orange-100 text-orange-800 text-xs font-medium rounded-full dark:bg-orange-900 dark:text-orange-300" title="子工程の作業時間を記録してください">
+                                        <i class="fas fa-wrench mr-1"></i>
+                                        直し
+                                    </div>
+                                @else
+                                    @if($task->assignees->isNotEmpty())
+                                        @php
+                                            $isAssigned = $task->assignees->contains('id', Auth::id());
+                                            $isSharedAccount = Auth::check() && Auth::user()->status === \App\Models\User::STATUS_SHARED;
+                                        @endphp
+                                        @if($isAssigned || $isSharedAccount)
+                                            <div class="timer-controls"
                                             data-task-id="{{ $task->id }}"
                                             data-task-status="{{ $task->status }}"
-                                            data-is-paused="{{ $task->is_paused ? 'true' : 'false' }}">
-                                        </div>
+                                            data-is-paused="{{ $task->is_paused ? 'true' : 'false' }}"
+                                            data-assignees='{{ json_encode($task->assignees->map->only(['id', 'name'])->values()) }}'>
+                                            </div>
+                                        @else
+                                            <div class="timer-display-only"
+                                                data-task-id="{{ $task->id }}"
+                                                data-task-status="{{ $task->status }}"
+                                                data-is-paused="{{ $task->is_paused ? 'true' : 'false' }}">
+                                            </div>
+                                        @endif
+                                    @else
+                                        <span class="text-xs text-gray-400 dark:text-gray-500">-</span>
                                     @endif
-                                @else
-                                    <span class="text-xs text-gray-400 dark:text-gray-500">-</span>
                                 @endif
                             </td>
                             <td class="px-4 py-3 text-sm text-gray-900 dark:text-gray-100 align-top">
@@ -321,6 +329,7 @@
                                     </div>
                                 </div>
                             </td>
+
                             @if(!(isset($character) && $character))
                             <td class="hidden sm:table-cell px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 align-top">{{ $task->character->name ?? '-' }}</td>
                             @endif
@@ -340,6 +349,19 @@
                         {{-- 共通の操作セル --}}
                         <td class="px-3 py-3 whitespace-nowrap text-sm font-medium align-top">
                             <div class="flex items-center space-x-1">
+                                @can('update', $task)
+                                    @if(!in_array($task->status, ['rework', 'cancelled']) && !$task->is_folder && !$task->is_milestone && !$task->is_rework_task)
+                                            <button type="button"
+                                                class="rework-task-btn p-1.5 text-orange-500 hover:text-orange-700 ..."
+                                                title="この工程をコピーして「直し」工程を作成する"
+                                                data-task-id="{{ $task->id }}"
+                                                data-task-name="{{ e($task->name) }}"
+                                                data-project-id="{{ $task->project->id }}"
+                                                data-view-context="tasks-index">
+                                            <i class="fas fa-wrench fa-sm"></i>
+                                        </button>
+                                    @endif
+                                @endcan
                                 @can('update', $task)
                                 <x-icon-button
                                     :href="route('projects.tasks.edit', [$task->project, $task])"
@@ -437,5 +459,6 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     }
+
 });
 </script>

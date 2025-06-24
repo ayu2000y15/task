@@ -204,4 +204,81 @@ document.addEventListener("DOMContentLoaded", () => {
         });
         calendar.render();
     }
+
+    document.body.addEventListener("click", async function (event) {
+        const reworkButton = event.target.closest(".rework-task-btn");
+        if (!reworkButton) {
+            return; // 「直し」ボタン以外がクリックされた場合は何もしない
+        }
+
+        event.preventDefault();
+
+        const taskId = reworkButton.dataset.taskId;
+        const taskName = reworkButton.dataset.taskName;
+        const projectId = reworkButton.dataset.projectId;
+
+        if (
+            !confirm(
+                `工程「${taskName}」をコピーして「直し」工程を作成します。よろしいですか？`
+            )
+        ) {
+            return;
+        }
+
+        reworkButton.disabled = true;
+        reworkButton.innerHTML = '<i class="fas fa-spinner fa-spin fa-sm"></i>';
+
+        try {
+            const url = `/projects/${projectId}/tasks/${taskId}/rework`;
+            const viewContext =
+                reworkButton.dataset.viewContext || "project-show";
+            const response = await axios.post(url, {}); // ボディは空
+
+            if (response.data.success) {
+                alert(response.data.message);
+
+                if (viewContext === "tasks-index") {
+                    // 【工程一覧ページの場合】画面をリロードして最新の状態を再描画
+                    window.location.reload();
+                } else {
+                    // 【案件詳細ページなど、その他の場合】これまで通り動的に行を追加
+                    const parentRow = reworkButton.closest("tr");
+                    if (parentRow) {
+                        // 親行のUIを更新
+                        const statusIconWrapper = parentRow.querySelector(
+                            ".task-status-icon-wrapper"
+                        );
+                        if (statusIconWrapper) {
+                            statusIconWrapper.innerHTML =
+                                '<i class="fas fa-wrench text-orange-500" title="直し"></i>';
+                        }
+                        reworkButton.style.display = "none"; // ボタンを非表示に
+
+                        // 新しい子工程の行を親行の下に挿入
+                        parentRow.insertAdjacentHTML(
+                            "afterend",
+                            response.data.newRowHtml
+                        );
+
+                        // 新しく追加された行のJS機能を再初期化
+                        if (window.initTasksIndex) initTasksIndex();
+                        if (window.initializeWorkTimers) initializeWorkTimers();
+                    }
+                }
+            } else {
+                throw new Error(
+                    response.data.message || "処理に失敗しました。"
+                );
+            }
+        } catch (error) {
+            console.error("Rework request failed:", error);
+            alert(error.response?.data?.message || "エラーが発生しました。");
+        } finally {
+            // 元のボタンの状態に戻す（エラー時やユーザーがページを離れない場合のため）
+            if (reworkButton) {
+                reworkButton.disabled = false;
+                reworkButton.innerHTML = '<i class="fas fa-wrench fa-sm"></i>';
+            }
+        }
+    });
 });
