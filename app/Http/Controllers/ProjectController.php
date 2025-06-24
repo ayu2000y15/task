@@ -480,20 +480,21 @@ class ProjectController extends Controller
     {
         $this->authorize('view', $project);
 
+        // ▼▼▼【ここから修正】ソートロジックをID順に変更 ▼▼▼
         $appendTasksRecursively = function ($parentId, $tasksGroupedByParent, &$sortedTasksList) use (&$appendTasksRecursively) {
             $keyForGrouping = $parentId === null ? '' : $parentId;
             if (!$tasksGroupedByParent->has($keyForGrouping)) {
                 return;
             }
-            $childrenOfCurrentParent = $tasksGroupedByParent->get($keyForGrouping)
-                ->sortBy(function ($task) {
-                    return [$task->start_date === null ? PHP_INT_MAX : $task->start_date->getTimestamp(), $task->name];
-                });
+            // 兄弟関係のタスクを、開始日時順ではなくID順（作成順）でソートする
+            $childrenOfCurrentParent = $tasksGroupedByParent->get($keyForGrouping)->sortBy('id');
+
             foreach ($childrenOfCurrentParent as $task) {
                 $sortedTasksList->push($task);
                 $appendTasksRecursively($task->id, $tasksGroupedByParent, $sortedTasksList);
             }
         };
+        // ▲▲▲【ここまで修正】▲▲▲
 
         if ($request->ajax()) {
             $hideCompleted = $request->boolean('hide_completed');
@@ -536,7 +537,6 @@ class ProjectController extends Controller
                     $tableId = 'character-tasks-table-' . $character->id;
                 }
             } else {
-                // ▼▼▼【ここから修正】案件全体の工程表を更新する場合のロジックを修正 ▼▼▼
                 $allProjectTasks = $project->tasksWithoutCharacter()->with(['children', 'parent', 'project', 'character', 'files', 'assignees'])->get();
                 $tasksForHierarchy = $allProjectTasks;
                 $matchingTaskIds = $allProjectTasks->pluck('id');
@@ -567,7 +567,6 @@ class ProjectController extends Controller
 
                 $tasksToList = $hideCompleted ? $sortedList->filter(fn($task) => $matchingTaskIds->contains($task->id)) : $sortedList;
                 $tableId = 'project-tasks-table';
-                // ▲▲▲【ここまで修正】▲▲▲
             }
 
             $assigneeOptions = User::where('status', User::STATUS_ACTIVE)->orderBy('name')->get(['id', 'name'])->map(fn($user) => ['id' => $user->id, 'name' => $user->name])->values()->all();
@@ -726,6 +725,7 @@ class ProjectController extends Controller
         // 親がいないトップレベルの工程から再帰的にリストを構築
         $appendTasksRecursively(null, $tasksGroupedByParent, $sortedTasksList);
         $tasksToList = $sortedTasksList;
+
         foreach ($project->characters as $character) {
             $characterTasksCollection = $character->tasks;
             if (!($characterTasksCollection instanceof Collection)) $characterTasksCollection = collect($characterTasksCollection);
