@@ -753,7 +753,7 @@ class ProjectController extends Controller
      */
     public function storeCompletionFolder(Request $request, Project $project)
     {
-        $this->authorize('update', $project);
+        $this->authorize('canCreateFoldersForFileUpload',  Task::class);
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
