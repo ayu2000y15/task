@@ -971,7 +971,7 @@
                                                 }">
 
                                                 @include('projects.partials.character-tasks-table', [
-                                                    'tasksToList' => $character->tasks()->orderByRaw('ISNULL(start_date), start_date ASC, name ASC')->get(),
+                                                    'tasksToList' => $tasksToList,
                                                     'tableId' => 'character-tasks-table-' . $character->id,
                                                     'project' => $project,
                                                     'character' => $character,
