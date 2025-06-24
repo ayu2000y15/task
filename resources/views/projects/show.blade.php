@@ -959,7 +959,6 @@
                                                 if (activeCharacterTab[{{ $character->id }}] === 'tasks-{{ $character->id }}') {
                                                     console.log('[TGGL] x-effect: Tasks tab for character {{ $character->id }} (ID: tasks-content-{{ $character->id }}) is active.');
                                                     const tableId = 'character-tasks-table-{{ $character->id }}';
-                                                    // Alpine.js がDOMの更新を完了した後に実行
                                                     Alpine.nextTick(() => {
                                                         console.log('[TGGL] x-effect (nextTick): Attempting to init tableId:', tableId);
                                                         if (typeof window.setupTaskToggle === 'function') {
@@ -970,8 +969,9 @@
                                                     });
                                                 }">
 
+                                                {{-- @include の第1引数を、コントローラーでソート済みの $character->sorted_tasks に変更 --}}
                                                 @include('projects.partials.character-tasks-table', [
-                                                    'tasksToList' => $character->tasks()->orderByRaw('ISNULL(start_date), start_date ASC, name ASC')->get(),
+                                                    'tasksToList' => $character->sorted_tasks,
                                                     'tableId' => 'character-tasks-table-' . $character->id,
                                                     'project' => $project,
                                                     'character' => $character,
