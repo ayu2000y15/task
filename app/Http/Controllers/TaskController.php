@@ -1325,6 +1325,84 @@ class TaskController extends Controller
         ]);
     }
 
+    /**
+     * 親工程をコピーして「直し」の子工程を作成し、親工程のステータスを更新する
+     *【モーダル廃止版】
+     */
+    public function startRework(Request $request, Project $project, Task $task): JsonResponse
+    {
+        $this->authorize('update', $task);
+
+        // reworkまたはcancelledの場合はエラー
+        if (in_array($task->status, ['rework', 'cancelled'])) {
+            return response()->json(['success' => false, 'message' => '「直し」または「キャンセル」済みの工程からは、新たな「直し」を作成できません。'], 422);
+        }
+
+        DB::beginTransaction();
+        try {
+            // 1. 親工程のステータスを「直し」に更新
+            $task->status = 'rework';
+            $task->save();
+
+            // 2. 新しい「直し」の子工程を作成し、親の情報をコピー
+            $reworkTask = new Task([
+                'project_id'     => $task->project_id,
+                'parent_id'      => $task->id, // ★ 親工程のIDを設定
+                'character_id'   => $task->character_id,
+                'name'           => $task->name . 'の直し', // ★ 工程名を自動生成
+                'description'    => $task->description,    // ★ 説明をコピー
+                'start_date'     => $task->start_date,     // ★ 開始日時をコピー
+                'end_date'       => $task->end_date,       // ★ 終了日時をコピー
+                'duration'       => $task->duration,       // ★ 工数をコピー
+                'status'         => 'not_started',        // ★ 新規作成時は「未着手」
+                'progress'       => 0,
+                'is_rework_task' => true,                 // ★ 「直し」工程フラグ
+                'is_milestone'   => false,
+                'is_folder'      => false,
+            ]);
+            $reworkTask->save();
+
+            // 3. 親工程の担当者をそのままコピー
+            $parentAssigneeIds = $task->assignees->pluck('id');
+            $reworkTask->assignees()->sync($parentAssigneeIds);
+
+            // 4. 活動ログを記録
+            activity()
+                ->causedBy(Auth::user())
+                ->performedOn($task) // 親工程に対するログ
+                ->withProperties([
+                    'child_rework_task_id'   => $reworkTask->id,
+                    'child_rework_task_name' => $reworkTask->name,
+                    'copied_assignees'       => $task->assignees->pluck('name')->join(', '),
+                ])
+                ->log("工程が「直し」に設定され、子工程「{$reworkTask->name}」がコピー作成されました。");
+
+            DB::commit();
+
+            // 5. フロントエンドに新しい行を返すためのHTMLを生成
+            $reworkTask->load(['assignees', 'project', 'character', 'parent']);
+            $assigneeOptions = User::where('status', User::STATUS_ACTIVE)->orderBy('name')->get(['id', 'name'])->map(fn($user) => ['id' => $user->id, 'name' => $user->name])->values()->all();
+
+            $newRowHtml = view('projects.partials.task-table-row', [
+                'task'    => $reworkTask,
+                'project' => $project, // ★★★ この行を追加 ★★★
+                'assigneeOptions' => $assigneeOptions
+            ])->render();
+
+            return response()->json([
+                'success'      => true,
+                'message'      => '「直し」工程が作成されました。',
+                'newRowHtml'   => $newRowHtml,
+                'parentTaskId' => $task->id,
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Rework task creation failed: ' . $e->getMessage(), ['exception' => $e]);
+            return response()->json(['success' => false, 'message' => '処理中にエラーが発生しました。'], 500);
+        }
+    }
+
+
 
     /**
      * 担当者を更新する

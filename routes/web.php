@@ -75,10 +75,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/projects/{project}/tasks/{task}/assignee', [TaskController::class, 'updateAssignee'])->name('tasks.assignee');
     Route::patch('projects/{project}/tasks/{task}/description', [TaskController::class, 'updateDescription'])->name('projects.tasks.description.update');
 
-    Route::post('/projects/{project}/tasks/{task}/status', [TaskController::class, 'updateStatusFromEdit'])
-        ->name('tasks.updateStatusFromEdit');
-
+    Route::post('/projects/{project}/tasks/{task}/status', [TaskController::class, 'updateStatusFromEdit'])->name('tasks.updateStatusFromEdit');
     Route::post('/projects/{project}/tasks/batch', [App\Http\Controllers\TaskController::class, 'batchStore'])->name('projects.tasks.batchStore');
+    Route::post('/projects/{project}/tasks/{task}/rework', [TaskController::class, 'startRework'])->name('tasks.rework.start');
 
     // ファイル関連のルート
     Route::post('/projects/{project}/tasks/{task}/files', [TaskController::class, 'uploadFiles'])->name('projects.tasks.files.upload');

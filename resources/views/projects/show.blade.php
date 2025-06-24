@@ -1151,18 +1151,14 @@
     // グローバルスコープに関数を定義 (一度だけ実行されるようにする)
     if (typeof window.setupTaskToggle !== 'function') {
         window.setupTaskToggle = function(tableContainerId) {
-            // console.log('[TGGL] Attempting to setup toggle for table ID:', tableContainerId);
             const tableContainer = document.getElementById(tableContainerId);
             if (!tableContainer) {
-                // console.warn('[TGGL] setupTaskToggle: Table container NOT FOUND for ID:', tableContainerId);
                 return;
             }
             if (tableContainer.dataset.taskToggleInitialized === 'true') {
-                // console.log('[TGGL] setupTaskToggle: Table ALREADY INITIALIZED for ID:', tableContainerId);
                 return;
             }
             tableContainer.dataset.taskToggleInitialized = 'true';
-            // console.log('[TGGL] setupTaskToggle: Initializing table for ID:', tableContainerId);
 
             tableContainer.addEventListener('click', function (event) {
                 const toggleTrigger = event.target.closest('.task-toggle-trigger');
@@ -1172,8 +1168,6 @@
                     const taskId = toggleTrigger.dataset.taskId;
                     const icon = toggleTrigger.querySelector('.toggle-icon');
                     const isExpanded = toggleTrigger.getAttribute('aria-expanded') === 'true';
-
-                    // console.log('[TGGL] Click on table:', tableContainerId, '- Task ID:', taskId, '- Expanded:', isExpanded);
 
                     if (isExpanded) {
                         if(icon) {
@@ -1194,9 +1188,7 @@
         };
 
         window.toggleChildRowsInTable = function(tableContainer, parentId, show) {
-            // console.log('[TGGL] toggleChildRowsInTable: Parent ID:', parentId, '- Show:', show, '- Table:', tableContainer.id);
             const childRows = tableContainer.querySelectorAll('tr.child-row.child-of-' + parentId);
-            // console.log('[TGGL] toggleChildRowsInTable: Found child rows:', childRows.length, childRows);
             childRows.forEach(row => {
                 row.style.display = show ? '' : 'none';
 
@@ -1272,7 +1264,6 @@
                 .then(res => res.json())
                 .then(data => {
                     if (data.success) {
-                        // ここで成功時のトースト通知などを表示するとより良い
                         alert(data.message);
                     } else {
                         alert('エラー: ' + (data.message || '並び順の保存に失敗しました。'));
@@ -1338,9 +1329,7 @@
             });
         });
 
-        // // 完成データ用Dropzoneとファイル削除の初期化処理
-        // const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-
+        // 完成データ用Dropzone
         document.querySelectorAll('.completion-dropzone').forEach(dropzoneElement => {
             const projectId = dropzoneElement.dataset.projectId;
             const taskId = dropzoneElement.dataset.taskId;
@@ -1381,6 +1370,7 @@
             });
         });
 
+        // ファイル削除ボタンの初期化
         function initializeDynamicDeleteButtons() {
             document.querySelectorAll('.completion-file-delete-btn, .folder-file-delete-btn').forEach(button => {
                 const newButton = button.cloneNode(true);
@@ -1416,8 +1406,6 @@
                 });
             });
         }
-
-        // 初期ロード時にファイル削除ボタンを初期化
         initializeDynamicDeleteButtons();
 
         //「完了を表示/非表示」のAJAX処理
@@ -1426,21 +1414,15 @@
             if (!toggleButton) {
                 return;
             }
-
             event.preventDefault();
-
             const containerId = toggleButton.dataset.containerId;
             const container = document.getElementById(containerId);
             const url = toggleButton.href;
-
             if (!container) {
                 console.error('Target container not found:', containerId);
                 return;
             }
-
-            // ローディング表示
             container.style.opacity = '0.5';
-
             fetch(url, {
                 method: 'GET',
                 headers: {
@@ -1448,33 +1430,24 @@
                     'Accept': 'application/json',
                 }
             })
-            .then(response => {
-                if (!response.ok) throw new Error('Network response was not ok.');
-                return response.json();
-            })
+            .then(response => response.json())
             .then(data => {
-                if (data.html) {
-                    container.innerHTML = data.html;
-                }
+                if (data.html) container.innerHTML = data.html;
             })
             .catch(error => {
                 console.error('Error fetching updated task list:', error);
                 alert('工程リストの更新に失敗しました。');
             })
             .finally(() => {
-                // 【重要】成功・失敗にかかわらずローディング表示を解除
-                if (container) {
-                    container.style.opacity = '1';
-                }
+                if (container) container.style.opacity = '1';
             });
         });
 
-         // ▼▼▼【追加】キャラクター並び替えの初期化 ▼▼▼
+        // キャラクター並び替えの初期化
          const characterList = document.getElementById('character-list');
         if (characterList) {
             const saveBtn = document.getElementById('save-character-order-btn');
             const projectId = document.getElementById('project-show-main-container').dataset.projectId;
-
             const sortable = new Sortable(characterList, {
                 animation: 150,
                 ghostClass: 'sortable-ghost',
@@ -1483,64 +1456,94 @@
                     saveBtn.classList.remove('hidden');
                 }
             });
-
             saveBtn.addEventListener('click', function() {
-                let ids = sortable.toArray();
-                ids = ids.map(id => parseInt(id, 10));
-
+                let ids = sortable.toArray().map(id => parseInt(id, 10));
                 this.disabled = true;
                 this.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-
-                const url = `/projects/${projectId}/characters/update-order`;
-
-                fetch(url, {
+                fetch(`/projects/${projectId}/characters/update-order`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'Accept': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                        'X-CSRF-TOKEN': csrfToken
                     },
                     body: JSON.stringify({ ids: ids })
                 })
-                .then(res => {
-                    if (!res.ok) {
-                        return res.json().then(err => Promise.reject(err));
-                    }
-                    return res.json();
-                })
+                .then(res => res.ok ? res.json() : res.json().then(err => Promise.reject(err)))
                 .then(data => {
                     if(data.success) {
-                        // ★★★ alert()でのメッセージ表示に戻す ★★★
                         alert(data.message || '並び順を保存しました。');
-
-                        // ボタンの表示を更新
-                        this.innerHTML = '<i class="fas fa-check"></i> 保存済';
                         this.classList.add('hidden');
                     } else {
                         throw new Error(data.message || '並び順の保存に失敗しました。');
                     }
                 })
                 .catch(err => {
-                    let errorMessage = '並び順の保存中にエラーが発生しました。';
-                    if (err.message) {
-                        errorMessage += '\n' + err.message;
-                    }
-                    if (err.errors) {
-                        errorMessage += '\n' + Object.values(err.errors).flat().join('\n');
-                    }
-                    // ★★★ alert()でのエラー表示に戻す ★★★
-                    alert(errorMessage);
+                    alert('並び順の保存中にエラーが発生しました。');
                 })
                 .finally(() => {
-                    // ボタンの表示を元に戻す
                     this.innerHTML = '<i class="fas fa-save mr-1"></i>並び順を保存';
                     this.disabled = false;
                 });
             });
         }
 
+        // ▼▼▼【差し替え後の「直し」ボタン処理】▼▼▼
+        const mainContainer = document.getElementById('project-show-main-container');
+        if (mainContainer) {
+            mainContainer.addEventListener('click', async function(event) {
+                const reworkButton = event.target.closest('.rework-task-btn');
+                if (!reworkButton) {
+                    return;
+                }
+
+                event.preventDefault();
+
+                const taskId = reworkButton.dataset.taskId;
+                const taskName = reworkButton.dataset.taskName;
+                const projectId = reworkButton.dataset.projectId;
+
+                if (!confirm(`工程「${taskName}」をコピーして「直し」工程を作成します。よろしいですか？`)) {
+                    return;
+                }
+
+                reworkButton.disabled = true;
+                reworkButton.innerHTML = '<i class="fas fa-spinner fa-spin fa-sm"></i>';
+
+                try {
+                    const url = `/projects/${projectId}/tasks/${taskId}/rework`;
+                    const response = await axios.post(url, {}); // ボディは空
+
+                    if (response.data.success) {
+                        const parentRow = document.querySelector(`tr[data-task-id="${response.data.parentTaskId}"]`);
+                        if (parentRow) {
+                            // 親行のUIを更新
+                            const statusIconWrapper = parentRow.querySelector('.task-status-icon-wrapper');
+                            if (statusIconWrapper) {
+                                statusIconWrapper.innerHTML = '<i class="fas fa-wrench text-orange-500" title="直し"></i>';
+                            }
+                            reworkButton.style.display = 'none';
+
+                            // 新しい子工程の行を親行の下に挿入
+                            parentRow.insertAdjacentHTML('afterend', response.data.newRowHtml);
+
+                            // 新しく追加された行のJS機能を再初期化
+                            if (window.initTasksIndex) initTasksIndex();
+                            if (window.initializeWorkTimers) initializeWorkTimers();
+                        }
+                        alert(response.data.message);
+                    } else {
+                        throw new Error(response.data.message || '処理に失敗しました。');
+                    }
+                } catch (error) {
+                    console.error('Rework request failed:', error);
+                    alert(error.response?.data?.message || 'エラーが発生しました。');
+                } finally {
+                    reworkButton.disabled = false;
+                    reworkButton.innerHTML = '<i class="fas fa-wrench fa-sm"></i>';
+                }
+            });
+        }
     });
-
-
 </script>
 @endpush

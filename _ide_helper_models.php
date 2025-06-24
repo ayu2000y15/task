@@ -481,7 +481,7 @@ namespace App\Models{
  * @property string|null $submitter_name 申請者名
  * @property string|null $submitter_email 申請者メールアドレス
  * @property string|null $submitter_notes 申請者からの備考
- * @property array<array-key, mixed> $submitted_data カスタムフィールドの入力データ
+ * @property array<array-key, mixed> $submitted_data 案件依頼フィールドの入力データ
  * @property string $status 申請ステータス (new, processed, rejected)
  * @property int|null $processed_by_user_id
  * @property \Illuminate\Support\Carbon|null $processed_at 処理日時
@@ -825,12 +825,9 @@ namespace App\Models{
  * @property int $id
  * @property int $display_order 表示順
  * @property int $character_id
- * @property int|null $inventory_item_id
  * @property string $name
  * @property string|null $supplier
  * @property numeric|null $price
- * @property string|null $unit 単位 (在庫品目からコピー)
- * @property numeric|null $unit_price_at_creation 作成/購入時点の単価
  * @property numeric $quantity_needed
  * @property string $status
  * @property string|null $notes 備考
@@ -847,15 +844,12 @@ namespace App\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Material whereCreatedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Material whereDisplayOrder($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Material whereId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Material whereInventoryItemId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Material whereName($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Material whereNotes($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Material wherePrice($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Material whereQuantityNeeded($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Material whereStatus($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Material whereSupplier($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Material whereUnit($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Material whereUnitPriceAtCreation($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Material whereUpdatedAt($value)
  */
 	class Material extends \Eloquent {}
@@ -1410,6 +1404,7 @@ namespace App\Models{
  * @property string $color
  * @property bool $is_milestone
  * @property bool $is_folder
+ * @property bool $is_rework_task 直し作業用の工程か否か
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \Spatie\Activitylog\Models\Activity> $activities
@@ -1441,6 +1436,7 @@ namespace App\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereIsFolder($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereIsMilestone($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereIsPaused($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereIsReworkTask($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereName($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereParentId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereProgress($value)

@@ -24,10 +24,11 @@ class Task extends Model
         'duration',
         'status',
         'progress',
-        'is_paused', // ★ is_paused を追加
+        'is_paused',
         // 'assignee',
         'is_milestone',
         'is_folder',
+        'is_rework_task',
     ];
 
     protected $casts = [
@@ -37,7 +38,8 @@ class Task extends Model
         'is_milestone' => 'boolean',
         'is_folder' => 'boolean',
         'duration' => 'integer',
-        'is_paused' => 'boolean', // ★ is_paused を追加
+        'is_paused' => 'boolean',
+        'is_rework_task' => 'boolean'
     ];
 
     /**
@@ -47,6 +49,7 @@ class Task extends Model
         'not_started' => '未着手',
         'in_progress' => '進行中',
         'completed' => '完了',
+        'rework'      => '直し',
         'on_hold' => '一時停止中',
         'cancelled' => 'キャンセル',
     ];
@@ -73,6 +76,72 @@ class Task extends Model
                 return '削除';
             default:
                 return $eventName;
+        }
+    }
+
+    /**
+     * モデルの起動メソッド
+     *
+     * @return void
+     */
+    protected static function booted(): void
+    {
+        // --- ▼▼▼ 既存の updated イベントリスナーを修正 ▼▼▼ ---
+        static::updated(function (Task $task) {
+            if (!$task->parent_id) {
+                return; // 親がいない場合は何もしない
+            }
+
+            // 【パターン1】「直し」の子工程が「完了」になった場合
+            if ($task->is_rework_task && $task->isDirty('status') && $task->status === 'completed') {
+                $task->updateParentReworkStatus();
+            }
+
+            // 【パターン2】「直し」の子工程が「キャンセル」になった場合
+            if ($task->is_rework_task && $task->isDirty('status') && $task->status === 'cancelled') {
+                $task->updateParentReworkStatus();
+            }
+        });
+        // --- ▲▲▲ updated イベントリスナーの修正ここまで ▲▲▲ ---
+
+
+        // --- ▼▼▼ 新しく deleted イベントリスナーを追加 ▼▼▼ ---
+        static::deleted(function (Task $task) {
+            if (!$task->parent_id) {
+                return; // 親がいない場合は何もしない
+            }
+
+            // 【パターン3】「直し」の子工程が「削除」された場合
+            if ($task->is_rework_task) {
+                $task->updateParentReworkStatus();
+            }
+        });
+        // --- ▲▲▲ deleted イベントリスナーの追加ここまで ▲▲▲ ---
+    }
+
+    /**
+     * 親工程の「直し」ステータスを更新すべきか判断し、実行する
+     * (privateにするためprotected)
+     */
+    protected function updateParentReworkStatus(): void
+    {
+        // isDirty() などで変更をチェックするために fresh() で最新の状態を取得
+        $parent = $this->parent()->first();
+
+        if (!$parent) {
+            return;
+        }
+
+        // 他に未完了・未キャンセルの「直し」子工程が残っているか確認
+        $hasOtherActiveReworks = $parent->children()
+            ->where('is_rework_task', true)
+            ->whereNotIn('status', ['completed', 'cancelled'])
+            ->exists();
+
+        // 他にアクティブな「直し」がなければ、親のステータスを「完了」に戻す
+        if (!$hasOtherActiveReworks) {
+            $parent->status = 'completed';
+            $parent->save();
         }
     }
 

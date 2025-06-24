@@ -266,6 +266,8 @@
                                                 @case('in_progress') <i class="fas fa-play-circle text-blue-500" title="進行中"></i> @break
                                                 @case('on_hold') <i class="fas fa-pause-circle text-yellow-500" title="一時停止中"></i> @break
                                                 @case('cancelled') <i class="fas fa-times-circle text-red-500" title="キャンセル"></i> @break
+                                                @case('rework')<i class="fas fa-wrench text-orange-500" title="直し"></i>@break
+
                                                 @default <i class="far fa-circle text-gray-400" title="未着手"></i>
                                             @endswitch
                                         </span>
@@ -278,6 +280,9 @@
 
                                             <a href="{{ route('projects.tasks.edit', [$task->project, $task]) }}" class="hover:text-blue-600 dark:hover:text-blue-400 whitespace-normal break-words inline-block font-medium text-lg">
                                                 {{ $task->name }}
+                                                @if($task->is_rework_task)
+                                                    <i class="fas fa-wrench text-orange-500 dark:text-orange-400 ml-1" title="直し"></i>
+                                                @endif
                                                 @if(!empty($task->parent->name) && $task->parent->is_folder) <span class="text-xs text-gray-400 dark:text-gray-500 block"> ({{ $task->parent->name }})</span> @endif
                                             </a>
                                             @if (!($isFolderView ?? false) && !($isMilestoneView ?? false) && $task->parent && !$task->parent->is_folder)

@@ -13,6 +13,8 @@ function getStatusIconHtml(status) {
             return '<i class="fas fa-check-circle text-green-500" title="完了"></i>';
         case "in_progress":
             return '<i class="fas fa-play-circle text-blue-500" title="進行中"></i>';
+        case "rework": // ← ★ この case を追加
+            return '<i class="fas fa-wrench text-orange-500" title="直し"></i>';
         case "on_hold":
             return '<i class="fas fa-pause-circle text-yellow-500" title="一時停止中"></i>';
         case "cancelled":

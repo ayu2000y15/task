@@ -638,7 +638,10 @@ class ProjectController extends Controller
         $target_labor_cost = 0;
         if ($project->target_labor_cost_rate > 0) {
             $total_duration_minutes = $project->tasks()
-                ->where('is_folder', false)->where('is_milestone', false)->sum('duration');
+                ->where('is_folder', false)
+                ->where('is_milestone', false)
+                ->where('is_rework_task', false) // ★★★ 「直し」工程を目標工数から除外 ★★★
+                ->sum('duration');
             $target_labor_cost = ($total_duration_minutes / 60) * $project->target_labor_cost_rate;
         }
 
