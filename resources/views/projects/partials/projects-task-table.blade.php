@@ -3,7 +3,7 @@
     $formIdentifier = 'project';
 @endphp
 
-<div id="task-list-container-{{ $tableId }}">
+<div id="task-list-container-{{ $tableId }}" class="overflow-x-auto overflow-y-auto max-h-[60vh]">
     <div class="mb-4">
         @php
             $hideCompletedParams = request()->query();
