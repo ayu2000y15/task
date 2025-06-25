@@ -1068,4 +1068,16 @@ class ProjectController extends Controller
             'new_status' => $project->status,
         ]);
     }
+
+    /**
+     * Display a listing of the resource for API.
+     */
+    public function indexApi()
+    {
+        // ここでは一旦すべてのプロジェクトを返しますが、
+        // 将来的にはログインユーザーに紐づくプロジェクトを返すようにします。
+        $projects = Project::all();
+
+        return response()->json($projects);
+    }
 }

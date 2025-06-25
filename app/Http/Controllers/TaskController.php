@@ -495,6 +495,7 @@ class TaskController extends Controller
                 $createdTask->load(['assignees', 'parent', 'children', 'project', 'character']);
                 $html .= view('projects.partials.task-table-row', [
                     'task' => $createdTask,
+                    'project' => $project, // この行を追加
                     'assigneeOptions' => $assigneeOptions
                 ])->render();
             }
@@ -618,6 +619,7 @@ class TaskController extends Controller
 
                 $newRowsHtml .= view('projects.partials.task-table-row', [
                     'task' => $task,
+                    'project' => $project, // この行を追加
                     'assigneeOptions' => $assigneeOptions
                 ])->render();
             }

@@ -86,7 +86,7 @@ class Project extends Model
         'not_started' => '未着手',
         'in_progress' => '進行中',
         'completed'   => '完了',
-        'on_hold'     => '一時停止中',
+        'on_hold'     => '保留中',
         'cancelled'   => 'キャンセル',
     ];
 
