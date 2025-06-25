@@ -8,9 +8,9 @@
 
 @section('content')
     <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8" x-data="{
-                                filtersOpen: {{ count(array_filter(request()->except(['page', 'sort', 'direction']))) > 0 ? 'true' : 'false' }},
-                                rateFormOpen: false
-                                }">
+                                                    filtersOpen: {{ count(array_filter(request()->except(['page', 'sort', 'direction']))) > 0 ? 'true' : 'false' }},
+                                                    rateFormOpen: false
+                                                    }">
 
         <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
             <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-200">作業実績一覧 (管理者用)</h1>
@@ -25,14 +25,18 @@
                     <span x-show="filtersOpen" style="display:none;"><i class="fas fa-chevron-up fa-xs ml-2"></i></span>
                     <span x-show="!filtersOpen"><i class="fas fa-chevron-down fa-xs ml-2"></i></span>
                 </x-secondary-button>
+                <x-secondary-button onclick="window.location.href='{{ route('admin.work-records.daily-log') }}'"
+                    class="!bg-orange-600 hover:!bg-orange-700 dark:!bg-orange-700 dark:hover:!bg-orange-800 !text-white !border-transparent">
+                    <i class="fas fa-clipboard-list mr-1"></i>日別 作業ログ
+                </x-secondary-button>
                 <x-secondary-button onclick="window.location.href='{{ route('admin.work-records.by-project') }}'"
                     class="!bg-green-600 hover:!bg-green-700 dark:!bg-green-700 dark:hover:!bg-green-800 !text-white !border-transparent">
-                    <i class="fas fa-briefcase mr-1"></i>案件別明細
+                    <i class="fas fa-briefcase mr-1"></i>案件別 作業ログ
                 </x-secondary-button>
             </div>
         </div>
 
-        {{-- ▼▼▼【ここから修正】時給登録フォーム ▼▼▼ --}}
+        {{-- 時給登録フォーム --}}
         <div x-show="rateFormOpen" x-collapse class="mb-6 bg-white dark:bg-gray-800 shadow-md rounded-lg p-4 sm:p-6">
             <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-2 border-b dark:border-gray-700 pb-2">
                 ユーザー時給一括登録</h2>
@@ -68,7 +72,6 @@
                                         class="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
                                         {{ $user->name }}
                                     </td>
-                                    {{-- ▼▼▼【変更箇所】過去2回分の時給を表示するロジック ▼▼▼ --}}
                                     <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                                         @forelse($user->hourlyRates as $rate)
                                             <div class="{{ !$loop->first ? 'mt-1' : '' }}">
@@ -79,7 +82,6 @@
                                             <span class="text-xs italic">未登録</span>
                                         @endforelse
                                     </td>
-                                    {{-- ▲▲▲ 変更ここまで ▲▲▲ --}}
                                     <td class="px-4 py-4 whitespace-nowrap">
                                         <div class="relative rounded-md shadow-sm">
                                             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -104,7 +106,6 @@
                 </div>
             </form>
         </div>
-        {{-- ▲▲▲ 修正ここまで ▲▲▲ --}}
 
 
         {{-- フィルターフォーム --}}
@@ -204,7 +205,7 @@
                 <h3 class="text-lg font-semibold">
                     合計作業時間 (フィルタ後):
                     <span class="text-blue-600 dark:text-blue-400">
-                        {{ gmdate('H:i:s', $totalSeconds) }}
+                        {{ format_seconds_to_hms($totalSeconds) }}
                     </span>
                 </h3>
             </div>
@@ -254,7 +255,7 @@
                                     {{ optional($log->end_time)->format('m/d H:i:s') }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                    {{ gmdate('H:i:s', $log->effective_duration) }}
+                                    {{ format_seconds_to_hms($log->effective_duration) }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                                     @if($log->current_rate)

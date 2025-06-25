@@ -620,7 +620,7 @@
                                         <a href="{{ route('admin.transportation-expenses.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">交通費一覧</a>
                                     @endcan
                                     @can('viewProjectSummary', App\Models\WorkLog::class)
-                                        <a href="{{ route('admin.work-records.project-summary') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">案件別作業実績</a>
+                                        <a href="{{ route('admin.work-records.by-project') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">案件別作業実績</a>
                                     @endcan
                                     @can('viewAny', App\Models\WorkLog::class)
                                         <a href="{{ route('admin.work-records.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">作業実績一覧（管理者向け）</a>

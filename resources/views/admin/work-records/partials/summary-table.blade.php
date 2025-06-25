@@ -18,10 +18,7 @@
                         </a>
                     </td>
                     <td class="py-2 px-1 text-right whitespace-nowrap">
-                        @php
-                            $sec = $userSummary['total_seconds'];
-                            echo sprintf('%d:%02d:%02d', floor($sec / 3600), floor(($sec / 60) % 60), $sec % 60);
-                        @endphp
+                        {{ format_seconds_to_hms($userSummary['total_seconds']) }}
                     </td>
                     <td class="py-2 px-1 text-right whitespace-nowrap">
                         ¥{{ number_format($userSummary['total_salary'], 0) }}
@@ -37,10 +34,7 @@
             <tr class="border-t-2 dark:border-gray-500 font-bold">
                 <td class="py-2 px-1">全員合計</td>
                 <td class="py-2 px-1 text-right whitespace-nowrap">
-                    @php
-                        $sec = $summary['total_seconds'];
-                        echo sprintf('%d:%02d:%02d', floor($sec / 3600), floor(($sec / 60) % 60), $sec % 60);
-                    @endphp
+                    {{ format_seconds_to_hms($summary['total_seconds']) }}
                 </td>
                 <td class="py-2 px-1 text-right whitespace-nowrap">
                     ¥{{ number_format($summary['total_salary'], 0) }}

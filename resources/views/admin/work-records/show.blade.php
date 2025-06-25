@@ -101,12 +101,12 @@
 
                                     <td class="px-6 py-4 whitespace-nowrap">{{ $day['first_start_time']->format('H:i') }}</td>
                                     <td class="px-6 py-4 whitespace-nowrap">{{ $day['last_end_time']->format('H:i') }}</td>
-                                    <td class="px-6 py-4 whitespace-nowrap">{{ gmdate('H:i:s', $day['attendance_seconds']) }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">{{ format_seconds_to_hms($day['attendance_seconds']) }}</td>
                                     <td class="px-6 py-4 whitespace-nowrap font-semibold">
-                                        {{ gmdate('H:i:s', $day['actual_work_seconds']) }}
+                                        {{ format_seconds_to_hms($day['actual_work_seconds']) }}
                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap">{{ gmdate('H:i:s', $day['total_work_seconds']) }}</td>
-                                    <td class="px-6 py-4 whitespace-nowrap">{{ gmdate('H:i:s', $day['total_break_seconds']) }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">{{ format_seconds_to_hms($day['total_work_seconds']) }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">{{ format_seconds_to_hms($day['total_break_seconds']) }}</td>
                                     <td class="px-6 py-4 whitespace-nowrap">¥{{ number_format($day['daily_salary'], 0) }}</td>
                                 </tr>
                                 {{-- 日次明細 (デフォルトで非表示) --}}
@@ -130,7 +130,7 @@
                                                             <td class="py-2 px-3">{{ $log->task->name ?? '-' }}</td>
                                                             <td class="py-2 px-3">{{ $log->start_time->format('H:i') }}</td>
                                                             <td class="py-2 px-3">{{ $log->end_time->format('H:i') }}</td>
-                                                            <td class="py-2 px-3">{{ gmdate('H:i:s', $log->effective_duration) }}</td>
+                                                            <td class="py-2 px-3">{{ format_seconds_to_hms($log->effective_duration) }}</td>
                                                         </tr>
                                                     @endforeach
                                                 </tbody>
@@ -158,10 +158,10 @@
                             <td class="px-6 py-3 text-left" colspan="4">月の合計</td>
                             <td class="px-6 py-3"></td>
                             <td class="px-6 py-3 text-left whitespace-nowrap">
-                                {{ gmdate('H:i:s', $monthTotalActualWorkSeconds) }}
+                                {{ format_seconds_to_hms($monthTotalActualWorkSeconds) }}
                             </td>
                             <td class="px-6 py-3 text-left whitespace-nowrap">
-                                {{ gmdate('H:i:s', $monthTotalEffectiveSeconds) }}
+                                {{ format_seconds_to_hms($monthTotalEffectiveSeconds) }}
                             </td>
                             <td class="px-6 py-3"></td>
                             <td class="px-6 py-3 text-left whitespace-nowrap">¥{{ number_format($monthTotalSalary, 0) }}

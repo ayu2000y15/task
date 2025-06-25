@@ -282,7 +282,6 @@ class WorkRecordController extends Controller
 
                 $breakSeconds = $attendanceSeconds - $actualWorkSeconds;
 
-                // ▼▼▼【変更】日給の計算を日付ベースの時給で行う ▼▼▼
                 $hourlyRate = $user->getHourlyRateForDate($currentDate);
                 $dailySalary = $hourlyRate > 0 ? ($actualWorkSeconds / 3600) * $hourlyRate : 0;
 
@@ -320,148 +319,24 @@ class WorkRecordController extends Controller
         ));
     }
 
-    /**
-     * ▼▼▼【ここからメソッド全体を追加】▼▼▼
-     * 案件管理者向けの、金額情報を含まないサマリーページを表示する
-     */
-    public function projectSummary(Request $request)
-    {
-        // 1. ポリシーを使って権限をチェック
-        $this->authorize('viewProjectSummary', WorkLog::class);
-
-        // 2. データを取得 (時給履歴は不要)
-        $workLogs = WorkLog::with(['task.project', 'task.character', 'user'])
-            ->where('status', 'stopped')
-            ->get();
-
-        // 3. ログを案件IDでグループ化
-        $logsByProject = $workLogs->groupBy('task.project_id');
-
-        $summary = [];
-        $grandTotalSeconds = 0;
-        $grandTotalActualSeconds = 0; // 実働時間の総合計
-
-        foreach ($logsByProject as $projectId => $projectLogs) {
-            if ($projectId === null || !$projectLogs->first()->task->project) {
-                continue;
-            }
-
-            $project = $projectLogs->first()->task->project;
-            $projectId = $project->id;
-
-            // --- 3-1. 作業時間の集計（給与計算は削除） ---
-            $projectTotalSeconds = 0;
-            $charactersSummary = [];
-
-            foreach ($projectLogs as $log) {
-                if (!$log->task || !$log->user) continue;
-                $characterId = $log->task->character_id ?? '0';
-                $taskId = $log->task_id;
-
-                if (!isset($charactersSummary[$characterId])) {
-                    $charactersSummary[$characterId] = [
-                        'id' => $characterId,
-                        'name' => $log->task->character->name ?? 'キャラクターなし',
-                        'tasks' => [],
-                        'character_total_seconds' => 0,
-                    ];
-                }
-                if (!isset($charactersSummary[$characterId]['tasks'][$taskId])) {
-                    $charactersSummary[$characterId]['tasks'][$taskId] = [
-                        'id' => $taskId,
-                        'name' => $log->task->name,
-                        'workers' => [],
-                        'logs' => [],
-                        'total_seconds' => 0,
-                    ];
-                }
-                $charactersSummary[$characterId]['tasks'][$taskId]['workers'][$log->user->id] = $log->user->name;
-                $charactersSummary[$characterId]['tasks'][$taskId]['logs'][] = [
-                    'worker_name' => $log->user->name,
-                    'start_time' => $log->start_time->format('Y/m/d H:i'),
-                    'end_time' => optional($log->end_time)->format('H:i'),
-                    'duration_formatted' => gmdate('H:i:s', $log->effective_duration),
-                ];
-                $duration = $log->effective_duration;
-
-                // 時間のみ加算
-                $charactersSummary[$characterId]['tasks'][$taskId]['total_seconds'] += $duration;
-                $charactersSummary[$characterId]['character_total_seconds'] += $duration;
-                $projectTotalSeconds += $duration;
-            }
-
-            // --- 3-2. 実働時間の計算（給与計算は削除） ---
-            $projectActualWorkSeconds = 0;
-            $logsByUser = $projectLogs->groupBy('user_id');
-
-            foreach ($logsByUser as $userId => $userLogs) {
-                if ($userLogs->isEmpty()) continue;
-                $sortedLogs = $userLogs->sortBy('start_time')->values();
-                $userActualSeconds = 0;
-                if ($sortedLogs->isNotEmpty()) {
-                    $mergedStart = $sortedLogs->first()->start_time;
-                    $mergedEnd = $sortedLogs->first()->end_time;
-                    foreach ($sortedLogs->slice(1) as $log) {
-                        if ($log->start_time < $mergedEnd) {
-                            if ($log->end_time > $mergedEnd) {
-                                $mergedEnd = $log->end_time;
-                            }
-                        } else {
-                            $userActualSeconds += $mergedEnd->getTimestamp() - $mergedStart->getTimestamp();
-                            $mergedStart = $log->start_time;
-                            $mergedEnd = $log->end_time;
-                        }
-                    }
-                    $userActualSeconds += $mergedEnd->getTimestamp() - $mergedStart->getTimestamp();
-                }
-                $projectActualWorkSeconds += $userActualSeconds;
-            }
-
-            // --- 3-3. 最終的なサマリー配列の構築（給与情報は含めない） ---
-            $statusKey = $project->status ?? 'not_started';
-            $summary[$projectId] = [
-                'id' => $projectId,
-                'name' => $project->title,
-                'color' => $project->color,
-                'status_key' => $statusKey,
-                'status_text' => \App\Models\Project::PROJECT_STATUS_OPTIONS[$statusKey] ?? ucfirst($statusKey),
-                'project_total_seconds' => $projectTotalSeconds,
-                'project_actual_work_seconds' => $projectActualWorkSeconds,
-                'characters' => $charactersSummary,
-            ];
-
-            // 総合計に加算
-            $grandTotalSeconds += $projectTotalSeconds;
-            $grandTotalActualSeconds += $projectActualWorkSeconds;
-        }
-
-        // 4. 新しいViewにデータを渡す
-        return view('admin.work-records.project_summary', compact('summary', 'grandTotalSeconds', 'grandTotalActualSeconds'));
-    }
-
-
-    /**
-     * ▼▼▼【ここが不足していたメソッド】▼▼▼
-     * 案件別の作業時間サマリーを表示する
-     */
 
     public function byProject(Request $request)
     {
         $this->authorize('viewAny', WorkLog::class);
 
-        // userリレーションに加えて、時給履歴(hourlyRates)もEager Loadする
-        $workLogs = WorkLog::with(['task.project', 'task.character', 'user.hourlyRates'])
+        $workLogs = WorkLog::with(['task.project.tasks', 'task.character', 'user.hourlyRates', 'task.assignees'])
             ->where('status', 'stopped')
             ->get();
 
-        // まず、全ログを案件IDでグループ化
         $logsByProject = $workLogs->groupBy('task.project_id');
 
         $summary = [];
+        // ▼▼▼【変更】総合計用の変数を追加 ▼▼▼
+        $grandTotalPlannedSeconds = 0;
         $grandTotalSeconds = 0;
         $grandTotalSalary = 0;
-        $grandTotalActualSeconds = 0; // 実働時間の総合計
-        $grandTotalActualSalary = 0;  // 実働給与の総合計
+        $grandTotalActualSeconds = 0;
+        $grandTotalActualSalary = 0;
 
         foreach ($logsByProject as $projectId => $projectLogs) {
             if ($projectId === null || !$projectLogs->first()->task->project) {
@@ -469,59 +344,54 @@ class WorkRecordController extends Controller
             }
 
             $project = $projectLogs->first()->task->project;
-            $projectId = $project->id;
 
-            // --- 1. これまでの集計（単純合計と詳細データ作成） ---
-            $projectTotalSeconds = 0;
-            $projectTotalSalary = 0;
             $charactersSummary = [];
-
             foreach ($projectLogs as $log) {
                 if (!$log->task || !$log->user) continue;
+
                 $characterId = $log->task->character_id ?? '0';
                 $taskId = $log->task_id;
 
                 if (!isset($charactersSummary[$characterId])) {
                     $charactersSummary[$characterId] = [
-                        'id' => $characterId,
                         'name' => $log->task->character->name ?? 'キャラクターなし',
                         'tasks' => [],
-                        'character_total_seconds' => 0,
-                        'character_total_salary' => 0,
                     ];
                 }
+
                 if (!isset($charactersSummary[$characterId]['tasks'][$taskId])) {
+                    $task = $log->task;
                     $charactersSummary[$characterId]['tasks'][$taskId] = [
                         'id' => $taskId,
-                        'name' => $log->task->name,
-                        'workers' => [],
+                        'name' => $task->name,
+                        'assignees' => $task->assignees->pluck('name')->all(),
                         'logs' => [],
                         'total_seconds' => 0,
                         'total_salary' => 0,
+                        'planned_duration_minutes' => $task->duration,
                     ];
                 }
-                $charactersSummary[$characterId]['tasks'][$taskId]['workers'][$log->user->id] = $log->user->name;
-                $charactersSummary[$characterId]['tasks'][$taskId]['logs'][] = [
-                    'worker_name' => $log->user->name,
-                    'start_time' => $log->start_time->format('Y/m/d H:i'),
-                    'end_time' => $log->end_time->format('H:i'),
-                    'duration_formatted' => gmdate('H:i:s', $log->effective_duration),
-                ];
-                $duration = $log->effective_duration;
 
-                // ▼▼▼【変更箇所】作業日時に基づいて時給を取得し、給与を計算する ▼▼▼
+                $duration = $log->effective_duration;
                 $rate = $log->user->getHourlyRateForDate($log->start_time);
                 $logSalary = ($duration / 3600) * ($rate ?? 0);
 
                 $charactersSummary[$characterId]['tasks'][$taskId]['total_seconds'] += $duration;
                 $charactersSummary[$characterId]['tasks'][$taskId]['total_salary'] += $logSalary;
-                $charactersSummary[$characterId]['character_total_seconds'] += $duration;
-                $charactersSummary[$characterId]['character_total_salary'] += $logSalary;
-                $projectTotalSeconds += $duration;
-                $projectTotalSalary += $logSalary;
+                $charactersSummary[$characterId]['tasks'][$taskId]['logs'][] = [
+                    'worker_name' => $log->user->name,
+                    'start_time' => $log->start_time->format('Y/m/d H:i'),
+                    'end_time' => optional($log->end_time)->format('Y/m/d H:i'),
+                    'duration_formatted' => format_seconds_to_hms($log->effective_duration),
+                ];
             }
 
-            // --- 2. 実働時間と実働給与の計算 ---
+            // ▼▼▼【変更】案件ごとの計画時間を計算 ▼▼▼
+            $projectPlannedSeconds = ($project->tasks()->sum('duration') ?? 0) * 60;
+
+            $projectTotalSeconds = $projectLogs->sum('effective_duration');
+            $projectTotalSalary = collect($charactersSummary)->flatMap(fn($char) => $char['tasks'])->sum('total_salary');
+
             $projectActualWorkSeconds = 0;
             $projectActualSalary = 0;
             $logsByUser = $projectLogs->groupBy('user_id');
@@ -551,36 +421,80 @@ class WorkRecordController extends Controller
                 }
                 $projectActualWorkSeconds += $userActualSeconds;
 
-                // ▼▼▼【変更箇所】実働給与の計算 ▼▼▼
-                // 注意: この計算は複雑（日をまたぐ勤務や、同日でも時給が変わるケース）なため、
-                // ここではユーザーの最新の時給で簡易的に計算しています。
-                // 正確性を期すには、日ごとの実働時間を算出し、その日の時給を適用するロジックが必要です。
                 $latestRate = $user->hourlyRates->first()->rate ?? 0;
                 $projectActualSalary += ($userActualSeconds / 3600) * $latestRate;
             }
 
-            // --- 3. 最終的なサマリー配列の構築 ---
             $statusKey = $project->status ?? 'not_started';
-            $summary[$projectId] = [
-                'id' => $projectId,
+            $summary[$project->id] = [
+                'id' => $project->id,
                 'name' => $project->title,
                 'color' => $project->color,
                 'status_key' => $statusKey,
                 'status_text' => \App\Models\Project::PROJECT_STATUS_OPTIONS[$statusKey] ?? ucfirst($statusKey),
+                'project_planned_total_seconds' => $projectPlannedSeconds, // 計画時間を追加
                 'project_total_seconds' => $projectTotalSeconds,
                 'project_total_salary' => $projectTotalSalary,
-                'project_actual_work_seconds' => $projectActualWorkSeconds, // 実働時間を追加
-                'project_actual_salary' => $projectActualSalary,         // 実働給与を追加
+                'project_actual_work_seconds' => $projectActualWorkSeconds,
+                'project_actual_salary' => $projectActualSalary,
                 'characters' => $charactersSummary,
             ];
 
-            // 総合計に加算
+            // ▼▼▼【変更】総合計に加算 ▼▼▼
+            $grandTotalPlannedSeconds += $projectPlannedSeconds;
             $grandTotalSeconds += $projectTotalSeconds;
             $grandTotalSalary += $projectTotalSalary;
             $grandTotalActualSeconds += $projectActualWorkSeconds;
             $grandTotalActualSalary += $projectActualSalary;
         }
 
-        return view('admin.work-records.by_project', compact('summary', 'grandTotalSeconds', 'grandTotalSalary', 'grandTotalActualSeconds', 'grandTotalActualSalary'));
+        return view('admin.work-records.by_project', compact('summary', 'grandTotalPlannedSeconds', 'grandTotalSeconds', 'grandTotalSalary', 'grandTotalActualSeconds', 'grandTotalActualSalary'));
+    }
+
+    /**
+     * 日別の作業ログ一覧を表示する
+     */
+    public function dailyLog(Request $request)
+    {
+        $this->authorize('viewAny', WorkLog::class);
+
+        $workLogs = WorkLog::with(['task.project', 'task.character', 'user', 'task.assignees'])
+            ->where('status', 'stopped')
+            ->orderBy('start_time', 'desc')
+            ->get();
+
+        // 作業ログを開始日ごとにグループ化
+        $logsByDate = $workLogs->groupBy(function ($log) {
+            return $log->start_time->format('Y-m-d');
+        });
+
+        // ▼▼▼【ロジック変更】日付ごとのログを、さらに工程で集計する ▼▼▼
+        $dailySummary = [];
+        foreach ($logsByDate as $date => $logsOnDate) {
+            $tasksOnDate = [];
+            // その日のログをtask_idでグループ化
+            $logsByTask = $logsOnDate->groupBy('task_id');
+
+            foreach ($logsByTask as $taskId => $taskLogs) {
+                $firstLog = $taskLogs->first();
+                $taskModel = $firstLog->task;
+
+                // この日にこの工程で作業した合計秒数を計算
+                $totalSecondsOnDay = $taskLogs->sum('effective_duration');
+
+                $tasksOnDate[$taskId] = [
+                    'id' => $taskId,
+                    'name' => $taskModel->name,
+                    'project_name' => optional($taskModel->project)->title,
+                    'character_name' => optional($taskModel->character)->name,
+                    'planned_duration_minutes' => $taskModel->duration,
+                    'total_seconds_on_day' => $totalSecondsOnDay,
+                    'logs' => $taskLogs, // 個別の作業ログを格納
+                ];
+            }
+            $dailySummary[$date] = $tasksOnDate;
+        }
+
+        return view('admin.work-records.daily_log', compact('dailySummary'));
     }
 }
