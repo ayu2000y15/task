@@ -867,7 +867,7 @@
 
                                         {{-- コスト情報表示 --}}
                                         @can('manageCosts', $project)
-                                        <span class="flex-shrink-0 text-xs font-mono bg-gray-100 dark:bg-gray-900/50 px-2 py-1 rounded mr-3 md:hidden" title="">
+                                        <span class="flex-shrink-0 text-xs font-mono bg-gray-100 dark:bg-gray-900/50 px-2 py-1 rounded mr-3 hidden md:block" title="">
                                             <span title="実績コスト: ¥{{ number_format($character->actual_total_cost ?? 0) }}">
                                                 実績コスト: ¥{{ number_format($character->actual_total_cost ?? 0) }}
                                             </span>
