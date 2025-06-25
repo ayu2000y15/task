@@ -15,7 +15,8 @@
         }
 
         .summary-header,
-        .date-summary-header {
+        .date-summary-header,
+        .project-summary-header {
             cursor: pointer;
         }
 
@@ -67,9 +68,9 @@
                 {{-- 日付ごとのカード --}}
                 <div
                     class="bg-white dark:bg-gray-800 shadow-lg rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
-                    {{-- ▼▼▼【変更】日付ヘッダーをクリック可能にし、アイコンを追加 ▼▼▼ --}}
+                    {{-- 日付ヘッダー (クリックで開閉) --}}
                     <div
-                        class="date-summary-header px-6 py-4 bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                        class="date-summary-header px-6 py-4 bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center hover:bg-gray-100 dark:hover:bg-gray-700">
                         @php
                             $carbonDate = \Carbon\Carbon::parse($date);
                         @endphp
@@ -81,104 +82,114 @@
                             class="details-icon fas fa-chevron-down fa-lg text-gray-400 dark:text-gray-500 @if($isToday) is-rotated @endif"></i>
                     </div>
 
-                    {{-- ▼▼▼【変更】日付以下のコンテンツ全体を折りたたみ対象にする ▼▼▼ --}}
+                    {{-- 日付以下のコンテンツ (デフォルトで当日以外は非表示) --}}
                     <div class="details-body @if($isToday) is-open @endif">
                         <div class="divide-y divide-gray-200 dark:divide-gray-700">
                             @foreach ($projectsOnDate as $project)
-                                {{-- 案件ヘッダー --}}
-                                <div class="px-6 py-3 bg-gray-50 dark:bg-gray-800/30">
-                                    <h3 class="flex items-center font-semibold text-gray-700 dark:text-gray-300">
-                                        <span class="flex-shrink-0 h-4 w-4 rounded-full mr-3"
-                                            style="background-color: {{ $project['color'] }};"></span>
-                                        {{ $project['name'] }}
-                                    </h3>
-                                </div>
-                                {{-- 工程リスト --}}
-                                @foreach ($project['tasks'] as $task)
-                                    <div class="task-block" data-task-id="{{ $task['id'] }}">
-                                        <div
-                                            class="summary-header p-4 lg:px-6 grid grid-cols-12 gap-4 items-center hover:bg-gray-50 dark:hover:bg-gray-700/30">
-                                            {{-- 工程名・キャラクター名・担当者 --}}
-                                            <div class="col-span-11 md:col-span-5">
-                                                <p class="font-bold text-base text-gray-800 dark:text-gray-200">{{ $task['name'] }}</p>
-                                                @if($task['character_name'])
-                                                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                                        <i class="fas fa-user-circle fa-fw mr-1"></i>{{ $task['character_name'] }}
-                                                    </p>
-                                                @endif
-                                                @if(!empty($task['assignees']))
-                                                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                                        <i class="fas fa-user-tag fa-fw mr-1"></i>{{ implode(', ', $task['assignees']) }}
-                                                    </p>
-                                                @endif
-                                            </div>
-                                            {{-- 計画工数 --}}
-                                            <div class="col-span-4 md:col-span-2 text-right">
-                                                <p class="text-xs text-gray-500 dark:text-gray-400">計画</p>
-                                                <p class="font-mono text-gray-700 dark:text-gray-300">
-                                                    @if(!empty($task['planned_duration_minutes']))
-                                                        {{ format_seconds_to_hms($task['planned_duration_minutes'] * 60) }}
-                                                    @else
-                                                        -
-                                                    @endif
-                                                </p>
-                                            </div>
-                                            {{-- 実績時間 --}}
-                                            <div class="col-span-4 md:col-span-2 text-right">
-                                                <p class="text-xs text-gray-500 dark:text-gray-400">実績(日合計)</p>
-                                                <p class="font-mono font-semibold text-gray-800 dark:text-gray-200">
-                                                    {{ format_seconds_to_hms($task['total_seconds_on_day']) }}</p>
-                                            </div>
-                                            {{-- 差異 --}}
-                                            <div class="col-span-3 md:col-span-2 text-right">
-                                                <p class="text-xs text-gray-500 dark:text-gray-400">差異</p>
-                                                <p class="font-mono text-lg">
-                                                    @php
-                                                        $plannedSeconds = ($task['planned_duration_minutes'] ?? 0) * 60;
-                                                        $actualSeconds = $task['total_seconds_on_day'];
-                                                        if ($plannedSeconds > 0 && $actualSeconds > 0) {
-                                                            $diff = $actualSeconds - $plannedSeconds;
-                                                            $color = $diff > 0 ? 'text-red-500' : 'text-green-500';
-                                                            $prefix = $diff > 0 ? '+' : '';
-                                                            echo "<span class='{$color}'>" . $prefix . format_seconds_to_hms(abs($diff)) . "</span>";
-                                                        } else {
-                                                            echo "<span class='text-gray-400'>-</span>";
-                                                        }
-                                                    @endphp
-                                                </p>
-                                            </div>
-                                            {{-- 開閉アイコン --}}
-                                            <div class="col-span-1 text-right text-gray-400 dark:text-gray-500">
-                                                <i class="details-icon fas fa-chevron-down fa-lg"></i>
-                                            </div>
-                                        </div>
-                                        <div class="details-body bg-gray-50 dark:bg-gray-800/50">
-                                            <div class="py-3 px-6 lg:px-8 border-t border-gray-200 dark:border-gray-700/50">
-                                                <table class="min-w-full text-xs">
-                                                    <thead class="border-b-2 border-gray-300 dark:border-gray-600">
-                                                        <tr>
-                                                            <th class="py-2 px-3 text-left font-semibold">実績担当者</th>
-                                                            <th class="py-2 px-3 text-left font-semibold">開始</th>
-                                                            <th class="py-2 px-3 text-left font-semibold">終了</th>
-                                                            <th class="py-2 px-3 text-right font-semibold">作業時間</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        @foreach ($task['logs'] as $log)
-                                                            <tr class="border-b border-gray-200 dark:border-gray-600/50 last:border-b-0">
-                                                                <td class="py-2 px-3">{{ $log->user->name }}</td>
-                                                                <td class="py-2 px-3">{{ $log->start_time->format('H:i') }}</td>
-                                                                <td class="py-2 px-3">{{ optional($log->end_time)->format('H:i') }}</td>
-                                                                <td class="py-2 px-3 font-mono text-right">
-                                                                    {{ format_seconds_to_hms($log->effective_duration) }}</td>
-                                                            </tr>
-                                                        @endforeach
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
+                                <div class="project-block">
+                                    {{-- ▼▼▼【変更】案件ヘッダーをクリック可能に ▼▼▼ --}}
+                                    <div
+                                        class="project-summary-header px-6 py-3 bg-gray-50/50 dark:bg-gray-800/20 flex justify-between items-center hover:bg-gray-100/50 dark:hover:bg-gray-700/20">
+                                        <h3 class="flex items-center font-semibold text-gray-700 dark:text-gray-300">
+                                            <span class="flex-shrink-0 h-4 w-4 rounded-full mr-3"
+                                                style="background-color: {{ $project['color'] }};"></span>
+                                            {{ $project['name'] }}
+                                        </h3>
+                                        {{-- 案件ごとの開閉アイコン --}}
+                                        <i class="details-icon fas fa-chevron-down text-gray-400 dark:text-gray-500 is-rotated"></i>
                                     </div>
-                                @endforeach
+
+                                    {{-- ▼▼▼【変更】工程リストを折りたたみ対象のボディで囲む ▼▼▼ --}}
+                                    <div class="details-body is-open">
+                                        @foreach ($project['tasks'] as $task)
+                                            <div class="task-block border-t border-gray-200 dark:border-gray-700/50"
+                                                data-task-id="{{ $task['id'] }}">
+                                                {{-- 工程サマリーヘッダー --}}
+                                                <div
+                                                    class="summary-header p-4 lg:px-6 grid grid-cols-12 gap-4 items-center hover:bg-gray-50 dark:hover:bg-gray-700/30">
+                                                    <div class="col-span-11 md:col-span-5">
+                                                        <p class="font-bold text-base text-gray-800 dark:text-gray-200">
+                                                            {{ $task['name'] }}</p>
+                                                        @if($task['character_name'])
+                                                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                                                <i class="fas fa-user-circle fa-fw mr-1"></i>{{ $task['character_name'] }}
+                                                            </p>
+                                                        @endif
+                                                        @if(!empty($task['assignees']))
+                                                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                                                <i
+                                                                    class="fas fa-user-tag fa-fw mr-1"></i>{{ implode(', ', $task['assignees']) }}
+                                                            </p>
+                                                        @endif
+                                                    </div>
+                                                    <div class="col-span-4 md:col-span-2 text-right">
+                                                        <p class="text-xs text-gray-500 dark:text-gray-400">計画</p>
+                                                        <p class="font-mono text-gray-700 dark:text-gray-300">
+                                                            @if(!empty($task['planned_duration_minutes']))
+                                                                {{ format_seconds_to_hms($task['planned_duration_minutes'] * 60) }}
+                                                            @else
+                                                                -
+                                                            @endif
+                                                        </p>
+                                                    </div>
+                                                    <div class="col-span-4 md:col-span-2 text-right">
+                                                        <p class="text-xs text-gray-500 dark:text-gray-400">実績(日合計)</p>
+                                                        <p class="font-mono font-semibold text-gray-800 dark:text-gray-200">
+                                                            {{ format_seconds_to_hms($task['total_seconds_on_day']) }}</p>
+                                                    </div>
+                                                    <div class="col-span-3 md:col-span-2 text-right">
+                                                        <p class="text-xs text-gray-500 dark:text-gray-400">差異</p>
+                                                        <p class="font-mono text-lg">
+                                                            @php
+                                                                $plannedSeconds = ($task['planned_duration_minutes'] ?? 0) * 60;
+                                                                $actualSeconds = $task['total_seconds_on_day'];
+                                                                if ($plannedSeconds > 0 && $actualSeconds > 0) {
+                                                                    $diff = $actualSeconds - $plannedSeconds;
+                                                                    $color = $diff > 0 ? 'text-red-500' : 'text-green-500';
+                                                                    $prefix = $diff > 0 ? '+' : '';
+                                                                    echo "<span class='{$color}'>" . $prefix . format_seconds_to_hms(abs($diff)) . "</span>";
+                                                                } else {
+                                                                    echo "<span class='text-gray-400'>-</span>";
+                                                                }
+                                                            @endphp
+                                                        </p>
+                                                    </div>
+                                                    <div class="col-span-1 text-right text-gray-400 dark:text-gray-500">
+                                                        <i class="details-icon fas fa-chevron-down fa-lg"></i>
+                                                    </div>
+                                                </div>
+                                                {{-- 詳細ログ --}}
+                                                <div class="details-body bg-gray-50 dark:bg-gray-800/50">
+                                                    <div class="py-3 px-6 lg:px-8 border-t border-gray-200 dark:border-gray-700/50">
+                                                        <table class="min-w-full text-xs">
+                                                            <thead class="border-b-2 border-gray-300 dark:border-gray-600">
+                                                                <tr>
+                                                                    <th class="py-2 px-3 text-left font-semibold">実績担当者</th>
+                                                                    <th class="py-2 px-3 text-left font-semibold">開始</th>
+                                                                    <th class="py-2 px-3 text-left font-semibold">終了</th>
+                                                                    <th class="py-2 px-3 text-right font-semibold">作業時間</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                @foreach ($task['logs'] as $log)
+                                                                    <tr
+                                                                        class="border-b border-gray-200 dark:border-gray-600/50 last:border-b-0">
+                                                                        <td class="py-2 px-3">{{ $log->user->name }}</td>
+                                                                        <td class="py-2 px-3">{{ $log->start_time->format('H:i') }}</td>
+                                                                        <td class="py-2 px-3">{{ optional($log->end_time)->format('H:i') }}
+                                                                        </td>
+                                                                        <td class="py-2 px-3 font-mono text-right">
+                                                                            {{ format_seconds_to_hms($log->effective_duration) }}</td>
+                                                                    </tr>
+                                                                @endforeach
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                </div>
                             @endforeach
                         </div>
                     </div>
@@ -196,41 +207,47 @@
 @push('scripts')
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            // ▼▼▼【変更】日付ごとの開閉を処理するリスナーを追加 ▼▼▼
-            const dateHeaders = document.querySelectorAll('.date-summary-header');
-            dateHeaders.forEach(header => {
-                header.addEventListener('click', () => {
+            // ▼▼▼【変更】3階層の開閉を制御するJavaScript ▼▼▼
+
+            // 日付ごとの開閉
+            document.querySelectorAll('.date-summary-header').forEach(header => {
+                header.addEventListener('click', (event) => {
                     const body = header.nextElementSibling;
                     const icon = header.querySelector('.details-icon');
-
-                    if (body && body.classList.contains('details-body')) {
-                        body.classList.toggle('is-open');
-                    }
-                    if (icon) {
-                        icon.classList.toggle('is-rotated');
-                    }
+                    toggleAccordion(body, icon);
                 });
             });
 
-            // ▼▼▼【変更】工程ごとの開閉リスナーのセレクタをより具体的にする ▼▼▼
-            const taskHeaders = document.querySelectorAll('.task-block .summary-header');
-            taskHeaders.forEach(header => {
+            // 案件ごとの開閉
+            document.querySelectorAll('.project-summary-header').forEach(header => {
                 header.addEventListener('click', (event) => {
-                    // 親要素（日付ヘッダー）へのイベント伝播を停止
-                    event.stopPropagation();
+                    event.stopPropagation(); // 親（日付）のクリックイベントを発火させない
+                    const body = header.nextElementSibling;
+                    const icon = header.querySelector('.details-icon');
+                    toggleAccordion(body, icon);
+                });
+            });
 
+            // 工程ごとの開閉
+            document.querySelectorAll('.task-block .summary-header').forEach(header => {
+                header.addEventListener('click', (event) => {
+                    event.stopPropagation(); // 親（案件、日付）のクリックイベントを発火させない
                     const block = header.closest('.task-block');
                     const body = block.querySelector('.details-body');
                     const icon = header.querySelector('.details-icon');
-
-                    if (body) {
-                        body.classList.toggle('is-open');
-                    }
-                    if (icon) {
-                        icon.classList.toggle('is-rotated');
-                    }
+                    toggleAccordion(body, icon);
                 });
             });
+
+            // 開閉を制御する共通関数
+            function toggleAccordion(body, icon) {
+                if (body && body.classList.contains('details-body')) {
+                    body.classList.toggle('is-open');
+                }
+                if (icon) {
+                    icon.classList.toggle('is-rotated');
+                }
+            }
         });
     </script>
 @endpush
