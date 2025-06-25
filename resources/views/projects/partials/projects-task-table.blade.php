@@ -68,7 +68,7 @@
                     @include('projects.partials.task-table-row', ['task' => $task, 'assigneeOptions' => $assigneeOptions ?? []])
                 @empty
                     <tr>
-                        <td colspan="7" class="px-6 py-12 text-center text-sm text-gray-500 dark:text-gray-400">表示する工程がありません
+                        <td colspan="6" class="px-6 py-12 text-center text-sm text-gray-500 dark:text-gray-400">表示する工程がありません
                         </td>
                     </tr>
                 @endforelse

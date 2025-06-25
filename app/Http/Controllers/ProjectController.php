@@ -498,15 +498,18 @@ class ProjectController extends Controller
         if ($request->ajax()) {
             $hideCompleted = $request->boolean('hide_completed');
             $context = $request->input('context', 'project');
-            $character = null;
-            $tasksToList = collect();
-            $tableId = 'project-tasks-table';
-            $matchingTaskIds = collect();
+            $viewData = [
+                'project' => $project,
+                'hideCompleted' => $hideCompleted,
+                'assigneeOptions' => User::where('status', User::STATUS_ACTIVE)->orderBy('name')->get(['id', 'name'])->map(fn($user) => ['id' => $user->id, 'name' => $user->name])->values()->all(),
+            ];
+            $viewPath = '';
 
             if ($context === 'character' && $request->has('character_id')) {
-                // キャラクターの工程表を更新する場合 (変更なし)
+                // 【キャラクターの工程表を更新する場合】
                 $character = $project->characters()->with(['tasks.children', 'tasks.parent'])->find($request->input('character_id'));
                 if ($character) {
+                    // (フィルタリングロジックは変更なし)
                     $allCharacterTasks = $character->tasks;
                     $tasksForHierarchy = $allCharacterTasks;
                     $matchingTaskIds = $allCharacterTasks->pluck('id');
@@ -533,14 +536,20 @@ class ProjectController extends Controller
                     $sortedList = collect();
                     $appendTasksRecursively(null, $tasksGrouped, $sortedList);
                     $tasksToList = $hideCompleted ? $sortedList->filter(fn($task) => $matchingTaskIds->contains($task->id)) : $sortedList;
-                    $tableId = 'character-tasks-table-' . $character->id;
+
+                    // ★ 正しいテンプレートと変数を設定
+                    $viewPath = 'projects.partials.character-tasks-table';
+                    $viewData['character'] = $character;
+                    $viewData['tasksToList'] = $tasksToList;
+                    $viewData['tableId'] = 'character-tasks-table-' . $character->id;
+                    $viewData['showCharacterColumn'] = false; // キャラクタービューではキャラクター列は不要
                 }
             } else {
-                // ▼▼▼【ここから修正】案件全体の工程表を更新する場合のロジックを修正 ▼▼▼
+                // 【案件全体の工程表を更新する場合】
+                // (フィルタリングロジックは変更なし)
                 $allProjectTasks = $project->tasksWithoutCharacter()->with(['children', 'parent', 'project', 'character', 'files', 'assignees'])->get();
                 $tasksForHierarchy = $allProjectTasks;
                 $matchingTaskIds = $allProjectTasks->pluck('id');
-
                 if ($hideCompleted) {
                     $matchingTasks = $allProjectTasks->where('status', '!=', 'completed');
                     $matchingTaskIds = $matchingTasks->pluck('id');
@@ -560,19 +569,23 @@ class ProjectController extends Controller
                     }
                     $tasksForHierarchy = $allProjectTasks->whereIn('id', $requiredTaskIds->unique());
                 }
-
                 $tasksGrouped = $tasksForHierarchy->groupBy('parent_id');
                 $sortedList = collect();
                 $appendTasksRecursively(null, $tasksGrouped, $sortedList);
-
                 $tasksToList = $hideCompleted ? $sortedList->filter(fn($task) => $matchingTaskIds->contains($task->id)) : $sortedList;
-                $tableId = 'project-tasks-table';
-                // ▲▲▲【ここまで修正】▲▲▲
+
+                // ★ 正しいテンプレートと変数を設定
+                $viewPath = 'projects.partials.projects-task-table';
+                $viewData['tasksToList'] = $tasksToList;
+                $viewData['tableId'] = 'project-tasks-table';
+                $viewData['showCharacterColumn'] = false; // 案件全体ビューでもキャラクター列は不要
             }
 
-            $assigneeOptions = User::where('status', User::STATUS_ACTIVE)->orderBy('name')->get(['id', 'name'])->map(fn($user) => ['id' => $user->id, 'name' => $user->name])->values()->all();
-            $viewData = compact('tasksToList', 'tableId', 'project', 'assigneeOptions', 'hideCompleted', 'character');
-            $html = view('projects.partials.projects-task-table', $viewData)->render();
+            if (empty($viewPath)) {
+                return response()->json(['html' => '<p class="text-red-500">データの取得に失敗しました。</p>']);
+            }
+
+            $html = view($viewPath, $viewData)->render();
             return response()->json(['html' => $html]);
         }
 

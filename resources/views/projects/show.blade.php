@@ -1432,9 +1432,33 @@
                     'Accept': 'application/json',
                 }
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) throw new Error('Network response was not ok.');
+                return response.json();
+            })
             .then(data => {
-                if (data.html) container.innerHTML = data.html;
+                if (data.html) {
+                    container.innerHTML = data.html;
+
+                    // 1. タイマーUI（時間記録）を再描画
+                    if (typeof window.initializeWorkTimers === 'function') {
+                        window.initializeWorkTimers();
+                    }
+
+                    // 2. 担当者編集やステータス変更機能などを再初期化
+                    if (typeof window.initTasksIndex === 'function') {
+                        window.initTasksIndex();
+                    }
+
+                    // 3. 工程の親子トグル機能を再初期化
+                    const newTable = container.querySelector('table');
+                    if (newTable && typeof window.setupTaskToggle === 'function') {
+                        // setupTaskToggleは初期化済みフラグを見ているため、一度解除する
+                        container.dataset.taskToggleInitialized = 'false';
+                        window.setupTaskToggle(newTable.id);
+                    }
+
+                }
             })
             .catch(error => {
                 console.error('Error fetching updated task list:', error);
