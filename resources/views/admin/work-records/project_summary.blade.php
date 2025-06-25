@@ -4,11 +4,25 @@
 
 @push('styles')
     <style>
-        .details-row { display: none; }
-        .details-row.is-open { display: table-row; }
-        .summary-row { cursor: pointer; }
-        .details-icon { transition: transform 0.2s ease-in-out; }
-        .details-icon.is-rotated { transform: rotate(-180deg); }
+        .details-row {
+            display: none;
+        }
+
+        .details-row.is-open {
+            display: table-row;
+        }
+
+        .summary-row {
+            cursor: pointer;
+        }
+
+        .details-icon {
+            transition: transform 0.2s ease-in-out;
+        }
+
+        .details-icon.is-rotated {
+            transform: rotate(-180deg);
+        }
     </style>
 @endpush
 
@@ -30,17 +44,21 @@
         <div class="mb-8 bg-white dark:bg-gray-800 shadow-lg rounded-xl border border-gray-200 dark:border-gray-700">
             <div class="grid grid-cols-1 md:grid-cols-2">
                 <div class="p-6">
-                    <h2 class="text-base font-semibold text-gray-600 dark:text-gray-300 mb-2 flex items-center"><i class="fas fa-stream fa-fw mr-2 text-gray-400"></i>合計作業時間</h2>
-                    <p class="text-3xl font-bold text-gray-800 dark:text-gray-200">{{ gmdate('H:i:s', $grandTotalSeconds) }}</p>
+                    <h2 class="text-base font-semibold text-gray-600 dark:text-gray-300 mb-2 flex items-center"><i
+                            class="fas fa-stream fa-fw mr-2 text-gray-400"></i>合計作業時間</h2>
+                    <p class="text-3xl font-bold text-gray-800 dark:text-gray-200">{{ gmdate('H:i:s', $grandTotalSeconds) }}
+                    </p>
                 </div>
                 <div class="p-6 border-t md:border-t-0 md:border-l border-gray-200 dark:border-gray-700">
-                    <h2 class="text-base font-semibold text-gray-600 dark:text-gray-300 mb-2 flex items-center"><i class="fas fa-clock fa-fw mr-2 text-gray-400"></i>実働時間</h2>
-                    <p class="text-3xl font-bold text-gray-900 dark:text-gray-100">{{ gmdate('H:i:s', $grandTotalActualSeconds) }}</p>
+                    <h2 class="text-base font-semibold text-gray-600 dark:text-gray-300 mb-2 flex items-center"><i
+                            class="fas fa-clock fa-fw mr-2 text-gray-400"></i>実働時間</h2>
+                    <p class="text-3xl font-bold text-gray-900 dark:text-gray-100">
+                        {{ gmdate('H:i:s', $grandTotalActualSeconds) }}</p>
                 </div>
             </div>
         </div>
 
-        {{-- 注釈 --}}
+        {{-- 注釈
         <div
             class="p-2 my-2 text-xs bg-yellow-50 text-yellow-700 border border-yellow-200 rounded-md dark:bg-yellow-700/30 dark:text-yellow-200 dark:border-yellow-500">
             <i class="fas fa-info-circle mr-1"></i>
@@ -51,7 +69,7 @@
             　　　合計作業時間：00:11:00<br>
             　※12:00～15:00の間は作業時間が重複していますが、工程別に集計しているため重複して計算されてしまいます。<br>
             　　案件タイトルの「実働時間」は案件内で重複する作業時間を考慮した合計時間です。
-        </div>
+        </div> --}}
 
         {{-- 案件別カード --}}
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -90,14 +108,16 @@
                             <div class="space-y-1">
                                 <div class="text-xs font-bold text-gray-500 dark:text-gray-400">合計</div>
                                 <div class="text-sm">
-                                    <span class="font-semibold text-gray-700 dark:text-gray-300">{{ gmdate('H:i:s', $project['project_total_seconds']) }}</span>
+                                    <span
+                                        class="font-semibold text-gray-700 dark:text-gray-300">{{ gmdate('H:i:s', $project['project_total_seconds']) }}</span>
                                 </div>
                             </div>
                             <div class="border-l border-gray-300 dark:border-gray-600 h-8"></div>
                             <div class="space-y-1">
                                 <div class="text-xs font-bold text-gray-500 dark:text-gray-400">実働</div>
                                 <div class="text-sm">
-                                    <span class="font-bold text-green-600 dark:text-green-400">{{ gmdate('H:i:s', $project['project_actual_work_seconds']) }}</span>
+                                    <span
+                                        class="font-bold text-green-600 dark:text-green-400">{{ gmdate('H:i:s', $project['project_actual_work_seconds']) }}</span>
                                 </div>
                             </div>
                         </div>
@@ -109,37 +129,53 @@
                             <thead class="bg-gray-100 dark:bg-gray-900/50">
                                 <tr>
                                     <th class="pl-4 w-10"></th>
-                                    <th class="pl-6 pr-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">工程</th>
-                                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">実績担当者</th>
-                                    <th class="pl-3 pr-6 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">作業時間</th>
+                                    <th
+                                        class="pl-6 pr-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                        工程</th>
+                                    <th
+                                        class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                        実績担当者</th>
+                                    <th
+                                        class="pl-3 pr-6 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                        作業時間</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach ($project['characters'] as $character)
                                     <tr class="border-t-2 border-gray-200 dark:border-gray-700">
-                                        <td class="px-4 py-2 font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-900/20" colspan="4">
+                                        <td class="px-4 py-2 font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-900/20"
+                                            colspan="4">
                                             <div class="flex gap-3 items-center w-full">
                                                 <div class="flex items-center">
-                                                    <i class="fas fa-user fa-fw mr-2 {{ $character['name'] === 'キャラクターなし' ? 'text-gray-400' : '' }}"></i>
+                                                    <i
+                                                        class="fas fa-user fa-fw mr-2 {{ $character['name'] === 'キャラクターなし' ? 'text-gray-400' : '' }}"></i>
                                                     {{ $character['name'] }}
                                                 </div>
                                                 <div class="text-right flex items-center space-x-3 text-xs">
                                                     <div>
                                                         <span class="text-gray-500 dark:text-gray-400">合計作業時間: </span>
-                                                        <span class="font-medium text-green-600 dark:text-green-400">{{ gmdate('H:i:s', $character['character_total_seconds']) }}</span>
+                                                        <span
+                                                            class="font-medium text-green-600 dark:text-green-400">{{ gmdate('H:i:s', $character['character_total_seconds']) }}</span>
                                                     </div>
                                                 </div>
                                             </div>
                                         </td>
                                     </tr>
                                     @forelse ($character['tasks'] as $task)
-                                        <tr class="summary-row border-t border-gray-200 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/20" data-details-target="details-{{ $project['id'] }}-{{ $character['id'] }}-{{ $task['id'] }}">
-                                            <td class="pl-4 text-center text-gray-400"><i class="details-icon fas fa-chevron-down fa-xs"></i></td>
-                                            <td class="pl-8 pr-2 py-2 whitespace-nowrap text-gray-600 dark:text-gray-400">{{ $task['name'] }}</td>
-                                            <td class="px-3 py-2 whitespace-nowrap text-gray-600 dark:text-gray-400">{{ implode(', ', $task['workers']) }}</td>
-                                            <td class="pl-3 pr-6 py-2 whitespace-nowrap font-mono text-right text-green-700 dark:text-green-400">{{ gmdate('H:i:s', $task['total_seconds']) }}</td>
+                                        <tr class="summary-row border-t border-gray-200 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/20"
+                                            data-details-target="details-{{ $project['id'] }}-{{ $character['id'] }}-{{ $task['id'] }}">
+                                            <td class="pl-4 text-center text-gray-400"><i
+                                                    class="details-icon fas fa-chevron-down fa-xs"></i></td>
+                                            <td class="pl-8 pr-2 py-2 whitespace-nowrap text-gray-600 dark:text-gray-400">
+                                                {{ $task['name'] }}</td>
+                                            <td class="px-3 py-2 whitespace-nowrap text-gray-600 dark:text-gray-400">
+                                                {{ implode(', ', $task['workers']) }}</td>
+                                            <td
+                                                class="pl-3 pr-6 py-2 whitespace-nowrap font-mono text-right text-green-700 dark:text-green-400">
+                                                {{ gmdate('H:i:s', $task['total_seconds']) }}</td>
                                         </tr>
-                                        <tr class="details-row bg-gray-50 dark:bg-gray-900/20" id="details-{{ $project['id'] }}-{{ $character['id'] }}-{{ $task['id'] }}">
+                                        <tr class="details-row bg-gray-50 dark:bg-gray-900/20"
+                                            id="details-{{ $project['id'] }}-{{ $character['id'] }}-{{ $task['id'] }}">
                                             <td class="p-0" colspan="4">
                                                 <div class="p-4">
                                                     <table class="min-w-full text-xs">
@@ -187,25 +223,25 @@
 
 {{-- ▼▼▼【ここから修正】アコーディオン用のJavaScriptを追加 ▼▼▼ --}}
 @push('scripts')
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const summaryRows = document.querySelectorAll('.summary-row');
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const summaryRows = document.querySelectorAll('.summary-row');
 
-        summaryRows.forEach(row => {
-            row.addEventListener('click', () => {
-                const targetId = row.dataset.detailsTarget;
-                const detailsRow = document.getElementById(targetId);
-                const icon = row.querySelector('.details-icon');
+            summaryRows.forEach(row => {
+                row.addEventListener('click', () => {
+                    const targetId = row.dataset.detailsTarget;
+                    const detailsRow = document.getElementById(targetId);
+                    const icon = row.querySelector('.details-icon');
 
-                if (detailsRow) {
-                    detailsRow.classList.toggle('is-open');
-                }
-                if (icon) {
-                    icon.classList.toggle('is-rotated');
-                }
+                    if (detailsRow) {
+                        detailsRow.classList.toggle('is-open');
+                    }
+                    if (icon) {
+                        icon.classList.toggle('is-rotated');
+                    }
+                });
             });
         });
-    });
-</script>
+    </script>
 @endpush
 {{-- ▲▲▲ 修正ここまで ▲▲▲ --}}
