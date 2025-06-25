@@ -175,8 +175,8 @@
                                                                     <tr
                                                                         class="border-b border-gray-200 dark:border-gray-600/50 last:border-b-0">
                                                                         <td class="py-2 px-3">{{ $log->user->name }}</td>
-                                                                        <td class="py-2 px-3">{{ $log->start_time->format('H:i') }}</td>
-                                                                        <td class="py-2 px-3">{{ optional($log->end_time)->format('H:i') }}
+                                                                        <td class="py-2 px-3">{{ $log->start_time->format('n/j H:i:s') }}</td>
+                                                                        <td class="py-2 px-3">{{ optional($log->end_time)->format('n/j H:i:s') }}
                                                                         </td>
                                                                         <td class="py-2 px-3 font-mono text-right">
                                                                             {{ format_seconds_to_hms($log->effective_duration) }}</td>
