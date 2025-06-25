@@ -35,7 +35,7 @@
     <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
             <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-200">
-                @can('viewProjectSummary', App\Models\WorkLog::class)
+                @can('viewAny', App\Models\WorkLog::class)
                     <a href="{{ route('admin.work-records.index') }}" class="text-blue-600 hover:underline">作業実績一覧</a>
                     <i class="fas fa-chevron-right fa-xs mx-2"></i>
                 @endcan
@@ -43,11 +43,11 @@
                 日別 作業ログ
             </h1>
             <div class="flex items-center space-x-2">
-                <a href="{{ route('admin.work-records.by-project') }}"
-                    class="inline-flex items-center px-4 py-2 bg-purple-600 text-white border border-transparent rounded-md font-semibold text-xs uppercase tracking-widest hover:bg-purple-700 active:bg-purple-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500">
-                    <i class="fas fa-folder-tree mr-2"></i>案件別サマリーに切替
-                </a>
-                @can('viewProjectSummary', App\Models\WorkLog::class)
+                <x-secondary-button onclick="window.location.href='{{ route('admin.work-records.by-project') }}'"
+                    class="!bg-green-600 hover:!bg-green-700 dark:!bg-green-700 dark:hover:!bg-green-800 !text-white !border-transparent">
+                    <i class="fas fa-briefcase mr-1"></i>案件別 作業ログへ切替
+                </x-secondary-button>
+                @can('viewAny', App\Models\WorkLog::class)
                     <a href="{{ route('admin.work-records.index') }}"
                         class="inline-flex items-center px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md font-semibold text-xs text-gray-700 dark:text-gray-300 uppercase tracking-widest shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
                         <i class="fas fa-arrow-left mr-2"></i>実績一覧に戻る

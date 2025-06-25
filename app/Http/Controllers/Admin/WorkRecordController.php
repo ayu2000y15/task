@@ -322,7 +322,7 @@ class WorkRecordController extends Controller
 
     public function byProject(Request $request)
     {
-        $this->authorize('viewAny', WorkLog::class);
+        $this->authorize('viewProjectSummary', WorkLog::class);
 
         $workLogs = WorkLog::with(['task.project.tasks', 'task.character', 'user.hourlyRates', 'task.assignees'])
             ->where('status', 'stopped')
@@ -456,7 +456,7 @@ class WorkRecordController extends Controller
      */
     public function dailyLog(Request $request)
     {
-        $this->authorize('viewAny', WorkLog::class);
+        $this->authorize('viewProjectSummary', WorkLog::class);
 
         $workLogs = WorkLog::with(['task.project', 'task.character', 'user', 'task.assignees'])
             ->where('status', 'stopped')
