@@ -134,3 +134,11 @@
         </form>
     </div>
 @endcan
+@can('create', App\Models\Task::class)
+    <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+        <a href="{{ route('projects.tasks.create', ['project' => $project, 'character_id_for_new_task' => $character->id]) }}"
+            class="inline-flex items-center px-3 py-2 bg-sky-500 hover:bg-sky-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest transition ease-in-out duration-150">
+            <i class="fas fa-plus mr-1"></i> このキャラクターに工程を追加
+        </a>
+    </div>
+@endcan
