@@ -463,36 +463,43 @@ class WorkRecordController extends Controller
             ->orderBy('start_time', 'desc')
             ->get();
 
-        // 作業ログを開始日ごとにグループ化
-        $logsByDate = $workLogs->groupBy(function ($log) {
-            return $log->start_time->format('Y-m-d');
-        });
+        $logsByDate = $workLogs->groupBy(fn($log) => $log->start_time->format('Y-m-d'));
 
-        // ▼▼▼【ロジック変更】日付ごとのログを、さらに工程で集計する ▼▼▼
         $dailySummary = [];
         foreach ($logsByDate as $date => $logsOnDate) {
-            $tasksOnDate = [];
-            // その日のログをtask_idでグループ化
-            $logsByTask = $logsOnDate->groupBy('task_id');
+            $projectsOnDate = [];
+            $logsByProject = $logsOnDate->groupBy('task.project_id');
 
-            foreach ($logsByTask as $taskId => $taskLogs) {
-                $firstLog = $taskLogs->first();
-                $taskModel = $firstLog->task;
+            foreach ($logsByProject as $projectId => $projectLogs) {
+                $firstLog = $projectLogs->first();
+                $projectModel = $firstLog->task->project;
 
-                // この日にこの工程で作業した合計秒数を計算
-                $totalSecondsOnDay = $taskLogs->sum('effective_duration');
+                $tasksOnProject = [];
+                $logsByTask = $projectLogs->groupBy('task_id');
 
-                $tasksOnDate[$taskId] = [
-                    'id' => $taskId,
-                    'name' => $taskModel->name,
-                    'project_name' => optional($taskModel->project)->title,
-                    'character_name' => optional($taskModel->character)->name,
-                    'planned_duration_minutes' => $taskModel->duration,
-                    'total_seconds_on_day' => $totalSecondsOnDay,
-                    'logs' => $taskLogs, // 個別の作業ログを格納
+                foreach ($logsByTask as $taskId => $taskLogs) {
+                    $taskModel = $taskLogs->first()->task;
+
+                    $tasksOnProject[$taskId] = [
+                        'id' => $taskId,
+                        'name' => $taskModel->name,
+                        'project_name' => optional($projectModel)->title ?? '案件なし',
+                        'character_name' => optional($taskModel->character)->name,
+                        'assignees' => $taskModel->assignees->pluck('name')->all(), //  <-- ▼▼▼ この行を追加 ▼▼▼
+                        'planned_duration_minutes' => $taskModel->duration,
+                        'total_seconds_on_day' => $taskLogs->sum('effective_duration'),
+                        'logs' => $taskLogs,
+                    ];
+                }
+
+                $projectsOnDate[$projectId] = [
+                    'id' => $projectId,
+                    'name' => optional($projectModel)->title ?? '案件なし',
+                    'color' => optional($projectModel)->color ?? '#cccccc',
+                    'tasks' => $tasksOnProject,
                 ];
             }
-            $dailySummary[$date] = $tasksOnDate;
+            $dailySummary[$date] = $projectsOnDate;
         }
 
         return view('admin.work-records.daily_log', compact('dailySummary'));
