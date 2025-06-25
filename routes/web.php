@@ -272,6 +272,8 @@ Route::middleware('auth')->group(function () {
 
         // 作業実績管理
         Route::get('/work-records/by-project', [AdminWorkRecordController::class, 'byProject'])->name('work-records.by-project');
+        //案件管理者用作業ログ
+        Route::get('/work-records/project-summary', [AdminWorkRecordController::class, 'projectSummary'])->name('work-records.project-summary');
 
         Route::get('/work-records', [AdminWorkRecordController::class, 'index'])->name('work-records.index');
         Route::post('work-records/update-rates', [AdminWorkRecordController::class, 'updateUserRates'])->name('work-records.update-rates');

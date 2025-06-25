@@ -108,4 +108,12 @@ class WorkLogPolicy
     {
         return $user->id === $workLog->user_id;
     }
+
+    /**
+     * 案件管理者向けのサマリーページを閲覧できるか判定する
+     */
+    public function viewProjectSummary(User $user): bool
+    {
+        return $user->hasPermissionTo('work-logs.view-project-summary');
+    }
 }
