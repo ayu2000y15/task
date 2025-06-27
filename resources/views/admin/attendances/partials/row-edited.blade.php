@@ -29,17 +29,14 @@
 
     <td class="px-2 py-3"><span title="手動編集"><i class="fas fa-pencil-alt text-gray-500"></i></span></td>
     <td class="px-2 py-3 font-mono text-sm">{{ optional($summary->start_time)->format('H:i') }}</td>
-    {{-- ▼▼▼【ここから修正】▼▼▼ --}}
     <td class="px-2 py-3 font-mono text-sm">
         @if($summary->end_time)
-            {{-- 日付がメインの日付と異なるか（日付をまたいでいるか）をチェック --}}
             @if(!$summary->end_time->isSameDay($date))
                 <span class="text-xs text-gray-500 dark:text-gray-400 mr-1">(翌日)</span>
             @endif
             {{ $summary->end_time->format('H:i') }}
         @endif
     </td>
-    {{-- ▲▲▲【ここまで修正】▲▲▲ --}}
     <td class="px-2 py-3 font-mono text-sm">
         {{ $summary->end_time ? gmdate('H:i:s', $summary->detention_seconds) : '-' }}
     </td>
@@ -48,7 +45,6 @@
     <td class="px-2 py-3 font-mono text-sm">¥{{ number_format($summary->daily_salary) }}</td>
     <td class="px-2 py-3 text-center">
         @php
-            // モーダルに渡すための休憩データを作成
             $breaksForModal = $summary->breaks->map(fn($b) => [
                 'type' => $b->type,
                 'start_time' => $b->start_time->format('H:i'),

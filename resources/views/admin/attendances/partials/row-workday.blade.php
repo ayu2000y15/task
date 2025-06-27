@@ -2,6 +2,9 @@
 @foreach ($report['sessions'] as $index => $session)
     @php
         $hasLogs = $session['logs']->isNotEmpty();
+        $hasBreakDetails = !empty($session['break_details']);
+        $hasDetails = $hasLogs || $hasBreakDetails;
+
         $dayHasAnyLogs = collect($report['sessions'])->some(fn($s) => $s['logs']->isNotEmpty());
         $holidayName = optional($report['public_holiday'])->name;
         if (isset($report['work_shift']) && in_array($report['work_shift']->type, ['full_day_off', 'am_off', 'pm_off'])) {
@@ -10,11 +13,11 @@
         }
     @endphp
     {{-- 複数セッションがある場合、2行目以降は上の罫線をなくし、日付の縦結合を表現 --}}
-    <tr class="{{ $rowClass }} @if($index > 0) border-t-0 @endif @if($hasLogs) summary-row hover:bg-gray-50 dark:hover:bg-gray-700/50 @endif"
-        @if($hasLogs) data-details-target="details-{{ $date->format('Y-m-d') }}-{{$index}}" @endif>
+    <tr class="{{ $rowClass }} @if($index > 0) border-t-0 @endif @if($hasDetails) summary-row hover:bg-gray-50 dark:hover:bg-gray-700/50 @endif"
+        @if($hasDetails) data-details-target="details-{{ $date->format('Y-m-d') }}-{{$index}}" @endif>
 
         <td class="px-2 py-3 text-center">
-            @if($hasLogs)
+            @if($hasDetails)
                 <i class="fas fa-chevron-down details-icon text-gray-400"></i>
             @endif
         </td>
@@ -59,7 +62,7 @@
             @endif
         </td>
     </tr>
-    @if($hasLogs)
+    @if($hasDetails)
         @include('admin.attendances.partials.details-row', [
             'date' => $date,
             'logs' => $session['logs'],
