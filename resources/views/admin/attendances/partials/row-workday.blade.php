@@ -31,8 +31,11 @@
             @endif
         </td>
 
-        {{-- ▼▼▼【修正】@if条件を削除し、常にアイコンを表示 ▼▼▼ --}}
-        <td class="px-2 py-3"><span title="自動計算"><i class="fas fa-magic text-blue-500"></i></span></td>
+        <td class="px-2 py-3">
+            @if($index === 0)
+                <span title="自動計算"><i class="fas fa-magic text-blue-500"></i></span>
+            @endif
+        </td>
         <td class="px-2 py-3 font-mono text-sm">{{ $session['start_time']->format('H:i') }}</td>
         <td class="px-2 py-3 font-mono text-sm">{{ optional($session['end_time'])->format('H:i') ?? '未退勤' }}</td>
         <td class="px-2 py-3 font-mono text-sm">
@@ -49,11 +52,11 @@
             @endif
         </td>
         <td class="px-2 py-3 text-center">
-            {{-- ▼▼▼【修正】@if条件を削除し、各セッションのデータをモーダルに渡す ▼▼▼ --}}
-            {{-- ※注意: バックエンド修正で session_id などを渡す必要があります --}}
-            <button
-                @click="openEditModal('{{ $date->format('Y-m-d') }}', '{{ $session['start_time']->format('H:i') }}', '{{ optional($session['end_time'])->format('H:i') }}', '{{ floor($session['break_seconds'] / 60) }}', '')"
-                class="text-blue-500 hover:text-blue-700 text-xs">編集</button>
+            @if($index === 0)
+                <button
+                    @click="openEditModal('{{ $date->format('Y-m-d') }}', '{{ $session['start_time']->format('H:i') }}', '{{ optional($session['end_time'])->format('H:i') }}', '[]', '')"
+                    class="text-blue-500 hover:text-blue-700 text-xs">編集</button>
+            @endif
         </td>
     </tr>
     @if($hasLogs)
@@ -62,7 +65,8 @@
             'logs' => $session['logs'],
             'sessionIndex' => $index,
             'startTime' => $session['start_time'],
-            'endTime' => $session['end_time']
+            'endTime' => $session['end_time'],
+            'sessionBreaks' => $session['break_details'] ?? [],
         ])
     @endif
 @endforeach

@@ -11,6 +11,8 @@ use App\Models\WorkShift;
 use App\Models\Holiday;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use App\Models\AttendanceBreak;
+use Illuminate\Support\Facades\DB;
 
 class AttendanceController extends Controller
 {
@@ -33,6 +35,7 @@ class AttendanceController extends Controller
         // 手動編集された勤怠データを取得
         $overriddenAttendances = Attendance::where('user_id', $user->id)
             ->whereBetween('date', [$startDate, $endDate])
+            ->with('breaks') // ▼▼▼【修正】リレーションをEager Loadする
             ->get()->keyBy(fn($item) => $item->date->format('Y-m-d'));
 
         // --- 2. 月の全日分の表示データを生成 ---
@@ -117,7 +120,13 @@ class AttendanceController extends Controller
         return collect($sessions)->map(function ($session) use ($allWorkLogs, $user) {
             $startTime = $session['start_time'];
             $endTime = $session['end_time'];
-            $breakSeconds = $this->calculateTimeDifference($session['logs'], 'break_start', 'break_end') + $this->calculateTimeDifference($session['logs'], 'away_start', 'away_end');
+
+            $breakLogs = $this->pairLogEvents($session['logs'], 'break_start', 'break_end', '休憩');
+            $awayLogs = $this->pairLogEvents($session['logs'], 'away_start', 'away_end', '中抜け');
+            $breakDetails = collect(array_merge($breakLogs, $awayLogs))->sortBy('start_time')->values()->all();
+            $breakSeconds = collect($breakDetails)->sum('duration');
+
+
             $detentionSeconds = $endTime ? $startTime->diffInSeconds($endTime) : 0;
             $payableWorkSeconds = max(0, $detentionSeconds - $breakSeconds);
             $sessionWorkLogs = $allWorkLogs->where('start_time', '>=', $startTime)->when($endTime, fn($q) => $q->where('start_time', '<=', $endTime));
@@ -131,6 +140,7 @@ class AttendanceController extends Controller
                 'actual_work_seconds' => $actualWorkSeconds,
                 'daily_salary' => $rateForDay > 0 ? round(($payableWorkSeconds / 3600) * $rateForDay) : 0,
                 'logs' => $sessionWorkLogs,
+                'break_details' => $breakDetails, // 詳細表示用に休憩・中抜けリストを渡す
             ];
         });
     }
@@ -140,48 +150,97 @@ class AttendanceController extends Controller
      */
     public function updateSingle(Request $request, User $user, $date)
     {
-        // このメソッドは以前のままでOK
         $validated = $request->validate([
             'start_time' => 'nullable|required_with:end_time|date_format:H:i',
             'end_time' => 'nullable|required_with:start_time|date_format:H:i',
-            'break_minutes' => 'nullable|integer|min:0',
             'note' => 'nullable|string|max:500',
+            'breaks' => 'nullable|array',
+            'breaks.*.type' => 'required|string|in:break,away',
+            'breaks.*.start_time' => 'required|date_format:H:i',
+            'breaks.*.end_time' => 'required|date_format:H:i',
         ]);
 
         $targetDate = Carbon::parse($date);
 
-        if (!empty($validated['start_time']) && !empty($validated['end_time'])) {
+        DB::transaction(function () use ($validated, $user, $targetDate) {
+            // 既存の勤怠データを取得
+            $attendance = Attendance::where('user_id', $user->id)->where('date', $targetDate)->first();
+
+            // ▼▼▼【重要】ここがエラーの発生箇所です ▼▼▼
+            // 勤怠データが存在する場合にのみ、関連する休憩データを削除する
+            if ($attendance) {
+                $attendance->breaks()->delete();
+            }
+            // ▲▲▲ この if ($attendance) のチェックが重要です ▲▲▲
+
+            // 出勤・退勤時刻がなければ勤怠データごと削除して処理を終了
+            if (empty($validated['start_time']) || empty($validated['end_time'])) {
+                if ($attendance) {
+                    $attendance->delete();
+                }
+                return;
+            }
+
+            // 時刻をDateTimeオブジェクトに変換
             $startTime = $targetDate->copy()->setTimeFromTimeString($validated['start_time']);
             $endTime = $targetDate->copy()->setTimeFromTimeString($validated['end_time']);
-            if ($endTime <= $startTime) $endTime->addDay();
-            $breakSeconds = (int)($validated['break_minutes'] ?? 0) * 60;
-            $detentionSeconds = $endTime->getTimestamp() - $startTime->getTimestamp();
-            $actualWorkSeconds = max(0, $detentionSeconds - $breakSeconds);
-            $rate = $user->getHourlyRateForDate($targetDate);
-            $dailySalary = $rate > 0 ? round(($actualWorkSeconds / 3600) * $rate) : 0;
+            if ($endTime <= $startTime) {
+                $endTime->addDay();
+            }
 
-            Attendance::updateOrCreate(
-                ['user_id' => $user->id, 'date' => $date],
+            // 休憩時間の合計を計算
+            $totalBreakSeconds = 0;
+            if (!empty($validated['breaks'])) {
+                foreach ($validated['breaks'] as $break) {
+                    if (empty($break['start_time']) || empty($break['end_time'])) continue;
+                    $breakStart = $targetDate->copy()->setTimeFromTimeString($break['start_time']);
+                    $breakEnd = $targetDate->copy()->setTimeFromTimeString($break['end_time']);
+                    if ($breakEnd <= $breakStart) {
+                        $breakEnd->addDay();
+                    }
+                    $totalBreakSeconds += $breakStart->diffInSeconds($breakEnd);
+                }
+            }
+
+            // 日給の計算
+            $detentionSeconds = $endTime->diffInSeconds($startTime);
+            $payableWorkSeconds = max(0, $detentionSeconds - $totalBreakSeconds);
+            $rate = $user->getHourlyRateForDate($targetDate);
+            $dailySalary = $rate > 0 ? round(($payableWorkSeconds / 3600) * $rate) : 0;
+
+            // 勤怠データの保存 (存在しなければ作成、あれば更新)
+            $attendance = Attendance::updateOrCreate(
+                ['user_id' => $user->id, 'date' => $targetDate->format('Y-m-d')],
                 [
                     'start_time' => $startTime,
                     'end_time' => $endTime,
-                    'break_seconds' => $breakSeconds,
-                    'actual_work_seconds' => $actualWorkSeconds,
+                    'break_seconds' => $totalBreakSeconds,
+                    'actual_work_seconds' => $payableWorkSeconds,
                     'note' => $validated['note'],
                     'status' => 'edited',
-                    'daily_salary' => $dailySalary, // 日給も保存
+                    'daily_salary' => $dailySalary,
                 ]
             );
-        } else {
-            // データが空なら削除
-            Attendance::where('user_id', $user->id)->where('date', $date)->delete();
-        }
+
+            // 休憩・中抜けデータの保存
+            if (!empty($validated['breaks'])) {
+                foreach ($validated['breaks'] as $break) {
+                    if (empty($break['start_time']) || empty($break['end_time'])) continue;
+                    $breakStart = $targetDate->copy()->setTimeFromTimeString($break['start_time']);
+                    $breakEnd = $targetDate->copy()->setTimeFromTimeString($break['end_time']);
+                    if ($breakEnd <= $breakStart) $breakEnd->addDay();
+
+                    $attendance->breaks()->create([
+                        'type' => $break['type'],
+                        'start_time' => $breakStart,
+                        'end_time' => $breakEnd,
+                    ]);
+                }
+            }
+        });
 
         return response()->json(['success' => true, 'message' => '更新しました。']);
     }
-
-    // ▼▼▼【不要なメソッドを削除】▼▼▼
-    // public function updateLogBasedSession(Request $request, User $user) { ... }
 
     private function calculateTimeDifference($logs, $startType, $endType): int
     {
@@ -197,5 +256,26 @@ class AttendanceController extends Controller
             }
         }
         return $totalSeconds;
+    }
+
+    private function pairLogEvents($logs, $startType, $endType, $label): array
+    {
+        $pairs = [];
+        $startTime = null;
+        foreach ($logs as $log) {
+            if ($log->type === $startType) {
+                // 開始が連続した場合、最後を優先
+                $startTime = $log->timestamp;
+            } elseif ($log->type === $endType && $startTime) {
+                $pairs[] = [
+                    'type' => $label,
+                    'start_time' => $startTime,
+                    'end_time' => $log->timestamp,
+                    'duration' => $startTime->diffInSeconds($log->timestamp),
+                ];
+                $startTime = null; // ペアを成立させたのでリセット
+            }
+        }
+        return $pairs;
     }
 }

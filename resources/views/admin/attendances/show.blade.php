@@ -155,25 +155,51 @@
         <div x-show="editModalOpen" x-cloak
             class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center"
             @keydown.escape.window="closeEditModal()">
-            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md"
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-lg"
                 @click.outside="closeEditModal()">
                 <h3 class="text-lg font-semibold mb-4" x-text="`勤怠編集 (${modal.date})`"></h3>
-                <div>
-                    <label class="block text-sm font-medium">出勤時間</label>
-                    <input type="time" x-model="modal.start_time" class="mt-1 w-full dark:bg-gray-700 rounded-md">
-                </div>
-                <div class="mt-4">
-                    <label class="block text-sm font-medium">退勤時間</label>
-                    <input type="time" x-model="modal.end_time" class="mt-1 w-full dark:bg-gray-700 rounded-md">
-                    <p class="mt-1 text-red-500 text-xs">※出勤時間より早い時刻を選択した場合、翌日の退勤時間となります。</p>
-                </div>
-                <div class="mt-4">
-                    <label class="block text-sm font-medium">休憩（分）</label>
-                    <input type="number" x-model="modal.break_minutes" class="mt-1 w-full dark:bg-gray-700 rounded-md">
-                </div>
-                <div class="mt-4">
-                    <label class="block text-sm font-medium">備考</label>
-                    <textarea x-model="modal.note" rows="3" class="mt-1 w-full dark:bg-gray-700 rounded-md"></textarea>
+                <div class="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
+                    <div>
+                        <label class="block text-sm font-medium">出勤時間</label>
+                        <input type="time" x-model="modal.start_time" class="mt-1 w-full dark:bg-gray-700 rounded-md">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium">退勤時間</label>
+                        <input type="time" x-model="modal.end_time" class="mt-1 w-full dark:bg-gray-700 rounded-md">
+                        <p class="mt-1 text-red-500 text-xs">※出勤時間より早い時刻を選択した場合、翌日の退勤時間となります。</p>
+                    </div>
+                    {{-- ▼▼▼【ここから修正】休憩入力欄を動的フォームに変更 ▼▼▼ --}}
+                    <div>
+                        <label class="block text-sm font-medium mb-1">休憩 / 中抜け</label>
+                        <div class="space-y-2">
+                            <template x-for="(br, index) in modal.breaks" :key="index">
+                                <div class="flex items-center space-x-2 p-2 bg-gray-50 dark:bg-gray-700/50 rounded-md">
+                                    <select x-model="br.type" class="mt-1 block w-1/4 dark:bg-gray-600 rounded-md text-sm">
+                                        <option value="break">休憩</option>
+                                        <option value="away">中抜け</option>
+                                    </select>
+                                    <input type="time" x-model="br.start_time"
+                                        class="mt-1 w-full dark:bg-gray-600 rounded-md text-sm">
+                                    <span class="dark:text-gray-400">-</span>
+                                    <input type="time" x-model="br.end_time"
+                                        class="mt-1 w-full dark:bg-gray-600 rounded-md text-sm">
+                                    <button @click="modal.breaks.splice(index, 1)"
+                                        class="p-2 text-red-500 hover:text-red-700">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                </div>
+                            </template>
+                        </div>
+                        <button @click="modal.breaks.push({type: 'break', start_time: '', end_time: ''})"
+                            class="mt-2 text-sm text-blue-600 hover:underline">
+                            <i class="fas fa-plus-circle mr-1"></i>休憩/中抜けを追加
+                        </button>
+                    </div>
+                    {{-- ▲▲▲【ここまで修正】▲▲▲ --}}
+                    <div>
+                        <label class="block text-sm font-medium">備考</label>
+                        <textarea x-model="modal.note" rows="3" class="mt-1 w-full dark:bg-gray-700 rounded-md"></textarea>
+                    </div>
                 </div>
                 <div class="mt-6 flex justify-end space-x-3">
                     <x-secondary-button @click="closeEditModal()">キャンセル</x-secondary-button>
@@ -190,12 +216,18 @@
         document.addEventListener('alpine:init', () => {
             Alpine.data('attendancePage', () => ({
                 editModalOpen: false,
-                modal: { date: '', start_time: '', end_time: '', break_minutes: 0, note: '' },
-                openEditModal(date, startTime, endTime, breakMinutes, note) {
+                modal: {
+                    date: '',
+                    start_time: '',
+                    end_time: '',
+                    breaks: [],
+                    note: ''
+                },
+                openEditModal(date, startTime, endTime, breaksJson, note) {
                     this.modal.date = date;
                     this.modal.start_time = startTime;
                     this.modal.end_time = endTime;
-                    this.modal.break_minutes = breakMinutes;
+                    this.modal.breaks = breaksJson ? JSON.parse(breaksJson) : [];
                     this.modal.note = note;
                     this.editModalOpen = true;
                 },
@@ -207,7 +239,13 @@
                 },
                 clearData() {
                     if (confirm(`${this.modal.date} のデータをクリアします。よろしいですか？`)) {
-                        this.submitData({ start_time: '', end_time: '' });
+                        // clearDataは休憩データもクリアするように空の配列を渡す
+                        this.submitData({
+                            start_time: '',
+                            end_time: '',
+                            breaks: [],
+                            note: ''
+                        });
                         this.closeEditModal();
                     }
                 },
@@ -240,11 +278,11 @@
 
         // アコーディオン機能
         document.addEventListener('DOMContentLoaded', function () {
-            // このリスナーはtbodyに委譲する方が動的に追加される要素にも対応できるが、
-            // 今回はページリロードが前提のため、このままでも機能する
             document.querySelectorAll('.summary-row').forEach(row => {
                 row.addEventListener('click', (e) => {
+                    // ボタンやリンクのクリックは除外
                     if (e.target.closest('button, a')) return;
+
                     const targetId = row.dataset.detailsTarget;
                     const detailsRow = document.getElementById(targetId);
                     if (detailsRow) {

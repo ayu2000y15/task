@@ -2,16 +2,15 @@
 @php
     $summary = $report['summary'];
     $hasLogs = $report['logs']->isNotEmpty();
-    // ▼▼▼【ここから修正】'user_holiday'を'work_shift'に変更 ▼▼▼
     $holidayName = optional($report['public_holiday'])->name;
     if ($report['work_shift'] && in_array($report['work_shift']->type, ['full_day_off', 'am_off', 'pm_off'])) {
         $holidayName = $report['work_shift']->name;
     }
 @endphp
-<tr class="{{ $rowClass }} @if($hasLogs) summary-row hover:bg-gray-50 dark:hover:bg-gray-700/50 @endif" @if($hasLogs)
-data-details-target="details-{{ $date->format('Y-m-d') }}" @endif>
+<tr class="{{ $rowClass }} @if($hasLogs || $summary->breaks->isNotEmpty()) summary-row hover:bg-gray-50 dark:hover:bg-gray-700/50 @endif"
+    @if($hasLogs || $summary->breaks->isNotEmpty()) data-details-target="details-{{ $date->format('Y-m-d') }}" @endif>
     <td class="px-2 py-3 text-center">
-        @if($hasLogs)
+        @if($hasLogs || $summary->breaks->isNotEmpty())
             <i class="fas fa-chevron-down details-icon text-gray-400"></i>
         @endif
     </td>
@@ -36,17 +35,26 @@ data-details-target="details-{{ $date->format('Y-m-d') }}" @endif>
     <td class="px-2 py-3 font-mono text-sm font-semibold">{{ gmdate('H:i:s', $report['worklog_total_seconds']) }}</td>
     <td class="px-2 py-3 font-mono text-sm">¥{{ number_format($summary->daily_salary) }}</td>
     <td class="px-2 py-3 text-center">
+        @php
+            // モーダルに渡すための休憩データを作成
+            $breaksForModal = $summary->breaks->map(fn($b) => [
+                'type' => $b->type,
+                'start_time' => $b->start_time->format('H:i'),
+                'end_time' => $b->end_time->format('H:i'),
+            ]);
+        @endphp
         <button
-            @click="openEditModal('{{ $date->format('Y-m-d') }}', '{{ optional($summary->start_time)->format('H:i') }}', '{{ optional($summary->end_time)->format('H:i') }}', '{{ floor($summary->break_seconds / 60) }}', '{{ e($summary->note) }}')"
+            @click="openEditModal('{{ $date->format('Y-m-d') }}', '{{ optional($summary->start_time)->format('H:i') }}', '{{ optional($summary->end_time)->format('H:i') }}', '{{ json_encode($breaksForModal) }}', '{{ e($summary->note) }}')"
             class="text-blue-500 hover:text-blue-700 text-xs">編集</button>
     </td>
 </tr>
-@if($hasLogs)
+@if($hasLogs || $summary->breaks->isNotEmpty())
     @include('admin.attendances.partials.details-row', [
         'date' => $date,
         'logs' => $report['logs'],
         'sessionIndex' => null,
         'startTime' => $summary->start_time,
-        'endTime' => $summary->end_time
+        'endTime' => $summary->end_time,
+        'manualBreaks' => $summary->breaks,
     ])
 @endif

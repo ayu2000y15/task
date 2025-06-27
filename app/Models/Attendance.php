@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Carbon\Carbon;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
@@ -22,6 +23,7 @@ class Attendance extends Model
         'actual_work_seconds',
         'note',
         'status',
+        'daily_salary',
     ];
 
     protected $casts = [
@@ -31,6 +33,14 @@ class Attendance extends Model
         'break_seconds' => 'integer', // ▲ キャストを変更
         'actual_work_seconds' => 'integer',
     ];
+
+    /**
+     * 手動編集された休憩・中抜け時間とのリレーション
+     */
+    public function breaks(): HasMany
+    {
+        return $this->hasMany(AttendanceBreak::class);
+    }
 
     public function user(): BelongsTo
     {

@@ -28,6 +28,8 @@ namespace App\Models{
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \Spatie\Activitylog\Models\Activity> $activities
  * @property-read int|null $activities_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\AttendanceBreak> $breaks
+ * @property-read int|null $breaks_count
  * @property-read int $attendance_seconds
  * @property-read float $daily_salary
  * @property-read int $detention_seconds
@@ -48,6 +50,32 @@ namespace App\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Attendance whereUserId($value)
  */
 	class Attendance extends \Eloquent {}
+}
+
+namespace App\Models{
+/**
+ * 
+ *
+ * @property int $id
+ * @property int $attendance_id
+ * @property string $type
+ * @property \Illuminate\Support\Carbon $start_time
+ * @property \Illuminate\Support\Carbon $end_time
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\Attendance $attendance
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AttendanceBreak newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AttendanceBreak newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AttendanceBreak query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AttendanceBreak whereAttendanceId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AttendanceBreak whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AttendanceBreak whereEndTime($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AttendanceBreak whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AttendanceBreak whereStartTime($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AttendanceBreak whereType($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AttendanceBreak whereUpdatedAt($value)
+ */
+	class AttendanceBreak extends \Eloquent {}
 }
 
 namespace App\Models{
@@ -1528,6 +1556,7 @@ namespace App\Models{
  * @property string $name
  * @property string $email
  * @property string|null $access_id
+ * @property \Illuminate\Support\Carbon|null $last_access
  * @property \Illuminate\Support\Carbon|null $email_verified_at
  * @property string $status
  * @property string|null $hourly_rate
@@ -1576,6 +1605,7 @@ namespace App\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereEmailVerifiedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereHourlyRate($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereLastAccess($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereName($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User wherePassword($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereRememberToken($value)
