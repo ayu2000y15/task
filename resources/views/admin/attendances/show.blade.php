@@ -239,7 +239,6 @@
                 },
                 clearData() {
                     if (confirm(`${this.modal.date} のデータをクリアします。よろしいですか？`)) {
-                        // clearDataは休憩データもクリアするように空の配列を渡す
                         this.submitData({
                             start_time: '',
                             end_time: '',
@@ -249,6 +248,7 @@
                         this.closeEditModal();
                     }
                 },
+                // ▼▼▼【ここから修正】submitData関数内のエラーハンドリングを強化 ▼▼▼
                 submitData(payload) {
                     const url = `/admin/attendances/{{ $user->id }}/${this.modal.date}`;
                     fetch(url, {
@@ -260,7 +260,13 @@
                         },
                         body: JSON.stringify(payload)
                     })
-                        .then(res => res.ok ? res.json() : Promise.reject(res))
+                        .then(res => {
+                            if (res.ok) {
+                                return res.json();
+                            }
+                            // res.okでない場合(4xx, 5xxエラー)、レスポンスをPromise.rejectに渡す
+                            return Promise.reject(res);
+                        })
                         .then(data => {
                             if (data.success) {
                                 window.location.reload();
@@ -269,10 +275,24 @@
                             }
                         })
                         .catch(err => {
-                            alert('エラーが発生しました。');
-                            console.error(err);
+                            // rejectされたレスポンスをここで処理する
+                            if (err instanceof Response && err.status === 422) {
+                                // 422エラー(バリデーションエラー)の場合
+                                err.json().then(errorData => {
+                                    // errorsオブジェクトからエラーメッセージを抽出
+                                    const messages = Object.values(errorData.errors).flat();
+                                    // 複数のエラーメッセージを改行で連結して表示
+                                    const errorMessage = messages.join('\n');
+                                    alert(errorMessage);
+                                });
+                            } else {
+                                // 500エラーやネットワークエラーなど、その他のエラーの場合
+                                alert('エラーが発生しました。');
+                                console.error(err);
+                            }
                         });
                 }
+                // ▲▲▲【ここまで修正】▲▲▲
             }));
         });
 
@@ -280,7 +300,6 @@
         document.addEventListener('DOMContentLoaded', function () {
             document.querySelectorAll('.summary-row').forEach(row => {
                 row.addEventListener('click', (e) => {
-                    // ボタンやリンクのクリックは除外
                     if (e.target.closest('button, a')) return;
 
                     const targetId = row.dataset.detailsTarget;

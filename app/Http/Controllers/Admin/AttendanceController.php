@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Carbon\Carbon;
 use App\Models\AttendanceBreak;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class AttendanceController extends Controller
 {
@@ -162,58 +163,104 @@ class AttendanceController extends Controller
 
         $targetDate = Carbon::parse($date);
 
-        DB::transaction(function () use ($validated, $user, $targetDate) {
-            // 既存の勤怠データを取得
-            $attendance = Attendance::where('user_id', $user->id)->where('date', $targetDate)->first();
-
-            // ▼▼▼【重要】ここがエラーの発生箇所です ▼▼▼
-            // 勤怠データが存在する場合にのみ、関連する休憩データを削除する
-            if ($attendance) {
-                $attendance->breaks()->delete();
-            }
-            // ▲▲▲ この if ($attendance) のチェックが重要です ▲▲▲
-
-            // 出勤・退勤時刻がなければ勤怠データごと削除して処理を終了
-            if (empty($validated['start_time']) || empty($validated['end_time'])) {
+        // --- 出勤・退勤時刻がなければ勤怠データごと削除 ---
+        if (empty($validated['start_time']) || empty($validated['end_time'])) {
+            DB::transaction(function () use ($user, $targetDate) {
+                $attendance = Attendance::where('user_id', $user->id)->where('date', $targetDate)->first();
                 if ($attendance) {
+                    $attendance->breaks()->delete();
                     $attendance->delete();
                 }
-                return;
-            }
+            });
+            return response()->json(['success' => true, 'message' => 'データをクリアしました。']);
+        }
 
-            // 時刻をDateTimeオブジェクトに変換
-            $startTime = $targetDate->copy()->setTimeFromTimeString($validated['start_time']);
-            $endTime = $targetDate->copy()->setTimeFromTimeString($validated['end_time']);
-            if ($endTime <= $startTime) {
-                $endTime->addDay();
-            }
 
-            // 休憩時間の合計を計算
-            $totalBreakSeconds = 0;
-            if (!empty($validated['breaks'])) {
-                foreach ($validated['breaks'] as $break) {
-                    if (empty($break['start_time']) || empty($break['end_time'])) continue;
-                    $breakStart = $targetDate->copy()->setTimeFromTimeString($break['start_time']);
-                    $breakEnd = $targetDate->copy()->setTimeFromTimeString($break['end_time']);
-                    if ($breakEnd <= $breakStart) {
+        // --- 1. 勤務時間と休憩時間のDateTimeオブジェクトを準備 ---
+        $shiftStart = $targetDate->copy()->setTimeFromTimeString($validated['start_time']);
+        $shiftEnd = $targetDate->copy()->setTimeFromTimeString($validated['end_time']);
+        if ($shiftEnd->lte($shiftStart)) {
+            $shiftEnd->addDay();
+        }
+
+        $breakIntervals = []; // 休憩期間を格納する配列
+        if (!empty($validated['breaks'])) {
+            foreach ($validated['breaks'] as $index => $breakData) {
+                if (empty($breakData['start_time']) || empty($breakData['end_time'])) continue;
+
+                // 休憩時間の日付またぎを正確に処理する
+                $breakStart = $targetDate->copy()->setTimeFromTimeString($breakData['start_time']);
+                $breakEnd = $targetDate->copy()->setTimeFromTimeString($breakData['end_time']);
+
+                // 勤務開始時刻より休憩開始時刻が早い場合、休憩は翌日と判断
+                if ($breakStart->lt($shiftStart)) {
+                    $breakStart->addDay();
+                    // 終了時刻も同様に調整が必要になる可能性がある
+                    if ($breakEnd->lt($breakStart)) {
                         $breakEnd->addDay();
                     }
-                    $totalBreakSeconds += $breakStart->diffInSeconds($breakEnd);
+                }
+                // 上記調整後、純粋に休憩自体が日付をまたぐ場合
+                if ($breakEnd->lte($breakStart)) {
+                    $breakEnd->addDay();
+                }
+
+                $breakIntervals[$index] = [
+                    'start' => $breakStart,
+                    'end' => $breakEnd,
+                    'type' => $breakData['type'],
+                ];
+            }
+        }
+
+        // --- 2. バリデーションチェック ---
+        $totalBreakSeconds = 0;
+        foreach ($breakIntervals as $index => $interval) {
+            // [バリデーション] 休憩が勤務時間の範囲外でないか
+            if ($interval['start']->lt($shiftStart) || $interval['end']->gt($shiftEnd)) {
+                throw ValidationException::withMessages([
+                    'breaks.' . $index . '.start_time' => "休憩時間が勤務時間の範囲外です。",
+                ]);
+            }
+            $totalBreakSeconds += $interval['start']->diffInSeconds($interval['end']);
+        }
+
+        // [バリデーション] 休憩の合計が拘束時間を超えていないか
+        $detentionSeconds = $shiftStart->diffInSeconds($shiftEnd);
+        if ($totalBreakSeconds > $detentionSeconds) {
+            throw ValidationException::withMessages(['breaks.0.start_time' => '休憩時間の合計が拘束時間を超えています。']);
+        }
+
+        // [バリデーション] 休憩時間同士が重複していないか
+        $count = count($breakIntervals);
+        for ($i = 0; $i < $count; $i++) {
+            for ($j = $i + 1; $j < $count; $j++) {
+                $a_start = $breakIntervals[$i]['start'];
+                $a_end = $breakIntervals[$i]['end'];
+                $b_start = $breakIntervals[$j]['start'];
+                $b_end = $breakIntervals[$j]['end'];
+
+                if ($a_start->lt($b_end) && $a_end->gt($b_start)) {
+                    throw ValidationException::withMessages([
+                        'breaks.' . $i . '.start_time' => '休憩時間が他の休憩時間と重複しています。',
+                        'breaks.' . $j . '.start_time' => '', // 片方だけで良い
+                    ]);
                 }
             }
+        }
 
-            // 日給の計算
-            $detentionSeconds = $endTime->diffInSeconds($startTime);
-            $payableWorkSeconds = max(0, $detentionSeconds - $totalBreakSeconds);
-            $rate = $user->getHourlyRateForDate($targetDate);
-            $dailySalary = $rate > 0 ? round(($payableWorkSeconds / 3600) * $rate) : 0;
+        // --- 3. 日給計算 ---
+        $rate = $user->getHourlyRateForDate($targetDate);
+        $payableWorkSeconds = max(0, $detentionSeconds - $totalBreakSeconds);
+        $dailySalary = ($rate > 0) ? round(($payableWorkSeconds / 3600) * $rate) : 0;
 
-            // 勤怠データの保存 (存在しなければ作成、あれば更新)
+        // --- 4. データベースへの保存 ---
+        DB::transaction(function () use ($user, $targetDate, $shiftStart, $shiftEnd, $totalBreakSeconds, $payableWorkSeconds, $dailySalary, $validated, $breakIntervals) {
             $attendance = Attendance::updateOrCreate(
                 ['user_id' => $user->id, 'date' => $targetDate->format('Y-m-d')],
                 [
-                    'start_time' => $startTime,
-                    'end_time' => $endTime,
+                    'start_time' => $shiftStart,
+                    'end_time' => $shiftEnd,
                     'break_seconds' => $totalBreakSeconds,
                     'actual_work_seconds' => $payableWorkSeconds,
                     'note' => $validated['note'],
@@ -222,22 +269,16 @@ class AttendanceController extends Controller
                 ]
             );
 
-            // 休憩・中抜けデータの保存
-            if (!empty($validated['breaks'])) {
-                foreach ($validated['breaks'] as $break) {
-                    if (empty($break['start_time']) || empty($break['end_time'])) continue;
-                    $breakStart = $targetDate->copy()->setTimeFromTimeString($break['start_time']);
-                    $breakEnd = $targetDate->copy()->setTimeFromTimeString($break['end_time']);
-                    if ($breakEnd <= $breakStart) $breakEnd->addDay();
-
-                    $attendance->breaks()->create([
-                        'type' => $break['type'],
-                        'start_time' => $breakStart,
-                        'end_time' => $breakEnd,
-                    ]);
-                }
+            $attendance->breaks()->delete();
+            foreach ($breakIntervals as $interval) {
+                $attendance->breaks()->create([
+                    'type' => $interval['type'],
+                    'start_time' => $interval['start'],
+                    'end_time' => $interval['end'],
+                ]);
             }
         });
+
 
         return response()->json(['success' => true, 'message' => '更新しました。']);
     }
