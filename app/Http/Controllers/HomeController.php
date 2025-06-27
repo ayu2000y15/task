@@ -125,11 +125,28 @@ class HomeController extends Controller
 
         // 現在進行中（タイマーが作動中）の作業ログを取得します
         // タスクごとに最新の1件に絞り込み、関連データも一緒に読み込みます
-        $runningWorkLogs = WorkLog::where('status', 'active')
-            ->with(['task.project', 'task.assignees', 'user'])
-            ->latest('start_time') // 新しく開始されたものを上に
-            ->get()
-            ->unique('task_id'); // 同じタスクが複数あっても1つにまとめる
+        $allActiveLogs = WorkLog::where('status', 'active')
+            ->with(['task.project', 'task.assignees', 'user']) // 必要なリレーションを全てここで読み込む
+            ->get();
+
+        // 作業中の全ユーザーIDの配列（オンラインメンバー表示用）
+        $workingUserIds = $allActiveLogs->pluck('user_id')->unique()->all();
+
+        // 表示用のユニークなタスクリストを作成（同じタスクは1つにまとめる）
+        $runningWorkLogs = $allActiveLogs->unique('task_id');
+
+        // タスクIDをキー、作業中ユーザーのコレクションをバリューとするマップを作成
+        $workingUsersByTask = $allActiveLogs
+            ->filter(fn($log) => $log->user && $log->task)
+            ->groupBy('task_id')
+            ->map(fn($logs) => $logs->pluck('user'));
+
+        // 表示用リストの各タスクに、作業中ユーザーの情報をプロパティとして付加する
+        $runningWorkLogs->each(function ($log) use ($workingUsersByTask) {
+            if ($log->task) {
+                $log->task->workingUsers = $workingUsersByTask->get($log->task_id, collect());
+            }
+        });
 
         $productivitySummaries = $productivityService->getSummariesForAllActiveUsers();
 
@@ -143,7 +160,8 @@ class HomeController extends Controller
             'targetDate',
             'runningWorkLogs',
             'productivitySummaries',
-            'onlineUsers'
+            'onlineUsers',
+            'workingUserIds' // ★ workingUserIds をビューに渡す
         ));
     }
 }

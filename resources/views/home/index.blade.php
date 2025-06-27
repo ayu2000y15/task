@@ -58,7 +58,13 @@
                                                 {{-- 担当者 --}}
                                                 @if($task->assignees->isNotEmpty())
                                                 <p class="text-xs text-gray-500 dark:text-gray-400 truncate mt-1" title="担当: {{ $task->assignees->pluck('name')->join(', ') }}">
-                                                    <i class="fas fa-user fa-fw mr-1 text-gray-400"></i>{{ $task->assignees->pluck('name')->join(', ') }}
+                                                    <i class="fas fa-users fa-fw mr-1 text-gray-400"></i>担当: {{ $task->assignees->pluck('name')->join(', ') }}
+                                                </p>
+                                                @endif
+                                                {{-- 作業中のメンバー --}}
+                                                @if(isset($task->workingUsers) && $task->workingUsers->isNotEmpty())
+                                                <p class="text-xs text-blue-600 dark:text-blue-400 font-semibold truncate mt-1" title="作業中: {{ $task->workingUsers->pluck('name')->join(', ') }}">
+                                                    <i class="fas fa-play-circle fa-fw mr-1 animate-pulse"></i>作業中: {{ $task->workingUsers->pluck('name')->join(', ') }}
                                                 </p>
                                                 @endif
                                                 {{-- 期限 --}}
@@ -262,22 +268,30 @@
                         @php
                             // ステータスごとのラベルとスタイルを定義
                             $statusLabels = [
-                                'working'  => '出勤中',
-                                'on_break' => '休憩中',
-                                'on_away'  => '中抜け中',
+                                'working'     => '作業進行中',
+                                'on_break'    => '休憩中',
+                                'on_away'     => '中抜け中',
+                                'not_working' => '作業未着手',
                             ];
                             $statusClasses = [
-                                'working'  => 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
-                                'on_break' => 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
-                                'on_away'  => 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300',
+                                'working'     => 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300',
+                                'on_break'    => 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
+                                'on_away'     => 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300',
+                                'not_working' => 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300',
                             ];
                         @endphp
                         <ul class="divide-y divide-gray-200 dark:divide-gray-700">
                             @foreach($onlineUsers as $log)
+                                @php
+                                    $displayStatusKey = $log->current_status;
+                                    if ($log->current_status === 'working' && !in_array($log->user->id, $workingUserIds)) {
+                                        $displayStatusKey = 'not_working';
+                                    }
+                                @endphp
                                 <li class="px-6 py-3 flex items-center justify-between">
                                     <span class="text-sm font-medium text-gray-800 dark:text-gray-200">{{ $log->user->name }}</span>
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ $statusClasses[$log->current_status] ?? '' }}">
-                                        {{ $statusLabels[$log->current_status] ?? '不明' }}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ $statusClasses[$displayStatusKey] ?? '' }}">
+                                        {{ $statusLabels[$displayStatusKey] ?? '不明' }}
                                     </span>
                                 </li>
                             @endforeach

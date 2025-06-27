@@ -4,7 +4,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\AuthenticatedSessionController; // 既存のコントローラを参考にAPI用を作成
 use App\Http\Controllers\ProjectController;
-
 // ログインAPI
 Route::post('/login', [AuthenticatedSessionController::class, 'storeApi']); // API用のログインメソッドを新規作成
 

@@ -22,6 +22,34 @@ class AttendanceController extends Controller
 
         $user = Auth::user();
         $type = $request->input('type');
+        $currentStatus = $user->getCurrentAttendanceStatus(); // 現在のステータスを先に取得
+
+        // ▼▼▼【ここから変更】状態の不整合をチェックするロジックを追加 ▼▼▼
+        $allowedActions = [
+            'clocked_out' => ['clock_in'],
+            'working'     => ['clock_out', 'break_start', 'away_start'],
+            'on_break'    => ['break_end'],
+            'on_away'     => ['away_end'],
+        ];
+
+        // 現在のステータスから許可されていないアクションが要求された場合
+        if (!isset($allowedActions[$currentStatus]) || !in_array($type, $allowedActions[$currentStatus])) {
+            // 人が読んで分かりやすいように、ステータスとアクションを日本語に変換
+            $currentStatusJapanese = [
+                'clocked_out' => '未出勤',
+                'working'     => '出勤中',
+                'on_break'    => '休憩中',
+                'on_away'     => '中抜け中',
+            ][$currentStatus] ?? '不明な状態';
+
+            $requestedActionJapanese = $this->getJapaneseActionName($type);
+
+            return response()->json([
+                'success' => false,
+                'message' => "現在の勤怠状態（{$currentStatusJapanese}）と要求された操作（{$requestedActionJapanese}）が一致しません。\n画面を更新してから再度ボタンを押してください。"
+            ], 409); // 409 Conflict: リソースの現在の状態と競合
+        }
+        // ▲▲▲【変更ここまで】▲▲▲
 
         if (in_array($type, ['clock_out', 'break_start', 'away_start'])) {
             if ($user->hasActiveWorkLog()) {
