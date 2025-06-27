@@ -165,6 +165,7 @@
                 <div class="mt-4">
                     <label class="block text-sm font-medium">退勤時間</label>
                     <input type="time" x-model="modal.end_time" class="mt-1 w-full dark:bg-gray-700 rounded-md">
+                    <p class="mt-1 text-red-500 text-xs">※出勤時間より早い時刻を選択した場合、翌日の退勤時間となります。</p>
                 </div>
                 <div class="mt-4">
                     <label class="block text-sm font-medium">休憩（分）</label>
