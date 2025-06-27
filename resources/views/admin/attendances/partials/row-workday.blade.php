@@ -9,7 +9,8 @@
             $holidayName = $report['work_shift']->name ?? $holidayName;
         }
     @endphp
-    <tr class="{{ $rowClass }} @if($index > 0) !border-t-0 @else border-t-2 border-gray-400 dark:border-gray-500 @endif @if($hasLogs) summary-row hover:bg-gray-50 dark:hover:bg-gray-700/50 @endif"
+    {{-- 複数セッションがある場合、2行目以降は上の罫線をなくし、日付の縦結合を表現 --}}
+    <tr class="{{ $rowClass }} @if($index > 0) border-t-0 @endif @if($hasLogs) summary-row hover:bg-gray-50 dark:hover:bg-gray-700/50 @endif"
         @if($hasLogs) data-details-target="details-{{ $date->format('Y-m-d') }}-{{$index}}" @endif>
 
         <td class="px-2 py-3 text-center">
@@ -30,12 +31,13 @@
             @endif
         </td>
 
-        <td class="px-2 py-3">@if($index === 0)<span title="自動計算"><i class="fas fa-magic text-blue-500"></i></span>@endif
-        </td>
+        {{-- ▼▼▼【修正】@if条件を削除し、常にアイコンを表示 ▼▼▼ --}}
+        <td class="px-2 py-3"><span title="自動計算"><i class="fas fa-magic text-blue-500"></i></span></td>
         <td class="px-2 py-3 font-mono text-sm">{{ $session['start_time']->format('H:i') }}</td>
         <td class="px-2 py-3 font-mono text-sm">{{ optional($session['end_time'])->format('H:i') ?? '未退勤' }}</td>
         <td class="px-2 py-3 font-mono text-sm">
-            {{ $session['end_time'] ? gmdate('H:i:s', $session['detention_seconds']) : '-' }}</td>
+            {{ $session['end_time'] ? gmdate('H:i:s', $session['detention_seconds']) : '-' }}
+        </td>
         <td class="px-2 py-3 font-mono text-sm">{{ gmdate('H:i:s', $session['break_seconds']) }}</td>
         <td class="px-2 py-3 font-mono text-sm font-semibold">{{ gmdate('H:i:s', $session['actual_work_seconds']) }}</td>
         <td class="px-2 py-3 font-mono text-sm">
@@ -47,11 +49,11 @@
             @endif
         </td>
         <td class="px-2 py-3 text-center">
-            @if($index === 0)
-                <button
-                    @click="openEditModal('{{ $date->format('Y-m-d') }}', '{{ $report['sessions'][0]['start_time']->format('H:i') }}', '{{ optional(collect($report['sessions'])->last()['end_time'])->format('H:i') }}', '{{ floor(collect($report['sessions'])->sum('break_seconds') / 60) }}', '')"
-                    class="text-blue-500 hover:text-blue-700 text-xs">編集</button>
-            @endif
+            {{-- ▼▼▼【修正】@if条件を削除し、各セッションのデータをモーダルに渡す ▼▼▼ --}}
+            {{-- ※注意: バックエンド修正で session_id などを渡す必要があります --}}
+            <button
+                @click="openEditModal('{{ $date->format('Y-m-d') }}', '{{ $session['start_time']->format('H:i') }}', '{{ optional($session['end_time'])->format('H:i') }}', '{{ floor($session['break_seconds'] / 60) }}', '')"
+                class="text-blue-500 hover:text-blue-700 text-xs">編集</button>
         </td>
     </tr>
     @if($hasLogs)

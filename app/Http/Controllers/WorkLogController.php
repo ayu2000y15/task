@@ -14,7 +14,7 @@ use App\Models\User;
 class WorkLogController extends Controller
 {
     /**
-     * 作業を開始する
+     * 作業を開始する (このメソッドは変更なし)
      */
     public function start(Request $request)
     {
@@ -115,24 +115,41 @@ class WorkLogController extends Controller
                 $targetUserIds->push($user->id);
             }
 
-            $logsToStop = WorkLog::where('task_id', $task->id)
+            $activeLogs = WorkLog::where('task_id', $task->id)
                 ->whereIn('user_id', $targetUserIds)
                 ->where('status', 'active')
                 ->get();
 
-            if ($logsToStop->isEmpty()) {
+            if ($activeLogs->isEmpty()) {
                 return response()->json(['error' => '停止対象の実行中の作業記録が見つかりません。'], 404);
             }
 
+            // ▼▼▼【ここから修正】日付またぎ処理を追加 ▼▼▼
+            $now = Carbon::now();
+            $finalLogsToStop = collect(); // 最終的に停止するログを格納するコレクション
+
+            foreach ($activeLogs as $log) {
+                if ($log->start_time->isBefore($now->copy()->startOfDay())) {
+                    // 日付をまたいでいる場合、ログを分割し、新しくできた当日分のログを停止対象にする
+                    $newLog = $this->handleOvernightWorkLog($log);
+                    $finalLogsToStop->push($newLog);
+                } else {
+                    // 日付をまたいでいない場合は、元のログをそのまま停止対象にする
+                    $finalLogsToStop->push($log);
+                }
+            }
+            // ▲▲▲【修正ここまで】▲▲▲
+
             $updateData = [
-                'end_time' => Carbon::now(),
+                'end_time' => $now,
                 'status' => 'stopped',
             ];
             if ($request->filled('memo')) {
                 $updateData['memo'] = $request->memo;
             }
 
-            WorkLog::whereIn('id', $logsToStop->pluck('id'))->update($updateData);
+            // 最終的な停止対象のログIDに対して更新を実行
+            WorkLog::whereIn('id', $finalLogsToStop->pluck('id'))->update($updateData);
 
             $otherActiveLogsCount = WorkLog::where('task_id', $task->id)
                 ->where('status', 'active')
@@ -177,12 +194,37 @@ class WorkLogController extends Controller
             $responsePayload['message'] = $message;
             $responsePayload['task_status'] = $finalTaskStatus;
             $responsePayload['is_paused'] = $taskIsPaused;
-
-            // ▼▼▼【変更】フロントエンド連携のため、最新の実行中ログを返す ▼▼▼
             $responsePayload['running_logs'] = WorkLog::where('user_id', Auth::user()->id)->where('status', 'active')->get();
-            // ▲▲▲【変更ここまで】▲▲▲
 
             return response()->json($responsePayload);
         });
     }
+
+    /**
+     * ▼▼▼【ここから追加】日付をまたいだ作業ログを分割するプライベートメソッド ▼▼▼
+     */
+    private function handleOvernightWorkLog(WorkLog $log): WorkLog
+    {
+        $endOfStartDay = $log->start_time->copy()->endOfDay(); // 開始日の23:59:59
+        $startOfNextDay = $endOfStartDay->copy()->addSecond();  // 翌日の00:00:00
+
+        // 元のログ（前日分）を更新して終了させる
+        $log->update([
+            'end_time' => $endOfStartDay,
+            'status'   => 'stopped',
+        ]);
+
+        // 新しいログ（当日分）を作成し、これを新たな「アクティブなログ」として返す
+        // この後、呼び出し元のstopByTaskでend_timeが設定される
+        $newLog = WorkLog::create([
+            'user_id'    => $log->user_id,
+            'task_id'    => $log->task_id,
+            'start_time' => $startOfNextDay,
+            'status'     => 'active',
+            'memo'       => '（日跨ぎ自動継続）',
+        ]);
+
+        return $newLog;
+    }
+    // ▲▲▲【追加ここまで】▲▲▲
 }
