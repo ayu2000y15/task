@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use App\Models\Tag;
 use Illuminate\Support\Str;
+use Illuminate\Database\Eloquent\Builder;
 
 class BoardPostController extends Controller
 {
@@ -431,5 +432,65 @@ class BoardPostController extends Controller
             'success' => true,
             'html' => $updatedHtml,
         ]);
+    }
+
+    /**
+     * 【追加】投稿の閲覧権限を持つユーザーをメンション候補として検索する
+     *
+     * @param Request $request
+     * @param BoardPost $post
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function searchMentionableUsers(Request $request, BoardPost $post): \Illuminate\Http\JsonResponse
+    {
+        $term = strtolower($request->query('query', ''));
+        $mentionableUserIds = collect();
+
+        // 1. 投稿者を常に候補に追加
+        $mentionableUserIds->push($post->user_id);
+
+        // 2. 閲覧権限に応じて候補ユーザーのIDリストを作成
+        if ($post->role_id) {
+            // ロールが指定されている場合、そのロールに所属するユーザーIDを取得
+            $roleUserIds = \App\Models\Role::find($post->role_id)->users()->pluck('id');
+            $mentionableUserIds = $mentionableUserIds->merge($roleUserIds);
+        } elseif ($post->readableUsers->isNotEmpty()) {
+            // 個別ユーザーが指定されている場合、そのユーザーIDを取得
+            $mentionableUserIds = $mentionableUserIds->merge($post->readableUsers->pluck('id'));
+        } else {
+            // 全公開の場合は、すべてのアクティブユーザーを対象とする
+            $allUserIds = \App\Models\User::where('status', \App\Models\User::STATUS_ACTIVE)->pluck('id');
+            $mentionableUserIds = $mentionableUserIds->merge($allUserIds);
+        }
+
+        // 3. 検索クエリを構築
+        $query = \App\Models\User::whereIn('id', $mentionableUserIds->unique())
+            ->where('status', \App\Models\User::STATUS_ACTIVE); // 念のためアクティブユーザーに限定
+
+        // 検索語（名前またはaccess_id）でさらに絞り込み
+        if ($term) {
+            $query->where(function (Builder $q) use ($term) {
+                $q->where('name', 'LIKE', "%{$term}%")
+                    ->orWhere('access_id', 'LIKE', "%{$term}%");
+            });
+        }
+
+        $users = $query->select('id', 'name', 'access_id')->take(10)->get();
+
+        // 4. フロントエンドが要求する形式にフォーマット
+        $results = $users->map(function ($user) {
+            return ['id' => $user->access_id, 'text' => $user->name];
+        });
+
+        // 5. `@all` の候補を追加するロジック
+        if (\Illuminate\Support\Str::startsWith('all', $term)) {
+            $allMention = collect([
+                ['id' => 'all', 'text' => '全員にメンション (@all)']
+            ]);
+            // ユーザーリストの先頭に @all を追加
+            $results = $allMention->concat($results);
+        }
+
+        return response()->json($results);
     }
 }

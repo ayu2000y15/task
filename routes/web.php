@@ -150,8 +150,10 @@ Route::middleware('auth')->group(function () {
     // 社内掲示板
     // -------------------------------------------------------------------------
     Route::prefix('community')->name('community.')->middleware(['can:viewAny,App\Models\BoardPost'])->group(function () {
-        Route::resource('posts', BoardPostController::class);
+        Route::get('posts/{post}/search-users', [BoardPostController::class, 'searchMentionableUsers'])
+            ->name('posts.users.search');
 
+        Route::resource('posts', BoardPostController::class);
         // コメント投稿
         Route::post('posts/{post}/comments', [BoardCommentController::class, 'store'])->name('posts.comments.store');
         // メンション用のユーザー検索ルート

@@ -24,8 +24,9 @@
              * メンション機能付きTinyMCEエディタを初期化する共通関数
              * @param {string} selector - TinyMCEを適用する要素のCSSセレクタ
              * @param {number} height - エディタの高さ
+             * @param {number|null} postId - 関連する投稿のID。nullの場合は従来の検索を使う
              */
-            function initializeMentionEditor(selector, height) {
+            function initializeMentionEditor(selector, height, postId = null) {
                 tinymce.init({
                     selector: selector,
                     height: height,
@@ -81,7 +82,16 @@
                         };
 
                         const fetchUsers = (term) => {
-                            fetch(`{{ route('community.users.search') }}?query=${encodeURIComponent(term)}`)
+                            let url;
+                            if (postId) {
+                                // 新しいルートを使用
+                                url = `/community/posts/${postId}/search-users?query=${encodeURIComponent(term)}`;
+                            } else {
+                                // 従来のルート（フォールバック用）
+                                url = `{{ route('community.users.search') }}?query=${encodeURIComponent(term)}`;
+                            }
+
+                            fetch(url)
                                 .then(response => response.json())
                                 .then(users => showSuggestions(users))
                                 .catch(() => hideSuggestions());
@@ -139,7 +149,7 @@
             }
 
             // --- 新規コメント欄のエディタを初期化 ---
-            initializeMentionEditor('textarea#comment_body_editor', 200);
+            initializeMentionEditor('textarea#comment_body_editor', 200, {{ $post->id }});
 
             // --- 各機能のイベントリスナーをセットアップ ---
             const postReactionsContainer = document.getElementById('reactions-container');
@@ -220,7 +230,7 @@
                         const editorId = `comment-editor-${commentId}`;
                         commentContainer.querySelector('.comment-display-area').style.display = 'none';
                         commentContainer.querySelector('.comment-edit-form').style.display = 'block';
-                        initializeMentionEditor(`#${editorId}`, 150);
+                        initializeMentionEditor(`#${editorId}`, 150, {{ $post->id }});
                     }
                     else if (cancelBtn) {
                         e.preventDefault();
