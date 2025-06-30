@@ -1447,6 +1447,7 @@ namespace App\Models{
  * @property-read int|null $files_count
  * @property-read string|null $formatted_duration
  * @property-read mixed $level
+ * @property-read int $total_work_seconds
  * @property-read Task|null $parent
  * @property-read \App\Models\Project $project
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\WorkLog> $workLogs

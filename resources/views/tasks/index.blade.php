@@ -90,18 +90,18 @@
             </div>
             <div class="mt-3">
                 <div x-show="activeTab === 'tasks'" id="tasks-panel" role="tabpanel">
-                    <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
+                    <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-visible">
                         <div
-                            class="px-4 sm:px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row justify-between items-center gap-2">
+                            class="z-10 px-4 sm:px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row justify-between items-center gap-2">
                             <h5 class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-0">工程一覧</h5>
                         </div>
-                        <div id="task-table-container" class="overflow-x-auto overflow-y-auto max-h-[65vh]">
+                        <div id="task-table-container" class="relative z-10 overflow-x-auto overflow-y-auto max-h-[65vh]">
                             @include('tasks.partials.task-table', ['tasksToList' => $tasks->where('is_milestone', false)->where('is_folder', false), 'tableId' => 'tasks-list-table'])
                         </div>
                     </div>
                 </div>
                 <div x-show="activeTab === 'milestones'" id="milestones-panel" role="tabpanel">
-                    <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
+                    <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-visible">
                         <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
                             <h5 class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-0">予定一覧</h5>
                         </div>

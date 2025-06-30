@@ -23,7 +23,8 @@
     data-task-id="{{ $task->id }}"
     data-project-id="{{ $task->project_id }}"
     @if(!empty($task->description)) data-task-description="{{ htmlspecialchars($task->description) }}" @endif
-    data-progress="{{ $task->progress ?? 0 }}">
+    data-progress="{{ $task->progress ?? 0 }}"
+    data-duration="{{ $task->duration ?? 0 }}">
 
     {{-- フォルダ以外の表示 (通常の工程または予定) --}}
     <td class="px-4 py-3 align-top">
@@ -62,6 +63,24 @@
             @endif
         @else
             <span class="text-xs text-gray-400 dark:text-gray-500">-</span>
+        @endif
+    </td>
+    <td class="px-4 py-3 align-top whitespace-nowrap text-sm font-mono">
+        @if(!$task->is_milestone && !$task->is_folder)
+            <div class="task-actual-time-display" data-task-id="{{ $task->id }}">
+                {{-- ▼▼▼【修正】タイマー停止中の初期表示ロジック ▼▼▼ --}}
+                @if (!($task->status === 'in_progress' && !$task->is_paused) && $task->total_work_seconds > 0)
+                    @php
+                        $remainingSeconds = ($task->duration ?? 0) * 60 - $task->total_work_seconds;
+                        $isOver = $remainingSeconds < 0;
+                    @endphp
+                    <span class="{{ $isOver ? 'text-red-500 font-bold' : '' }}">
+                        {{ ($isOver ? '+' : '') . format_seconds_to_hms( abs($remainingSeconds)) }}
+                    </span>
+                @endif
+            </div>
+        @else
+            -
         @endif
     </td>
     <td class="px-4 py-3 text-sm text-gray-900 dark:text-gray-100 align-top">

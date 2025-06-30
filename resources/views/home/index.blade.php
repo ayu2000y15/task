@@ -126,13 +126,53 @@
                         <h5 class="text-lg font-semibold text-gray-700 dark:text-gray-300 flex items-center">
                             <i class="fas fa-chart-line mr-2 text-purple-500"></i>
                             全ユーザーの生産性
-                        <i class="far fa-question-circle text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-help ml-2"
-                               title="【生産性バーの見方】
-                                ■ バー全体：その日（または月）の総拘束時間（最初の出勤から最後の退勤まで）を表します。
-                                ■ 青色（作業）：作業ログに記録された、実際のタスクに費やされた時間です。
-                                ■ 黄色（休憩等）：勤怠ログに記録された、休憩や中抜けの時間です。
-                                ■ 灰色（その他）：上記のいずれにも分類されない時間です。会議や準備、移動、または記録されていない作業などが含まれます。
-                                "></i>
+                            <div x-data="{
+                                tooltipOpen: false,
+                                tooltipStyles: { top: '0px', left: '0px' }
+                             }"
+                             @click.away="tooltipOpen = false"
+                             @click.stop {{-- 親要素の@clickイベントが発火しないようにする --}}
+                             class="relative ml-2">
+
+                            <button @click="
+                                        tooltipOpen = !tooltipOpen;
+                                        if (tooltipOpen) {
+                                            $nextTick(() => {
+                                                const trigger = $el;
+                                                const tooltip = $refs.tooltip;
+                                                const rect = trigger.getBoundingClientRect();
+                                                let top = rect.top - tooltip.offsetHeight - 8;
+                                                let left = rect.left + (rect.width / 2) - (tooltip.offsetWidth / 2);
+                                                if (left < 0) left = 4;
+                                                if ((left + tooltip.offsetWidth) > window.innerWidth) left = window.innerWidth - tooltip.offsetWidth - 4;
+                                                tooltipStyles.top = `${top}px`;
+                                                tooltipStyles.left = `${left}px`;
+                                            });
+                                        }
+                                    "
+                                    type="button" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 focus:outline-none" aria-label="ヘルプ">
+                                <i class="far fa-question-circle cursor-help"></i>
+                            </button>
+
+                            <template x-teleport="body">
+                                <div x-ref="tooltip"
+                                     x-show="tooltipOpen"
+                                     :style="tooltipStyles"
+                                     x-transition
+                                     class="fixed z-[9999] w-72 p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl"
+                                     style="display: none;">
+                                    <p class="text-sm font-semibold text-gray-800 dark:text-gray-100 normal-case mb-2">
+                                        生産性バーの見方
+                                    </p>
+                                    <ul class="text-xs font-normal text-gray-600 dark:text-gray-300 normal-case space-y-2 list-none">
+                                        <li class="flex items-start"><i class="fas fa-square text-gray-400 mt-1 mr-2"></i><span><strong>バー全体:</strong> その日の総拘束時間（最初の出勤から最後の退勤まで）を表します。</span></li>
+                                        <li class="flex items-start"><i class="fas fa-square text-blue-500 mt-1 mr-2"></i><span><strong>作業:</strong> タスクに費やされた実際の作業時間です。</span></li>
+                                        <li class="flex items-start"><i class="fas fa-square text-yellow-400 mt-1 mr-2"></i><span><strong>休憩等:</strong> 休憩や中抜けの時間です。</span></li>
+                                        <li class="flex items-start"><i class="fas fa-square text-gray-300 dark:text-gray-500 mt-1 mr-2"></i><span><strong>その他:</strong> 上記以外の時間です（会議、準備、記録外作業など）。</span></li>
+                                    </ul>
+                                </div>
+                            </template>
+                        </div>
                         </h5>
                         <button aria-label="生産性を展開/折りたたむ">
                             <i class="fas fa-fw transition-transform" :class="open ? 'fa-chevron-up' : 'fa-chevron-down'"></i>

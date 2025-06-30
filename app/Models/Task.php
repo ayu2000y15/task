@@ -194,6 +194,20 @@ class Task extends Model
     }
 
     /**
+     * このタスクの総作業時間（秒）を取得する
+     *
+     * @return int
+     */
+    public function getTotalWorkSecondsAttribute(): int
+    {
+        // N+1問題を避けるため、リレーションがロードされているか確認
+        if (! $this->relationLoaded('workLogs')) {
+            $this->load('workLogs');
+        }
+        return $this->workLogs->sum('effective_duration');
+    }
+
+    /**
      * 特定のユーザーのこのタスクにおける現在アクティブな作業ログを取得
      */
     public function getActiveWorkLogForUser(User $user)

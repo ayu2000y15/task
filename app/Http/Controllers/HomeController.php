@@ -41,7 +41,7 @@ class HomeController extends Controller
         $workItemsByAssignee = [];
 
         // --- データソースA: 指定日のタスクを取得 ---
-        $todaysTasks = Task::with(['project', 'character', 'assignees'])
+        $todaysTasks = Task::with(['project', 'character', 'assignees', 'workLogs'])
             ->where('is_milestone', false)->where('is_folder', false)
             ->whereNotIn('status', ['cancelled']) // ★完了タスクは除外
             ->whereDate('start_date', '<=', $targetDate)

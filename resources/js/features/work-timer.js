@@ -1,5 +1,135 @@
 // resources/js/features/work-timer.js
 
+// ▼▼▼【ここから追加】タイマー表示関連のグローバル変数と関数 ▼▼▼
+let activeTimerUpdaters = {};
+let globalTimerInterval = null;
+
+/**
+ * 秒数を HH:MM:SS 形式の文字列にフォーマットする
+ * @param {number} totalSeconds - 総秒数
+ * @returns {string} フォーマットされた時間文字列
+ */
+function formatDuration(totalSeconds) {
+    const isNegative = totalSeconds < 0;
+    if (isNegative) {
+        totalSeconds = -totalSeconds;
+    }
+
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = Math.floor(totalSeconds % 60);
+
+    const formatted = [
+        hours.toString().padStart(2, "0"),
+        minutes.toString().padStart(2, "0"),
+        seconds.toString().padStart(2, "0"),
+    ].join(":");
+
+    return (isNegative ? "-" : "") + formatted;
+}
+
+/**
+ * すべてのアクティブなタイマー表示を更新する
+ */
+function updateAllRunningTimers() {
+    const now = new Date();
+    Object.keys(activeTimerUpdaters).forEach((taskId) => {
+        const updater = activeTimerUpdaters[taskId];
+        const displayCell = document.querySelector(
+            `.task-actual-time-display[data-task-id="${taskId}"]`
+        );
+
+        if (displayCell && updater) {
+            const currentSessionElapsedTime = (now - updater.startTime) / 1000; // 秒
+            const totalElapsedTime =
+                updater.totalPastWorkSeconds + currentSessionElapsedTime;
+            const remainingTime =
+                updater.durationMinutes * 60 - totalElapsedTime;
+
+            displayCell.textContent = formatDuration(remainingTime);
+
+            if (remainingTime < 0) {
+                displayCell.classList.add("text-red-500", "font-bold");
+            } else {
+                displayCell.classList.remove("text-red-500", "font-bold");
+            }
+        } else {
+            // 表示要素が見つからない場合はタイマーを停止
+            stopActualTimeUpdater(taskId);
+        }
+    });
+}
+
+/**
+ * 特定のタスクのリアルタイム時間表示を開始する
+ * @param {string} taskId
+ * @param {string} startTimeIso
+ * @param {number} durationMinutes
+ * @param {number} totalPastWorkSeconds -【追加】過去の総作業時間（秒）
+ */
+function startActualTimeUpdater(
+    taskId,
+    startTimeIso,
+    durationMinutes,
+    totalPastWorkSeconds
+) {
+    if (!taskId || !startTimeIso) return;
+
+    activeTimerUpdaters[taskId] = {
+        startTime: new Date(startTimeIso),
+        durationMinutes: durationMinutes || 0,
+        totalPastWorkSeconds: totalPastWorkSeconds || 0,
+    };
+
+    if (!globalTimerInterval) {
+        globalTimerInterval = setInterval(updateAllRunningTimers, 1000);
+    }
+}
+
+/**
+ * 特定のタスクのリアルタイム時間表示を停止する
+ */
+function stopActualTimeUpdater(taskId) {
+    const updater = activeTimerUpdaters[taskId];
+    const now = new Date();
+
+    delete activeTimerUpdaters[taskId];
+
+    if (Object.keys(activeTimerUpdaters).length === 0 && globalTimerInterval) {
+        clearInterval(globalTimerInterval);
+        globalTimerInterval = null;
+    }
+
+    if (updater) {
+        const displayCell = document.querySelector(
+            `.task-actual-time-display[data-task-id="${taskId}"]`
+        );
+        if (displayCell) {
+            const currentSessionElapsedTime = (now - updater.startTime) / 1000;
+            const finalWorkSeconds =
+                updater.totalPastWorkSeconds + currentSessionElapsedTime;
+
+            const row = document.querySelector(`tr[data-task-id="${taskId}"]`);
+            if (row) {
+                // 次回開始時のためにデータ属性も更新
+                row.dataset.totalWorkSeconds = finalWorkSeconds;
+            }
+
+            const durationMinutes = updater.durationMinutes;
+            const remainingTime = durationMinutes * 60 - finalWorkSeconds;
+
+            displayCell.textContent = formatDuration(remainingTime);
+
+            if (remainingTime < 0) {
+                displayCell.classList.add("text-red-500", "font-bold");
+            } else {
+                displayCell.classList.remove("text-red-500", "font-bold");
+            }
+        }
+    }
+}
+// ▲▲▲【追加ここまで】▲▲▲
+
 const csrfToken = document
     .querySelector('meta[name="csrf-token"]')
     .getAttribute("content");
@@ -417,6 +547,32 @@ async function handleTimerAction(taskId, action, assigneeIds = []) {
 
         const data = await response.json();
 
+        if (action === "start") {
+            const row = document.querySelector(`tr[data-task-id="${taskId}"]`);
+            if (row && data.running_logs) {
+                // `running_logs` から今開始したログを見つける
+                const newLog = data.running_logs.find(
+                    (log) =>
+                        String(log.task_id) === String(taskId) &&
+                        log.status === "active"
+                );
+                if (newLog) {
+                    const durationMinutes =
+                        parseInt(row.dataset.duration, 10) || 0;
+                    const totalPastWorkSeconds =
+                        parseInt(row.dataset.totalWorkSeconds, 10) || 0;
+                    startActualTimeUpdater(
+                        taskId,
+                        newLog.start_time,
+                        durationMinutes,
+                        totalPastWorkSeconds
+                    );
+                }
+            }
+        } else if (action === "pause" || action === "stop") {
+            stopActualTimeUpdater(taskId);
+        }
+
         if (data.running_logs) {
             const runningLogsElement = document.getElementById(
                 "running-work-logs-data"
@@ -558,6 +714,25 @@ export function initializeWorkTimers() {
         }
     }
     dispatchWorkLogStatus();
+
+    activeWorkLogs.forEach((log) => {
+        if (log.status === "active") {
+            const row = document.querySelector(
+                `tr[data-task-id="${log.task_id}"]`
+            );
+            if (row) {
+                const durationMinutes = parseInt(row.dataset.duration, 10) || 0;
+                const totalPastWorkSeconds =
+                    parseInt(row.dataset.totalWorkSeconds, 10) || 0;
+                startActualTimeUpdater(
+                    log.task_id,
+                    log.start_time,
+                    durationMinutes,
+                    totalPastWorkSeconds
+                );
+            }
+        }
+    });
 
     timerContainers.forEach((container) => {
         const taskId = container.dataset.taskId;

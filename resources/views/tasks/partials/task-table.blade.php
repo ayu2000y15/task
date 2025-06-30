@@ -18,6 +18,70 @@
                         <th scope="col" class="sticky top-0 z-10 bg-gray-50 dark:bg-gray-700 px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider min-w-[200px]">
                             時間記録
                         </th>
+                        <th
+                            class="sticky top-0 z-10 bg-gray-50 dark:bg-gray-700 px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            <div class="flex items-center">
+                                <span>残工数</span>
+
+                                <div x-data="{
+                                        open: false,
+                                        tooltipStyles: { top: '0px', left: '0px' }
+                                    }" @click.away="open = false" class="relative ml-1">
+
+                                    <button @click="
+                                                open = !open;
+                                                if (open) {
+                                                    // nextTickでレンダリング後の要素サイズを取得
+                                                    $nextTick(() => {
+                                                        const trigger = $el;
+                                                        const tooltip = $refs.tooltip;
+                                                        const rect = trigger.getBoundingClientRect();
+
+                                                        // ツールチップをボタンの中央上に配置
+                                                        let top = rect.top - tooltip.offsetHeight - 8; // 8pxのマージン
+                                                        let left = rect.left + (rect.width / 2) - (tooltip.offsetWidth / 2);
+
+                                                        // 画面外にはみ出さないように調整
+                                                        if (left < 0) left = 4;
+                                                        if ((left + tooltip.offsetWidth) > window.innerWidth) left = window.innerWidth - tooltip.offsetWidth - 4;
+
+                                                        tooltipStyles.top = `${top}px`;
+                                                        tooltipStyles.left = `${left}px`;
+                                                    });
+                                                }
+                                            " type="button"
+                                        class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 focus:outline-none"
+                                        aria-label="ヘルプ">
+                                        <i class="far fa-question-circle cursor-help"></i>
+                                    </button>
+
+                                    <template x-teleport="body">
+                                        <div x-ref="tooltip" x-show="open" :style="tooltipStyles"
+                                            x-transition:enter="transition ease-out duration-100"
+                                            x-transition:enter-start="opacity-0 transform scale-95"
+                                            x-transition:enter-end="opacity-100 transform scale-100"
+                                            x-transition:leave="transition ease-in duration-75"
+                                            x-transition:leave-start="opacity-100 transform scale-100"
+                                            x-transition:leave-end="opacity-0 transform scale-95"
+                                            class="fixed z-[9999] w-64 p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl"
+                                            style="display: none;">
+                                            <p
+                                                class="text-sm font-semibold text-gray-800 dark:text-gray-100 normal-case mb-2">
+                                                残工数の見方
+                                            </p>
+                                            <div
+                                                class="text-xs font-normal text-gray-600 dark:text-gray-300 normal-case space-y-2">
+                                                <p>タイマーを動かすと、予定工数からの<strong class="font-semibold">残り時間</strong>をカウントダウンします。
+                                                </p>
+                                                <p>残り時間が<strong
+                                                        class="font-semibold text-red-500">マイナス</strong>になると、超過した時間が<strong
+                                                        class="font-semibold text-red-500">赤字</strong>でカウントアップされます。</p>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </th>
                     @endif
 
                     {{-- 工程名/予定名 --}}
@@ -112,7 +176,7 @@
 
                     {{-- 工数 (予定一覧・フォルダ表示では非表示) --}}
                     @if(!($isFolderView ?? false) && !($isMilestoneView ?? false))
-                        <th scope="col" class="sticky top-0 z-10 bg-gray-50 dark:bg-gray-700 hidden sm:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">工数</th>
+                        <th scope="col" class="sticky top-0 z-10 bg-gray-50 dark:bg-gray-700 hidden sm:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">予定工数</th>
                     @endif
 
                     {{-- フォルダ表示用のヘッダー --}}
@@ -152,7 +216,8 @@
                         data-project-id="{{ $task->project_id }}"
                         @if(!empty($task->description)) data-task-description="{{ htmlspecialchars($task->description) }}" @endif
                         data-progress="{{ $task->progress ?? 0 }}"
-                        data-task-status="{{ $task->status ?? 'not_started' }}">
+                        data-task-status="{{ $task->status ?? 'not_started' }}"
+                        data-duration="{{ $task->duration ?? 0 }}">
 
                         @if($isMilestoneView ?? false)
                             {{-- 予定一覧 (Milestone) の場合のセル --}}
@@ -257,6 +322,20 @@
                                         <span class="text-xs text-gray-400 dark:text-gray-500">-</span>
                                     @endif
                                 @endif
+                            </td>
+                            <td class="px-4 py-3 align-top whitespace-nowrap text-sm font-mono">
+                                <div class="task-actual-time-display" data-task-id="{{ $task->id }}">
+                                    {{-- ▼▼▼【修正】タイマー停止中の初期表示ロジック ▼▼▼ --}}
+                                    @if (!($task->status === 'in_progress' && !$task->is_paused) && $task->total_work_seconds > 0)
+                                        @php
+                                            $remainingSeconds = ($task->duration ?? 0) * 60 - $task->total_work_seconds;
+                                            $isOver = $remainingSeconds < 0;
+                                        @endphp
+                                        <span class="{{ $isOver ? 'text-red-500 font-bold' : '' }}">
+                                            {{ ($isOver ? '+' : '') . format_seconds_to_hms( abs($remainingSeconds)) }}
+                                        </span>
+                                    @endif
+                                </div>
                             </td>
                             <td class="px-4 py-3 text-sm text-gray-900 dark:text-gray-100 align-top">
                                 <div class="flex items-center gap-x-3">
@@ -400,7 +479,7 @@
                          } elseif ($isFolderView ?? false) {
                              $colspan = 5;
                          } else {
-                            $colspan = 7;
+                            $colspan = 8;
                             if(isset($character) && $character) $colspan--;
                          }
                     @endphp

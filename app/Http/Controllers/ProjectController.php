@@ -556,7 +556,7 @@ class ProjectController extends Controller
             } else {
                 // 【案件全体の工程表を更新する場合】
                 // (フィルタリングロジックは変更なし)
-                $allProjectTasks = $project->tasksWithoutCharacter()->with(['children', 'parent', 'project', 'character', 'files', 'assignees'])->get();
+                $allProjectTasks = $project->tasksWithoutCharacter()->with(['children', 'parent', 'project', 'character', 'files', 'assignees', 'workLogs'])->get();
                 $tasksForHierarchy = $allProjectTasks;
                 $matchingTaskIds = $allProjectTasks->pluck('id');
                 if ($hideCompleted) {
@@ -681,13 +681,14 @@ class ProjectController extends Controller
                     'tasks.character',
                     'tasks.files',
                     'tasks.assignees',
+                    'tasks.workLogs',
                     'measurements' => fn($q) => $q->orderBy('display_order'),
                     'materials' => fn($q) => $q->orderBy('display_order'),
                     'costs' => fn($q) => $q->orderBy('display_order')
                 ])->orderBy('name');
             },
             'tasks' => function ($query) {
-                $query->with(['children', 'parent', 'project', 'character', 'files', 'assignees']);
+                $query->with(['children', 'parent', 'project', 'character', 'files', 'assignees', 'workLogs']);
             },
             // ★ 以下のリレーションを追加
             'requests' => function ($query) {
