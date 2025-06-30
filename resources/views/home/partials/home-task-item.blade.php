@@ -1,12 +1,11 @@
 {{-- resources/views/home/partials/home-task-item.blade.php --}}
 
-{{-- ▼▼▼【修正】li要素にデータ属性を追加します ▼▼▼ --}}
 <li class="flex items-start group"
     data-task-id="{{ $task->id }}"
     data-duration="{{ $task->duration ?? 0 }}"
     data-total-work-seconds="{{ $task->total_work_seconds }}">
 
-    {{-- カラム1: ステータスアイコン (変更なし) --}}
+    {{-- カラム1: ステータスアイコン --}}
     <span class="task-status-icon-wrapper mr-2 mt-2 flex-shrink-0 w-5 text-center">
         @switch($task->status)
             @case('completed')
@@ -23,7 +22,7 @@
         @endswitch
     </span>
 
-    {{-- カラム2: タスク情報 (変更なし) --}}
+    {{-- カラム2: タスク情報 --}}
     <div class="min-w-0 mt-2 flex-grow">
         <div class="text-xs text-gray-500 dark:text-gray-400">
             <a href="{{ route('projects.show', $task->project) }}" class="font-semibold hover:underline"
@@ -67,11 +66,11 @@
         </div>
     </div>
 
-    {{-- ▼▼▼【ここから追加】カラム3: 残工数とタイマー ▼▼▼ --}}
+    {{-- カラム3: 実績時間とタイマー --}}
     <div class="mt-2 ml-4 flex-shrink-0 flex flex-col items-end space-y-2">
-        {{-- 残工数 表示 --}}
+        {{-- 実績時間表示 --}}
         <div class="text-sm font-mono text-right min-w-[80px]">
-            @if(!$task->is_milestone && !$task->is_folder)
+             @if(!$task->is_milestone && !$task->is_folder)
                 <div class="task-actual-time-display" data-task-id="{{ $task->id }}">
                     @if (!($task->status === 'in_progress' && !$task->is_paused) && $task->total_work_seconds > 0)
                         @php
@@ -81,45 +80,46 @@
                             $hours = floor($absSeconds / 3600);
                             $minutes = floor(($absSeconds % 3600) / 60);
                             $seconds = $absSeconds % 60;
-                            $formattedTime = sprintf('%d:%02d:%02d', $hours, $minutes, $seconds);
+                            $formattedTime = sprintf('%02d:%02d:%02d', $hours, $minutes, $seconds);
                         @endphp
                         <span class="{{ $isOver ? 'text-red-500 font-bold' : '' }}">
-                            {{ ($isOver ? '+' : '') . $formattedTime }}
+                            {{ ($isOver ? '-' : '') . $formattedTime }}
                         </span>
                     @endif
                 </div>
             @endif
         </div>
+
         {{-- タイマーコントロール --}}
         <div>
              @if(!$task->is_folder && !$task->is_milestone)
-                @if($task->assignees->isNotEmpty())
-                    @php
-                        $isAssigned = $task->assignees->contains('id', Auth::id());
-                        $isSharedAccount = Auth::check() && Auth::user()->status === \App\Models\User::STATUS_SHARED;
-                    @endphp
-                    @if($isAssigned || $isSharedAccount)
-                        <div class="timer-controls"
-                            data-task-id="{{ $task->id }}"
-                            data-task-status="{{ $task->status }}"
-                            data-is-paused="{{ $task->is_paused ? 'true' : 'false' }}"
-                            data-assignees='{{ json_encode($task->assignees->map->only(['id', 'name'])->values()) }}'
-                            data-view-mode="compact">
-                            {{-- JSがタイマーボタンを生成します --}}
-                        </div>
-                    @else
-                        <div class="timer-display-only"
-                            data-task-id="{{ $task->id }}"
-                            data-task-status="{{ $task->status }}"
-                            data-is-paused="{{ $task->is_paused ? 'true' : 'false' }}">
-                             {{-- JSが表示を生成します --}}
-                        </div>
-                    @endif
+                @php
+                    // このタスクに対して操作可能か（共有アカウント or 自分が担当者）
+                    $canInteract = (Auth::check() && Auth::user()->status === \App\Models\User::STATUS_SHARED) || $task->assignees->contains('id', Auth::id());
+                @endphp
+
+                {{-- ①「自分のセクション」かつ「操作可能なユーザー」である場合のみ、操作ボタンコンテナを表示 --}}
+                @if($isCurrentUserSection && $canInteract)
+                    <div class="timer-controls"
+                        data-task-id="{{ $task->id }}"
+                        data-task-status="{{ $task->status }}"
+                        data-is-paused="{{ $task->is_paused ? 'true' : 'false' }}"
+                        data-assignees='{{ json_encode($task->assignees->map->only(['id', 'name'])->values()) }}'
+                        data-view-mode="compact">
+                        {{-- JSが状況に応じた操作ボタン（開始/停止など）を生成します --}}
+                    </div>
+                {{-- ② それ以外（他人のセクションなど）の場合は、必ずラベル表示コンテナを表示 --}}
                 @else
-                    <span class="text-xs text-gray-400 dark:text-gray-500">-</span>
+                    <div class="timer-display-only"
+                        data-task-id="{{ $task->id }}"
+                        data-task-status="{{ $task->status }}"
+                        data-is-paused="{{ $task->is_paused ? 'true' : 'false' }}">
+                         {{-- JSが状況に応じたラベル（作業中など）を生成します --}}
+                    </div>
                 @endif
+            @else
+                <span class="text-xs text-gray-400 dark:text-gray-500">-</span>
             @endif
         </div>
     </div>
-    {{-- ▲▲▲【追加ここまで】▲▲▲ --}}
 </li>

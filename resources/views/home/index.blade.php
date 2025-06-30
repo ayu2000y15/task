@@ -125,7 +125,7 @@
                         class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition">
                         <h5 class="text-lg font-semibold text-gray-700 dark:text-gray-300 flex items-center">
                             <i class="fas fa-chart-line mr-2 text-purple-500"></i>
-                            全ユーザーの生産性
+                            各ユーザーの生産性
                             <div x-data="{
                                 tooltipOpen: false,
                                 tooltipStyles: { top: '0px', left: '0px' }
@@ -280,7 +280,10 @@
                                     <ul class="ml-6 divide-y space-y-2 divide-gray-200 dark:divide-gray-700">
                                         @foreach($assigneeData['items'] as $item)
                                             @if($item instanceof \App\Models\Task)
-                                                @include('home.partials.home-task-item', ['task' => $item])
+                                            @include('home.partials.home-task-item', [
+                                                'task' => $item,
+                                                'isCurrentUserSection' => $assigneeData['assignee']->id === Auth::id()
+                                            ])
                                             @elseif($item instanceof \App\Models\RequestItem)
                                                 @include('home.partials.home-request-item', ['item' => $item])
                                             @endif
