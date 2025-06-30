@@ -38,10 +38,11 @@
         @endif
     </td>
     <td class="px-2 py-3 font-mono text-sm">
-        {{ $summary->end_time ? gmdate('H:i:s', $summary->detention_seconds) : '-' }}
+        {{ $summary->end_time ? format_seconds_to_hms($summary->detention_seconds) : '-' }}
     </td>
-    <td class="px-2 py-3 font-mono text-sm">{{ gmdate('H:i:s', $summary->break_seconds) }}</td>
-    <td class="px-2 py-3 font-mono text-sm font-semibold">{{ gmdate('H:i:s', $report['worklog_total_seconds']) }}</td>
+    <td class="px-2 py-3 font-mono text-sm">{{ format_seconds_to_hms($summary->break_seconds) }}</td>
+    <td class="px-2 py-3 font-mono text-sm font-semibold">{{ format_seconds_to_hms($report['worklog_total_seconds']) }}
+    </td>
     <td class="px-2 py-3 font-mono text-sm">¥{{ number_format($summary->daily_salary) }}</td>
     <td class="px-2 py-3 text-center">
         @php

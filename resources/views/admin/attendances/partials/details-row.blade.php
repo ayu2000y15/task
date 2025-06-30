@@ -34,7 +34,7 @@
                                 <td class="py-2 px-3">{{ $log->task->name ?? '-' }}</td>
                                 <td class="py-2 px-3">{{ $log->start_time->format('H:i') }}</td>
                                 <td class="py-2 px-3">{{ optional($log->end_time)->format('H:i') }}</td>
-                                <td class="py-2 px-3 font-mono">{{ gmdate('H:i:s', $log->effective_duration) }}</td>
+                                <td class="py-2 px-3 font-mono">{{ format_seconds_to_hms($log->effective_duration) }}</td>
                             </tr>
                         @empty
                             <tr>
@@ -93,7 +93,7 @@
                                         @endif
                                         {{ $break['end_time']->format('H:i') }}
                                     </td>
-                                    <td class="py-2 px-3 font-mono">{{ gmdate('H:i:s', $break['duration']) }}</td>
+                                    <td class="py-2 px-3 font-mono">{{ format_seconds_to_hms($break['duration']) }}</td>
                                 </tr>
                             @endforeach
                         </tbody>

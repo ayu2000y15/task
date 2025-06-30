@@ -11,7 +11,7 @@ if (!function_exists('format_seconds_to_hms')) {
     function format_seconds_to_hms(int $seconds): string
     {
         if ($seconds < 0) {
-            return '0:00:00';
+            return '00:00:00';
         }
 
         $hours = floor($seconds / 3600);
@@ -19,6 +19,6 @@ if (!function_exists('format_seconds_to_hms')) {
         $secs = $seconds % 60;
 
         // sprintf を使用して、時間(無制限)、分(0埋め)、秒(0埋め)の形式で出力
-        return sprintf('%d:%02d:%02d', $hours, $minutes, $secs);
+        return sprintf('%02d:%02d:%02d', $hours, $minutes, $secs);
     }
 }

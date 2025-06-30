@@ -139,7 +139,7 @@
                             <tr class="border-t-2 border-gray-300 dark:border-gray-600 font-bold">
                                 <td class="px-2 py-3 text-left" colspan="7">月の合計</td>
                                 <td class="px-2 py-3 text-left whitespace-nowrap">
-                                    {{ gmdate('H:i:s', $monthTotalActualWorkSeconds) }}
+                                    {{ format_seconds_to_hms($monthTotalActualWorkSeconds) }}
                                 </td>
                                 <td class="px-2 py-3 text-left whitespace-nowrap">¥{{ number_format($monthTotalSalary, 0) }}
                                 </td>

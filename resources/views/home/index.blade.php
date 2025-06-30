@@ -141,6 +141,13 @@
 
                     {{-- アコーディオンコンテンツ --}}
                     <div x-show="open" x-transition class="p-4 space-y-4" style="display: none;">
+                        <div class="text-center pt-2">
+                            <div class="flex justify-center space-x-4 text-xs text-gray-500 mt-1">
+                                <span><i class="fas fa-square text-blue-500"></i> 作業</span>
+                                <span><i class="fas fa-square text-yellow-400"></i> 休憩等</span>
+                                <span><i class="fas fa-square text-gray-300 dark:text-gray-500"></i> その他</span>
+                            </div>
+                        </div>
                         @foreach($productivitySummaries as $summary)
                             <div class="px-3 py-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
                                 <h4 class="text-md font-semibold text-gray-800 dark:text-gray-200">{{ $summary->user->name }}</h4>
@@ -176,13 +183,7 @@
                                 </div>
                             </div>
                         @endforeach
-                        <div class="text-center pt-2">
-                            <div class="flex justify-center space-x-4 text-xs text-gray-500 mt-1">
-                                <span><i class="fas fa-square text-blue-500"></i> 作業</span>
-                                <span><i class="fas fa-square text-yellow-400"></i> 休憩等</span>
-                                <span><i class="fas fa-square text-gray-300 dark:text-gray-500"></i> その他</span>
-                            </div>
-                        </div>
+
                     </div>
                 </div>
                 @endcan

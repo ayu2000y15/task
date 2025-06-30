@@ -42,10 +42,11 @@
         <td class="px-2 py-3 font-mono text-sm">{{ $session['start_time']->format('H:i') }}</td>
         <td class="px-2 py-3 font-mono text-sm">{{ optional($session['end_time'])->format('H:i') ?? '未退勤' }}</td>
         <td class="px-2 py-3 font-mono text-sm">
-            {{ $session['end_time'] ? gmdate('H:i:s', $session['detention_seconds']) : '-' }}
+            {{ $session['end_time'] ? format_seconds_to_hms($session['detention_seconds']) : '-' }}
         </td>
-        <td class="px-2 py-3 font-mono text-sm">{{ gmdate('H:i:s', $session['break_seconds']) }}</td>
-        <td class="px-2 py-3 font-mono text-sm font-semibold">{{ gmdate('H:i:s', $session['actual_work_seconds']) }}</td>
+        <td class="px-2 py-3 font-mono text-sm">{{ format_seconds_to_hms($session['break_seconds']) }}</td>
+        <td class="px-2 py-3 font-mono text-sm font-semibold">{{ format_seconds_to_hms($session['actual_work_seconds']) }}
+        </td>
         <td class="px-2 py-3 font-mono text-sm">
             @if(is_null($session['end_time']))
                 <span class="text-xs font-semibold text-yellow-600 dark:text-yellow-400"
