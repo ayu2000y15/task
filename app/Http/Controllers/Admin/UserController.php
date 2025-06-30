@@ -48,6 +48,7 @@ class UserController extends Controller
                 User::STATUS_RETIRED,
                 User::STATUS_SHARED,
             ])],
+            'show_productivity' => 'sometimes|boolean',
         ], [
             'status.required' => 'ステータスは必須です。',
             'status.in' => '無効なステータスが選択されました。',
@@ -61,6 +62,14 @@ class UserController extends Controller
 
                 // ステータスを更新
                 $user->status = $validated['status'];
+
+                if ($validated['status'] === User::STATUS_ACTIVE) { //
+                    // ステータスが「アクティブ」の場合のみ、チェックボックスの値を反映する
+                    $user->show_productivity = $request->has('show_productivity');
+                } else {
+                    // 「非アクティブ」「退職」「共有アカウント」の場合は、強制的に非表示(false)にする
+                    $user->show_productivity = false;
+                }
 
                 // モデルへの変更（役割とステータス）をデータベースに保存
                 $user->save();

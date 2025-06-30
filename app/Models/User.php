@@ -38,6 +38,7 @@ class User extends Authenticatable
         'access_id',
         'last_access',
         'status', // statusカラムをfillableに追加
+        'show_productivity',
         'hourly_rate',
         'default_transportation_departure',
         'default_transportation_destination',
@@ -74,7 +75,7 @@ class User extends Authenticatable
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['name', 'email', 'access_id', 'status']) // statusもログ対象に
+            ->logOnly(['name', 'email', 'access_id', 'status', 'show_productivity',]) // statusもログ対象に
             ->logExcept(['password', 'remember_token', 'email_verified_at', 'updated_at', 'last_access'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs()
@@ -103,6 +104,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'last_access' => 'datetime',
+            'show_productivity' => 'boolean',
         ];
     }
 

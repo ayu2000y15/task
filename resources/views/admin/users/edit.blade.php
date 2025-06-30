@@ -80,6 +80,24 @@
                         </div>
                     </div>
 
+                    <div class="border-t border-gray-200 dark:border-gray-700 pt-6">
+                        <x-input-label value="ホーム設定" class="mb-2" />
+                        <div class="space-y-2">
+                            <label for="show_productivity" class="flex items-center">
+                                <input id="show_productivity" name="show_productivity" type="checkbox" value="1"
+                                    {{ old('show_productivity', $user->show_productivity) ? 'checked' : '' }}
+                                    {{-- ステータスが「アクティブ」でない場合は、チェックボックスを無効化する --}}
+                                    {{ old('status', $user->status) !== \App\Models\User::STATUS_ACTIVE ? 'disabled' : '' }}
+                                    class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed">
+                                <span class="ms-2 text-sm text-gray-600 dark:text-gray-300">ホームに生産性を表示する</span>
+                            </label>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 pl-7">
+                                このユーザーの生産性サマリー（昨日・今月）をホーム画面のサイドバーに表示します。<br>
+                                <span class="font-semibold">※ステータスが「アクティブ」の場合のみ設定可能です。</span>
+                            </p>
+                        </div>
+                    </div>
+
                     <div class="flex items-center justify-end mt-8 pt-5 border-t border-gray-200 dark:border-gray-700">
                         <x-primary-button>
                             <i class="fas fa-save mr-2"></i>更新
@@ -90,3 +108,33 @@
         </div>
     </div>
 @endsection
+
+@push('scripts')
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const statusRadios = document.querySelectorAll('input[name="status"]');
+        const productivityCheckbox = document.getElementById('show_productivity');
+        const activeStatusValue = '{{ \App\Models\User::STATUS_ACTIVE }}';
+
+        // ステータスに応じて生産性チェックボックスの有効/無効を切り替える関数
+        function toggleProductivityCheckbox() {
+            const selectedStatus = document.querySelector('input[name="status"]:checked').value;
+            if (selectedStatus === activeStatusValue) {
+                productivityCheckbox.disabled = false;
+            } else {
+                productivityCheckbox.disabled = true;
+                // ステータスがアクティブでない場合、安全のためチェックを外す
+                productivityCheckbox.checked = false;
+            }
+        }
+
+        // ラジオボタンの変更イベントを監視
+        statusRadios.forEach(radio => {
+            radio.addEventListener('change', toggleProductivityCheckbox);
+        });
+
+        // ページ読み込み時に最初の状態を反映
+        toggleProductivityCheckbox();
+    });
+</script>
+@endpush

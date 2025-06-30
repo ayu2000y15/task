@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 use Illuminate\Validation\ValidationException;
+use App\Models\User;
 
 class AuthenticatedSessionController extends Controller
 {
@@ -26,6 +27,22 @@ class AuthenticatedSessionController extends Controller
     public function store(LoginRequest $request): RedirectResponse
     {
         $request->authenticate();
+
+        $user = $request->user();
+
+        if ($user->status === User::STATUS_RETIRED) {
+            $statusMessage = 'このアカウントは退職済みのため、ログインできません。';
+
+            // ログインしたセッションを直ちに破棄
+            Auth::guard('web')->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            // エラーメッセージをスローしてログイン画面に戻す
+            throw ValidationException::withMessages([
+                'email' => $statusMessage,
+            ]);
+        }
 
         $request->session()->regenerate();
 

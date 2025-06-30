@@ -22,6 +22,7 @@ namespace App\Models{
  * @property \Illuminate\Support\Carbon|null $end_time 退勤時刻
  * @property int $break_seconds 休憩時間（秒）
  * @property int $actual_work_seconds 実働時間（秒）
+ * @property float $daily_salary
  * @property string|null $note 備考
  * @property string $status ステータス: calculated, edited, confirmed
  * @property \Illuminate\Support\Carbon|null $created_at
@@ -31,7 +32,6 @@ namespace App\Models{
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\AttendanceBreak> $breaks
  * @property-read int|null $breaks_count
  * @property-read int $attendance_seconds
- * @property-read float $daily_salary
  * @property-read int $detention_seconds
  * @property-read \App\Models\User $user
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Attendance newModelQuery()
@@ -40,6 +40,7 @@ namespace App\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Attendance whereActualWorkSeconds($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Attendance whereBreakSeconds($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Attendance whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Attendance whereDailySalary($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Attendance whereDate($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Attendance whereEndTime($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Attendance whereId($value)
@@ -1559,6 +1560,7 @@ namespace App\Models{
  * @property \Illuminate\Support\Carbon|null $last_access
  * @property \Illuminate\Support\Carbon|null $email_verified_at
  * @property string $status
+ * @property bool $show_productivity
  * @property string|null $hourly_rate
  * @property string $password
  * @property string|null $default_transportation_departure デフォルト交通費: 出発地
@@ -1609,6 +1611,7 @@ namespace App\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereName($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User wherePassword($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereRememberToken($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereShowProductivity($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereStatus($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereUpdatedAt($value)
  */

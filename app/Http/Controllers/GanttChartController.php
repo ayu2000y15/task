@@ -30,7 +30,7 @@ class GanttChartController extends Controller
         ];
 
         $projectsQuery = Project::query();
-
+        $projectsQuery->whereNotIn('status', ['completed', 'cancelled']);
         // プロジェクトIDで絞り込み
         if (!empty($filters['project_id'])) {
             $projectsQuery->where('id', $filters['project_id']);

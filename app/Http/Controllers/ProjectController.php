@@ -273,8 +273,17 @@ class ProjectController extends Controller
     public function index()
     {
         $this->authorize('viewAny', Project::class);
-        $projects = Project::orderBy('title')->get();
-        return view('projects.index', compact('projects'));
+        $allProjects = Project::orderBy('start_date')->orderBy('title')->get();
+
+        // 「完了」または「キャンセル」のステータスを持つ案件をアーカイブ済みとする
+        $archivedStatuses = ['completed', 'cancelled'];
+
+        // partitionメソッドを使い、条件に一致するもの（アーカイブ済み）としないもの（進行中）に分割
+        list($archivedProjects, $activeProjects) = $allProjects->partition(function ($project) use ($archivedStatuses) {
+            return in_array($project->status, $archivedStatuses);
+        });
+
+        return view('projects.index', compact('activeProjects', 'archivedProjects'));
     }
 
     /**
