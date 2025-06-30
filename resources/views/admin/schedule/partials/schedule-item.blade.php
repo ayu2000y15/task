@@ -3,6 +3,7 @@
     $iconClass = '';
     $displayText = '';
     $tooltipLines = [];
+    $tooltipLines['ユーザー'] = $schedule->user->name;
     switch ($schedule->type) {
         case 'work':
         case 'location_only':
@@ -43,6 +44,7 @@
     }
 @endphp
 
+{{-- ▼▼▼【ここから修正】▼▼▼ --}}
 {{-- 外側のコンテナ --}}
 <div x-data="{ showTooltip: false }" @mouseenter="showTooltip = true" @mouseleave="showTooltip = false"
     class="relative w-full">
@@ -55,7 +57,7 @@
             <i class="fas {{ $iconClass }}"></i>
         </span>
         {{-- 表示テキスト --}}
-        <span class="ml-1.5 flex-grow truncate">
+        <span class="ml-1.5 flex-grow truncate text-sm">
             {{ $displayText }}
         </span>
         {{-- メモアイコン --}}
@@ -66,10 +68,9 @@
         @endif
     </div>
 
-    {{-- ▼▼▼【ここから x-transition を削除】▼▼▼ --}}
+    {{-- ツールチップ --}}
     <div x-show="showTooltip" x-cloak
-        class="absolute bottom-full left-1/2 z-20 mb-2 w-max max-w-xs -translate-x-1/2 rounded-md bg-gray-900 px-3 py-2 text-xs font-medium text-white shadow-lg dark:bg-black">
-        {{-- ▲▲▲【修正ここまで】▲▲▲ --}}
+        class="absolute bottom-full left-1/2 z-50 mb-2 w-max max-w-xs -translate-x-1/2 rounded-md bg-gray-900 px-3 py-2 text-xs font-medium text-white shadow-lg dark:bg-black">
 
         <div class="space-y-1">
             @foreach($tooltipLines as $label => $value)
@@ -85,3 +86,4 @@
         </div>
     </div>
 </div>
+{{-- ▲▲▲【修正ここまで】▲▲▲ --}}

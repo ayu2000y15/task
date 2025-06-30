@@ -21,9 +21,8 @@
             </div>
         </div>
 
-        {{-- ▼▼▼【ここから修正】デフォルトスケジュール表示を表形式に変更 ▼▼▼ --}}
+        {{-- デフォルトスケジュール表示 --}}
         <div x-data="{ open: false }" class="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow-md border dark:border-gray-700">
-            {{-- アコーディオンヘッダー --}}
             <div @click="open = !open" class="px-4 py-3 border-b dark:border-gray-700 cursor-pointer flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-700/50">
                 <h2 class="font-semibold text-gray-700 dark:text-gray-200 flex items-center">
                     <i class="fas fa-user-clock mr-3 text-gray-500"></i>
@@ -31,7 +30,6 @@
                 </h2>
                 <i class="fas text-gray-500" :class="open ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
             </div>
-            {{-- アコーディオンコンテンツ --}}
             <div x-show="open" x-collapse style="display: none;">
                 <div class="p-4 overflow-x-auto">
                     <table class="min-w-full text-sm">
@@ -80,7 +78,6 @@
                 </div>
             </div>
         </div>
-        {{-- ▲▲▲【修正ここまで】▲▲▲ --}}
 
         {{-- 凡例 --}}
         <div class="flex items-center gap-x-4 gap-y-2 text-xs flex-wrap mb-4">
@@ -90,7 +87,7 @@
             <span class="flex items-center gap-1"><i class="fas fa-bed text-yellow-500 opacity-80"></i> 午前/午後休</span>
         </div>
 
-        {{-- PC用月間グリッドカレンダー --}}
+        {{-- PC用月間グリッドカレンダー (変更なし) --}}
         <div class="hidden md:block bg-white dark:bg-gray-800 shadow-md rounded-lg">
             <div class="grid grid-cols-7">
                 @foreach (['日', '月', '火', '水', '木', '金', '土'] as $dayOfWeek)
@@ -134,37 +131,103 @@
             </div>
         </div>
 
-        {{-- スマホ用スケジュールリスト --}}
-        <div class="md:hidden space-y-4">
-            @foreach ($calendarData as $dateString => $dayData)
-                @if ($dayData['is_current_month'] && (!$dayData['schedules']->isEmpty() || $dayData['public_holiday']))
-                    @php
-                        $date = $dayData['date'];
-                        $isSaturday = $date->isSaturday();
-                        $isSunday = $date->isSunday();
-                        $isPublicHoliday = $dayData['public_holiday'];
-                    @endphp
-                    <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-4">
-                        <div class="font-semibold border-b pb-2 mb-3
-                                    {{ $isSaturday ? 'text-blue-600 dark:text-blue-400' : '' }}
-                                    {{ $isSunday ? 'text-red-500 dark:text-red-400' : '' }}
-                                    {{ $isPublicHoliday ? 'text-green-600 dark:text-green-400' : '' }}
-                                ">
-                            {{ $date->format('n/j') }} ({{ $date->isoFormat('ddd') }})
+        {{-- ▼▼▼【ここから修正】スマホ用のカレンダー/リスト表示 ▼▼▼ --}}
+        <div class="md:hidden" x-data="{ viewMode: 'calendar' }">
+            {{-- 表示切り替えボタン --}}
+            <div class="flex justify-end mb-4">
+                <div class="flex items-center bg-gray-200 dark:bg-gray-700 p-0.5 rounded-lg">
+                    <button @click="viewMode = 'calendar'"
+                        class="px-3 py-1 text-xs font-bold rounded-md transition-colors"
+                        :class="viewMode === 'calendar' ? 'bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-300 shadow' : 'text-gray-500 dark:text-gray-400'">
+                        <i class="fas fa-calendar-alt mr-1"></i>
+                        カレンダー
+                    </button>
+                    <button @click="viewMode = 'list'"
+                        class="px-3 py-1 text-xs font-bold rounded-md transition-colors"
+                        :class="viewMode === 'list' ? 'bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-300 shadow' : 'text-gray-500 dark:text-gray-400'">
+                        <i class="fas fa-list mr-1"></i>
+                        リスト
+                    </button>
+                </div>
+            </div>
+
+            {{-- スマホ用月間グリッドカレンダー --}}
+            <div x-show="viewMode === 'calendar'" style="display: none;" class="bg-white dark:bg-gray-800 shadow-md rounded-lg">
+                <div class="grid grid-cols-7">
+                    @foreach (['日', '月', '火', '水', '木', '金', '土'] as $dayOfWeek)
+                        <div class="py-1 text-center text-sm font-semibold text-gray-600 dark:text-gray-300 border-b dark:border-gray-700
+                                @if($dayOfWeek === '土') bg-blue-50 dark:bg-blue-900/30 @endif
+                                @if($dayOfWeek === '日') bg-red-50 dark:bg-red-900/30 @endif">
+                            {{ $dayOfWeek }}
+                        </div>
+                    @endforeach
+                </div>
+                <div class="grid grid-cols-7">
+                    @foreach ($calendarData as $dateString => $dayData)
+                        @php
+                            $date = $dayData['date'];
+                            $isSaturday = $date->isSaturday();
+                            $isSunday = $date->isSunday();
+                            $isPublicHoliday = $dayData['public_holiday'];
+                            $isToday = $date->isToday();
+                        @endphp
+                        {{-- 日付セル: overflow-hiddenを削除し、min-hを増やす --}}
+                        <div class="relative p-1 border-t border-r border-gray-200 dark:border-gray-700 min-h-[90px]
+                                {{ !$dayData['is_current_month'] ? 'bg-gray-50 dark:bg-gray-800/50' : '' }}
+                                {{ $isSaturday ? 'bg-blue-50 dark:bg-blue-900/30' : '' }}
+                                {{ $isSunday ? 'bg-red-50 dark:bg-red-900/30' : '' }}
+                                {{ $isPublicHoliday && $dayData['is_current_month'] ? 'bg-green-50 dark:bg-green-900/30' : '' }}
+                            ">
+                            <div class="text-sm font-semibold h-5 flex items-center justify-center {{ $isToday ? 'text-white bg-blue-500 rounded-full w-5' : '' }}">
+                                {{ $date->day }}
+                            </div>
                             @if ($isPublicHoliday)
-                                <span class="ml-2 text-xs font-normal">({{ $isPublicHoliday->name }})</span>
+                                <div class="text-[10px] text-green-600 truncate" title="{{ $isPublicHoliday->name }}">
+                                    {{ $isPublicHoliday->name }}</div>
                             @endif
+                            <div class="mt-1 space-y-1">
+                                @foreach ($dayData['schedules'] as $schedule)
+                                    @include('admin.schedule.partials.schedule-item', ['schedule' => $schedule])
+                                @endforeach
+                            </div>
                         </div>
-                        <div class="space-y-2">
-                            @forelse ($dayData['schedules'] as $schedule)
-                                @include('admin.schedule.partials.schedule-item', ['schedule' => $schedule])
-                            @empty
-                                <p class="text-xs text-gray-500">スケジュール登録者はいません</p>
-                            @endforelse
+                    @endforeach
+                </div>
+            </div>
+
+            {{-- スマホ用スケジュールリスト --}}
+            <div x-show="viewMode === 'list'" style="display: none;" class="space-y-4">
+                @foreach ($calendarData as $dateString => $dayData)
+                    @if ($dayData['is_current_month'] && (!$dayData['schedules']->isEmpty() || $dayData['public_holiday']))
+                        @php
+                            $date = $dayData['date'];
+                            $isSaturday = $date->isSaturday();
+                            $isSunday = $date->isSunday();
+                            $isPublicHoliday = $dayData['public_holiday'];
+                        @endphp
+                        <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-4">
+                            <div class="font-semibold border-b pb-2 mb-3
+                                        {{ $isSaturday ? 'text-blue-600 dark:text-blue-400' : '' }}
+                                        {{ $isSunday ? 'text-red-500 dark:text-red-400' : '' }}
+                                        {{ $isPublicHoliday ? 'text-green-600 dark:text-green-400' : '' }}
+                                    ">
+                                {{ $date->format('n/j') }} ({{ $date->isoFormat('ddd') }})
+                                @if ($isPublicHoliday)
+                                    <span class="ml-2 text-xs font-normal">({{ $isPublicHoliday->name }})</span>
+                                @endif
+                            </div>
+                            <div class="space-y-2">
+                                @forelse ($dayData['schedules'] as $schedule)
+                                    @include('admin.schedule.partials.schedule-item', ['schedule' => $schedule])
+                                @empty
+                                    <p class="text-xs text-gray-500">スケジュール登録者はいません</p>
+                                @endforelse
+                            </div>
                         </div>
-                    </div>
-                @endif
-            @endforeach
+                    @endif
+                @endforeach
+            </div>
         </div>
+        {{-- ▲▲▲【修正ここまで】▲▲▲ --}}
     </div>
 @endsection
