@@ -34,6 +34,14 @@ class TaskPolicy
         return $user->hasPermissionTo('tasks.update');
     }
 
+    /**
+     * 工程の重要な項目を更新する権限があるか決定する
+     */
+    public function updateCriticalFields(User $user, Task $task): bool
+    {
+        return $user->hasPermissionTo('tasks.update-critical-fields');
+    }
+
     public function fileViewAny(User $user): bool
     {
         return $user->hasPermissionTo('tasks.file-view');

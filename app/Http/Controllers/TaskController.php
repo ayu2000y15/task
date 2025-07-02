@@ -694,27 +694,23 @@ class TaskController extends Controller
 
     public function update(Request $request, Project $project, Task $task): \Illuminate\Http\RedirectResponse
     {
-        $this->authorize('update', $task);
+        $this->authorize('update', $task); // 基本的な更新権限をチェック
 
         $currentTaskType = 'task';
         if ($task->is_milestone) $currentTaskType = 'milestone';
         elseif ($task->is_folder) $currentTaskType = 'folder';
         elseif (!$task->start_date && !$task->end_date && !$task->is_milestone && !$task->is_folder) $currentTaskType = 'todo_task';
 
+        // バリデーションルールは変更なし
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'character_id' => ['nullable', Rule::exists('characters', 'id')->where('project_id', $project->id)],
-            'start_date' => [
-                Rule::requiredIf(fn() => in_array($currentTaskType, ['milestone', 'task'])),
-                'nullable',
-                'date'
-            ],
+            'start_date' => [Rule::requiredIf(fn() => in_array($currentTaskType, ['milestone', 'task'])), 'nullable', 'date'],
             'end_date' => [
                 'nullable',
                 'date',
                 Rule::requiredIf(fn() => $currentTaskType === 'task'),
-                // Rule::prohibitedIf(fn() => $currentTaskType === 'milestone'),
                 function ($attribute, $value, $fail) use ($request) {
                     if ($request->filled('start_date') && $request->filled($attribute)) {
                         if (Carbon::parse($value)->lt(Carbon::parse($request->input('start_date')))) {
@@ -753,12 +749,7 @@ class TaskController extends Controller
                     }
                 },
             ],
-            'duration_unit' => [
-                'nullable',
-                'string',
-                Rule::in(['minutes', 'hours', 'days']),
-                Rule::requiredIf(fn() => $currentTaskType === 'task' && $request->filled('duration_value')),
-            ],
+            'duration_unit' => ['nullable', 'string', Rule::in(['minutes', 'hours', 'days']), Rule::requiredIf(fn() => $currentTaskType === 'task' && $request->filled('duration_value'))],
             'assignees' => 'nullable|array',
             'assignees.*' => 'exists:users,id',
             'parent_id' => 'nullable|exists:tasks,id',
@@ -770,173 +761,132 @@ class TaskController extends Controller
             'assignees.*.exists' => '選択された担当者が存在しません。',
         ]);
 
-        $taskDataForCurrent = [
-            'name' => $validated['name'],
-            'description' => $validated['description'],
-            'parent_id' => $request->filled('parent_id') ? $validated['parent_id'] : $task->parent_id,
-        ];
-
-        if ($request->filled('parent_id') && $validated['parent_id']) {
-            $parentTaskForChar = Task::find($validated['parent_id']);
-            $taskDataForCurrent['character_id'] = $parentTaskForChar->character_id;
-        } elseif ($currentTaskType !== 'folder') {
-            $taskDataForCurrent['character_id'] = (array_key_exists('character_id', $validated) && $validated['character_id'] !== '') ? $validated['character_id'] : $task->character_id;
-        } else {
-            $taskDataForCurrent['character_id'] = null;
-        }
-
-        if ($currentTaskType === 'folder') {
-            $taskDataForCurrent['status'] = null;
-            $taskDataForCurrent['start_date'] = $task->start_date;
-            $taskDataForCurrent['end_date'] = $task->end_date;
-            $taskDataForCurrent['duration'] = $task->duration;
-        } elseif ($currentTaskType === 'milestone') {
-            $taskDataForCurrent['start_date'] = $request->filled('start_date') ? Carbon::parse($validated['start_date']) : $task->start_date;
-            // 終了日時をリクエストから受け取るように変更
-            $taskDataForCurrent['end_date'] = $request->filled('end_date') ? Carbon::parse($validated['end_date']) : $taskDataForCurrent['start_date'];
-            $taskDataForCurrent['duration'] = 0;
-            $taskDataForCurrent['status'] = $validated['status'] ?? $task->status;
-            // キャラクターと親工程を強制的にnullにする
-            $taskDataForCurrent['character_id'] = null;
-            $taskDataForCurrent['parent_id'] = null;
-        } elseif ($currentTaskType === 'todo_task') {
-            $taskDataForCurrent['start_date'] = null;
-            $taskDataForCurrent['end_date'] = null;
-            $taskDataForCurrent['duration'] = null;
-            $taskDataForCurrent['status'] = $validated['status'] ?? $task->status;
-        } else {
-            $startDate = Carbon::parse($validated['start_date']);
-            $endDate = Carbon::parse($validated['end_date']);
-            $durationValue = (float)$validated['duration_value'];
-            $durationUnit = $validated['duration_unit'];
-
-            $calculatedDurationInMinutes = 0;
-            switch ($durationUnit) {
-                case 'days':
-                    $calculatedDurationInMinutes = $durationValue * 8 * 60;
-                    break;
-                case 'hours':
-                    $calculatedDurationInMinutes = $durationValue * 60;
-                    break;
-                case 'minutes':
-                    $calculatedDurationInMinutes = $durationValue;
-                    break;
-            }
-            $taskDataForCurrent['start_date'] = $startDate;
-            $taskDataForCurrent['end_date'] = $endDate;
-            $taskDataForCurrent['duration'] = $calculatedDurationInMinutes;
-            $taskDataForCurrent['status'] = $validated['status'] ?? $task->status;
-        }
-
-        // ▼▼▼【新機能】ステータス変更時のWorkLog連動処理 ▼▼▼
-        $oldStatus = $task->status;
-        $newStatus = $taskDataForCurrent['status'] ?? $task->status;
         $user = Auth::user();
         $workLogMessage = '';
+        $updateData = [];
 
-        if ($oldStatus !== $newStatus && !$currentTaskType === 'folder') {
-            $activeWorkLog = WorkLog::where('task_id', $task->id)
-                ->where('user_id', $user->id)
-                ->where('status', 'active')
-                ->first();
+        // 重要項目を編集できるかどうかのフラグを定義
+        $canEditCritical = $user->can('updateCriticalFields', $task) || $task->is_folder || $task->is_milestone;
 
-            if ($newStatus === 'in_progress' && $oldStatus !== 'in_progress') {
+        // 全てのユーザーが更新できる基本データ
+        $updateData['description'] = $validated['description'];
+
+        // ステータス更新ロジック
+        $oldStatus = $task->status;
+        $newStatus = $validated['status'] ?? $oldStatus;
+        if ($oldStatus !== $newStatus) {
+            // 「キャンセル」への変更は上位権限が必要（フォルダ/マイルストーンは常に許可）
+            if ($newStatus === 'cancelled' && !$canEditCritical) {
+                return redirect()->back()->withErrors(['status' => 'この工程をキャンセルする権限がありません。'])->withInput();
+            }
+            if ($currentTaskType !== 'folder') {
+                $updateData['status'] = $newStatus;
+            }
+        }
+
+        // フラグを使って重要項目の更新を制御
+        if ($canEditCritical) {
+            $updateData['name'] = $validated['name'];
+            $updateData['parent_id'] = $request->filled('parent_id') ? $validated['parent_id'] : $task->parent_id;
+
+            if ($currentTaskType !== 'folder') {
+                $updateData['character_id'] = ($request->filled('parent_id') && $validated['parent_id'])
+                    ? (Task::find($validated['parent_id'])->character_id)
+                    : ((array_key_exists('character_id', $validated) && $validated['character_id'] !== '') ? $validated['character_id'] : $task->character_id);
+            } else {
+                $updateData['character_id'] = null;
+            }
+
+            if ($currentTaskType === 'milestone') {
+                $updateData['start_date'] = $request->filled('start_date') ? Carbon::parse($validated['start_date']) : $task->start_date;
+                $updateData['end_date'] = $request->filled('end_date') ? Carbon::parse($validated['end_date']) : ($updateData['start_date'] ?? $task->start_date);
+                $updateData['duration'] = 0;
+                $updateData['character_id'] = null;
+                $updateData['parent_id'] = null;
+            } elseif ($currentTaskType === 'task') {
+                $startDate = Carbon::parse($validated['start_date']);
+                $endDate = Carbon::parse($validated['end_date']);
+                $durationValue = (float)$validated['duration_value'];
+                $durationUnit = $validated['duration_unit'];
+                $calculatedDurationInMinutes = 0;
+                switch ($durationUnit) {
+                    case 'days':
+                        $calculatedDurationInMinutes = $durationValue * 8 * 60;
+                        break;
+                    case 'hours':
+                        $calculatedDurationInMinutes = $durationValue * 60;
+                        break;
+                    case 'minutes':
+                        $calculatedDurationInMinutes = $durationValue;
+                        break;
+                }
+                $updateData['start_date'] = $startDate;
+                $updateData['end_date'] = $endDate;
+                $updateData['duration'] = $calculatedDurationInMinutes;
+            }
+        }
+
+        // WorkLog連動処理
+        $finalStatus = $updateData['status'] ?? $task->status;
+        if ($oldStatus !== $finalStatus && $currentTaskType !== 'folder') {
+            $activeWorkLog = WorkLog::where('task_id', $task->id)->where('user_id', $user->id)->where('status', 'active')->first();
+            if ($finalStatus === 'in_progress' && $oldStatus !== 'in_progress') {
                 if (!$activeWorkLog && $user->getCurrentAttendanceStatus() === 'working') {
-                    WorkLog::create([
-                        'user_id' => $user->id,
-                        'task_id' => $task->id,
-                        'start_time' => Carbon::now(),
-                        'status' => 'active',
-                    ]);
+                    WorkLog::create(['user_id' => $user->id, 'task_id' => $task->id, 'start_time' => Carbon::now(), 'status' => 'active']);
                     $workLogMessage = '作業を自動開始しました。';
-                    $taskDataForCurrent['is_paused'] = false;
+                    $updateData['is_paused'] = false;
                 }
-            } elseif ($newStatus === 'on_hold' && $oldStatus === 'in_progress') {
+            } elseif ($finalStatus === 'on_hold' && $oldStatus === 'in_progress') {
                 if ($activeWorkLog) {
-                    $activeWorkLog->update([
-                        'end_time' => Carbon::now(),
-                        'status' => 'stopped',
-                    ]);
+                    $activeWorkLog->update(['end_time' => Carbon::now(), 'status' => 'stopped']);
                     $workLogMessage = '作業を自動一時停止しました。';
-                    $taskDataForCurrent['is_paused'] = true;
+                    $updateData['is_paused'] = true;
                 }
-            } elseif ($newStatus === 'completed') {
+            } elseif ($finalStatus === 'completed') {
                 if ($activeWorkLog) {
-                    $activeWorkLog->update([
-                        'end_time' => Carbon::now(),
-                        'status' => 'stopped',
-                        'memo' => 'ステータス変更により自動完了',
-                    ]);
+                    $activeWorkLog->update(['end_time' => Carbon::now(), 'status' => 'stopped', 'memo' => 'ステータス変更により自動完了']);
                     $workLogMessage = '作業を自動完了しました。';
                 }
-                $taskDataForCurrent['is_paused'] = false;
-            } elseif (in_array($newStatus, ['not_started', 'cancelled'])) {
+                $updateData['is_paused'] = false;
+            } elseif (in_array($finalStatus, ['not_started', 'cancelled'])) {
                 if ($activeWorkLog) {
-                    $activeWorkLog->update([
-                        'end_time' => Carbon::now(),
-                        'status' => 'stopped',
-                        'memo' => 'ステータス変更により停止',
-                    ]);
+                    $activeWorkLog->update(['end_time' => Carbon::now(), 'status' => 'stopped', 'memo' => 'ステータス変更により停止']);
                     $workLogMessage = '作業を自動停止しました。';
                 }
-                $taskDataForCurrent['is_paused'] = false;
+                $updateData['is_paused'] = false;
             }
         }
-        // ▲▲▲【新機能ここまで】▲▲▲
 
-        $task->fill($taskDataForCurrent);
-        $task->save();
+        $task->update($updateData);
 
-        if (array_key_exists('assignees', $validated)) {
-            $task->assignees()->sync($validated['assignees']);
+        // フラグを使って関連処理を制御
+        if ($canEditCritical) {
+            if (array_key_exists('assignees', $validated)) {
+                $task->assignees()->sync($validated['assignees']);
+            }
+            $applyEditToAllCharactersSameName = $request->boolean('apply_edit_to_all_characters_same_name') && $task->character_id && $currentTaskType !== 'folder' && !$request->filled('parent_id');
+            if ($applyEditToAllCharactersSameName) {
+                $attributesToSync = ['name' => $task->name, 'description' => $task->description, 'start_date' => $task->start_date, 'end_date' => $task->end_date, 'duration' => $task->duration, 'status' => $task->status, 'progress' => $task->progress, 'parent_id' => $task->parent_id];
+                $otherTasks = Task::where('project_id', $project->id)->where('name', $task->name)->where('id', '!=', $task->id)->whereNotNull('character_id')->where('character_id', '!=', $task->character_id)->where('is_milestone', $task->is_milestone)->where('is_folder', $task->is_folder)->get();
+                $updatedCount = 0;
+                foreach ($otherTasks as $otherTask) {
+                    $dataForOtherTask = $attributesToSync;
+                    $otherTask->fill($dataForOtherTask);
+                    $otherTask->save();
+                    if (array_key_exists('assignees', $validated)) {
+                        $otherTask->assignees()->sync($validated['assignees']);
+                    }
+                    $updatedCount++;
+                }
+                if ($updatedCount > 0) {
+                    $workLogMessage = '工程が更新され、他のキャラクターの同名工程 (' . $updatedCount . '件) にも反映されました。';
+                }
+            }
         }
 
-        $message = '工程が更新されました。';
-
-        if ($currentTaskType === 'folder') {
-            $message = 'フォルダが更新されました。';
-        }
+        $message = ($currentTaskType === 'folder') ? 'フォルダが更新されました。' : '工程が更新されました。';
         if ($workLogMessage) {
             $message .= ' ' . $workLogMessage;
-        }
-
-        $applyEditToAllCharactersSameName = $request->boolean('apply_edit_to_all_characters_same_name')
-            && $task->character_id
-            && $currentTaskType !== 'folder'
-            && !$request->filled('parent_id');
-
-        if ($applyEditToAllCharactersSameName) {
-            $attributesToSync = [
-                'name' => $task->name,
-                'description' => $task->description,
-                'start_date' => $task->start_date,
-                'end_date' => $task->end_date,
-                'duration' => $task->duration,
-                'status' => $task->status,
-                'progress' => $task->progress,
-                'parent_id' => $task->parent_id,
-            ];
-            $otherTasks = Task::where('project_id', $project->id)
-                ->where('name', $task->name)
-                ->where('id', '!=', $task->id)
-                ->whereNotNull('character_id')
-                ->where('character_id', '!=', $task->character_id)
-                ->where('is_milestone', $task->is_milestone)
-                ->where('is_folder', $task->is_folder)
-                ->get();
-            $updatedCount = 0;
-            foreach ($otherTasks as $otherTask) {
-                $dataForOtherTask = $attributesToSync;
-                $otherTask->fill($dataForOtherTask);
-                $otherTask->save();
-                if (array_key_exists('assignees', $validated)) {
-                    $otherTask->assignees()->sync($validated['assignees']);
-                }
-                $updatedCount++;
-            }
-            if ($updatedCount > 0) {
-                $message = '工程が更新され、他のキャラクターの同名工程 (' . $updatedCount . '件) にも反映されました。';
-            }
         }
 
         return redirect()->route('projects.show', $project)->with('success', $message);
