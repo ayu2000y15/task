@@ -97,9 +97,9 @@ class AttendanceController extends Controller
         $endOfLastDay = $lastLogTimestamp->copy()->endOfDay(); // 前日の23:59:59
         $startOfNextDay = $endOfLastDay->copy()->addSecond(); // 翌日の00:00:00
 
-        // 最後のログが "出勤" または "復帰" 系の場合のみ分割処理を行う
+        // 最後のログが "出勤" または "復帰" 系の場合（稼働中だった場合）
         if (in_array($lastLog->type, ['clock_in', 'break_end', 'away_end'])) {
-            // 1. 勤怠ログの分割
+            // 1. 勤怠ログの分割（退勤と翌日の出勤）
             AttendanceLog::create([
                 'user_id' => $user->id,
                 'type' => 'clock_out',
@@ -137,6 +137,44 @@ class AttendanceController extends Controller
                     'memo' => '（日跨ぎ自動継続）',
                 ]);
             }
+        }
+        // 最後のログが "休憩開始" または "中抜け開始" の場合
+        elseif (in_array($lastLog->type, ['break_start', 'away_start'])) {
+            // 1. 対応する終了タイプを決定
+            $endType = ($lastLog->type === 'break_start') ? 'break_end' : 'away_end';
+
+            // 2. 休憩/中抜けを前日付けで終了
+            AttendanceLog::create([
+                'user_id' => $user->id,
+                'type' => $endType,
+                'timestamp' => $endOfLastDay,
+                'memo' => '日跨ぎ自動処理',
+            ]);
+
+            // 3. 前日付けで退勤
+            AttendanceLog::create([
+                'user_id' => $user->id,
+                'type' => 'clock_out',
+                'timestamp' => $endOfLastDay,
+                'memo' => '日跨ぎ自動処理',
+            ]);
+
+            // 4. 翌日付けで出勤
+            AttendanceLog::create([
+                'user_id' => $user->id,
+                'type' => 'clock_in',
+                'timestamp' => $startOfNextDay,
+                'memo' => '日跨ぎ自動処理',
+            ]);
+
+            // 5. 翌日付けで元の休憩/中抜けを再開
+            AttendanceLog::create([
+                'user_id' => $user->id,
+                'type' => $lastLog->type, // 元の'break_start' or 'away_start'
+                'timestamp' => $startOfNextDay,
+                'memo' => '日跨ぎ自動処理',
+            ]);
+            // 注意: このシナリオではアクティブな作業ログはないはずなので、WorkLogの分割は行いません。
         }
     }
 

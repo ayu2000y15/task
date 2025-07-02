@@ -20,6 +20,26 @@ class RequestController extends Controller
      */
     public function index(Request $request)
     {
+
+        $requestsToCheck = TaskRequest::whereNull('completed_at')
+            ->whereNotNull('end_at')
+            ->where('end_at', '<', now())
+            ->with('items') // N+1問題を防ぐためにitemsをeager load
+            ->get();
+
+        foreach ($requestsToCheck as $req) {
+            // その依頼の全てのチェックリスト項目が完了しているかチェック
+            // ($req->itemsが空でないことも確認)
+            $allItemsCompleted = !$req->items->isEmpty() && $req->items->every(fn($item) => $item->is_completed);
+
+            // 条件：チェックリストがない、または、全ての項目が完了している
+            if ($req->items->isEmpty() || $allItemsCompleted) {
+                // 条件を満たしていれば、DBのcompleted_atを依頼の終了日時で更新
+                $req->completed_at = $req->end_at;
+                $req->save();
+            }
+        }
+
         $user = Auth::user();
         $filterCategoryId = $request->input('category_id');
         $filterDate = $request->input('date');
@@ -49,30 +69,14 @@ class RequestController extends Controller
             }
         };
 
-        // ▼▼▼【ここから修正】リアルタイムで完了状態を判定するクロージャを定義 ▼▼▼
-        $isComplete = function (TaskRequest $req) {
-            // 1. DB上で既に完了になっている場合
-            if (!is_null($req->completed_at)) {
-                return true;
-            }
-
-            // 2. チェックリストがなく、終了日時を過ぎている場合 (リアルタイム判定)
-            if ($req->items->isEmpty() && !is_null($req->end_at) && $req->end_at->isPast()) {
-                return true;
-            }
-
-            // 上記以外は未完了
-            return false;
-        };
-        // ▲▲▲【修正ここまで】▲▲▲
+        $isPending = fn(TaskRequest $req) => is_null($req->completed_at);
 
         // 自分に割り当てられた依頼（他人から）
         $assignedRequests = $user->assignedRequests()
             ->where('requester_id', '!=', $user->id)
             ->where($commonQuery)
             ->get();
-        // ▼▼▼【修正】新しい判定ロジックで振り分ける ▼▼▼
-        [$completedAssigned, $pendingAssigned] = $assignedRequests->partition($isComplete);
+        [$pendingAssigned, $completedAssigned] = $assignedRequests->partition($isPending);
 
         // 自分が作成した依頼（他人へ）
         $createdRequests = $user->createdRequests()
@@ -81,8 +85,7 @@ class RequestController extends Controller
             })
             ->where($commonQuery)
             ->get();
-        // ▼▼▼【修正】新しい判定ロジックで振り分ける ▼▼▼
-        [$completedCreated, $pendingCreated] = $createdRequests->partition($isComplete);
+        [$pendingCreated, $completedCreated] = $createdRequests->partition($isPending);
 
         // 自分用の依頼
         $personalRequests = $user->createdRequests()
@@ -91,8 +94,7 @@ class RequestController extends Controller
             })
             ->where($commonQuery)
             ->get();
-        // ▼▼▼【修正】新しい判定ロジックで振り分ける ▼▼▼
-        [$completedPersonal, $pendingPersonal] = $personalRequests->partition($isComplete);
+        [$pendingPersonal, $completedPersonal] = $personalRequests->partition($isPending);
 
 
         // フィルター用のカテゴリ一覧
@@ -191,8 +193,9 @@ class RequestController extends Controller
             // 親依頼の全項目が完了したかチェック
             $parentRequest = $item->request;
             if ($parentRequest->items()->where('is_completed', false)->doesntExist()) {
-                // 全て完了していたら、親依頼の完了日時を更新
-                $parentRequest->update(['completed_at' => now()]);
+                // 全て完了。依頼の終了日時があればそれを、なければ現在時刻を完了日時とする
+                $completionTime = $parentRequest->end_at ?? now();
+                $parentRequest->update(['completed_at' => $completionTime]);
             } else {
                 // 1つでも未完了があれば、親依頼の完了日時をクリア
                 $parentRequest->update(['completed_at' => null]);
@@ -307,7 +310,9 @@ class RequestController extends Controller
 
                 // 削除や更新の結果、全項目が完了になったか再チェック
                 if ($request->items()->where('is_completed', false)->doesntExist() && $request->items()->count() > 0) {
-                    $request->update(['completed_at' => now()]);
+                    // 全て完了。依頼の終了日時があればそれを、なければ現在時刻を完了日時とする
+                    $completionTime = $request->end_at ?? now();
+                    $request->update(['completed_at' => $completionTime]);
                 } else {
                     $request->update(['completed_at' => null]);
                 }
