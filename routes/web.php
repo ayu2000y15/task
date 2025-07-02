@@ -312,10 +312,10 @@ Route::middleware('auth')->group(function () {
                 Route::get('/create', [SalesToolController::class, 'emailListsCreate'])->name('create');
                 Route::post('/', [SalesToolController::class, 'emailListsStore'])->name('store');
                 // Route::get('/{emailList}', [SalesToolController::class, 'emailListsShow'])->name('show');
+                Route::delete('/{emailList}/subscribers/destroy-all', [SalesToolController::class, 'subscribersDestroyAll'])->name('subscribers.destroy-all');
                 Route::get('/{emailList}/edit', [SalesToolController::class, 'emailListsEdit'])->name('edit');
                 Route::put('/{emailList}', [SalesToolController::class, 'emailListsUpdate'])->name('update');
                 Route::delete('/{emailList}', [SalesToolController::class, 'emailListsDestroy'])->name('destroy');
-
                 // メールリスト詳細 (購読者一覧)
                 Route::get('/{emailList}', [SalesToolController::class, 'emailListsShow'])->name('show'); // メールリスト詳細 (購読者一覧)
 

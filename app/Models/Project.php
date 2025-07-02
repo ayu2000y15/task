@@ -140,7 +140,7 @@ class Project extends Model
     }
 
     /**
-     * この案件に紐づく作業依頼
+     * この案件に紐づく予定・依頼
      */
     public function requests(): HasMany
     {

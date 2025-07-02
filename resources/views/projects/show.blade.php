@@ -1010,12 +1010,12 @@
                 </div>
             </div>
 
-            {{-- 作業依頼 --}}
+            {{-- 予定・依頼 --}}
             {{-- <div x-data="{ expanded: true }" class="bg-white dark:bg-gray-800 shadow-md rounded-lg">
                 <div class="px-5 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center cursor-pointer" @click="expanded = !expanded">
                     <div class="flex items-center">
                         <i class="fas fa-clipboard-list mr-2 text-gray-600 dark:text-gray-300"></i>
-                        <h5 class="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-0">関連する作業依頼</h5>
+                        <h5 class="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-0">関連する予定・依頼</h5>
                     </div>
                     <div class="text-sm text-gray-500 dark:text-gray-400">
                         <span class="mr-2">{{ $project->requests->count() }}件</span>
@@ -1027,7 +1027,7 @@
                         @include('requests.partials.request-card', ['request' => $request])
                     @empty
                         <p class="text-center text-sm text-gray-500 dark:text-gray-400 py-6">
-                            この案件に関連する作業依頼はありません。
+                            この案件に関連する予定・依頼はありません。
                         </p>
                     @endforelse
                 </div>

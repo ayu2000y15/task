@@ -18,11 +18,9 @@
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {{-- ▼▼▼ 左カラム（メインコンテンツ） ▼▼▼ --}}
             <div class="lg:col-span-2 space-y-6">
-
-                {{-- ▼▼▼【ここから追加】現在進行中の工程セクション ▼▼▼ --}}
+                {{-- (左カラムは変更なし) --}}
                 @if($runningWorkLogs->isNotEmpty())
                     <div x-data="{ open: false }" class="bg-white dark:bg-gray-800 shadow-md rounded-lg">
-                        {{-- アコーディオンヘッダー --}}
                         <div @click="open = !open"
                             class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition">
                             <h5 class="text-lg font-semibold text-gray-700 dark:text-gray-300 flex items-center">
@@ -34,8 +32,6 @@
                                 <i class="fas fa-fw transition-transform" :class="open ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
                             </button>
                         </div>
-
-                        {{-- アコーディオンコンテンツ --}}
                         <div x-show="open" x-transition class="divide-y divide-gray-200 dark:divide-gray-700" style="display: none;">
                             @foreach ($runningWorkLogs as $workLog)
                                 @php $task = $workLog->task; @endphp
@@ -43,31 +39,26 @@
                                     <div class="p-4 hover:bg-gray-50 dark:hover:bg-gray-700 border-l-4" style="border-left-color: {{ $task->project->color ?? '#6c757d' }};">
                                         <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                                             <div class="flex-grow min-w-0">
-                                                {{-- 案件名 --}}
                                                 <p class="text-xs font-semibold truncate" style="color: {{ $task->project->color ?? '#6c757d' }};" title="案件: {{ $task->project->title }}">
                                                     <a href="{{ route('projects.show', $task->project) }}" class="hover:underline">
                                                         {{ $task->project->title }}
                                                     </a>
                                                 </p>
-                                                {{-- 工程名 --}}
                                                 <p class="text-lg font-medium text-gray-800 dark:text-gray-100 whitespace-normal break-words">
                                                     <a href="{{ route('projects.tasks.edit', [$task->project, $task]) }}" class="hover:text-blue-600 dark:hover:text-blue-400">
                                                         {{ $task->name }}
                                                     </a>
                                                 </p>
-                                                {{-- 担当者 --}}
                                                 @if($task->assignees->isNotEmpty())
                                                 <p class="text-xs text-gray-500 dark:text-gray-400 truncate mt-1" title="担当: {{ $task->assignees->pluck('name')->join(', ') }}">
                                                     <i class="fas fa-users fa-fw mr-1 text-gray-400"></i>担当: {{ $task->assignees->pluck('name')->join(', ') }}
                                                 </p>
                                                 @endif
-                                                {{-- 作業中のメンバー --}}
                                                 @if(isset($task->workingUsers) && $task->workingUsers->isNotEmpty())
                                                 <p class="text-xs text-blue-600 dark:text-blue-400 font-semibold truncate mt-1" title="作業中: {{ $task->workingUsers->pluck('name')->join(', ') }}">
                                                     <i class="fas fa-play-circle fa-fw mr-1 animate-pulse"></i>作業中: {{ $task->workingUsers->pluck('name')->join(', ') }}
                                                 </p>
                                                 @endif
-                                                {{-- 期限 --}}
                                                 @if($task->end_date)
                                                     @php
                                                         $now = \Carbon\Carbon::now();
@@ -79,7 +70,6 @@
                                                     </p>
                                                 @endif
                                             </div>
-                                            {{-- タイマーコントロール --}}
                                             <div class="flex-shrink-0">
                                                 @if(!$task->is_folder && !$task->is_milestone)
                                                     @if($task->assignees->isNotEmpty())
@@ -93,15 +83,12 @@
                                                                 data-task-status="{{ $task->status }}"
                                                                 data-is-paused="{{ $task->is_paused ? 'true' : 'false' }}"
                                                                 data-assignees='{{ json_encode($task->assignees->map->only(['id', 'name'])->values()) }}'>
-                                                                {{-- JavaScriptがタイマーボタンをここに生成します --}}
                                                             </div>
                                                         @else
-                                                            {{-- 表示専用のタイマー状況コンテナ --}}
                                                             <div class="timer-display-only"
                                                                 data-task-id="{{ $task->id }}"
                                                                 data-task-status="{{ $task->status }}"
                                                                 data-is-paused="{{ $task->is_paused ? 'true' : 'false' }}">
-                                                                {{-- JavaScriptがこの中身を生成します --}}
                                                             </div>
                                                         @endif
                                                     @else
@@ -117,10 +104,8 @@
                     </div>
                 @endif
 
-                {{-- 全ユーザーの生産性トラッカー  --}}
-                @can('viewAllProductivity', App\Models\User::class) {{-- 権限があるユーザーのみ表示 --}}
+                @can('viewAllProductivity', App\Models\User::class)
                 <div x-data="{ open: false }" class="bg-white dark:bg-gray-800 shadow-md rounded-lg mt-6">
-                    {{-- アコーディオンヘッダー --}}
                     <div @click="open = !open"
                         class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition">
                         <h5 class="text-lg font-semibold text-gray-700 dark:text-gray-300 flex items-center">
@@ -131,7 +116,7 @@
                                 tooltipStyles: { top: '0px', left: '0px' }
                              }"
                              @click.away="tooltipOpen = false"
-                             @click.stop {{-- 親要素の@clickイベントが発火しないようにする --}}
+                             @click.stop
                              class="relative ml-2">
 
                             <button @click="
@@ -179,7 +164,6 @@
                         </button>
                     </div>
 
-                    {{-- アコーディオンコンテンツ --}}
                     <div x-show="open" x-transition class="p-4 space-y-4" style="display: none;">
                         <div class="text-center pt-2">
                             <div class="flex justify-center space-x-4 text-xs text-gray-500 mt-1">
@@ -191,7 +175,6 @@
                         @foreach($productivitySummaries as $summary)
                             <div class="px-3 py-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
                                 <h4 class="text-md font-semibold text-gray-800 dark:text-gray-200">{{ $summary->user->name }}</h4>
-                                {{-- 昨日のバー --}}
                                 <div class="mt-3">
                                     <div class="flex justify-between text-xs text-gray-600 dark:text-gray-400">
                                         <span>昨日</span>
@@ -206,7 +189,6 @@
                                         <p class="text-xs text-gray-400 mt-1">記録なし</p>
                                     @endif
                                 </div>
-                                {{-- 今月のバー --}}
                                 <div class="mt-3">
                                     <div class="flex justify-between text-xs text-gray-600 dark:text-gray-400">
                                         <span>今月</span>
@@ -228,53 +210,65 @@
                 </div>
                 @endcan
 
-                <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg">
+                {{-- ▼▼▼【ここから修正】今日のやることリスト ▼▼▼ --}}
+                <div x-data="{ open: true }" class="bg-white dark:bg-gray-800 shadow-md rounded-lg">
                     <div
-                        class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row justify-between items-center gap-4">
-                        <h5 class="text-lg font-semibold text-gray-700 dark:text-gray-300">
-                            {{ $targetDate->isToday() ? '今日の' : $targetDate->isoFormat('M月D日(ddd)') . ' ' }}やることリスト
-                        </h5>
+                        class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-700/50 transition">
+                        <div @click="open = !open"
+                            class="flex-grow flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 cursor-pointer">
+                            <h5 class="text-lg font-semibold text-gray-700 dark:text-gray-300">
+                                {{ $targetDate->isToday() ? '今日の' : $targetDate->isoFormat('M月D日(ddd)') . ' ' }}やることリスト
+                            </h5>
 
-                        <form action="{{ route('home.index') }}" method="GET" class="flex items-center gap-2">
-                            <x-secondary-button as="a" href="{{ route('home.index') }}">今日</x-secondary-button>
+                            <form @click.stop action="{{ route('home.index') }}" method="GET"
+                                class="flex items-center gap-2">
+                                <x-secondary-button as="a" href="{{ route('home.index') }}">今日</x-secondary-button>
 
-                            <input type="date" name="date" id="date-picker" value="{{ $targetDate->format('Y-m-d') }}"
-                                class="border-gray-300 rounded-md shadow-sm dark:bg-gray-700 dark:border-gray-600 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                            <x-primary-button type="submit">表示</x-primary-button>
-                        </form>
+                                <input type="date" name="date" id="date-picker" value="{{ $targetDate->format('Y-m-d') }}"
+                                    class="border-gray-300 rounded-md shadow-sm dark:bg-gray-700 dark:border-gray-600 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                <x-primary-button type="submit">表示</x-primary-button>
+                            </form>
+                        </div>
+                        <button @click="open = !open" class="ml-4 flex-shrink-0"
+                            aria-label="やることリストを展開/折りたたむ">
+                            <i class="fas fa-fw transition-transform" :class="open ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
+                        </button>
                     </div>
 
-                    <div class="divide-y divide-gray-200 dark:divide-gray-700">
+                    <div x-show="open" x-transition class="divide-y divide-gray-200 dark:divide-gray-700">
                         @if(empty($workItemsByAssignee))
                             <p class="px-6 py-12 text-center text-sm text-gray-500 dark:text-gray-400">本日の作業はありません</p>
                         @else
                             @foreach($workItemsByAssignee as $assigneeData)
-                                <div class="p-4 {{ $assigneeData['assignee']->id === Auth::id() ? 'bg-blue-50 dark:bg-blue-900/50' : '' }}">
+                                <div
+                                    class="p-4 {{ $assigneeData['assignee']->id === Auth::id() ? 'bg-blue-50 dark:bg-blue-900/50' : '' }}">
                                     @php
-                                        // 表示中の担当者の本日の休日情報を取得
                                         $holidayForUser = $todaysHolidays->firstWhere('user_id', $assigneeData['assignee']->id);
                                         $holidayBadgeText = null;
                                         $holidayBadgeTextStyle = "";
 
                                         if ($holidayForUser) {
-                                            $type = $holidayForUser->type; // period_type から type に変更
-
-                                            if ($type === 'full_day_off') { // 'full' から 'full_day_off' に変更
+                                            $type = $holidayForUser->type;
+                                            if ($type === 'full_day_off') {
                                                 $holidayBadgeText = '休暇中 (全休)';
-                                            } elseif ($type === 'am_off' && now()->hour < 12) { // 'am' から 'am_off' に変更
+                                            } elseif ($type === 'am_off' && now()->hour < 12) {
                                                 $holidayBadgeText = '休暇中 (午前)';
-                                            } elseif ($type === 'pm_off' && now()->hour >= 12) { // 'pm' から 'pm_off' に変更
+                                            } elseif ($type === 'pm_off' && now()->hour >= 12) {
                                                 $holidayBadgeText = '休暇中 (午後)';
                                             } else {
                                                 $holidayBadgeTextStyle = "display: none;";
                                             }
                                         }
                                     @endphp
-                                    <h3 class="font-semibold mb-2 flex items-center gap-x-2 {{ $assigneeData['assignee']->id === Auth::id() ? 'text-blue-600 dark:text-blue-400' : 'text-gray-800 dark:text-gray-200' }}">
-                                        <i class="fas fa-user mr-1 {{ $assigneeData['assignee']->id === Auth::id() ? 'text-blue-500' : 'text-gray-400' }}"></i>
+                                    <h3
+                                        class="font-semibold mb-2 flex items-center gap-x-2 {{ $assigneeData['assignee']->id === Auth::id() ? 'text-blue-600 dark:text-blue-400' : 'text-gray-800 dark:text-gray-200' }}">
+                                        <i
+                                            class="fas fa-user mr-1 {{ $assigneeData['assignee']->id === Auth::id() ? 'text-blue-500' : 'text-gray-400' }}"></i>
                                         <span>{{ $assigneeData['assignee']->name }}</span>
                                         @if($todaysHolidays->contains('user_id', $assigneeData['assignee']->id))
-                                        <span class="px-2 py-0.5 text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300 rounded-full" style="{{ $holidayBadgeTextStyle }}">{{ $holidayBadgeText }}</span>
+                                            <span
+                                                class="px-2 py-0.5 text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300 rounded-full"
+                                                style="{{ $holidayBadgeTextStyle }}">{{ $holidayBadgeText }}</span>
                                         @endif
                                     </h3>
                                     <ul class="ml-6 divide-y space-y-2 divide-gray-200 dark:divide-gray-700">
@@ -294,11 +288,11 @@
                         @endif
                     </div>
                 </div>
+                {{-- ▲▲▲【修正ここまで】▲▲▲ --}}
             </div>
 
             {{-- ▼▼▼ 右カラム（サイド情報） ▼▼▼ --}}
             <div class="space-y-6">
-                {{-- オンラインのメンバー --}}
                 <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg">
                     <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
                         <h5 class="text-lg font-semibold text-gray-700 dark:text-gray-300 flex items-center">
@@ -310,7 +304,6 @@
                         <p class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">現在出勤中のメンバーはいません</p>
                     @else
                         @php
-                            // ステータスごとのラベルとスタイルを定義
                             $statusLabels = [
                                 'working'     => '作業進行中',
                                 'on_break'    => '休憩中',
@@ -333,16 +326,28 @@
                                     }
                                 @endphp
                                 <li class="px-6 py-3 flex items-center justify-between">
-                                    <span class="text-sm font-medium text-gray-800 dark:text-gray-200">{{ $log->user->name }}</span>
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ $statusClasses[$displayStatusKey] ?? '' }}">
-                                        {{ $statusLabels[$displayStatusKey] ?? '不明' }}
-                                    </span>
+                                    <div class="flex items-center gap-2">
+                                        {{-- 勤務場所アイコン --}}
+                                        <span class="w-5 text-center">
+                                            @if(optional($log->user)->todays_location === 'remote')
+                                                {{-- 在宅の場合 --}}
+                                                <i class="fas fa-home text-blue-500" title="在宅勤務"></i>
+                                            @elseif(optional($log->user)->todays_location === 'office')
+                                                {{-- 出勤の場合 --}}
+                                                <i class="fas fa-building text-green-500" title="出勤"></i>
+                                            @else
+                                                <i class="fas fa-question-circle text-gray-400" title="勤務場所未設定"></i>
+                                            @endif
+                                        </span>
+                                        {{-- ユーザー名 --}}
+                                        <span class="text-sm font-medium text-gray-800 dark:text-gray-200">{{ $log->user->name }}</span>
+                                    </div>
                                 </li>
                             @endforeach
                         </ul>
                     @endif
                 </div>
-                {{-- 本日の休日取得者 --}}
+
                 <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg">
                     <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
                         <h5 class="text-lg font-semibold text-gray-700 dark:text-gray-300">本日の休日取得者</h5>
@@ -375,7 +380,65 @@
                     @endif
                 </div>
 
-                {{-- 期限間近の工程 --}}
+                <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg">
+                    <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                        <h5 class="text-lg font-semibold text-gray-700 dark:text-gray-300 flex items-center">
+                            <i class="far fa-calendar-alt text-blue-500 mr-2"></i>
+                            今後の予定 (1週間以内)
+                        </h5>
+                    </div>
+                    @if(empty($upcomingSchedulesByAssignee))
+                        <p class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">1週間以内の予定はありません</p>
+                    @else
+                        <ul class="divide-y divide-gray-200 dark:divide-gray-700 max-h-96 overflow-y-auto">
+                            {{-- ▼▼▼【ここから修正】自分の予定の背景色を変更 ▼▼▼ --}}
+                            @foreach($upcomingSchedulesByAssignee as $data)
+                                <li class="px-6 py-4 {{ $data['assignee']->id === Auth::id() ? 'bg-blue-50 dark:bg-blue-900/50' : '' }}">
+                                    <h6 class="text-sm font-semibold mb-2 {{ $data['assignee']->id === Auth::id() ? 'text-blue-600 dark:text-blue-400' : 'text-gray-800 dark:text-gray-200' }}">
+                                        <i class="fas fa-user fa-fw mr-1 {{ $data['assignee']->id === Auth::id() ? 'text-blue-500' : 'text-gray-400' }}"></i>
+                                        {{ $data['assignee']->name }}
+                                    </h6>
+                                    <ul class="ml-4 space-y-3">
+                                        @foreach($data['schedules'] as $schedule)
+                                            <li class="text-xs space-y-1 pt-3 border-t border-gray-300 dark:border-gray-700 first:border-t-0 first:pt-0">
+                                                <p class="font-semibold text-gray-900 dark:text-gray-100">
+                                                    {{ $schedule->title }}
+                                                </p>
+                                                <p class="text-gray-600 dark:text-gray-400">
+                                                    <i class="far fa-clock fa-fw mr-1"></i>
+                                                    {{ \Carbon\Carbon::parse($schedule->start_at)->isoFormat('M/D(ddd) H:mm') }}
+                                                    @if($schedule->end_at)
+                                                        ～ {{ \Carbon\Carbon::parse($schedule->end_at)->isoFormat('H:mm') }}
+                                                    @endif
+                                                </p>
+                                                @if($schedule->project)
+                                                    <p class="text-gray-600 dark:text-gray-400">
+                                                        <i class="fas fa-folder-open fa-fw mr-1 text-gray-400"></i>
+                                                        {{ $schedule->project->title }}
+                                                    </p>
+                                                @endif
+                                                @if($schedule->category)
+                                                    <p class="text-gray-600 dark:text-gray-400">
+                                                        <i class="fas fa-tag fa-fw mr-1 text-gray-400"></i>
+                                                        {{ $schedule->category->name }}
+                                                    </p>
+                                                @endif
+                                                @if($schedule->notes)
+                                                    <div class="mt-2 p-2 text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-700/50 rounded-md">
+                                                        {!! nl2br(e($schedule->notes)) !!}
+                                                    </div>
+                                                @endif
+                                            </li>
+                                        @endforeach
+                                    </ul>
+                                </li>
+                            @endforeach
+                            {{-- ▲▲▲【修正ここまで】▲▲▲ --}}
+                        </ul>
+                    @endif
+                </div>
+
+
                 <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg">
                     <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
                         <h5 class="text-lg font-semibold text-gray-700 dark:text-gray-300">期限切れ・間近の工程 (2日以内)</h5>
@@ -393,8 +456,6 @@
                         @endif
                     </ul>
                 </div>
-
-                {{-- 衣装案件概要 --}}
                 <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
                     <h5 class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4">衣装案件概要</h5>
                     <div class="space-y-3">
@@ -421,14 +482,11 @@
 @endsection
 
 @push('scripts')
-    {{-- ▼▼▼【ここを追加】依頼項目のチェックボックスを機能させるためのJS ▼▼▼ --}}
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            // この関数は、新しい要素がDOMに追加されたときにも呼び出せるように定義
             function initializeRequestCheckboxes(container) {
                 const checkboxes = container.querySelectorAll('.request-item-checkbox');
                 checkboxes.forEach(checkbox => {
-                    // 重複してイベントリスナーが登録されるのを防ぐ
                     if (checkbox.dataset.initialized) return;
                     checkbox.dataset.initialized = true;
 
@@ -452,7 +510,7 @@
                                     listItem.classList.toggle('opacity-50', isCompleted);
                                     listItem.querySelector('.item-content').classList.toggle('line-through', isCompleted);
                                 } else {
-                                    this.checked = !isCompleted; // 失敗したら元に戻す
+                                    this.checked = !isCompleted;
                                 }
                             })
                             .catch(error => {
@@ -462,8 +520,6 @@
                     });
                 });
             }
-
-            // 初期表示の要素にイベントリスナーを適用
             initializeRequestCheckboxes(document.body);
         });
     </script>

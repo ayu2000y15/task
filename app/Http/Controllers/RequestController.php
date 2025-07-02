@@ -29,28 +29,50 @@ class RequestController extends Controller
             $query->with(['requester', 'items.completedBy', 'assignees', 'project', 'category'])
                 ->latest();
 
-            // カテゴリでの絞り込み
             if ($filterCategoryId) {
                 $query->where('request_category_id', $filterCategoryId);
             }
 
-            // 日付での絞り込み (その日に開始または終了するタスク、あるいは期間中のタスク)
             if ($filterDate) {
-                $query->whereHas('items', function ($itemQuery) use ($filterDate) {
-                    $itemQuery->where(function ($q) use ($filterDate) {
-                        $q->whereDate('start_at', '<=', $filterDate)
-                            ->whereDate('end_at', '>=', $filterDate);
-                    });
+                $query->where(function ($q) use ($filterDate) {
+                    $q->whereHas('items', function ($itemQuery) use ($filterDate) {
+                        $itemQuery->where(function ($subQ) use ($filterDate) {
+                            $subQ->whereDate('start_at', '<=', $filterDate)
+                                ->whereDate('end_at', '>=', $filterDate);
+                        });
+                    })
+                        ->orWhere(function ($subQ) use ($filterDate) {
+                            $subQ->whereDate('start_at', '<=', $filterDate)
+                                ->whereDate('end_at', '>=', $filterDate);
+                        });
                 });
             }
         };
+
+        // ▼▼▼【ここから修正】リアルタイムで完了状態を判定するクロージャを定義 ▼▼▼
+        $isComplete = function (TaskRequest $req) {
+            // 1. DB上で既に完了になっている場合
+            if (!is_null($req->completed_at)) {
+                return true;
+            }
+
+            // 2. チェックリストがなく、終了日時を過ぎている場合 (リアルタイム判定)
+            if ($req->items->isEmpty() && !is_null($req->end_at) && $req->end_at->isPast()) {
+                return true;
+            }
+
+            // 上記以外は未完了
+            return false;
+        };
+        // ▲▲▲【修正ここまで】▲▲▲
 
         // 自分に割り当てられた依頼（他人から）
         $assignedRequests = $user->assignedRequests()
             ->where('requester_id', '!=', $user->id)
             ->where($commonQuery)
             ->get();
-        [$pendingAssigned, $completedAssigned] = $assignedRequests->partition(fn($req) => is_null($req->completed_at));
+        // ▼▼▼【修正】新しい判定ロジックで振り分ける ▼▼▼
+        [$completedAssigned, $pendingAssigned] = $assignedRequests->partition($isComplete);
 
         // 自分が作成した依頼（他人へ）
         $createdRequests = $user->createdRequests()
@@ -59,7 +81,8 @@ class RequestController extends Controller
             })
             ->where($commonQuery)
             ->get();
-        [$pendingCreated, $completedCreated] = $createdRequests->partition(fn($req) => is_null($req->completed_at));
+        // ▼▼▼【修正】新しい判定ロジックで振り分ける ▼▼▼
+        [$completedCreated, $pendingCreated] = $createdRequests->partition($isComplete);
 
         // 自分用の依頼
         $personalRequests = $user->createdRequests()
@@ -68,7 +91,9 @@ class RequestController extends Controller
             })
             ->where($commonQuery)
             ->get();
-        [$pendingPersonal, $completedPersonal] = $personalRequests->partition(fn($req) => is_null($req->completed_at));
+        // ▼▼▼【修正】新しい判定ロジックで振り分ける ▼▼▼
+        [$completedPersonal, $pendingPersonal] = $personalRequests->partition($isComplete);
+
 
         // フィルター用のカテゴリ一覧
         $categories = \App\Models\RequestCategory::orderBy('name')->get();
@@ -108,8 +133,10 @@ class RequestController extends Controller
             'assignees.*' => 'required|exists:users,id',
             'project_id' => 'nullable|exists:projects,id',
             'request_category_id' => 'required|exists:request_categories,id',
-            'items' => 'required|array|min:1',
-            'items.*.content' => 'required|string|max:1000',
+            'start_at' => 'nullable|date',
+            'end_at' => 'nullable|date|after_or_equal:start_at',
+            'items' => 'nullable|array|max:15', // 必須(min:1)を解除
+            'items.*.content' => 'required_with:items|string|max:1000', // itemsが存在する場合のみ必須
             'items.*.due_date' => 'nullable|date',
         ]);
         try {
@@ -120,20 +147,25 @@ class RequestController extends Controller
                     'notes' => $validated['notes'],
                     'project_id' => $validated['project_id'],
                     'request_category_id' => $validated['request_category_id'],
+                    'start_at' => $validated['start_at'] ?? null,
+                    'end_at' => $validated['end_at'] ?? null,
                 ]);
+
                 $taskRequest->assignees()->sync($validated['assignees']);
-                foreach ($validated['items'] as $index => $itemData) {
-                    $taskRequest->items()->create([
-                        'content' => $itemData['content'],
-                        'due_date' => $itemData['due_date'] ?? null,
-                        'order' => $index + 1
-                    ]);
+                if (!empty($validated['items'])) {
+                    foreach ($validated['items'] as $index => $itemData) {
+                        $taskRequest->items()->create([
+                            'content' => $itemData['content'],
+                            'due_date' => $itemData['due_date'] ?? null,
+                            'order' => $index + 1
+                        ]);
+                    }
                 }
             });
         } catch (\Exception $e) {
             return redirect()->back()->with('error', '依頼の作成に失敗しました。' . $e->getMessage())->withInput();
         }
-        return redirect()->route('requests.index')->with('success', '作業依頼を作成しました。');
+        return redirect()->route('requests.index')->with('success', '予定・依頼を作成しました。');
     }
 
     /**
@@ -224,9 +256,11 @@ class RequestController extends Controller
             'assignees.*' => 'required|exists:users,id',
             'project_id' => 'nullable|exists:projects,id',
             'request_category_id' => 'required|exists:request_categories,id',
-            'items' => 'required|array|min:1',
+            'start_at' => 'nullable|date',
+            'end_at' => 'nullable|date|after_or_equal:start_at',
+            'items' => 'nullable|array|max:15', // 必須(min:1)を解除
             'items.*.id' => ['nullable', 'integer', $itemExistsRule],
-            'items.*.content' => 'required|string|max:1000',
+            'items.*.content' => 'required_with:items|string|max:1000', // itemsが存在する場合のみ必須
             'items.*.due_date' => 'nullable|date',
         ], [
             'title.required' => '件名は必ず入力してください。',
@@ -244,6 +278,8 @@ class RequestController extends Controller
                     'notes' => $validated['notes'],
                     'project_id' => $validated['project_id'],
                     'request_category_id' => $validated['request_category_id'],
+                    'start_at' => $validated['start_at'] ?? null,
+                    'end_at' => $validated['end_at'] ?? null,
                 ]);
 
                 // 2. 担当者を更新
@@ -252,20 +288,18 @@ class RequestController extends Controller
                 // 3. チェックリスト項目を差分更新
                 $submittedItemIds = [];
 
-                foreach ($validated['items'] as $index => $itemData) {
-                    // IDがあれば更新、なければ新規作成 (updateOrCreate)
-                    // 既存の is_completed などの情報は保持される
-                    $item = $request->items()->updateOrCreate(
-                        [
-                            'id' => $itemData['id'] ?? null,
-                        ],
-                        [
-                            'content' => $itemData['content'],
-                            'order' => $index + 1,
-                            'due_date' => $itemData['due_date'] ?? null,
-                        ]
-                    );
-                    $submittedItemIds[] = $item->id;
+                if (!empty($validated['items'])) {
+                    foreach ($validated['items'] as $index => $itemData) {
+                        $item = $request->items()->updateOrCreate(
+                            ['id' => $itemData['id'] ?? null],
+                            [
+                                'content' => $itemData['content'],
+                                'order' => $index + 1,
+                                'due_date' => $itemData['due_date'] ?? null,
+                            ]
+                        );
+                        $submittedItemIds[] = $item->id;
+                    }
                 }
 
                 // フォームから送信されなかったアイテム（=削除されたアイテム）をDBから削除
@@ -282,7 +316,7 @@ class RequestController extends Controller
             return redirect()->back()->with('error', '依頼の更新に失敗しました。' . $e->getMessage())->withInput();
         }
 
-        return redirect()->route('requests.index')->with('success', '作業依頼を更新しました。');
+        return redirect()->route('requests.index')->with('success', '予定・依頼を更新しました。');
     }
 
     /**
@@ -304,7 +338,26 @@ class RequestController extends Controller
     public function updateItemStartAt(Request $request, RequestItem $item)
     {
         $this->authorize('update', $item);
-        $validated = $request->validate(['start_at' => 'nullable|date']);
+
+        $parentRequest = $item->request;
+        $rules = [
+            'start_at' => [
+                'nullable',
+                'date',
+                // 項目の終了日時より前であること
+                $item->end_at ? 'before_or_equal:' . $item->end_at->toDateTimeString() : '',
+                // 親依頼の開始日時以降であること
+                $parentRequest->start_at ? 'after_or_equal:' . $parentRequest->start_at->toDateTimeString() : '',
+                // 親依頼の終了日時より前であること
+                $parentRequest->end_at ? 'before_or_equal:' . $parentRequest->end_at->toDateTimeString() : '',
+            ],
+        ];
+
+        $validated = $request->validate($rules, [
+            'start_at.after_or_equal' => '開始日時は、依頼全体の開始日時より後に設定してください。',
+            'start_at.before_or_equal' => '開始日時は、依頼全体の終了日時、または項目の終了日時より前に設定してください。',
+        ]);
+
         $item->update(['start_at' => $validated['start_at'] ?? null]);
         return response()->json(['success' => true]);
     }
@@ -315,7 +368,26 @@ class RequestController extends Controller
     public function updateItemEndAt(Request $request, RequestItem $item)
     {
         $this->authorize('update', $item);
-        $validated = $request->validate(['end_at' => 'nullable|date']);
+
+        $parentRequest = $item->request;
+        $rules = [
+            'end_at' => [
+                'nullable',
+                'date',
+                // 項目の開始日時以降であること
+                $item->start_at ? 'after_or_equal:' . $item->start_at->toDateTimeString() : '',
+                // 親依頼の開始日時以降であること
+                $parentRequest->start_at ? 'after_or_equal:' . $parentRequest->start_at->toDateTimeString() : '',
+                // 親依頼の終了日時より前であること
+                $parentRequest->end_at ? 'before_or_equal:' . $parentRequest->end_at->toDateTimeString() : '',
+            ],
+        ];
+
+        $validated = $request->validate($rules, [
+            'end_at.after_or_equal' => '終了日時は、依頼全体の開始日時、または項目の開始日時より後に設定してください。',
+            'end_at.before_or_equal' => '終了日時は、依頼全体の終了日時より前に設定してください。',
+        ]);
+
         $item->update(['end_at' => $validated['end_at'] ?? null]);
         return response()->json(['success' => true]);
     }
@@ -337,8 +409,8 @@ class RequestController extends Controller
                 }
             });
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => '作業依頼の並び順の更新中にエラーが発生しました。'], 500);
+            return response()->json(['success' => false, 'message' => '予定・依頼の並び順の更新中にエラーが発生しました。'], 500);
         }
-        return response()->json(['success' => true, 'message' => '作業依頼の並び順を更新しました。']);
+        return response()->json(['success' => true, 'message' => '予定・依頼の並び順を更新しました。']);
     }
 }

@@ -82,6 +82,17 @@
                                                 <i class="fas fa-trash mr-1"></i>削除
                                             </x-danger-button>
                                         </form>
+                                        @if($list->subscribers_count > 0)
+                                            <form action="{{ route('tools.sales.email-lists.subscribers.destroy-all', $list) }}"
+                                                method="POST" class="inline-block action-button"
+                                                onsubmit="return confirm('「{{ $list->name }}」の購読者 {{ $list->subscribers_count }} 件をすべて削除します。よろしいですか？\nこの操作は元に戻せません。');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <x-danger-button type="submit" class="py-1 px-3 text-xs">
+                                                    <i class="fas fa-users-slash mr-1"></i>購読者全件削除
+                                                </x-danger-button>
+                                            </form>
+                                        @endif
                                     @else
                                         <span class="text-xs text-gray-400 dark:text-gray-500">(操作権限なし)</span>
                                     @endcan

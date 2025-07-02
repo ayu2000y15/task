@@ -238,57 +238,76 @@ class SalesToolController extends Controller
 
         if ($isAddAllFiltered) {
             Log::info("Attempting to add all filtered contacts to EmailList ID: {$emailList->id}, Filters: ", $request->except(['_token', 'add_all_filtered_action']));
+
             $query = ManagedContact::query();
 
-            // Keyword (from hidden input if present, or original request param)
+            // --- 1. 除外リストの処理をここに追加 ---
+            // 自分自身のリストIDと、リクエストで指定された他の除外リストIDをまとめる
+            $excludeListIds = [$emailList->id];
+            if ($request->filled('exclude_lists') && is_array($request->input('exclude_lists'))) {
+                $excludeListIds = array_merge($excludeListIds, $request->input('exclude_lists'));
+            }
+            $excludeListIds = array_unique($excludeListIds);
+
+            // 指定されたすべてのリストに登録されていない連絡先のみを対象とする
+            $query->whereDoesntHave('subscribers', function ($q) use ($excludeListIds) {
+                $q->whereIn('email_list_id', $excludeListIds);
+            });
+
+            // --- 2. 各フィルターの適用ロジックを subscirbersCreate と統一 ---
+
+            // キーワード検索
             if ($request->filled('keyword')) {
-                $keyword = $request->input('keyword');
+                $keyword = '%' . $request->input('keyword') . '%';
                 $query->where(function ($q) use ($keyword) {
-                    if (Str::contains($keyword, ['%', '_'])) {
-                        $q->where('email', 'like', $keyword)
-                            ->orWhere('name', 'like', $keyword)
-                            ->orWhere('company_name', 'like', $keyword);
-                    } else {
-                        $q->where('email', 'like', "%{$keyword}%")
-                            ->orWhere('name', 'like', "%{$keyword}%")
-                            ->orWhere('company_name', 'like', "%{$keyword}%");
-                    }
+                    $q->where('email', 'like', $keyword)
+                        ->orWhere('name', 'like', $keyword)
+                        ->orWhere('company_name', 'like', 'keyword');
                 });
             }
-            // Advanced Filters (from hidden inputs or original request params)
-            if ($request->filled('filter_company_name')) {
-                $this->applyWildcardSearch($query, 'company_name', $request->input('filter_company_name'));
-            }
-            if ($request->filled('filter_postal_code')) {
-                $this->applyWildcardSearch($query, 'postal_code', $request->input('filter_postal_code'));
-            }
-            if ($request->filled('filter_address')) {
-                $this->applyWildcardSearch($query, 'address', $request->input('filter_address'));
-            }
-            if ($request->filled('filter_establishment_date_from')) {
-                $query->whereDate('establishment_date', '>=', $request->input('filter_establishment_date_from'));
-            }
-            if ($request->filled('filter_establishment_date_to')) {
-                $query->whereDate('establishment_date', '<=', $request->input('filter_establishment_date_to'));
-            }
-            if ($request->filled('filter_industry')) {
-                $this->applyWildcardSearch($query, 'industry', $request->input('filter_industry'));
-            }
-            if ($request->filled('filter_notes')) {
-                $this->applyWildcardSearch($query, 'notes', $request->input('filter_notes'));
+
+            // 詳細フィルター (検索モード対応)
+            $applyTextFilter = function ($query, $request, $fieldName) {
+                $mode = $request->input("filter_{$fieldName}_mode", 'like');
+                $value = $request->input("filter_{$fieldName}");
+                $blankFilter = $request->input("blank_filter_{$fieldName}");
+
+                if ($blankFilter === 'is_null') {
+                    $query->where(fn($q) => $q->whereNull($fieldName)->orWhere($fieldName, ''));
+                } elseif ($blankFilter === 'is_not_null') {
+                    $query->where(fn($q) => $q->whereNotNull($fieldName)->where($fieldName, '!=', ''));
+                } elseif ($request->filled("filter_{$fieldName}")) {
+                    switch ($mode) {
+                        case 'exact':
+                            $query->where($fieldName, '=', $value);
+                            break;
+                        case 'not_in':
+                            $query->where($fieldName, 'NOT LIKE', '%' . $value . '%');
+                            break;
+                        case 'like':
+                        default:
+                            $query->where($fieldName, 'LIKE', '%' . $value . '%');
+                            break;
+                    }
+                }
+            };
+
+            $filterableTextFields = ['company_name', 'postal_code', 'address', 'industry', 'notes', 'source_info', 'establishment_date'];
+            foreach ($filterableTextFields as $field) {
+                $applyTextFilter($query, $request, $field);
             }
 
+            // ステータスフィルター（常に 'active' を対象とする）
             if ($request->filled('filter_status') && $request->input('filter_status') !== '') {
                 $query->where('status', $request->input('filter_status'));
             } else {
                 $query->where('status', 'active');
             }
 
-            // 既にこのEmailListに登録されているManagedContactのIDを取得
-            $existingManagedContactIds = $emailList->subscribers()->pluck('managed_contact_id')->all();
-            if (!empty($existingManagedContactIds)) {
-                $query->whereNotIn('id', $existingManagedContactIds); // ManagedContactのIDで除外
-            }
+            // --- 3. 不要になった古い除外ロジックを削除 ---
+            // 以前のコードにあった `$query->whereNotIn('id', ...)` は、
+            // `whereDoesntHave` でカバーされるため不要です。
+
 
             $contactIdsToAdd = $query->pluck('id')->all();
 
@@ -299,6 +318,7 @@ class SalesToolController extends Controller
             }
             Log::info(count($contactIdsToAdd) . " contacts found via 'add all filtered' for EmailList ID: {$emailList->id}. Processing...");
         } else {
+            // ... (「チェックした連絡先を追加」の場合の処理 - 変更なし) ...
             $validated = $request->validate([
                 'managed_contact_ids' => 'present|array',
                 'managed_contact_ids.*' => 'integer|exists:managed_contacts,id',
@@ -311,7 +331,6 @@ class SalesToolController extends Controller
                     ->withInput($request->except(['_token']));
             }
         }
-
         $addedCount = 0;
         $skippedCount = 0;
         $errorCount = 0;
@@ -336,10 +355,10 @@ class SalesToolController extends Controller
             try {
                 Subscriber::create([
                     'email_list_id' => $emailList->id,
-                    'managed_contact_id' => $managedContact->id, // ★ ManagedContactのIDを紐付け
-                    'email' => $managedContact->email, // ★ ManagedContactのemailをコピーして保持
+                    'managed_contact_id' => $managedContact->id,
+                    'email' => $managedContact->email,
                     'subscribed_at' => now(),
-                    'status' => 'subscribed', // ★ Subscriber固有のステータス
+                    'status' => 'subscribed',
                 ]);
                 $addedCount++;
             } catch (\Exception $e) {
@@ -353,7 +372,7 @@ class SalesToolController extends Controller
             $messageParts[] = "フィルター結果に基づき、";
         }
         if ($addedCount > 0) $messageParts[] = "{$addedCount}件の連絡先を購読者としてリストに追加しました。";
-        if ($skippedCount > 0) $messageParts[] = "{$skippedCount}件は既にリストに登録済みのためスキップしました。"; // メッセージ変更
+        if ($skippedCount > 0) $messageParts[] = "{$skippedCount}件は既にリストに登録済みのためスキップしました。";
         if ($errorCount > 0) $messageParts[] = "{$errorCount}件の処理中にエラーが発生しました。詳細はログを確認してください。";
 
         if (empty($messageParts)) {
@@ -436,6 +455,30 @@ class SalesToolController extends Controller
         $subscriber->delete();
         return redirect()->route('tools.sales.email-lists.show', $emailList)
             ->with('success', '購読者「' . $subscriberEmail . '」をリストから削除しました。');
+    }
+
+    /**
+     * Remove all subscribers from the specified email list.
+     * 指定されたメールリストからすべての購読者を削除します。
+     */
+    public function subscribersDestroyAll(EmailList $emailList)
+    {
+        $this->authorize(self::SALES_TOOL_ACCESS_PERMISSION);
+
+        try {
+            // 購読者の数を取得
+            $count = $emailList->subscribers()->count();
+
+            // 購読者をすべて削除
+            $emailList->subscribers()->delete();
+
+            return redirect()->route('tools.sales.email-lists.index')
+                ->with('success', 'メールリスト「' . $emailList->name . '」から ' . $count . ' 件の購読者をすべて削除しました。');
+        } catch (\Exception $e) {
+            Log::error("Error deleting all subscribers from EmailList ID {$emailList->id}: " . $e->getMessage());
+            return redirect()->route('tools.sales.email-lists.index')
+                ->with('danger', '購読者の一括削除中にエラーが発生しました。');
+        }
     }
 
     /**

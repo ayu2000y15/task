@@ -1,13 +1,13 @@
 @extends('layouts.app')
-@section('title', '作業依頼一覧')
+@section('title', '予定・依頼一覧')
 
 @section('content')
     <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8" x-data="{
-                        tab: 'assigned',
-                        filtersOpen: {{ count(array_filter(request()->except('page', 'tab'))) > 0 ? 'true' : 'false' }}
-                    }">
+                                                    tab: 'assigned',
+                                                    filtersOpen: {{ count(array_filter(request()->except('page', 'tab'))) > 0 ? 'true' : 'false' }}
+                                                }">
         <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-            <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-200">作業依頼一覧</h1>
+            <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-200">予定・依頼一覧</h1>
             <div class="flex items-center space-x-2">
                 <x-secondary-button @click="filtersOpen = !filtersOpen">
                     <i class="fas fa-filter mr-1"></i>フィルター
@@ -15,7 +15,7 @@
                     <span x-show="!filtersOpen"><i class="fas fa-chevron-down fa-xs ml-2"></i></span>
                 </x-secondary-button>
                 <x-primary-button as="a" href="{{ route('requests.create') }}">
-                    <i class="fas fa-plus mr-2"></i>新規依頼を作成
+                    <i class="fas fa-plus mr-2"></i>新規予定・依頼を作成
                 </x-primary-button>
             </div>
         </div>
@@ -57,7 +57,7 @@
         <div class="p-2 text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded-md dark:bg-blue-700/30 dark:text-blue-200 dark:border-blue-500"
             role="alert">
             <i class="fas fa-info-circle mr-1"></i>
-            各項目の開始・終了日時を設定すると、カレンダーやホーム画面にタスクが表示されます。
+            各項目の開始・終了日時を設定すると、ホーム画面にタスクが表示されます。
         </div>
 
         {{-- タブ切り替え --}}
@@ -66,7 +66,7 @@
                 <button @click="tab = 'assigned'"
                     :class="tab === 'assigned' ? 'font-semibold border-blue-600 text-blue-600 dark:text-blue-500' : 'border-transparent text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-500'"
                     class="py-4 px-1 inline-flex items-center gap-x-2 border-b-2 font-medium text-sm whitespace-nowrap focus:outline-none">
-                    受信した依頼
+                    受信した予定・依頼
                     @if($pendingAssigned->count() > 0)
                         <span
                             class="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300">{{ $pendingAssigned->count() }}</span>
@@ -84,15 +84,15 @@
                 <button @click="tab = 'created'"
                     :class="tab === 'created' ? 'font-semibold border-blue-600 text-blue-600 dark:text-blue-500' : 'border-transparent text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-500'"
                     class="py-4 px-1 inline-flex items-center gap-x-2 border-b-2 font-medium text-sm whitespace-nowrap focus:outline-none">
-                    送信した依頼
+                    送信した予定・依頼
                 </button>
             </nav>
         </div>
 
         {{-- 受信依頼パネル --}}
         <div x-show="tab === 'assigned'" class="space-y-8">
-            @include('requests.partials.request-list', ['title' => '未完了の受信依頼', 'requests' => $pendingAssigned, 'isEmptyMessage' => '未完了の受信依頼はありません。'])
-            @include('requests.partials.request-list', ['title' => '完了済みの受信依頼', 'requests' => $completedAssigned, 'isEmptyMessage' => '完了済みの受信依頼はありません。', 'collapsible' => true])
+            @include('requests.partials.request-list', ['title' => '未完了の受信予定・依頼', 'requests' => $pendingAssigned, 'isEmptyMessage' => '未完了の受信予定・依頼はありません。'])
+            @include('requests.partials.request-list', ['title' => '完了済みの受信予定・依頼', 'requests' => $completedAssigned, 'isEmptyMessage' => '完了済みの受信予定・依頼はありません。', 'collapsible' => true])
         </div>
 
         {{-- 自分用パネル --}}
@@ -103,8 +103,8 @@
 
         {{-- 送信依頼パネル --}}
         <div x-show="tab === 'created'" x-cloak class="space-y-8">
-            @include('requests.partials.request-list', ['title' => '未完了の送信依頼', 'requests' => $pendingCreated, 'isEmptyMessage' => '未完了の送信依頼はありません。'])
-            @include('requests.partials.request-list', ['title' => '完了済みの送信依頼', 'requests' => $completedCreated, 'isEmptyMessage' => '完了済みの送信依頼はありません。', 'collapsible' => true])
+            @include('requests.partials.request-list', ['title' => '未完了の送信予定・依頼', 'requests' => $pendingCreated, 'isEmptyMessage' => '未完了の送信予定・依頼はありません。'])
+            @include('requests.partials.request-list', ['title' => '完了済みの送信予定・依頼', 'requests' => $completedCreated, 'isEmptyMessage' => '完了済みの送信予定・依頼はありません。', 'collapsible' => true])
         </div>
     </div>
 @endsection

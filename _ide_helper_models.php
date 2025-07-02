@@ -1100,6 +1100,8 @@ namespace App\Models{
  * @property int|null $request_category_id
  * @property string $title 依頼の件名
  * @property string|null $notes 補足事項
+ * @property \Illuminate\Support\Carbon|null $start_at
+ * @property \Illuminate\Support\Carbon|null $end_at
  * @property \Illuminate\Support\Carbon|null $completed_at 全ての項目が完了した日時
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
@@ -1115,11 +1117,13 @@ namespace App\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Request query()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Request whereCompletedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Request whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Request whereEndAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Request whereId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Request whereNotes($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Request whereProjectId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Request whereRequestCategoryId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Request whereRequesterId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Request whereStartAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Request whereTitle($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Request whereUpdatedAt($value)
  */

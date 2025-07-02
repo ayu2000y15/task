@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', '作業依頼の編集')
+@section('title', '予定・依頼の編集')
 
 @push('styles')
     <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
@@ -9,7 +9,7 @@
 @section('content')
     <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-            <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-200">作業依頼の編集</h1>
+            <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-200">予定・依頼の編集</h1>
             <x-secondary-button as="a" href="{{ route('requests.index') }}">
                 <i class="fas fa-arrow-left mr-2"></i> 一覧へ戻る
             </x-secondary-button>
@@ -60,6 +60,24 @@
                             </div>
                         </div>
 
+                        {{-- 開始・終了日時 --}}
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <x-input-label for="start_at" value="開始日時" />
+                                <x-text-input id="start_at" name="start_at" type="datetime-local" class="mt-1 block w-full"
+                                    :value="old('start_at', optional($request->start_at)->format('Y-m-d\TH:i'))"
+                                    :has-error="$errors->has('start_at')" />
+                                <x-input-error :messages="$errors->get('start_at')" class="mt-2" />
+                            </div>
+                            <div>
+                                <x-input-label for="end_at" value="終了日時" />
+                                <x-text-input id="end_at" name="end_at" type="datetime-local" class="mt-1 block w-full"
+                                    :value="old('end_at', optional($request->end_at)->format('Y-m-d\TH:i'))"
+                                    :has-error="$errors->has('end_at')" />
+                                <x-input-error :messages="$errors->get('end_at')" class="mt-2" />
+                            </div>
+                        </div>
+
                         {{-- 担当者 --}}
                         <div>
                             <x-input-label for="assignees" value="担当者" :required="true" />
@@ -86,8 +104,7 @@
                     {{-- チェックリスト項目 --}}
                     <div class="border-t border-gray-200 dark:border-gray-700 pt-6">
                         <div class="flex justify-between items-center mb-4">
-                            <h3 class="text-md font-semibold text-gray-800 dark:text-gray-100">チェックリスト <span
-                                    class="text-red-500 text-sm">*</span></h3>
+                            <h3 class="text-md font-semibold text-gray-800 dark:text-gray-100">チェックリスト (任意)</h3>
                             <x-secondary-button type="button" @click="addItem()" x-show="items.length < 15">
                                 <i class="fas fa-plus mr-2"></i>追加
                             </x-secondary-button>
@@ -107,15 +124,15 @@
                                         <input type="text" x-bind:name="'items[' + index + '][content]'"
                                             x-model="item.content"
                                             class="block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-                                            placeholder="依頼内容を入力..." required />
+                                            placeholder="予定・依頼内容を入力..." required />
                                     </div>
 
-                                    終了予定日時
-                                    <div class="flex-shrink-0">
+                                    {{-- 終了予定日時 --}}
+                                    {{-- <div class="flex-shrink-0">
                                         <input type="datetime-local" x-bind:name="'items[' + index + '][due_date]'"
                                             x-model="item.due_date"
                                             class="block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded-md shadow-sm text-sm" />
-                                    </div>
+                                    </div> --}}
 
                                     {{-- 削除ボタン --}}
                                     <div class="flex-shrink-0">
@@ -178,7 +195,7 @@
                     due_date: item.due_date || null
                 }));
             } else {
-                initialItems = existingItems.length > 0 ? existingItems : [{ id: null, content: '', due_date: null }];
+                initialItems = existingItems;
             }
 
             return {
@@ -189,14 +206,7 @@
                     }
                 },
                 removeItem(index) {
-                    // 最低1つの項目は残す
-                    if (this.items.length > 1) {
-                        this.items.splice(index, 1);
-                    } else {
-                        // 最後の1つの場合は内容を空にする
-                        this.items[index].content = '';
-                        this.items[index].due_date = null;
-                    }
+                    this.items.splice(index, 1);
                 },
                 initSortable() {
                     // this.$el は x-data が定義された要素 (この場合はform)

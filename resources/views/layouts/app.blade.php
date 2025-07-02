@@ -466,14 +466,14 @@
                     @endcan
                     {{-- @can('create', App\Models\Request::class) Policyは後で作成 --}}
                     <a class="inline-flex items-center p-2 text-sm font-medium rounded-md {{ request()->routeIs('requests.*') ? 'text-blue-600 bg-blue-100 dark:text-blue-300 dark:bg-gray-700' : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700' }}"
-                        href="{{ route('requests.index') }}" title="作業依頼一覧">
+                        href="{{ route('requests.index') }}" title="予定・依頼一覧">
                         <span class="relative">
                             <i class="fas fa-clipboard-check"></i>
                             @if(isset($pendingRequestsCountGlobal) && $pendingRequestsCountGlobal > 0)
                                 <span class="absolute -top-1.5 -right-2 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-xs text-white">{{ $pendingRequestsCountGlobal }}</span>
                             @endif
                         </span>
-                        <span class="hidden md:inline ml-2">依頼</span>
+                        <span class="hidden md:inline ml-2">予定・依頼</span>
                     </a>
                     {{-- @endcan --}}
                     @can('viewAny', App\Models\Project::class)
@@ -750,7 +750,7 @@
                                         </a>
                                     @endcan
                                     <a href="{{ route('requests.create') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
-                                        作業依頼をする
+                                        予定・依頼を登録する
                                     </a>
                                     @can('tools.viewAnyPage')
                                     <a href="{{ route('tools.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 {{ request()->routeIs('tools.*') ? 'bg-gray-100 dark:bg-gray-600 font-semibold' : '' }}">

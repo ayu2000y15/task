@@ -19,10 +19,14 @@ class Request extends Model
         'title',
         'notes',
         'completed_at',
+        'start_at',
+        'end_at',
     ];
 
     protected $casts = [
         'completed_at' => 'datetime',
+        'start_at' => 'datetime',
+        'end_at' => 'datetime',
     ];
 
     /**

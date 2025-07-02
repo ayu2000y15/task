@@ -17,15 +17,46 @@
             }
         });
 
-        function updateItemDate(itemId, dateValue, field) {
+        function updateItemDate(itemId, dateValue, field, element) {
+            const originalValue = element.defaultValue; // ロード時の値を保持
             const url = field === 'start_at' ? `/requests/items/${itemId}/set-start-at` : `/requests/items/${itemId}/set-end-at`;
+
             fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
                 body: JSON.stringify({ [field]: dateValue })
             })
-                .then(res => res.json())
-                .catch(error => console.error('Date update error:', error));
+                .then(res => {
+                    if (!res.ok) {
+                        // レスポンスが正常でない場合 (422バリデーションエラーなど) は、Promiseをrejectしてcatchブロックに渡す
+                        return Promise.reject(res);
+                    }
+                    return res.json();
+                })
+                .then(data => {
+                    // 成功したら、デフォルト値を更新
+                    element.defaultValue = element.value;
+                    console.log(data.message || '日時を更新しました。');
+                })
+                .catch(response => {
+                    // rejectされたレスポンスをここで処理
+                    response.json().then(errorData => {
+                        if (response.status === 422 && errorData.errors) {
+                            // Laravelからのバリデーションエラーの場合
+                            const messages = Object.values(errorData.errors).flat().join('\n');
+                            alert('入力エラー:\n' + messages);
+                        } else {
+                            // その他のサーバーエラー
+                            alert(errorData.message || '日時の更新に失敗しました。');
+                        }
+                        // エラー発生時は入力値を元に戻す
+                        element.value = originalValue;
+                    }).catch(jsonParseError => {
+                        // レスポンスがJSON形式でなかった場合
+                        alert('サーバーとの通信に失敗しました。');
+                        element.value = originalValue;
+                    });
+                });
         }
 
         function handleCheckboxChange(checkbox) {
@@ -66,7 +97,7 @@
                 })
                 .catch(response => {
                     if (response.status === 403) {
-                        alert('担当者ではないため、依頼項目を更新できません。');
+                        alert('担当者ではないため、予定・依頼項目を更新できません。');
                     } else {
                         alert('更新に失敗しました。');
                     }
@@ -93,7 +124,6 @@
                     return;
                 }
 
-                // ▼▼▼【ここから修正】メッセージ表示のロジックをアラートに変更 ▼▼▼
                 fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
@@ -111,22 +141,21 @@
                     })
                     .then(data => {
                         // 成功した場合: サーバーからのメッセージをアラートで表示
-                        alert(data.message || '作業依頼の並び順を更新しました。');
+                        alert(data.message || '予定・依頼の並び順を更新しました。');
                     })
                     .catch(errorData => {
                         // 失敗した場合: エラーメッセージをアラートで表示
                         alert('エラー: ' + (errorData.message || '並び順の更新に失敗しました。'));
                     });
-                // ▲▲▲【修正ここまで】▲▲▲
             }
         });
 
         document.body.addEventListener('change', function (e) {
             if (e.target.matches('.start-at-input')) {
-                updateItemDate(e.target.dataset.itemId, e.target.value, 'start_at');
+                updateItemDate(e.target.dataset.itemId, e.target.value, 'start_at', e.target);
             }
             if (e.target.matches('.end-at-input')) {
-                updateItemDate(e.target.dataset.itemId, e.target.value, 'end_at');
+                updateItemDate(e.target.dataset.itemId, e.target.value, 'end_at', e.target);
             }
             if (e.target.matches('.request-item-checkbox')) {
                 handleCheckboxChange(e.target);

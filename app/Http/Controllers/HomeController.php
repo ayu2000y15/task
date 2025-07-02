@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Auth;
 use App\Models\WorkLog;
 use App\Services\ProductivityService;
 use App\Models\AttendanceLog;
+use App\Models\DefaultShiftPattern;
 
 class HomeController extends Controller
 {
@@ -76,6 +77,31 @@ class HomeController extends Controller
 
         uasort($workItemsByAssignee, fn($a, $b) => strcmp($a['assignee']->name, $b['assignee']->name));
 
+        // ▼▼▼【ここから追加】1週間以内の予定を取得 ▼▼▼
+        $upcomingSchedulesByAssignee = [];
+        $upcomingRequests = TaskRequest::with(['assignees'])
+            ->whereNull('completed_at') // まだ完了していない
+            ->whereNotNull('start_at')  // 開始日が設定されている
+            ->whereBetween('start_at', [Carbon::today(), Carbon::today()->addDays(7)]) // 今日から7日後まで
+            ->orderBy('start_at')
+            ->get();
+
+        foreach ($upcomingRequests as $schedule) {
+            foreach ($schedule->assignees as $assignee) {
+                if (!isset($upcomingSchedulesByAssignee[$assignee->id])) {
+                    $upcomingSchedulesByAssignee[$assignee->id] = [
+                        'assignee' => $assignee,
+                        'schedules' => collect()
+                    ];
+                }
+                $upcomingSchedulesByAssignee[$assignee->id]['schedules']->push($schedule);
+            }
+        }
+        // ユーザー名でソート
+        uasort($upcomingSchedulesByAssignee, fn($a, $b) => strcmp($a['assignee']->name, $b['assignee']->name));
+        // ▲▲▲【追加ここまで】▲▲▲
+
+
         // 出勤中のユーザー情報を取得
         $searchWindowStart = $targetDate->copy()->endOfDay()->subHours(48);
 
@@ -107,6 +133,47 @@ class HomeController extends Controller
                 return $log;
             })
             ->sortBy(fn($log) => $log->user->name); // ユーザー名でソート
+
+        $onlineUserIds = $onlineUsers->pluck('user.id')->filter();
+
+        if ($onlineUserIds->isNotEmpty()) {
+            $today = Carbon::today();
+            $dayOfWeek = $today->dayOfWeek;
+
+            // 1. オンラインユーザーの今日の個別シフト設定を取得
+            $workShiftsToday = WorkShift::whereIn('user_id', $onlineUserIds)
+                ->where('date', $today)
+                ->get()
+                ->keyBy('user_id');
+
+            // 2. 今日の曜日に対応するデフォルトパターンを取得
+            $defaultPatternsToday = DefaultShiftPattern::whereIn('user_id', $onlineUserIds)
+                ->where('day_of_week', $dayOfWeek)
+                ->get()
+                ->keyBy('user_id');
+
+            // 3. 各オンラインユーザーに勤務場所情報を追加
+            foreach ($onlineUsers as $log) {
+                if ($user = $log->user) {
+                    $location = ''; // デフォルトは「出勤」
+
+                    $override = $workShiftsToday->get($user->id);
+                    $default = $defaultPatternsToday->get($user->id);
+
+                    // 個別シフト設定（時間変更 or 場所のみ変更）が最優先
+                    if ($override && in_array($override->type, ['work', 'location_only']) && $override->location) {
+                        $location = $override->location;
+                    }
+                    // 個別設定がなく、デフォルトが出勤日になっている場合
+                    elseif (!$override && $default && $default->is_workday) {
+                        $location = $default->location;
+                    }
+
+                    // ユーザーオブジェクトにプロパティとして場所情報を追加
+                    $user->todays_location = $location;
+                }
+            }
+        }
 
         // (その他のデータ取得は変更なし)
         $projectCount = Project::count();
@@ -161,7 +228,8 @@ class HomeController extends Controller
             'runningWorkLogs',
             'productivitySummaries',
             'onlineUsers',
-            'workingUserIds' // ★ workingUserIds をビューに渡す
+            'workingUserIds',
+            'upcomingSchedulesByAssignee' // ★ 追加した変数をビューに渡す
         ));
     }
 }
