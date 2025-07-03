@@ -55,12 +55,16 @@
             @if (in_array($sentEmail->status, ['queued', 'queuing', 'processing']))
                 @php
                     $settings = \App\Models\SalesToolSetting::first();
-                    $remainingCount = $recipientLogs->where('status', 'queued')->count();
+                    // コントローラーから渡された正確な件数を使用
+                    $remainingCount = $summary['queued'] ?? 0;
+                    $totalCount = $summary['total'] ?? 0;
+                    $sentCount = $totalCount - $remainingCount;
+
                     $estimatedDuration = '計算不可';
-                    $estimatedCompletionTime = ''; // 完了時刻を初期化
+                    $estimatedCompletionTime = '';
 
                     if ($settings && $remainingCount > 0) {
-                        $delayPerEmail = 1; // デフォルト1秒
+                        $delayPerEmail = 1;
                         if ($settings->send_timing_type === 'fixed') {
                             $delayPerEmail = $settings->max_emails_per_minute > 0 ? (60 / $settings->max_emails_per_minute) : 1;
                         } else {
@@ -68,10 +72,8 @@
                         }
                         $totalSeconds = $remainingCount * $delayPerEmail;
 
-                        // 残り時間を人間が読みやすい形式に変換
                         $estimatedDuration = \Carbon\CarbonInterval::seconds($totalSeconds)->cascade()->forHumans(['short' => true, 'parts' => 2]);
 
-                        // 現在時刻から計算して、実際の完了予測時刻を算出
                         $estimatedCompletionTimestamp = now()->addSeconds($totalSeconds);
                         $estimatedCompletionTime = $estimatedCompletionTimestamp->format('Y/m/d H:i');
                     }
@@ -79,12 +81,17 @@
                 <div class="bg-blue-50 dark:bg-blue-900/50 p-4 shadow rounded-lg text-center border border-blue-200 dark:border-blue-700">
                     <div class="text-sm font-medium text-gray-500 dark:text-gray-400">完了までの推定時間</div>
                     <div class="text-2xl font-bold text-blue-600 dark:text-blue-400">約 {{ $estimatedDuration }}</div>
-                    {{-- 完了予測時刻を追加 --}}
+
                     @if($estimatedCompletionTime)
                         <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
                             ({{ $estimatedCompletionTime }} ごろ完了予定)
                         </div>
                     @endif
+
+                    <div class="text-sm text-gray-600 dark:text-gray-300 mt-2 pt-2 border-t border-blue-200 dark:border-blue-800">
+                        進捗: {{ number_format($sentCount) }} / {{ number_format($totalCount) }}
+                        <span class="text-xs">(残り: {{ number_format($remainingCount) }})</span>
+                    </div>
                 </div>
             @endif
 
