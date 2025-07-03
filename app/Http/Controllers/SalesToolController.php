@@ -27,6 +27,8 @@ use League\Csv\Statement; // league/csv を use
 
 use Maatwebsite\Excel\Facades\Excel; // ★★★ Excelファサードをuse ★★★
 use App\Imports\ManagedContactsImport;
+use Illuminate\Pagination\LengthAwarePaginator; // ★ 追加
+use Illuminate\Pagination\Paginator;
 
 class SalesToolController extends Controller
 {
@@ -136,10 +138,6 @@ class SalesToolController extends Controller
     }
 
     /**
-     * Show the form for creating a new subscriber for the given email list.
-     * 指定されたメールリストに新しい購読者を追加するためのフォームを表示します。
-     */
-    /**
      * Show the form for creating new subscribers for the given email list by selecting from ManagedContacts.
      * 指定されたメールリストに、管理連絡先から選択して新しい購読者を追加するためのフォームを表示します。
      */
@@ -149,80 +147,35 @@ class SalesToolController extends Controller
 
         $filterValues = $request->all();
 
-        // --- 1. 基本クエリの生成 ---
-        $query = ManagedContact::query()->where('status', 'active'); // 有効な連絡先のみ
+        // 1. 共通のヘルパーメソッドを使ってクエリを構築
+        $query = $this->buildFilteredContactsQuery($request, $emailList);
 
-        // --- 2. 除外リストの処理 ---
-        // 自分自身のリストIDは常に対象
-        $excludeListIds = [$emailList->id];
-        // リクエストで追加の除外リストが指定されていればマージする
-        if ($request->filled('exclude_lists') && is_array($request->input('exclude_lists'))) {
-            $excludeListIds = array_merge($excludeListIds, $request->input('exclude_lists'));
-        }
-        // 重複を除外
-        $excludeListIds = array_unique($excludeListIds);
+        // ★★★ ここからロジックを大幅に修正 ★★★
 
-        // 指定されたすべてのリストに存在しない連絡先を絞り込む
-        $query->whereDoesntHave('subscribers', function ($q) use ($excludeListIds) {
-            $q->whereIn('email_list_id', $excludeListIds);
-        });
-
-
-        // --- 3. ユーザーによるフィルターを適用 ---
-        // キーワード検索
-        if ($request->filled('keyword')) {
-            $keyword = '%' . $request->input('keyword') . '%';
-            $query->where(function ($q) use ($keyword) {
-                $q->where('email', 'like', $keyword)
-                    ->orWhere('name', 'like', $keyword)
-                    ->orWhere('company_name', 'like', 'keyword');
-            });
-        }
-
-        // --- 詳細フィルター (検索モード対応) ---
-        $applyTextFilter = function ($query, $request, $fieldName) {
-            $mode = $request->input("filter_{$fieldName}_mode", 'like'); // デフォルトは 'like'
-            $value = $request->input("filter_{$fieldName}");
-            $blankFilter = $request->input("blank_filter_{$fieldName}");
-
-            if ($blankFilter === 'is_null') {
-                $query->where(fn($q) => $q->whereNull($fieldName)->orWhere($fieldName, ''));
-            } elseif ($blankFilter === 'is_not_null') {
-                $query->where(fn($q) => $q->whereNotNull($fieldName)->where($fieldName, '!=', ''));
-            } elseif ($request->filled("filter_{$fieldName}")) {
-                switch ($mode) {
-                    case 'exact':
-                        $query->where($fieldName, '=', $value);
-                        break;
-                    case 'not_in':
-                        $query->where($fieldName, 'NOT LIKE', '%' . $value . '%');
-                        break;
-                    case 'like':
-                    default:
-                        $query->where($fieldName, 'LIKE', '%' . $value . '%');
-                        break;
-                }
-            }
-        };
-
-        // フィルターを適用するフィールドリスト
-        $filterableTextFields = ['company_name', 'postal_code', 'address', 'industry', 'notes', 'source_info', 'establishment_date'];
-        foreach ($filterableTextFields as $field) {
-            $applyTextFilter($query, $request, $field);
-        }
-
-        // --- 4. 結果取得とビューへのデータ受け渡し ---
-        $limit = (int) $request->input('limit', 100);
+        // 2. 最大検索結果数をリクエストから取得
+        $searchLimit = (int) $request->input('limit', 1000);
         // 安全のため、上限と下限を設定
-        if ($limit < 10) {
-            $limit = 10;
-        }
-        if ($limit > 10000) {
-            $limit = 10000;
-        }
+        if ($searchLimit < 10) $searchLimit = 10;
+        if ($searchLimit > 10000) $searchLimit = 10000;
 
-        // paginate() に可変の件数を渡す
-        $managedContacts = $query->latest('updated_at')->paginate($limit);
+        // 3. クエリに最大件数の制限を適用し、結果を一度に取得
+        $contactsCollection = $query->latest('updated_at')->limit($searchLimit)->get();
+
+        // 4. 取得したコレクションから手動でページネーションを作成
+        $perPage = 100; // 1ページあたりの表示件数（固定）
+        $currentPage = Paginator::resolveCurrentPage('page');
+
+        $currentPageItems = $contactsCollection->slice(($currentPage - 1) * $perPage, $perPage);
+
+        $managedContacts = new LengthAwarePaginator(
+            $currentPageItems,
+            $contactsCollection->count(), // 総件数は取得したコレクションの件数
+            $perPage,
+            $currentPage,
+            // ページネーションリンクがフィルター条件を維持するように設定
+            ['path' => Paginator::resolveCurrentPath()]
+        );
+        // ★★★ ここまでロジックを大幅に修正 ★★★
 
         // 除外リスト選択用に、現在のリスト以外の全リストを取得
         $otherEmailLists = EmailList::where('id', '!=', $emailList->id)->orderBy('name')->get();
@@ -231,7 +184,7 @@ class SalesToolController extends Controller
             'emailList',
             'managedContacts',
             'filterValues',
-            'otherEmailLists' // ★ビューに渡す
+            'otherEmailLists'
         ));
     }
 

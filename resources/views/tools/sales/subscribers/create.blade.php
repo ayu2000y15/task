@@ -111,11 +111,11 @@
 
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                             <div>
-                                <x-input-label for="limit" value="表示件数" />
+                                <x-input-label for="limit" value="最大検索結果数" />
                                 <x-text-input id="limit" name="limit" type="number" class="mt-1 block w-full"
-                                    :value="$filterValues['limit'] ?? 100" min="10" max="10000" step="10" />
+                                    :value="$filterValues['limit'] ?? 10000" min="10" max="13000" step="10" />
                                 <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                    1ページに表示する件数を指定します。(10〜10000件)
+                                    検索対象とする連絡先の最大件数を指定します。(10〜13,000件)
                                 </p>
                             </div>
                             @php
@@ -306,8 +306,7 @@
                                     class="px-4 py-3 text-center w-12 sticky left-0 z-20 bg-gray-50 dark:bg-gray-700">
                                     @if($managedContacts->count() > 0)
                                         <x-checkbox-input id="select_all_contacts_sub" name="select_all_contacts"
-                                            title="このページの連絡先をすべて選択/解除"
-                                            onchange="toggleAllCheckboxes(this, 'managed_contact_ids[]');" />
+                                            title="このページの連絡先をすべて選択/解除" />
                                     @endif
                                 </th>
                                 <th scope="col"
@@ -405,42 +404,42 @@
 
 @push('scripts')
     <script>
-        function toggleAllCheckboxes(source, name) {
-            const checkboxes = document.querySelectorAll(`input[type="checkbox"][name="${name}"]`);
-            checkboxes.forEach(checkbox => {
-                checkbox.checked = source.checked;
-            });
-        }
-
         document.addEventListener('DOMContentLoaded', function () {
-            const mainCheckboxSub = document.getElementById('select_all_contacts_sub');
-            const itemCheckboxesSub = document.querySelectorAll('input[type="checkbox"].contact-checkbox');
-
-            if (mainCheckboxSub && itemCheckboxesSub.length > 0) {
-                itemCheckboxesSub.forEach(checkbox => {
-                    checkbox.addEventListener('change', function () {
-                        let allChecked = true;
-                        itemCheckboxesSub.forEach(cb => {
-                            if (!cb.checked) {
-                                allChecked = false;
-                            }
-                        });
-                        mainCheckboxSub.checked = allChecked;
-                    });
-                });
-                let initialAllChecked = true;
-                itemCheckboxesSub.forEach(cb => {
-                    if (!cb.checked) initialAllChecked = false;
-                });
-                if (itemCheckboxesSub.length > 0) mainCheckboxSub.checked = initialAllChecked; else mainCheckboxSub.checked = false;
-            }
-
+            // Tom Selectの初期化 (変更なし)
             if (document.getElementById('exclude_lists')) {
                 new TomSelect('#exclude_lists', {
                     plugins: ['remove_button'],
                     create: false,
                     placeholder: '除外するリストを検索・選択...'
                 });
+            }
+
+            // --- 全選択チェックボックスのロジック ---
+            const mainCheckbox = document.getElementById('select_all_contacts_sub');
+            const itemCheckboxes = document.querySelectorAll('input.contact-checkbox[name="managed_contact_ids[]"]');
+
+            if (mainCheckbox && itemCheckboxes.length > 0) {
+
+                // 1. メインの「全選択」チェックボックスが変更された時の処理
+                mainCheckbox.addEventListener('change', function () {
+                    itemCheckboxes.forEach(checkbox => {
+                        checkbox.checked = this.checked;
+                    });
+                });
+
+                // 2. 個別のチェックボックスが変更された時の処理
+                itemCheckboxes.forEach(checkbox => {
+                    checkbox.addEventListener('change', function () {
+                        // 全ての個別チェックボックスがチェックされているか確認
+                        const allChecked = Array.from(itemCheckboxes).every(cb => cb.checked);
+                        // 結果をメインチェックボックスに反映
+                        mainCheckbox.checked = allChecked;
+                    });
+                });
+
+                // 3. ページ読み込み時にメインチェックボックスの初期状態を設定
+                const initialAllChecked = Array.from(itemCheckboxes).every(cb => cb.checked);
+                mainCheckbox.checked = initialAllChecked;
             }
         });
     </script>
