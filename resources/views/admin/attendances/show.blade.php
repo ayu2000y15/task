@@ -51,6 +51,38 @@
                 </div>
             </div>
 
+            <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6 mb-6">
+                <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4 border-b dark:border-gray-700 pb-3">
+                    {{ $targetMonth->format('Y年n月') }} サマリー
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-y-4 gap-x-6">
+                    <div>
+                        <span class="text-sm font-medium text-gray-500 dark:text-gray-400 block">総勤務時間 (拘束時間)</span>
+                        <span class="text-xl font-bold text-gray-800 dark:text-gray-200 block">
+                            {{ format_seconds_to_hms($monthTotalDetentionSeconds) }}
+                        </span>
+                    </div>
+                    <div>
+                        <span class="text-sm font-medium text-gray-500 dark:text-gray-400 block">総休憩時間</span>
+                        <span class="text-xl font-bold text-gray-800 dark:text-gray-200 block">
+                            {{ format_seconds_to_hms($monthTotalBreakSeconds) }}
+                        </span>
+                    </div>
+                    <div>
+                        <span class="text-sm font-medium text-gray-500 dark:text-gray-400 block">支払対象時間 (勤務 - 休憩)</span>
+                        <span class="text-xl font-bold text-blue-600 dark:text-blue-400 block">
+                            {{ format_seconds_to_hms($monthTotalActualWorkSeconds) }}
+                        </span>
+                    </div>
+                </div>
+                <div class="mt-6 pt-4 border-t dark:border-gray-700">
+                    <span class="text-base font-medium text-gray-500 dark:text-gray-400">月の給与合計</span>
+                    <span class="text-3xl font-extrabold text-green-600 dark:text-green-400 block mt-1">
+                        ¥{{ number_format($monthTotalSalary, 0) }}
+                    </span>
+                </div>
+            </div>
+
             {{-- 適用時給表示エリア --}}
             <div class="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg mb-4 border dark:border-gray-600">
                 <h4 class="text-sm font-semibold text-gray-800 dark:text-gray-200 flex items-center"><i

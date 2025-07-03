@@ -11,6 +11,8 @@ use App\Models\HourlyRate;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use App\Models\Attendance;
+use App\Models\AttendanceLog;
 
 class WorkRecordController extends Controller
 {
@@ -21,22 +23,12 @@ class WorkRecordController extends Controller
     {
         $this->authorize('viewAny', WorkLog::class);
 
-        // --- 期間別サマリー (変更なし) ---
         $now = Carbon::now();
         $summaryDateStrings = [
-            'today' => $now->format('n/j'),
-            'week' => $now->copy()->startOfWeek()->format('n/j') . ' - ' . $now->copy()->endOfWeek()->format('n/j'),
             'month' => $now->format('Y年n月'),
         ];
-        $todayLogs = $this->getLogsForPeriod($now->copy()->startOfDay(), $now->copy()->endOfDay());
-        $weekLogs = $this->getLogsForPeriod($now->copy()->startOfWeek(), $now->copy()->endOfWeek());
-        $monthLogs = $this->getLogsForPeriod($now->copy()->startOfMonth(), $now->copy()->endOfMonth());
-        $todaySummary = $this->calculateSummary($todayLogs);
-        $weekSummary = $this->calculateSummary($weekLogs);
-        $monthSummary = $this->calculateSummary($monthLogs);
-
-
-        // --- ▼▼▼【ここからクエリとソート処理を修正】▼▼▼ ---
+        // 新しいロジックで月次サマリーを計算
+        $monthSummary = $this->calculateMonthlyAttendanceSummary($now);
 
         // ソート可能な列を定義
         $sortableColumns = [
@@ -120,8 +112,6 @@ class WorkRecordController extends Controller
             'users',
             'projects',
             'totalSeconds',
-            'todaySummary',
-            'weekSummary',
             'monthSummary',
             'summaryDateStrings',
             'sort',
@@ -168,55 +158,173 @@ class WorkRecordController extends Controller
         }
     }
 
-    private function getLogsForPeriod(Carbon $start, Carbon $end)
+    /**
+     * 勤怠(Attendance)ベースの月次サマリーを計算するメソッド
+     * 勤怠明細ページの計算ロジックと完全に同期させる
+     */
+    private function calculateMonthlyAttendanceSummary(Carbon $targetMonth)
     {
-        return WorkLog::with('user.hourlyRates') // hourlyRatesもEager Load
-            ->where('status', 'stopped')
-            ->whereBetween('start_time', [$start, $end])
-            ->get();
-    }
+        $startOfMonth = $targetMonth->copy()->startOfMonth();
+        $endOfMonth = $targetMonth->copy()->endOfMonth();
 
-    private function calculateSummary($logs)
-    {
-        $byUser = [];
-        $grandTotalSeconds = 0;
+        // --- 1. 必要なデータを全て取得 ---
+        // ユーザーと時給情報
+        $users = User::with(['hourlyRates' => function ($query) {
+            $query->orderBy('effective_date', 'desc');
+        }])->get();
+
+        // 対象月の勤怠関連データ
+        $workLogs = WorkLog::where('status', 'stopped')->whereBetween('start_time', [$startOfMonth, $endOfMonth])->get()->groupBy('user_id');
+        $attendanceLogs = AttendanceLog::whereBetween('timestamp', [$startOfMonth, $endOfMonth])->orderBy('timestamp')->get()->groupBy('user_id');
+        $overriddenAttendances = Attendance::where('status', 'edited')->whereBetween('date', [$startOfMonth, $endOfMonth])->get()->groupBy('user_id');
+
+        $byUserSummary = [];
+        $grandTotalDetentionSeconds = 0;
+        $grandTotalBreakSeconds = 0;
+        $grandTotalActualWorkSeconds = 0;
         $grandTotalSalary = 0;
 
-        foreach ($logs as $log) {
-            if (!$log->user) continue;
+        foreach ($users as $user) {
+            $userAttendances = $overriddenAttendances->get($user->id, collect());
+            $userAttendanceLogs = $attendanceLogs->get($user->id, collect());
+            $userWorkLogs = $workLogs->get($user->id, collect());
 
-            $userId = $log->user->id;
-
-            if (!isset($byUser[$userId])) {
-                $byUser[$userId] = [
-                    'user' => $log->user,
-                    'total_seconds' => 0,
-                    'total_salary' => 0,
-                ];
+            // ユーザーにその月のデータがなければスキップ
+            if ($userAttendances->isEmpty() && $userAttendanceLogs->isEmpty()) {
+                continue;
             }
 
-            $duration = $log->effective_duration;
-            $byUser[$userId]['total_seconds'] += $duration;
-            $grandTotalSeconds += $duration;
+            // ユーザーごとの合計値を初期化
+            $userTotalDetention = 0;
+            $userTotalBreak = 0;
+            $userTotalActualWork = 0; // = Payable Work Seconds
+            $userTotalSalary = 0;
 
-            // ▼▼▼【変更】ユーザーの時給を日付ベースで取得 ▼▼▼
-            $rate = $log->user->getHourlyRateForDate($log->start_time);
-            if ($rate > 0) {
-                $salary = ($duration / 3600) * $rate;
-                $byUser[$userId]['total_salary'] += $salary;
-                $grandTotalSalary += $salary;
+            // --- 2. ユーザーごとに月の全日分のデータを処理 ---
+            for ($day = 1; $day <= $targetMonth->daysInMonth; $day++) {
+                $currentDate = $targetMonth->copy()->day($day);
+                $dateString = $currentDate->format('Y-m-d');
+
+                $manualAttendance = $userAttendances->firstWhere('date', $currentDate);
+                $dayAttendanceLogs = $userAttendanceLogs->filter(fn($log) => $log->timestamp->isSameDay($currentDate));
+
+                if ($manualAttendance) {
+                    // (A) 手動編集データがある場合
+                    $userTotalDetention += $manualAttendance->detention_seconds;
+                    $userTotalBreak += $manualAttendance->break_seconds;
+                    // actual_work_secondsは「支払対象時間」として扱う
+                    $userTotalActualWork += $manualAttendance->actual_work_seconds;
+                    $userTotalSalary += $manualAttendance->daily_salary;
+                } elseif ($dayAttendanceLogs->isNotEmpty()) {
+                    // (B) 打刻ログから自動計算する場合
+                    $sessions = $this->calculateSessionsFromLogs($dayAttendanceLogs, $user);
+                    foreach ($sessions as $session) {
+                        $userTotalDetention += $session['detention_seconds'];
+                        $userTotalBreak += $session['break_seconds'];
+                        $userTotalActualWork += $session['payable_work_seconds'];
+                        $userTotalSalary += $session['daily_salary'];
+                    }
+                }
             }
+
+            // 最新（月末時点）のレートを表示用として取得
+            $rateForMonth = $user->getHourlyRateForDate($endOfMonth);
+
+            $byUserSummary[] = [
+                'user' => $user,
+                'rate' => $rateForMonth,
+                'total_detention_seconds' => $userTotalDetention,
+                'total_break_seconds' => $userTotalBreak,
+                'total_actual_work_seconds' => $userTotalActualWork,
+                'total_salary' => $userTotalSalary,
+            ];
+
+            // 総合計に加算
+            $grandTotalDetentionSeconds += $userTotalDetention;
+            $grandTotalBreakSeconds += $userTotalBreak;
+            $grandTotalActualWorkSeconds += $userTotalActualWork;
+            $grandTotalSalary += $userTotalSalary;
         }
 
-        uasort($byUser, function ($a, $b) {
-            return strcmp($a['user']->name, $b['user']->name);
-        });
+        usort($byUserSummary, fn($a, $b) => strcmp($a['user']->name, $b['user']->name));
 
         return [
-            'by_user' => $byUser,
-            'total_seconds' => $grandTotalSeconds,
-            'total_salary' => $grandTotalSalary,
+            'by_user' => $byUserSummary,
+            'totals' => [
+                'detention_seconds' => $grandTotalDetentionSeconds,
+                'break_seconds' => $grandTotalBreakSeconds,
+                'actual_work_seconds' => $grandTotalActualWorkSeconds,
+                'salary' => $grandTotalSalary,
+            ]
         ];
+    }
+
+    /**
+     * AttendanceControllerから移植したヘルパーメソッド群
+     * 打刻ログから勤務セッションごとの時間を計算する
+     */
+    private function calculateSessionsFromLogs($dayAttendanceLogs, $user)
+    {
+        $sessions = [];
+        $currentSession = null;
+
+        // 打刻ログを「出勤」「退勤」でセッションに分割
+        foreach ($dayAttendanceLogs as $log) {
+            if ($log->type === 'clock_in') {
+                if ($currentSession) $sessions[] = $currentSession; // 前のセッションが未完了のままなら一旦確定
+                $currentSession = ['start_time' => $log->timestamp, 'end_time' => null, 'logs' => collect([$log])];
+            } elseif ($currentSession) {
+                $currentSession['logs']->push($log);
+                if ($log->type === 'clock_out') {
+                    $currentSession['end_time'] = $log->timestamp;
+                    $sessions[] = $currentSession;
+                    $currentSession = null;
+                }
+            }
+        }
+        if ($currentSession) $sessions[] = $currentSession; // 最後のセッションを追加
+
+        // 各セッションの時間を計算
+        return collect($sessions)->map(function ($session) use ($user) {
+            $startTime = $session['start_time'];
+            $endTime = $session['end_time'];
+
+            // 休憩・中抜け時間を計算
+            $breakLogs = $this->pairLogEvents($session['logs'], 'break_start', 'break_end');
+            $awayLogs = $this->pairLogEvents($session['logs'], 'away_start', 'away_end');
+            $breakSeconds = collect(array_merge($breakLogs, $awayLogs))->sum('duration');
+
+            $detentionSeconds = $endTime ? $startTime->diffInSeconds($endTime) : 0;
+            $payableWorkSeconds = max(0, $detentionSeconds - $breakSeconds); // 給与計算対象時間
+            $rateForDay = $user->getHourlyRateForDate($startTime);
+            $dailySalary = $rateForDay > 0 ? round(($payableWorkSeconds / 3600) * $rateForDay) : 0; //
+
+            return [
+                'detention_seconds' => $detentionSeconds,
+                'break_seconds' => $breakSeconds,
+                'payable_work_seconds' => $payableWorkSeconds,
+                'daily_salary' => $dailySalary,
+            ];
+        });
+    }
+
+    private function pairLogEvents($logs, $startType, $endType): array
+    {
+        $pairs = [];
+        $startTime = null;
+        foreach ($logs as $log) {
+            if ($log->type === $startType) {
+                $startTime = $log->timestamp;
+            } elseif ($log->type === $endType && $startTime) {
+                $pairs[] = [
+                    'start_time' => $startTime,
+                    'end_time' => $log->timestamp,
+                    'duration' => $startTime->diffInSeconds($log->timestamp),
+                ];
+                $startTime = null;
+            }
+        }
+        return $pairs;
     }
 
     public function show(Request $request, User $user)

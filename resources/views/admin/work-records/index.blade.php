@@ -8,9 +8,9 @@
 
 @section('content')
     <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8" x-data="{
-                                                    filtersOpen: {{ count(array_filter(request()->except(['page', 'sort', 'direction']))) > 0 ? 'true' : 'false' }},
-                                                    rateFormOpen: false
-                                                    }">
+                                                                                filtersOpen: {{ count(array_filter(request()->except(['page', 'sort', 'direction']))) > 0 ? 'true' : 'false' }},
+                                                                                rateFormOpen: false
+                                                                                }">
 
         <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
             <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-200">作業実績一覧 (管理者用)</h1>
@@ -165,37 +165,46 @@
             </form>
         </div>
 
-        {{-- 期間別サマリー --}}
+        {{-- 月の給与 --}}
         <div class="mb-8">
-            <h2 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-4">期間別サマリー</h2>
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-                <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-4">
-                    <div class="flex items-center mb-3">
-                        <h3 class="font-semibold text-lg">本日</h3>
-                        <span
-                            class="text-sm font-bold text-green-700 dark:green-blue-400">　({{ $summaryDateStrings['today'] }})</span>
+            <div class="flex items-center gap-2 mb-4">
+                <h2 class="text-xl font-semibold text-gray-700 dark:text-gray-300">月の給与</h2>
+                {{-- 【追加】計算方法のヒント用ツールチップ --}}
+                <div x-data="{ showHint: false }" class="relative flex items-center">
+                    <i @mouseenter="showHint = true" @mouseleave="showHint = false"
+                        class="fas fa-info-circle text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"></i>
+                    <div x-show="showHint" x-transition:enter="transition ease-out duration-200"
+                        x-transition:enter-start="opacity-0 transform -translate-y-2"
+                        x-transition:enter-end="opacity-100 transform translate-y-0"
+                        x-transition:leave="transition ease-in duration-150"
+                        x-transition:leave-start="opacity-100 transform translate-y-0"
+                        x-transition:leave-end="opacity-0 transform -translate-y-2" style="display: none;"
+                        class="absolute top-full left-1/2 -translate-x-1/2 mb-2 w-72 p-3 bg-gray-800 text-white text-xs rounded-lg shadow-lg z-50">
+                        <p class="font-semibold border-b border-gray-600 pb-1 mb-1">給与の計算方法:</p>
+                        <ul class="list-disc list-inside space-y-1">
+                            <li>勤怠明細ページの「月の合計」と一致します。</li>
+                            <li>手動編集された日と、打刻ログから自動計算された日の両方が含まれます。</li>
+                            <li>給与は (拘束時間 - 休憩時間) × 時給 で計算されます。</li>
+                        </ul>
+                        {{-- ツールチップの矢印 --}}
+                        <div
+                            class="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-gray-800">
+                        </div>
                     </div>
-                    @include('admin.work-records.partials.summary-table', ['summary' => $todaySummary])
                 </div>
+            </div>
 
-                <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-4">
-                    <div class="flex items-center mb-3">
-                        <h3 class="font-semibold text-lg">今週</h3>
-                        <span
-                            class="text-sm font-bold text-green-700 dark:green-blue-400">　({{ $summaryDateStrings['week'] }})</span>
-                    </div>
-                    @include('admin.work-records.partials.summary-table', ['summary' => $weekSummary])
-                </div>
-
+            <div class="grid grid-cols-1 gap-6">
+                {{-- 「今月」のサマリー --}}
                 <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-4">
                     <div class="flex items-center mb-3">
                         <h3 class="font-semibold text-lg">今月</h3>
                         <span
                             class="text-sm font-bold text-green-700 dark:green-blue-400">　({{ $summaryDateStrings['month'] }})</span>
                     </div>
-                    @include('admin.work-records.partials.summary-table', ['summary' => $monthSummary])
+                    @include('admin.work-records.partials.monthly-attendance-summary-table', ['summary' => $monthSummary])
                 </div>
+
             </div>
         </div>
 

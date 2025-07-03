@@ -76,13 +76,19 @@ class AttendanceController extends Controller
 
         // --- 3. 月の合計を計算 ---
         $monthTotalSalary = 0;
-        $monthTotalActualWorkSeconds = 0;
+        $monthTotalActualWorkSeconds = 0; // 支払対象時間
+        $monthTotalDetentionSeconds = 0; // 総勤務時間
+        $monthTotalBreakSeconds = 0;     // 総休憩時間
+
         foreach ($monthlyReport as $report) {
             if ($report['type'] === 'edited') {
-                // 手動編集データの日給は保存時に計算済みのものを利用
+                $monthTotalDetentionSeconds += $report['summary']->detention_seconds;
+                $monthTotalBreakSeconds += $report['summary']->break_seconds;
                 $monthTotalActualWorkSeconds += $report['worklog_total_seconds'];
                 $monthTotalSalary += $report['summary']->daily_salary;
             } elseif ($report['type'] === 'workday') {
+                $monthTotalDetentionSeconds += collect($report['sessions'])->sum('detention_seconds');
+                $monthTotalBreakSeconds += collect($report['sessions'])->sum('break_seconds');
                 $monthTotalActualWorkSeconds += collect($report['sessions'])->sum('actual_work_seconds');
                 $monthTotalSalary += collect($report['sessions'])->sum('daily_salary');
             }
@@ -94,7 +100,9 @@ class AttendanceController extends Controller
             'monthlyReport',
             'monthTotalActualWorkSeconds',
             'monthTotalSalary',
-            'applicableRates'
+            'applicableRates',
+            'monthTotalDetentionSeconds',
+            'monthTotalBreakSeconds'
         ));
     }
 
