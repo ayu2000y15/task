@@ -212,7 +212,17 @@ class SalesToolController extends Controller
         }
 
         // --- 4. 結果取得とビューへのデータ受け渡し ---
-        $managedContacts = $query->latest('updated_at')->paginate(100);
+        $limit = (int) $request->input('limit', 100);
+        // 安全のため、上限と下限を設定
+        if ($limit < 10) {
+            $limit = 10;
+        }
+        if ($limit > 10000) {
+            $limit = 10000;
+        }
+
+        // paginate() に可変の件数を渡す
+        $managedContacts = $query->latest('updated_at')->paginate($limit);
 
         // 除外リスト選択用に、現在のリスト以外の全リストを取得
         $otherEmailLists = EmailList::where('id', '!=', $emailList->id)->orderBy('name')->get();

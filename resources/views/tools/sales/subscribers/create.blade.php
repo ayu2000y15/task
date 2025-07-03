@@ -110,6 +110,14 @@
                         </div>
 
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                            <div>
+                                <x-input-label for="limit" value="表示件数" />
+                                <x-text-input id="limit" name="limit" type="number" class="mt-1 block w-full"
+                                    :value="$filterValues['limit'] ?? 100" min="10" max="10000" step="10" />
+                                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                    1ページに表示する件数を指定します。(10〜10000件)
+                                </p>
+                            </div>
                             @php
                                 // プルダウンの選択肢を定義
                                 $blankOptions = [
