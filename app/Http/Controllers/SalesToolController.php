@@ -150,8 +150,6 @@ class SalesToolController extends Controller
         // 1. 共通のヘルパーメソッドを使ってクエリを構築
         $query = $this->buildFilteredContactsQuery($request, $emailList);
 
-        // ★★★ ここからロジックを大幅に修正 ★★★
-
         // 2. 最大検索結果数をリクエストから取得
         $searchLimit = (int) $request->input('limit', 1000);
         // 安全のため、上限と下限を設定
@@ -175,7 +173,6 @@ class SalesToolController extends Controller
             // ページネーションリンクがフィルター条件を維持するように設定
             ['path' => Paginator::resolveCurrentPath()]
         );
-        // ★★★ ここまでロジックを大幅に修正 ★★★
 
         // 除外リスト選択用に、現在のリスト以外の全リストを取得
         $otherEmailLists = EmailList::where('id', '!=', $emailList->id)->orderBy('name')->get();
@@ -191,8 +188,7 @@ class SalesToolController extends Controller
     /**
      * Store newly created subscribers in storage for the given email list from selected ManagedContacts.
      * 選択された管理連絡先から、新しい購読者を指定されたメールリストに保存します。
-     */
-    public function subscribersStore(Request $request, EmailList $emailList)
+     */ public function subscribersStore(Request $request, EmailList $emailList)
     {
         $this->authorize(self::SALES_TOOL_ACCESS_PERMISSION);
 
@@ -204,7 +200,13 @@ class SalesToolController extends Controller
         if ($isAddAllFiltered) {
             // 「フィルター結果を全て追加」の場合、追加される件数を事前に計算
             $query = $this->buildFilteredContactsQuery($request, $emailList);
-            $countToAdd = $query->count();
+
+            $limit = (int) $request->input('limit', 13000); // デフォルトは多めに設定
+            if ($limit < 10) $limit = 10;
+            if ($limit > 13000) $limit = 13000;
+
+            // クエリに最大件数と順序を適用してからカウント
+            $countToAdd = $query->latest('updated_at')->limit($limit)->pluck('id')->count();
         } else {
             // 「チェックした連絡先を追加」の場合
             $validated = $request->validate([
@@ -219,23 +221,29 @@ class SalesToolController extends Controller
             $message = "リストの上限エラー: この操作を行うと、リストの購読者数が1日の最大送信数 ({$dailyLimit}件) を超えてしまいます。";
             $message .= " (現在の購読者数: {$currentSubscribersCount}件 / 追加しようとした件数: {$countToAdd}件)";
 
-            // ログにも記録
             Log::warning("Subscriber addition blocked for EmailList ID {$emailList->id}: Daily limit exceeded.", [
                 'daily_limit' => $dailyLimit,
                 'current_count' => $currentSubscribersCount,
                 'to_add_count' => $countToAdd,
             ]);
 
-            return redirect()->back() // 元の画面に戻す
+            return redirect()->back()
                 ->with('error', $message)
-                ->withInput($request->except(['_token'])); // 入力内容を保持
+                ->withInput($request->except(['_token']));
         }
 
 
         // 「フィルター結果を全て追加」の場合のIDリスト取得
         if ($isAddAllFiltered) {
-            $query = $this->buildFilteredContactsQuery($request, $emailList); // 再度クエリをビルド
-            $contactIdsToAdd = $query->pluck('id')->all();
+            $query = $this->buildFilteredContactsQuery($request, $emailList);
+
+            // ★★★ ここにも同様に最大件数を適用するロジックを追加 ★★★
+            $limit = (int) $request->input('limit', 13000);
+            if ($limit < 10) $limit = 10;
+            if ($limit > 13000) $limit = 13000;
+
+            // クエリに最大件数と順序を適用してからIDを取得
+            $contactIdsToAdd = $query->latest('updated_at')->limit($limit)->pluck('id')->all();
         }
 
         if (empty($contactIdsToAdd)) {
@@ -258,7 +266,6 @@ class SalesToolController extends Controller
                 continue;
             }
 
-            // 既に同じmanaged_contact_idがこのリストに存在するか確認
             $existingSubscriber = $emailList->subscribers()
                 ->where('managed_contact_id', $managedContact->id)
                 ->first();
