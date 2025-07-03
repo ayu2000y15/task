@@ -130,6 +130,8 @@ Route::middleware('auth')->group(function () {
 
     Route::post('/projects/{project}/characters/update-order', [App\Http\Controllers\CharacterController::class, 'updateOrder'])->name('characters.updateOrder');    // --- ユーザー向けフィードバック機能 ---
 
+    Route::patch('/characters/{character}/measurement-notes', [CharacterController::class, 'updateMeasurementNotes'])->name('characters.updateMeasurementNotes');
+
     Route::get('/feedback/create', [UserFeedbackController::class, 'create'])->name('user_feedbacks.create');
     Route::post('/feedback', [UserFeedbackController::class, 'store'])->name('user_feedbacks.store');
     // --- ここまでユーザー向けフィードバック機能 ---

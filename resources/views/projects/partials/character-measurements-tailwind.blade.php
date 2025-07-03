@@ -7,6 +7,83 @@
         　※数値は0となっているので、適用後は数値を入力してください。<br>
     </div>
 
+    {{-- ▼▼▼ キャラクター採寸備考セクション ▼▼▼ --}}
+    <div x-data='{
+            editing: false,
+            notes: @json($character->measurement_notes ?? ""),
+            originalNotes: @json($character->measurement_notes ?? ""),
+            status: "",
+            isSubmitting: false,
+            characterId: {{ $character->id }},
+            get displayableNotes() {
+                if (!this.originalNotes || !this.originalNotes.trim()) {
+                    return "<span class=\"text-gray-400\">備考はありません。</span>";
+                }
+                const div = document.createElement("div");
+                div.textContent = this.originalNotes;
+                return div.innerHTML.replace(/\r\n|\n\r|\r|\n/g, "<br>");
+            },
+            updateNotes() {
+                if(this.isSubmitting) return;
+                this.isSubmitting = true;
+                this.status = "保存中...";
+                const csrfToken = document.querySelector("meta[name=\"csrf-token\"]").getAttribute("content");
+
+                axios.patch(`/characters/${this.characterId}/measurement-notes`, {
+                    measurement_notes: this.notes
+                }, {
+                    headers: {
+                        "X-CSRF-TOKEN": csrfToken,
+                        "Accept": "application/json"
+                    }
+                })
+                .then(response => {
+                    this.status = "保存しました！";
+                    this.originalNotes = this.notes;
+                    this.editing = false;
+                    setTimeout(() => this.status = "", 3000);
+                })
+                .catch(error => {
+                    this.status = "エラーが発生しました。詳細はコンソールを確認してください。";
+                    console.error("Error updating measurement notes:", error.response?.data?.message || error.message);
+                })
+                .finally(() => {
+                    this.isSubmitting = false;
+                });
+            },
+            cancelEdit() {
+                this.notes = this.originalNotes;
+                this.editing = false;
+                this.status = "";
+            }
+        }' class="p-4 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg">
+        <div class="flex justify-between items-center mb-2">
+            <h6 class="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center">
+                <i class="fas fa-sticky-note mr-2"></i>採寸に関する備考
+            </h6>
+            <button type="button" @click="editing = true" x-show="!editing" class="inline-flex items-center px-2 py-1 border border-gray-300 dark:border-gray-500 shadow-sm text-xs font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-600 hover:bg-gray-50 dark:hover:bg-gray-500">
+                <i class="fas fa-edit mr-1"></i>編集
+            </button>
+        </div>
+        {{-- 表示モード --}}
+        <div x-show="!editing" class="prose prose-sm dark:prose-invert max-w-none">
+            <p class="text-gray-600 dark:text-gray-300 whitespace-pre-wrap" x-html="displayableNotes"></p>
+        </div>
+        {{-- 編集モード --}}
+        <div x-show="editing" style="display: none;" x-collapse>
+            <x-textarea-input x-model="notes" class="mt-1 block w-full text-sm leading-tight" rows="5"></x-textarea-input>
+            <div class="flex justify-end items-center mt-2 space-x-3">
+                <span x-text="status" class="text-xs text-gray-500 dark:text-gray-400 mr-auto transition-opacity" :class="{'opacity-0': !status}"></span>
+                <x-secondary-button @click="cancelEdit()" type="button" class="text-xs">キャンセル</x-secondary-button>
+                <x-primary-button @click="updateNotes()" type="button" class="text-xs" x-bind:disabled="isSubmitting">
+                    <span x-show="isSubmitting"><i class="fas fa-spinner fa-spin mr-1"></i>保存中</span>
+                    <span x-show="!isSubmitting"><i class="fas fa-save mr-1"></i>保存する</span>
+                </x-primary-button>
+            </div>
+        </div>
+    </div>
+
+
     <div x-data="{
         imageInputMode: false,
         measurements: {},

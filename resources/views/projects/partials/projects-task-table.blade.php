@@ -39,8 +39,9 @@
         </div>
     </div>
 
-    <div id="assignee-data-container-{{ $tableId }}"
-        data-assignee-options='{{ json_encode($assigneeOptions ?? []) }} class="relative z-10"'>
+    <div id="assignee-data-container-{{ $tableId }}" data-assignee-options='{{ json_encode($assigneeOptions ?? []) }}'
+        class="relative z-10">
+        {{-- ▲▲▲ ここを修正しました ▲▲▲ --}}
         <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700" id="{{ $tableId }}">
             {{-- thead は変更なし --}}
             <thead class="bg-gray-50 dark:bg-gray-700">

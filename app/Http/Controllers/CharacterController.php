@@ -99,4 +99,31 @@ class CharacterController extends Controller
 
         return response()->json(['success' => true, 'message' => 'キャラクターの並び順を保存しました。']);
     }
+
+    /**
+     * Update the measurement notes for a specific character.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  \App\Models\Character  $character
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function updateMeasurementNotes(Request $request, Character $character)
+    {
+        // ユーザーがこのキャラクターを更新する権限を持っているか確認
+        // (プロジェクトの更新権限で代用)
+        $this->authorize('update', $character->project);
+
+        $validated = $request->validate([
+            'measurement_notes' => 'nullable|string|max:65535', // TEXT型の最大長
+        ]);
+
+        $character->update(['measurement_notes' => $validated['measurement_notes']]);
+
+        // ログ記録 (CharacterモデルのLogsActivityが発火)
+
+        return response()->json([
+            'success' => true,
+            'message' => '採寸備考を更新しました。',
+        ]);
+    }
 }

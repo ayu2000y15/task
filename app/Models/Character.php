@@ -29,6 +29,7 @@ class Character extends Model
         'description',
         'gender', // ★ 追加
         'display_order',
+        'measurement_notes',
     ];
 
     // ★ アクティビティログのオプション設定

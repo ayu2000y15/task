@@ -1219,6 +1219,10 @@ namespace App\Models{
  * @property int $send_interval_minutes
  * @property int $emails_per_batch
  * @property bool $image_sending_enabled
+ * @property int $daily_send_limit 1日の最大メール送信数
+ * @property string $send_timing_type 送信タイミングの種類 (fixed, random)
+ * @property int $random_send_min_seconds ランダム送信の最小間隔 (秒)
+ * @property int $random_send_max_seconds ランダム送信の最大間隔 (秒)
  * @property int $max_emails_per_minute
  * @property int $batch_delay_seconds
  * @property \Illuminate\Support\Carbon|null $created_at
@@ -1228,11 +1232,15 @@ namespace App\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|SalesToolSetting query()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|SalesToolSetting whereBatchDelaySeconds($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|SalesToolSetting whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SalesToolSetting whereDailySendLimit($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|SalesToolSetting whereEmailsPerBatch($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|SalesToolSetting whereId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|SalesToolSetting whereImageSendingEnabled($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|SalesToolSetting whereMaxEmailsPerMinute($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SalesToolSetting whereRandomSendMaxSeconds($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SalesToolSetting whereRandomSendMinSeconds($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|SalesToolSetting whereSendIntervalMinutes($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SalesToolSetting whereSendTimingType($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|SalesToolSetting whereUpdatedAt($value)
  */
 	class SalesToolSetting extends \Eloquent {}
