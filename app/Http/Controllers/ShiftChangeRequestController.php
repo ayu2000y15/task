@@ -22,10 +22,10 @@ class ShiftChangeRequestController extends Controller
     {
         $this->authorize('viewAny', ShiftChangeRequest::class);
 
-        $requests = ShiftChangeRequest::where('status', 'pending')
-            ->with('user') // 申請者情報も一緒に取得
-            ->orderBy('date', 'asc')
-            ->get();
+        // where句を削除して全ての申請を取得し、ページネーションを追加
+        $requests = ShiftChangeRequest::with(['user', 'approver']) // 申請者と承認者を事前に読み込む
+            ->orderBy('created_at', 'desc') // 申請が作成された順（新しい順）で表示
+            ->paginate(50); // 20件ごとにページを分ける
 
         return view('shift-change-requests.index', compact('requests'));
     }

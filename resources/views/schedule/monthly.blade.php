@@ -331,6 +331,9 @@
                 },
 
                 async submitRequest() {
+                    if (!confirm('この内容で申請しますか？')) {
+                        return;
+                    }
                     if (!this.requestReason) { alert('申請理由を入力してください。'); return; }
                     const data = {
                         date: this.requestDate, reason: this.requestReason, type: this.requestType,
