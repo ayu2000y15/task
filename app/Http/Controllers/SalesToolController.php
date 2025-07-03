@@ -156,7 +156,7 @@ class SalesToolController extends Controller
         $searchLimit = (int) $request->input('limit', 1000);
         // 安全のため、上限と下限を設定
         if ($searchLimit < 10) $searchLimit = 10;
-        if ($searchLimit > 10000) $searchLimit = 10000;
+        if ($searchLimit > 13000) $searchLimit = 13000;
 
         // 3. クエリに最大件数の制限を適用し、結果を一度に取得
         $contactsCollection = $query->latest('updated_at')->limit($searchLimit)->get();
