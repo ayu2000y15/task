@@ -31,51 +31,75 @@
                     @csrf
                     @method('PUT')
                     <div class="space-y-6">
+
                         <div>
-                            <x-input-label for="max_emails_per_minute" value="1分あたりの最大メール送信数" :required="true" />
-                            <x-text-input type="number" id="max_emails_per_minute" name="max_emails_per_minute"
-                                class="mt-1 block w-full" :value="old('max_emails_per_minute', $settings->max_emails_per_minute ?? 60)" required min="1"
-                                :hasError="$errors->has('max_emails_per_minute')" />
-                            <x-input-error :messages="$errors->get('max_emails_per_minute')" class="mt-2" />
+                            <x-input-label for="daily_send_limit" value="1日の最大メール送信数" :required="true" />
+                            <x-text-input type="number" id="daily_send_limit" name="daily_send_limit"
+                                class="mt-1 block w-full" :value="old('daily_send_limit', $settings->daily_send_limit ?? 10000)" required min="1"
+                                :hasError="$errors->has('daily_send_limit')" />
+                            <x-input-error :messages="$errors->get('daily_send_limit')" class="mt-2" />
                             <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                1分間に送信するメールの最大数を設定します。この値に基づき、各メール送信ジョブの遅延時間が自動計算され、送信タイミングが分散されます。(例: 60
-                                を設定すると、1通あたり約1秒の間隔でキューに投入されます。)</p>
+                                24時間あたりのメール送信数の上限を設定します。この数を超えて送信しようとするとエラーになります。
+                            </p>
                         </div>
 
-                        {{-- 以前のバッチ関連設定項目 (max_emails_per_minute に統合した場合は不要) --}}
-                        {{--
-                        <div>
-                            <x-input-label for="emails_per_batch" value="1バッチあたりのメール送信数 (旧)" :required="true" />
-                            <x-text-input type="number" id="emails_per_batch" name="emails_per_batch"
-                                class="mt-1 block w-full"
-                                :value="old('emails_per_batch', $settings->emails_per_batch ?? 100)" required min="1"
-                                max="1000" :hasError="$errors->has('emails_per_batch')" />
-                            <x-input-error :messages="$errors->get('emails_per_batch')" class="mt-2" />
-                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">旧設定: 一度のキュー処理で送信を試みるメールの最大数です。</p>
+                        <div class="border-t border-gray-200 dark:border-gray-700 pt-6">
+                            <x-input-label value="送信間隔のタイプ" :required="true" />
+                            <div class="mt-2 space-y-2">
+                                <label for="send_timing_type_fixed" class="flex items-center">
+                                    <input type="radio" id="send_timing_type_fixed" name="send_timing_type" value="fixed"
+                                        class="text-blue-600 focus:ring-blue-500"
+                                        {{ old('send_timing_type', $settings->send_timing_type ?? 'fixed') == 'fixed' ? 'checked' : '' }}>
+                                    <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">固定間隔で送信</span>
+                                </label>
+                                <label for="send_timing_type_random" class="flex items-center">
+                                    <input type="radio" id="send_timing_type_random" name="send_timing_type" value="random"
+                                        class="text-blue-600 focus:ring-blue-500"
+                                        {{ old('send_timing_type', $settings->send_timing_type) == 'random' ? 'checked' : '' }}>
+                                    <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">ランダムな間隔で送信</span>
+                                </label>
+                            </div>
+                            <x-input-error :messages="$errors->get('send_timing_type')" class="mt-2" />
                         </div>
 
-                        <div>
-                            <x-input-label for="batch_delay_seconds" value="バッチ間の遅延 (秒) (旧)" :required="true" />
-                            <x-text-input type="number" id="batch_delay_seconds" name="batch_delay_seconds"
-                                class="mt-1 block w-full"
-                                :value="old('batch_delay_seconds', $settings->batch_delay_seconds ?? 60)" required min="0"
-                                :hasError="$errors->has('batch_delay_seconds')" />
-                            <x-input-error :messages="$errors->get('batch_delay_seconds')" class="mt-2" />
-                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">旧設定:
-                                各バッチのメールをキューに追加した後、次のバッチを追加するまでの遅延時間（秒単位）です。</p>
+                        {{-- 固定間隔用の設定 --}}
+                        <div id="fixed_settings_block" class="space-y-6">
+                            <div>
+                                <x-input-label for="max_emails_per_minute" value="1分あたりの最大メール送信数" :required="true" />
+                                <x-text-input type="number" id="max_emails_per_minute" name="max_emails_per_minute"
+                                    class="mt-1 block w-full" :value="old('max_emails_per_minute', $settings->max_emails_per_minute ?? 60)" required min="1"
+                                    :hasError="$errors->has('max_emails_per_minute')" />
+                                <x-input-error :messages="$errors->get('max_emails_per_minute')" class="mt-2" />
+                                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                    1分間に送信するメールの最大数を設定します。この値に基づき、各メール送信ジョブの遅延時間が自動計算され、送信タイミングが分散されます。(例: 60
+                                    を設定すると、1通あたり1秒の間隔でキューに投入されます。)
+                                </p>
+                            </div>
                         </div>
 
-                        <div>
-                            <x-input-label for="send_interval_minutes" value="送信間隔の目安 (分) (旧)" :required="true" />
-                            <x-text-input type="number" id="send_interval_minutes" name="send_interval_minutes"
-                                class="mt-1 block w-full"
-                                :value="old('send_interval_minutes', $settings->send_interval_minutes ?? 5)" required
-                                min="1" :hasError="$errors->has('send_interval_minutes')" />
-                            <x-input-error :messages="$errors->get('send_interval_minutes')" class="mt-2" />
-                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">旧設定:
-                                この設定は現在、直接的な送信制御には使用されていませんが、将来的な機能拡張のための目安として設定します。</p>
+                        {{-- ランダム間隔用の設定 --}}
+                        <div id="random_settings_block" class="space-y-6">
+                            <div>
+                                <x-input-label for="random_send_min_seconds" value="最小送信間隔 (秒)" :required="true" />
+                                <x-text-input type="number" id="random_send_min_seconds" name="random_send_min_seconds"
+                                    class="mt-1 block w-full" :value="old('random_send_min_seconds', $settings->random_send_min_seconds ?? 2)" required min="0"
+                                    :hasError="$errors->has('random_send_min_seconds')" />
+                                <x-input-error :messages="$errors->get('random_send_min_seconds')" class="mt-2" />
+                                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                    メール1通を送信する際の、ランダムな間隔の最小秒数を設定します。
+                                </p>
+                            </div>
+                            <div>
+                                <x-input-label for="random_send_max_seconds" value="最大送信間隔 (秒)" :required="true" />
+                                <x-text-input type="number" id="random_send_max_seconds" name="random_send_max_seconds"
+                                    class="mt-1 block w-full" :value="old('random_send_max_seconds', $settings->random_send_max_seconds ?? 10)" required min="0"
+                                    :hasError="$errors->has('random_send_max_seconds')" />
+                                <x-input-error :messages="$errors->get('random_send_max_seconds')" class="mt-2" />
+                                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                    メール1通を送信する際の、ランダムな間隔の最大秒数を設定します。
+                                </p>
+                            </div>
                         </div>
-                        --}}
 
                         <div class="border-t border-gray-200 dark:border-gray-700 pt-6">
                             <x-input-label value="オプション"
@@ -101,4 +125,34 @@
             </div>
         </div>
     </div>
+
+    @push('scripts')
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const timingTypeRadios = document.querySelectorAll('input[name="send_timing_type"]');
+            const fixedSettingsBlock = document.getElementById('fixed_settings_block');
+            const randomSettingsBlock = document.getElementById('random_settings_block');
+
+            function toggleSettingsVisibility() {
+                const selectedType = document.querySelector('input[name="send_timing_type"]:checked').value;
+                if (selectedType === 'random') {
+                    fixedSettingsBlock.style.display = 'none';
+                    randomSettingsBlock.style.display = 'block';
+                } else {
+                    fixedSettingsBlock.style.display = 'block';
+                    randomSettingsBlock.style.display = 'none';
+                }
+            }
+
+            // 初期表示
+            toggleSettingsVisibility();
+
+            // ラジオボタン変更時に切り替え
+            timingTypeRadios.forEach(radio => {
+                radio.addEventListener('change', toggleSettingsVisibility);
+            });
+        });
+    </script>
+    @endpush
+
 @endsection

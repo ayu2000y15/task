@@ -15,12 +15,12 @@ class SalesToolSetting extends Model
      * @var array<int, string>
      */
     protected $fillable = [
-        'max_emails_per_minute', // 1分あたりの最大メール送信数
+        'max_emails_per_minute', // 1分あたりの最大メール送信数 (固定間隔用)
         'image_sending_enabled', // メール本文への画像送信の可否
-        // 以下は以前のバッチ制御用項目（max_emails_per_minuteに統合した場合は不要になる可能性）
-        // 'send_interval_minutes',
-        // 'emails_per_batch',
-        // 'batch_delay_seconds',
+        'send_timing_type',      // ★追加: 送信タイミングの種類 ('fixed', 'random')
+        'random_send_min_seconds', // ★追加: ランダム送信の最小間隔 (秒)
+        'random_send_max_seconds', // ★追加: ランダム送信の最大間隔 (秒)
+        'daily_send_limit',      // ★追加: 1日の送信上限数
     ];
 
     /**
@@ -31,9 +31,9 @@ class SalesToolSetting extends Model
     protected $casts = [
         'image_sending_enabled' => 'boolean',
         'max_emails_per_minute' => 'integer',
-        // 'send_interval_minutes' => 'integer',
-        // 'emails_per_batch' => 'integer',
-        // 'batch_delay_seconds' => 'integer',
+        'random_send_min_seconds' => 'integer', // ★追加
+        'random_send_max_seconds' => 'integer', // ★追加
+        'daily_send_limit' => 'integer',      // ★追加
     ];
 
     /**

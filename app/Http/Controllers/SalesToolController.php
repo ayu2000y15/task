@@ -233,104 +233,56 @@ class SalesToolController extends Controller
     {
         $this->authorize(self::SALES_TOOL_ACCESS_PERMISSION);
 
+        $dailyLimit = SalesToolSetting::getSetting('daily_send_limit', 10000);
+        $currentSubscribersCount = $emailList->subscribers()->count();
         $contactIdsToAdd = [];
         $isAddAllFiltered = $request->has('add_all_filtered_action');
 
         if ($isAddAllFiltered) {
-            Log::info("Attempting to add all filtered contacts to EmailList ID: {$emailList->id}, Filters: ", $request->except(['_token', 'add_all_filtered_action']));
-
-            $query = ManagedContact::query();
-
-            // --- 1. 除外リストの処理をここに追加 ---
-            // 自分自身のリストIDと、リクエストで指定された他の除外リストIDをまとめる
-            $excludeListIds = [$emailList->id];
-            if ($request->filled('exclude_lists') && is_array($request->input('exclude_lists'))) {
-                $excludeListIds = array_merge($excludeListIds, $request->input('exclude_lists'));
-            }
-            $excludeListIds = array_unique($excludeListIds);
-
-            // 指定されたすべてのリストに登録されていない連絡先のみを対象とする
-            $query->whereDoesntHave('subscribers', function ($q) use ($excludeListIds) {
-                $q->whereIn('email_list_id', $excludeListIds);
-            });
-
-            // --- 2. 各フィルターの適用ロジックを subscirbersCreate と統一 ---
-
-            // キーワード検索
-            if ($request->filled('keyword')) {
-                $keyword = '%' . $request->input('keyword') . '%';
-                $query->where(function ($q) use ($keyword) {
-                    $q->where('email', 'like', $keyword)
-                        ->orWhere('name', 'like', $keyword)
-                        ->orWhere('company_name', 'like', 'keyword');
-                });
-            }
-
-            // 詳細フィルター (検索モード対応)
-            $applyTextFilter = function ($query, $request, $fieldName) {
-                $mode = $request->input("filter_{$fieldName}_mode", 'like');
-                $value = $request->input("filter_{$fieldName}");
-                $blankFilter = $request->input("blank_filter_{$fieldName}");
-
-                if ($blankFilter === 'is_null') {
-                    $query->where(fn($q) => $q->whereNull($fieldName)->orWhere($fieldName, ''));
-                } elseif ($blankFilter === 'is_not_null') {
-                    $query->where(fn($q) => $q->whereNotNull($fieldName)->where($fieldName, '!=', ''));
-                } elseif ($request->filled("filter_{$fieldName}")) {
-                    switch ($mode) {
-                        case 'exact':
-                            $query->where($fieldName, '=', $value);
-                            break;
-                        case 'not_in':
-                            $query->where($fieldName, 'NOT LIKE', '%' . $value . '%');
-                            break;
-                        case 'like':
-                        default:
-                            $query->where($fieldName, 'LIKE', '%' . $value . '%');
-                            break;
-                    }
-                }
-            };
-
-            $filterableTextFields = ['company_name', 'postal_code', 'address', 'industry', 'notes', 'source_info', 'establishment_date'];
-            foreach ($filterableTextFields as $field) {
-                $applyTextFilter($query, $request, $field);
-            }
-
-            // ステータスフィルター（常に 'active' を対象とする）
-            if ($request->filled('filter_status') && $request->input('filter_status') !== '') {
-                $query->where('status', $request->input('filter_status'));
-            } else {
-                $query->where('status', 'active');
-            }
-
-            // --- 3. 不要になった古い除外ロジックを削除 ---
-            // 以前のコードにあった `$query->whereNotIn('id', ...)` は、
-            // `whereDoesntHave` でカバーされるため不要です。
-
-
-            $contactIdsToAdd = $query->pluck('id')->all();
-
-            if (empty($contactIdsToAdd)) {
-                return redirect()->route('tools.sales.email-lists.subscribers.create', $emailList)
-                    ->with('info', 'フィルター条件に一致する追加可能な連絡先が見つかりませんでした。')
-                    ->withInput($request->except(['add_all_filtered_action', '_token']));
-            }
-            Log::info(count($contactIdsToAdd) . " contacts found via 'add all filtered' for EmailList ID: {$emailList->id}. Processing...");
+            // 「フィルター結果を全て追加」の場合、追加される件数を事前に計算
+            $query = $this->buildFilteredContactsQuery($request, $emailList);
+            $countToAdd = $query->count();
         } else {
-            // ... (「チェックした連絡先を追加」の場合の処理 - 変更なし) ...
+            // 「チェックした連絡先を追加」の場合
             $validated = $request->validate([
                 'managed_contact_ids' => 'present|array',
                 'managed_contact_ids.*' => 'integer|exists:managed_contacts,id',
             ]);
             $contactIdsToAdd = $validated['managed_contact_ids'] ?? [];
-
-            if (empty($contactIdsToAdd)) {
-                return redirect()->route('tools.sales.email-lists.subscribers.create', $emailList)
-                    ->with('warning', '追加する連絡先が選択されていません。')
-                    ->withInput($request->except(['_token']));
-            }
+            $countToAdd = count($contactIdsToAdd);
         }
+
+        if (($currentSubscribersCount + $countToAdd) > $dailyLimit) {
+            $message = "リストの上限エラー: この操作を行うと、リストの購読者数が1日の最大送信数 ({$dailyLimit}件) を超えてしまいます。";
+            $message .= " (現在の購読者数: {$currentSubscribersCount}件 / 追加しようとした件数: {$countToAdd}件)";
+
+            // ログにも記録
+            Log::warning("Subscriber addition blocked for EmailList ID {$emailList->id}: Daily limit exceeded.", [
+                'daily_limit' => $dailyLimit,
+                'current_count' => $currentSubscribersCount,
+                'to_add_count' => $countToAdd,
+            ]);
+
+            return redirect()->back() // 元の画面に戻す
+                ->with('error', $message)
+                ->withInput($request->except(['_token'])); // 入力内容を保持
+        }
+
+
+        // 「フィルター結果を全て追加」の場合のIDリスト取得
+        if ($isAddAllFiltered) {
+            $query = $this->buildFilteredContactsQuery($request, $emailList); // 再度クエリをビルド
+            $contactIdsToAdd = $query->pluck('id')->all();
+        }
+
+        if (empty($contactIdsToAdd)) {
+            $redirectRoute = $isAddAllFiltered ?
+                redirect()->route('tools.sales.email-lists.subscribers.create', $emailList)->withInput($request->except(['add_all_filtered_action', '_token'])) :
+                redirect()->route('tools.sales.email-lists.subscribers.create', $emailList)->withInput($request->except(['_token']));
+
+            return $redirectRoute->with('warning', '追加する連絡先が見つかりませんでした。');
+        }
+
         $addedCount = 0;
         $skippedCount = 0;
         $errorCount = 0;
@@ -390,6 +342,78 @@ class SalesToolController extends Controller
 
         return redirect()->route('tools.sales.email-lists.show', $emailList)
             ->with($messageType, $feedbackMessage);
+    }
+
+
+    /**
+     * ★★★ 新しいヘルパーメソッドを追加 ★★★
+     * フィルター条件に基づいて連絡先を取得するクエリを構築します。
+     * (subscribersStoreメソッド内で重複していたロジックを共通化)
+     */
+    private function buildFilteredContactsQuery(Request $request, EmailList $emailList)
+    {
+        $query = ManagedContact::query();
+
+        // --- 1. 除外リストの処理 ---
+        $excludeListIds = [$emailList->id];
+        if ($request->filled('exclude_lists') && is_array($request->input('exclude_lists'))) {
+            $excludeListIds = array_merge($excludeListIds, $request->input('exclude_lists'));
+        }
+        $excludeListIds = array_unique($excludeListIds);
+        $query->whereDoesntHave('subscribers', function ($q) use ($excludeListIds) {
+            $q->whereIn('email_list_id', $excludeListIds);
+        });
+
+        // --- 2. 各フィルターの適用 ---
+        // キーワード検索
+        if ($request->filled('keyword')) {
+            $keyword = '%' . $request->input('keyword') . '%';
+            $query->where(function ($q) use ($keyword) {
+                $q->where('email', 'like', $keyword)
+                    ->orWhere('name', 'like', $keyword)
+                    ->orWhere('company_name', 'like', 'keyword');
+            });
+        }
+
+        // 詳細フィルター
+        $applyTextFilter = function ($query, $request, $fieldName) {
+            $mode = $request->input("filter_{$fieldName}_mode", 'like');
+            $value = $request->input("filter_{$fieldName}");
+            $blankFilter = $request->input("blank_filter_{$fieldName}");
+
+            if ($blankFilter === 'is_null') {
+                $query->where(fn($q) => $q->whereNull($fieldName)->orWhere($fieldName, ''));
+            } elseif ($blankFilter === 'is_not_null') {
+                $query->where(fn($q) => $q->whereNotNull($fieldName)->where($fieldName, '!=', ''));
+            } elseif ($request->filled("filter_{$fieldName}")) {
+                switch ($mode) {
+                    case 'exact':
+                        $query->where($fieldName, '=', $value);
+                        break;
+                    case 'not_in':
+                        $query->where($fieldName, 'NOT LIKE', '%' . $value . '%');
+                        break;
+                    case 'like':
+                    default:
+                        $query->where($fieldName, 'LIKE', '%' . $value . '%');
+                        break;
+                }
+            }
+        };
+
+        $filterableTextFields = ['company_name', 'postal_code', 'address', 'industry', 'notes', 'source_info', 'establishment_date'];
+        foreach ($filterableTextFields as $field) {
+            $applyTextFilter($query, $request, $field);
+        }
+
+        // ステータスフィルター
+        if ($request->filled('filter_status') && $request->input('filter_status') !== '') {
+            $query->where('status', $request->input('filter_status'));
+        } else {
+            $query->where('status', 'active');
+        }
+
+        return $query;
     }
 
     public function subscribersEdit(EmailList $emailList, Subscriber $subscriber): View
@@ -511,13 +535,18 @@ class SalesToolController extends Controller
     /**
      * Send the composed email.
      * 作成されたメールを送信（またはキューイング）します。
-     */ public function sendEmail(Request $request)
+     */
+    /**
+     * Send the composed email.
+     * 作成されたメールを送信（またはキューイング）します。
+     */
+    public function sendEmail(Request $request)
     {
         $this->authorize(self::SALES_TOOL_ACCESS_PERMISSION);
 
         $validatedData = $request->validate([
             'subject' => 'required|string|max:255',
-            'body_html' => 'required|string', // ここにはパーソナライズ前の本文が入る
+            'body_html' => 'required|string',
             'email_list_id' => 'required|exists:email_lists,id',
             'sender_name' => 'nullable|string|max:255',
             'sender_email' => 'required|email|max:255',
@@ -530,22 +559,51 @@ class SalesToolController extends Controller
             return redirect()->back()->withInput()->with('error', '選択されたメールリストに送信可能な購読者がいません。');
         }
 
-        $maxEmailsPerMinute = SalesToolSetting::getSetting('max_emails_per_minute', 60);
-        $delayBetweenEmails = $maxEmailsPerMinute > 0 ? max(1, round(60 / $maxEmailsPerMinute)) : 1;
-        if ($maxEmailsPerMinute <= 0) {
-            Log::warning('max_emails_per_minute setting is invalid or not set, using default 60 emails/min (delay 1s).');
+        // ★★★ ここから送信制御ロジックを大幅に変更 ★★★
+        $settings = SalesToolSetting::first();
+        if (!$settings) {
+            // 設定が存在しない場合はフォールバックする（本番ではありえないが念のため）
+            $settings = new SalesToolSetting([
+                'daily_send_limit' => 10000,
+                'send_timing_type' => 'fixed',
+                'max_emails_per_minute' => 60,
+            ]);
         }
 
-        // これらはパーソナライズ前のベースとなる件名と本文
+        // 1. 1日の送信上限チェック
+        $dailyLimit = $settings->daily_send_limit;
+        // 今日キューに追加されたメールの数をカウント
+        $todayQueuedCount = SentEmailLog::whereDate('created_at', today())->count();
+        $subscribersToQueueCount = $subscribersQuery->clone()->count(); // これからキューに入れる数
+
+        if (($todayQueuedCount + $subscribersToQueueCount) > $dailyLimit) {
+            $message = "本日の送信上限 ({$dailyLimit}件) を超過するため、処理を中断しました。";
+            $message .= " (本日キュー投入済: {$todayQueuedCount}件 / 今回の対象: {$subscribersToQueueCount}件)";
+            return redirect()->back()->withInput()->with('error', $message);
+        }
+
+        // 2. 送信間隔の計算準備
+        $currentCumulativeDelayInMicroseconds = 0;
+        if ($settings->send_timing_type === 'fixed') {
+            $maxEmailsPerMinute = $settings->max_emails_per_minute > 0 ? $settings->max_emails_per_minute : 60;
+            // 固定間隔をマイクロ秒で算出
+            $delayBetweenEmailsInMicroseconds = (60 / $maxEmailsPerMinute) * 1000000;
+        } else { // 'random'
+            $minSeconds = $settings->random_send_min_seconds ?? 2;
+            $maxSeconds = $settings->random_send_max_seconds ?? 10;
+            // 最小値が最大値を超えないように補正
+            if ($minSeconds > $maxSeconds) $minSeconds = $maxSeconds;
+        }
+        // ★★★ ここまで送信制御ロジック ★★★
+
         $baseSubject = $validatedData['subject'];
         $baseBodyHtml = $validatedData['body_html'];
         $senderEmail = $validatedData['sender_email'];
         $senderName = $validatedData['sender_name'] ?? config('mail.from.name');
 
-        // SentEmailレコードにはパーソナライズ前の情報を保存
         $sentEmailRecord = SentEmail::create([
             'subject' => $baseSubject,
-            'body_html' => $baseBodyHtml, // 元のHTML本文を保存
+            'body_html' => $baseBodyHtml,
             'email_list_id' => $emailList->id,
             'sender_email' => $senderEmail,
             'sender_name' => $senderName,
@@ -597,11 +655,11 @@ class SalesToolController extends Controller
         }
         // ▲▲▲ ダミー購読者を使用したプレビュー用HTMLの生成と保存ここまで ▲▲▲
 
+
         $totalQueuedCount = 0;
         $blacklistedCount = 0;
         $failedQueueingCount = 0;
         $blacklistedEmails = BlacklistEntry::pluck('email')->all();
-        $currentCumulativeDelay = 0;
 
         $subscribers = $subscribersQuery->get();
 
@@ -623,18 +681,28 @@ class SalesToolController extends Controller
             }
 
             try {
+                // ★★★ 遅延時間を計算してキューに投入 ★★★
+                if ($settings->send_timing_type === 'fixed') {
+                    $currentCumulativeDelayInMicroseconds += $delayBetweenEmailsInMicroseconds;
+                } else { // random
+                    // ループごとにランダムな遅延時間を加算
+                    $currentCumulativeDelayInMicroseconds += rand($minSeconds * 1000000, $maxSeconds * 1000000);
+                }
 
-                // Mailableをインスタンス化 (ここで $subscriber を渡す)
                 $mailable = new SalesCampaignMail(
                     $baseSubject,
                     $baseBodyHtml,
                     $sentEmailRecord->id,
                     $subscriber->email,
-                    $subscriber // ★★★ Subscriberオブジェクトを渡す ★★★
+                    $subscriber
                 );
 
+                // `later` にマイクロ秒単位で計算した遅延時間を渡す
                 Mail::to($subscriber->email, $subscriber->name)
-                    ->later(now()->addSeconds($currentCumulativeDelay), $mailable->from($senderEmail, $senderName));
+                    ->later(
+                        now()->addMicroseconds($currentCumulativeDelayInMicroseconds),
+                        $mailable->from($senderEmail, $senderName)
+                    );
 
                 // SentEmailLog に Mailable 内で生成された messageIdentifier を記録
                 SentEmailLog::firstOrCreate(
@@ -657,7 +725,7 @@ class SalesToolController extends Controller
                 ]);
 
                 $totalQueuedCount++;
-                $currentCumulativeDelay += $delayBetweenEmails;
+                // $currentCumulativeDelay は使わなくなったので削除
             } catch (\Exception $e) {
                 $failedQueueingCount++;
                 Log::error("Mail queueing failed for {$subscriber->email} for SentEmail ID {$sentEmailRecord->id}: " . $e->getMessage());
@@ -674,9 +742,7 @@ class SalesToolController extends Controller
             }
         }
 
-        // ... (SentEmailレコードの最終ステータス更新とリダイレクト処理は前回と同様) ...
         $actualSubscribersCount = $subscribers->count();
-        // ... (ステータス更新ロジック) ...
         if ($totalQueuedCount > 0) {
             $sentEmailRecord->status = 'queued';
         } elseif ($actualSubscribersCount > 0 && $blacklistedCount === $actualSubscribersCount) {
@@ -692,12 +758,10 @@ class SalesToolController extends Controller
         }
         $sentEmailRecord->save();
 
-        // ... (メッセージ作成とリダイレクト) ...
         $messageParts = [];
         if ($totalQueuedCount > 0) $messageParts[] = "{$totalQueuedCount}件のメールを送信キューに追加しました。";
         if ($blacklistedCount > 0) $messageParts[] = "{$blacklistedCount}件がブラックリストのためスキップ。";
         if ($failedQueueingCount > 0) $messageParts[] = "{$failedQueueingCount}件がキュー投入失敗。";
-        // ...
         $finalMessage = implode(' ', $messageParts);
         if ($totalQueuedCount > 0) $finalMessage .= " 設定された間隔で順次送信されます。";
         elseif (empty($finalMessage)) $finalMessage = "メール送信処理は実行されましたが、キューに追加されたメールはありませんでした。";
@@ -820,12 +884,14 @@ class SalesToolController extends Controller
         // sales_tool_settings テーブルには通常1レコードのみ存在すると想定
         // firstOrCreate を使用して、レコードがなければデフォルト値で作成し、あればそれを取得
         $settings = SalesToolSetting::firstOrCreate(
-            ['id' => 1], // 常にID=1のレコードを対象とする (または他のユニークなキー)
-            [ // レコードが存在しない場合に作成されるデフォルト値
-                'send_interval_minutes' => 5,
-                'emails_per_batch' => 100,
-                'batch_delay_seconds' => 60,
+            ['id' => 1],
+            [
+                'max_emails_per_minute' => 60,
                 'image_sending_enabled' => true,
+                'send_timing_type'      => 'fixed', // デフォルトは固定
+                'random_send_min_seconds' => 2,
+                'random_send_max_seconds' => 10,
+                'daily_send_limit'      => 10000,
             ]
         );
 
@@ -840,27 +906,19 @@ class SalesToolController extends Controller
     {
         $this->authorize(self::SALES_TOOL_ACCESS_PERMISSION);
 
+        // ★★★ バリデーションルールを更新 ★★★
         $validatedData = $request->validate([
-            'max_emails_per_minute' => 'required|integer|min:1', // ★ バリデーション対象
+            'daily_send_limit'      => 'required|integer|min:1',
+            'send_timing_type'      => 'required|string|in:fixed,random',
+            'max_emails_per_minute' => 'required_if:send_timing_type,fixed|integer|min:1',
+            'random_send_min_seconds' => 'required_if:send_timing_type,random|integer|min:0',
+            'random_send_max_seconds' => 'required_if:send_timing_type,random|integer|min:0|gte:random_send_min_seconds',
             'image_sending_enabled' => 'nullable|boolean',
-            // 不要になった古いレート制御カラムのバリデーションは削除
         ]);
 
         $validatedData['image_sending_enabled'] = $request->has('image_sending_enabled');
 
-        // SalesToolSettingモデルのupdateSettingsメソッドまたはfirstOrCreate()->update()で保存
-        $settings = SalesToolSetting::updateOrCreate( // もしモデルにupdateSettingsがなければ
-            ['id' => 1],                             // このように直接更新
-            [ // デフォルト値 (レコードがない場合)
-                'max_emails_per_minute' => $validatedData['max_emails_per_minute'] ?? 60,
-                'image_sending_enabled' => $validatedData['image_sending_enabled'] ?? true,
-            ]
-        );
-        // 既にレコードがある場合は update のみ
-        // $settings = SalesToolSetting::firstOrCreate(['id' => 1]);
-        // $settings->fill($validatedData);
-        // $settings->save();
-
+        SalesToolSetting::updateOrCreate(['id' => 1], $validatedData);
 
         return redirect()->route('tools.sales.settings.edit')
             ->with('success', '営業ツールの設定を更新しました。');
