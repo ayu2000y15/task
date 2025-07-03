@@ -342,6 +342,9 @@
                                         {{-- ユーザー名 --}}
                                         <span class="text-sm font-medium text-gray-800 dark:text-gray-200">{{ $log->user->name }}</span>
                                     </div>
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ $statusClasses[$displayStatusKey] ?? '' }}">
+                                        {{ $statusLabels[$displayStatusKey] ?? '不明' }}
+                                    </span>
                                 </li>
                             @endforeach
                         </ul>
