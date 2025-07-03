@@ -43,7 +43,7 @@
 
         <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead class="bg-gray-50 dark:bg-gray-700 sticky z-30" >
+                <thead class="bg-gray-50 dark:bg-gray-700 sticky z-30">
                     <tr>
                         <th
                             class="px-6 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
@@ -65,6 +65,9 @@
                             ｸﾘｯｸ数</th>
                         <th class="px-6 py-2 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
                             title="開封数に対するクリック率">CTOR</th>
+                        <th class="px-6 py-2 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
+                            title="処理済 / 残り件数">
+                            処理済 /<br> 残り件数</th>
                         <th
                             class="px-6 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                             ステータス</th>
@@ -84,17 +87,32 @@
                                 </a>
                             </td>
                             <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                {{ Str::limit($sentMail->emailList->name ?? 'N/A', 20) }}</td>
+                                {{ Str::limit($sentMail->emailList->name ?? 'N/A', 20) }}
+                            </td>
                             <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                {{ $sentMail->sent_at ? $sentMail->sent_at->format('Y/m/d H:i') : '-' }}</td>
+                                {{ $sentMail->sent_at ? $sentMail->sent_at->format('Y/m/d H:i') : '-' }}
+                            </td>
                             <td class="px-6 py-2 whitespace-nowrap text-sm text-blue-600 dark:text-blue-400 text-center">
-                                {{ $sentMail->opened_count }}</td>
+                                {{ $sentMail->opened_count }}
+                            </td>
                             <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-center">
-                                {{ number_format($sentMail->open_rate, 1) }}%</td>
+                                {{ number_format($sentMail->open_rate, 1) }}%
+                            </td>
                             <td class="px-6 py-2 whitespace-nowrap text-sm text-green-600 dark:text-green-400 text-center">
-                                {{ $sentMail->clicked_count }}</td>
+                                {{ $sentMail->clicked_count }}
+                            </td>
                             <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-center">
-                                {{ number_format($sentMail->click_to_open_rate, 1) }}%</td>
+                                {{ number_format($sentMail->click_to_open_rate, 1) }}%
+                            </td>
+                            <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-center">
+                                @php
+                                    $queuedCount = $sentMail->recipientLogs->where('status', 'queued')->count();
+                                    $processedCount = $sentMail->recipientLogs->count() - $queuedCount;
+                                @endphp
+                                <span title="処理済: {{ $processedCount }} / 残り: {{ $queuedCount }}">
+                                    {{ $processedCount }} / {{ $queuedCount }}
+                                </span>
+                            </td>
                             <td class="px-6 py-2 whitespace-nowrap text-sm">
                                 @php
                                     $statusKey = $sentMail->status;

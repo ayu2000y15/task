@@ -51,6 +51,43 @@
 
         {{-- サマリー情報 (変更なし) --}}
         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
+            {{-- 完了までの推定時間カード --}}
+            @if (in_array($sentEmail->status, ['queued', 'queuing', 'processing']))
+                @php
+                    $settings = \App\Models\SalesToolSetting::first();
+                    $remainingCount = $recipientLogs->where('status', 'queued')->count();
+                    $estimatedDuration = '計算不可';
+                    $estimatedCompletionTime = ''; // 完了時刻を初期化
+
+                    if ($settings && $remainingCount > 0) {
+                        $delayPerEmail = 1; // デフォルト1秒
+                        if ($settings->send_timing_type === 'fixed') {
+                            $delayPerEmail = $settings->max_emails_per_minute > 0 ? (60 / $settings->max_emails_per_minute) : 1;
+                        } else {
+                            $delayPerEmail = ($settings->random_send_min_seconds + $settings->random_send_max_seconds) / 2;
+                        }
+                        $totalSeconds = $remainingCount * $delayPerEmail;
+
+                        // 残り時間を人間が読みやすい形式に変換
+                        $estimatedDuration = \Carbon\CarbonInterval::seconds($totalSeconds)->cascade()->forHumans(['short' => true, 'parts' => 2]);
+
+                        // 現在時刻から計算して、実際の完了予測時刻を算出
+                        $estimatedCompletionTimestamp = now()->addSeconds($totalSeconds);
+                        $estimatedCompletionTime = $estimatedCompletionTimestamp->format('Y/m/d H:i');
+                    }
+                @endphp
+                <div class="bg-blue-50 dark:bg-blue-900/50 p-4 shadow rounded-lg text-center border border-blue-200 dark:border-blue-700">
+                    <div class="text-sm font-medium text-gray-500 dark:text-gray-400">完了までの推定時間</div>
+                    <div class="text-2xl font-bold text-blue-600 dark:text-blue-400">約 {{ $estimatedDuration }}</div>
+                    {{-- 完了予測時刻を追加 --}}
+                    @if($estimatedCompletionTime)
+                        <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            ({{ $estimatedCompletionTime }} ごろ完了予定)
+                        </div>
+                    @endif
+                </div>
+            @endif
+
             <div class="bg-white dark:bg-gray-800 p-4 shadow rounded-lg text-center">
                 <div class="text-sm font-medium text-gray-500 dark:text-gray-400">開封数</div>
                 <div class="text-2xl font-bold text-blue-600 dark:text-blue-400">{{ $sentEmail->opened_count }}</div>
@@ -63,10 +100,6 @@
                 <div class="text-sm font-medium text-gray-500 dark:text-gray-400">クリック数</div>
                 <div class="text-2xl font-bold text-green-600 dark:text-green-400">{{ $sentEmail->clicked_count }}</div>
             </div>
-            {{-- <div class="bg-white dark:bg-gray-800 p-4 shadow rounded-lg text-center">
-                <div class="text-sm font-medium text-gray-500 dark:text-gray-400" title="送信試行数に対するクリック率">送信試行数に対するクリック率</div>
-                <div class="text-2xl font-bold text-green-600 dark:text-green-400">{{ number_format($sentEmail->click_through_rate, 1) }}%</div>
-            </div> --}}
             <div class="bg-white dark:bg-gray-800 p-4 shadow rounded-lg text-center">
                 <div class="text-sm font-medium text-gray-500 dark:text-gray-400" title="開封数に対するクリック率">開封数に対するクリック率(CTOR)</div>
                 <div class="text-2xl font-bold text-green-600 dark:text-green-400">{{ number_format($sentEmail->click_to_open_rate, 1) }}%</div>
