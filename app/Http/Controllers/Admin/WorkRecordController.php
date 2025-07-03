@@ -23,12 +23,14 @@ class WorkRecordController extends Controller
     {
         $this->authorize('viewAny', WorkLog::class);
 
-        $now = Carbon::now();
+        $targetMonth = $request->has('month') ? Carbon::parse($request->input('month')) : Carbon::now();
+
         $summaryDateStrings = [
-            'month' => $now->format('Y年n月'),
+            // 表示用の文字列を動的に生成
+            'month' => $targetMonth->format('Y年n月'),
         ];
-        // 新しいロジックで月次サマリーを計算
-        $monthSummary = $this->calculateMonthlyAttendanceSummary($now);
+        // 指定された月のサマリーを計算
+        $monthSummary = $this->calculateMonthlyAttendanceSummary($targetMonth);
 
         // ソート可能な列を定義
         $sortableColumns = [
@@ -115,7 +117,8 @@ class WorkRecordController extends Controller
             'monthSummary',
             'summaryDateStrings',
             'sort',
-            'direction'
+            'direction',
+            'targetMonth'
         ));
     }
 
