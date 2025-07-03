@@ -540,17 +540,17 @@ class SalesToolController extends Controller
             ]);
         }
 
-        // 1. 1日の送信上限チェック
-        $dailyLimit = $settings->daily_send_limit;
-        // 今日キューに追加されたメールの数をカウント
-        $todayQueuedCount = SentEmailLog::whereDate('created_at', today())->count();
-        $subscribersToQueueCount = $subscribersQuery->clone()->count(); // これからキューに入れる数
+        // // 1. 1日の送信上限チェック
+        // $dailyLimit = $settings->daily_send_limit;
+        // // 今日キューに追加されたメールの数をカウント
+        // $todayQueuedCount = SentEmailLog::whereDate('created_at', today())->count();
+        // $subscribersToQueueCount = $subscribersQuery->clone()->count(); // これからキューに入れる数
 
-        if (($todayQueuedCount + $subscribersToQueueCount) > $dailyLimit) {
-            $message = "本日の送信上限 ({$dailyLimit}件) を超過するため、処理を中断しました。";
-            $message .= " (本日キュー投入済: {$todayQueuedCount}件 / 今回の対象: {$subscribersToQueueCount}件)";
-            return redirect()->back()->withInput()->with('error', $message);
-        }
+        // if (($todayQueuedCount + $subscribersToQueueCount) > $dailyLimit) {
+        //     $message = "本日の送信上限 ({$dailyLimit}件) を超過するため、処理を中断しました。";
+        //     $message .= " (本日キュー投入済: {$todayQueuedCount}件 / 今回の対象: {$subscribersToQueueCount}件)";
+        //     return redirect()->back()->withInput()->with('error', $message);
+        // }
 
         // 2. 送信間隔の計算準備
         $currentCumulativeDelayInMicroseconds = 0;
