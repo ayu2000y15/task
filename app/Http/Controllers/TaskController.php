@@ -1285,49 +1285,73 @@ class TaskController extends Controller
     {
         $this->authorize('update', $task);
 
-        // reworkまたはcancelledの場合はエラー
-        if (in_array($task->status, ['rework', 'cancelled'])) {
-            return response()->json(['success' => false, 'message' => '「直し」または「キャンセル」済みの工程からは、新たな「直し」を作成できません。'], 422);
+        // 「キャンセル済み」の工程からは作成できないようにする
+        if ($task->status === 'cancelled') {
+            return response()->json(['success' => false, 'message' => '「キャンセル」済みの工程からは、「直し」を作成できません。'], 422);
         }
 
         DB::beginTransaction();
         try {
-            // 1. 親工程のステータスを「直し」に更新
-            $task->status = 'rework';
-            $task->save();
+            // 大元の親タスクとベース名を特定
+            if ($task->is_rework_task && $task->parent) {
+                // 既に「直し」タスクの場合、その親が「大元の親」
+                $originalParentTask = $task->parent;
+                $baseName = $originalParentTask->name;
+            } else {
+                // 通常のタスクの場合、自分自身が「大元の親」
+                $originalParentTask = $task;
+                $baseName = $task->name;
+            }
 
-            // 2. 新しい「直し」の子工程を作成し、親の情報をコピー
+            // 既存の「直し」タスクの数を数えて、次の番号を決定
+            $reworkCount = Task::where('parent_id', $originalParentTask->id)
+                ->where('is_rework_task', true)
+                ->count();
+            $nextReworkNumber = $reworkCount + 1;
+
+            // 新しい「直し」タスクの名前を生成
+            $reworkTaskName = $baseName . 'の直し' . $nextReworkNumber;
+
+            // 1. (必要であれば)大元の親タスクのステータスを「直し」に更新
+            if ($originalParentTask->status !== 'rework') {
+                $originalParentTask->status = 'rework';
+                $originalParentTask->save();
+            }
+
+            // 2. 新しい「直し」の子工程を作成し、大元の親の情報をコピー
             $reworkTask = new Task([
-                'project_id'     => $task->project_id,
-                'parent_id'      => $task->id, // ★ 親工程のIDを設定
-                'character_id'   => $task->character_id,
-                'name'           => $task->name . 'の直し', // ★ 工程名を自動生成
-                'description'    => $task->description,    // ★ 説明をコピー
-                'start_date'     => $task->start_date,     // ★ 開始日時をコピー
-                'end_date'       => $task->end_date,       // ★ 終了日時をコピー
-                'duration'       => $task->duration,       // ★ 工数をコピー
-                'status'         => 'not_started',        // ★ 新規作成時は「未着手」
+                'project_id'     => $originalParentTask->project_id,
+                'parent_id'      => $originalParentTask->id, // 親は常に「大元の親」
+                'character_id'   => $originalParentTask->character_id,
+                'name'           => $reworkTaskName, // 連番付きの名前に変更
+                'description'    => $originalParentTask->description,
+                'start_date'     => $originalParentTask->start_date,
+                'end_date'       => $originalParentTask->end_date,
+                'duration'       => $originalParentTask->duration,
+                'status'         => 'not_started',
                 'progress'       => 0,
-                'is_rework_task' => true,                 // ★ 「直し」工程フラグ
+                'is_rework_task' => true, // 「直し」工程フラグ
                 'is_milestone'   => false,
                 'is_folder'      => false,
             ]);
             $reworkTask->save();
 
-            // 3. 親工程の担当者をそのままコピー
-            $parentAssigneeIds = $task->assignees->pluck('id');
+            // 3. 大元の親工程の担当者をそのままコピー
+            $parentAssigneeIds = $originalParentTask->assignees->pluck('id');
             $reworkTask->assignees()->sync($parentAssigneeIds);
 
             // 4. 活動ログを記録
             activity()
                 ->causedBy(Auth::user())
-                ->performedOn($task) // 親工程に対するログ
+                ->performedOn($originalParentTask) // 大元の親工程に対するログ
                 ->withProperties([
                     'child_rework_task_id'   => $reworkTask->id,
                     'child_rework_task_name' => $reworkTask->name,
-                    'copied_assignees'       => $task->assignees->pluck('name')->join(', '),
+                    'source_task_id'         => $task->id, // どのタスクから操作されたかの情報も追加
+                    'source_task_name'       => $task->name,
+                    'copied_assignees'       => $originalParentTask->assignees->pluck('name')->join(', '),
                 ])
-                ->log("工程が「直し」に設定され、子工程「{$reworkTask->name}」がコピー作成されました。");
+                ->log("工程「{$task->name}」から「直し」が作成され、子工程「{$reworkTask->name}」がコピー作成されました。");
 
             DB::commit();
 
@@ -1341,14 +1365,14 @@ class TaskController extends Controller
                 'task'                 => $reworkTask,
                 'project'              => $project,
                 'assigneeOptions'      => $assigneeOptions,
-                'showCharacterColumn'  => $showCharacterColumn, // ★ ビューに表示フラグを渡す
+                'showCharacterColumn'  => $showCharacterColumn,
             ])->render();
 
             return response()->json([
                 'success'      => true,
                 'message'      => '「直し」工程が作成されました。',
                 'newRowHtml'   => $newRowHtml,
-                'parentTaskId' => $task->id,
+                'parentTaskId' => $originalParentTask->id,
             ]);
         } catch (\Exception $e) {
             DB::rollBack();

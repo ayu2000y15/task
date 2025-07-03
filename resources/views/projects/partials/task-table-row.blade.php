@@ -169,14 +169,14 @@
     <td class="px-3 py-3 whitespace-nowrap text-sm font-medium align-top">
         <div class="flex items-center space-x-1">
             {{-- ★★★ 「直し」ボタンの修正 ★★★ --}}
-            @if(!in_array($task->status, ['rework', 'cancelled']) && !$task->is_folder && !$task->is_milestone && !$task->is_rework_task)
-                    <button type="button"
-                        class="rework-task-btn p-1.5 text-orange-500 hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
-                        title="この工程をコピーして「直し」工程を作成する"
-                        data-task-id="{{ $task->id }}"
-                        data-task-name="{{ e($task->name) }}"
-                        data-project-id="{{ $project->id }}">
-                    <i class="fas fa-wrench fa-sm"></i>
+            @if($task->status !== 'cancelled' && !$task->is_folder && !$task->is_milestone && !$task->is_rework_task)
+                <button type="button"
+                    class="rework-task-btn p-1.5 text-orange-500 hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                    title="この工程をコピーして「直し」工程を作成する"
+                    data-task-id="{{ $task->id }}"
+                    data-task-name="{{ e($task->name) }}"
+                    data-project-id="{{ $project->id }}">
+                <i class="fas fa-wrench fa-sm"></i>
                 </button>
             @endif
             @can('update', $task)

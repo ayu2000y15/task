@@ -495,9 +495,7 @@ class ProjectController extends Controller
                 return;
             }
             $childrenOfCurrentParent = $tasksGroupedByParent->get($keyForGrouping)
-                ->sortBy(function ($task) {
-                    return [$task->start_date === null ? PHP_INT_MAX : $task->start_date->getTimestamp(), $task->name];
-                });
+                ->sortBy('id');
             foreach ($childrenOfCurrentParent as $task) {
                 $sortedTasksList->push($task);
                 $appendTasksRecursively($task->id, $tasksGroupedByParent, $sortedTasksList);
