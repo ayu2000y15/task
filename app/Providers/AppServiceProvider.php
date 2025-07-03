@@ -14,6 +14,7 @@ use Illuminate\Support\Carbon;
 use App\View\Composers\PendingRequestComposer; // ★ この行を追加
 use Illuminate\Support\Facades\Auth;
 use App\Services\ProductivityService;
+use App\View\Composers\PendingShiftRequestComposer;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -38,6 +39,7 @@ class AppServiceProvider extends ServiceProvider
         View::composer('layouts.app', NewExternalSubmissionsComposer::class);
         View::composer('layouts.app', UnreadBoardPostComposer::class);
         View::composer('*', PendingRequestComposer::class);
+        View::composer(['layouts.app', 'admin.*'], PendingShiftRequestComposer::class);
 
         View::composer('layouts.app', function ($view) {
             if (Auth::check()) {

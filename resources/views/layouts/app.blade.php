@@ -476,6 +476,18 @@
                         <span class="hidden md:inline ml-2">予定・依頼</span>
                     </a>
                     {{-- @endcan --}}
+                    @can('approve', App\Models\ShiftChangeRequest::class)
+                    <a class="inline-flex items-center p-2 text-sm font-medium rounded-md {{ request()->routeIs('shift-change-requests.*') ? 'text-blue-600 bg-blue-100 dark:text-blue-300 dark:bg-gray-700' : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700' }}"
+                        href="{{ route('shift-change-requests.index') }}" title="シフト変更申請">
+                        <span class="relative">
+                            <i class="fas fa-user-clock"></i>
+                            @if(isset($pendingShiftRequestsCountGlobal) && $pendingShiftRequestsCountGlobal > 0)
+                                <span class="absolute -top-1.5 -right-2 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-xs text-white">{{ $pendingShiftRequestsCountGlobal }}</span>
+                            @endif
+                        </span>
+                        <span class="hidden md:inline ml-2">シフト申請</span>
+                    </a>
+                    @endcan
                     @can('viewAny', App\Models\Project::class)
                     <a class="inline-flex items-center p-2 text-sm font-medium rounded-md {{ request()->routeIs('gantt.*') ? 'text-blue-600 bg-blue-100 dark:text-blue-300 dark:bg-gray-700' : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700' }}"
                         href="{{ route('gantt.index') }}" title="ガントチャート">
@@ -723,6 +735,9 @@
                                 <div x-show="openUserGroup === 'work'" x-transition class="bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-600">
                                     <a href="{{ route('schedule.monthly') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 {{ request()->routeIs('shifts.*') ? 'bg-gray-100 dark:bg-gray-600 font-semibold' : '' }}">
                                         シフト登録
+                                    </a>
+                                    <a href="{{ route('shift-change-requests.my') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 {{ request()->routeIs('shift-change-requests.my') ? 'bg-gray-100 dark:bg-gray-600 font-semibold' : '' }}">
+                                        シフト申請履歴
                                     </a>
                                     <a href="{{ route('transportation-expenses.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 {{ request()->routeIs('transportation-expenses.*') ? 'bg-gray-100 dark:bg-gray-600 font-semibold' : '' }}">
                                         交通費登録

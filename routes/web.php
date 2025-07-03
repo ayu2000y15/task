@@ -44,6 +44,7 @@ use App\Http\Controllers\ToolController;
 use App\Http\Controllers\SalesToolController;
 use App\Http\Controllers\ShiftController;
 use App\Http\Controllers\TransportationExpenseController;
+use App\Http\Controllers\ShiftChangeRequestController;
 
 Route::middleware('auth')->group(function () {
     // ホーム
@@ -196,6 +197,14 @@ Route::middleware('auth')->group(function () {
     Route::post('shifts/default', [ShiftController::class, 'updateDefault'])->name('shifts.default.update');
 
     Route::get('/api/schedule/events', [AdminScheduleController::class, 'fetchEvents'])->name('api.schedule.events');
+
+    Route::get('/shift-change-requests', [ShiftChangeRequestController::class, 'index'])->name('shift-change-requests.index');
+    Route::post('/shift-change-requests', [ShiftChangeRequestController::class, 'store'])->name('shift-change-requests.store');
+    Route::post('/shift-change-requests/{shiftChangeRequest}/approve', [ShiftChangeRequestController::class, 'approve'])->name('shift-change-requests.approve');
+    Route::post('/shift-change-requests/{shiftChangeRequest}/reject', [ShiftChangeRequestController::class, 'reject'])->name('shift-change-requests.reject');
+    Route::get('/my-shift-requests', [ShiftChangeRequestController::class, 'myRequests'])->name('shift-change-requests.my');
+    Route::delete('/shift-change-requests/{shiftChangeRequest}', [ShiftChangeRequestController::class, 'destroy'])->name('shift-change-requests.destroy');
+
 
     // 交通費登録
     Route::resource('transportation-expenses', TransportationExpenseController::class)->except(['show']);

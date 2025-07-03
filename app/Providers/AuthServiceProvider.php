@@ -35,7 +35,8 @@ use App\Models\BoardComment;
 use App\Policies\BoardCommentPolicy;
 use App\Models\WorkLog; // ★ 追加
 use App\Policies\WorkLogPolicy; // ★ 追加
-
+use App\Models\ShiftChangeRequest; // ★ この行を追加
+use App\Policies\ShiftChangeRequestPolicy;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 
@@ -68,6 +69,7 @@ class AuthServiceProvider extends ServiceProvider
         BoardPost::class => BoardPostPolicy::class,
         BoardComment::class => BoardCommentPolicy::class,
         WorkLog::class => WorkLogPolicy::class,
+        ShiftChangeRequest::class => ShiftChangeRequestPolicy::class,
 
     ];
 

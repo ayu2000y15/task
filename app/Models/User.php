@@ -257,7 +257,6 @@ class User extends Authenticatable
     }
 
     /**
-     * ▼▼▼【ここから追加】エラー解決のための不足していたメソッド ▼▼▼
      *
      * 指定された月に適用される時給のリストを取得します。
      * (月の開始前の最新のレート + 月の途中で変更される全てのレート)
@@ -289,5 +288,13 @@ class User extends Authenticatable
         }
 
         return $applicableRates->merge($ratesStartingInMonth);
+    }
+
+    /**
+     * ユーザーが行ったシフト変更申請を取得します。
+     */
+    public function shiftChangeRequests(): HasMany
+    {
+        return $this->hasMany(ShiftChangeRequest::class);
     }
 }

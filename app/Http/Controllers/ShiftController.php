@@ -151,6 +151,15 @@ class ShiftController extends Controller
         $user = Auth::user();
         $date = $validated['date'];
 
+        // 締め切り日チェック (現在から14日以内は申請が必要)
+        // 14日ちょうどはセーフ、13日以内はアウト
+        if ($date->lessThan(now()->addDays(14)->startOfDay())) {
+            return response()->json([
+                'success' => false,
+                'message' => '締め切りを過ぎています（変更は14日前まで）。変更が必要な場合は、お手数ですが変更申請を行ってください。'
+            ], 403); // 403 Forbiddenエラーを返す
+        }
+
         // 「クリア」が選択された場合はレコードを削除
         if ($validated['type'] === 'clear') {
             WorkShift::where('user_id', $user->id)->where('date', $date)->delete();

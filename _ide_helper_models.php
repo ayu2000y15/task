@@ -310,6 +310,7 @@ namespace App\Models{
  * @property int $project_id
  * @property string $name
  * @property string|null $description
+ * @property string|null $measurement_notes
  * @property string|null $gender
  * @property int $display_order
  * @property \Illuminate\Support\Carbon|null $created_at
@@ -334,6 +335,7 @@ namespace App\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Character whereDisplayOrder($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Character whereGender($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Character whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Character whereMeasurementNotes($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Character whereName($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Character whereProjectId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Character whereUpdatedAt($value)
@@ -1337,6 +1339,51 @@ namespace App\Models{
  * 
  *
  * @property int $id
+ * @property int $user_id
+ * @property \Illuminate\Support\Carbon $date 対象日
+ * @property string $reason 申請理由
+ * @property string $requested_type
+ * @property string|null $requested_name
+ * @property string|null $requested_start_time
+ * @property string|null $requested_end_time
+ * @property string|null $requested_location
+ * @property string|null $requested_notes
+ * @property string $status pending, approved, rejected
+ * @property int|null $approver_id
+ * @property string|null $rejection_reason 否認理由
+ * @property \Illuminate\Support\Carbon|null $processed_at 処理日時
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\User|null $approver
+ * @property-read \App\Models\User $user
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ShiftChangeRequest newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ShiftChangeRequest newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ShiftChangeRequest query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ShiftChangeRequest whereApproverId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ShiftChangeRequest whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ShiftChangeRequest whereDate($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ShiftChangeRequest whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ShiftChangeRequest whereProcessedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ShiftChangeRequest whereReason($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ShiftChangeRequest whereRejectionReason($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ShiftChangeRequest whereRequestedEndTime($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ShiftChangeRequest whereRequestedLocation($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ShiftChangeRequest whereRequestedName($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ShiftChangeRequest whereRequestedNotes($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ShiftChangeRequest whereRequestedStartTime($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ShiftChangeRequest whereRequestedType($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ShiftChangeRequest whereStatus($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ShiftChangeRequest whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ShiftChangeRequest whereUserId($value)
+ */
+	class ShiftChangeRequest extends \Eloquent {}
+}
+
+namespace App\Models{
+/**
+ * 
+ *
+ * @property int $id
  * @property int $inventory_item_id
  * @property int|null $requested_by_user_id
  * @property numeric $quantity_requested 申請数量
@@ -1603,6 +1650,8 @@ namespace App\Models{
  * @property-read int|null $notifications_count
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Role> $roles
  * @property-read int|null $roles_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\ShiftChangeRequest> $shiftChangeRequests
+ * @property-read int|null $shift_change_requests_count
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Task> $tasks
  * @property-read int|null $tasks_count
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \Laravel\Sanctum\PersonalAccessToken> $tokens
