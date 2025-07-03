@@ -120,7 +120,7 @@ class ProcessBouncedEmails extends Command
 
                 // --- メイン処理ロジック ---
                 if (!empty($messageIdentifier)) {
-                    $sentEmailLog = SentEmailLog::channel('schedule')->where('message_identifier', $messageIdentifier)
+                    $sentEmailLog = SentEmailLog::where('message_identifier', $messageIdentifier)
                         ->whereIn('status', ['queued', 'sent'])
                         ->first();
                     if (!$sentEmailLog) {
@@ -158,7 +158,7 @@ class ProcessBouncedEmails extends Command
                     }
 
                     if ($bouncedRecipientEmail) {
-                        $sentEmailLog = SentEmailLog::channel('schedule')->where('recipient_email', $bouncedRecipientEmail)
+                        $sentEmailLog = SentEmailLog::where('recipient_email', $bouncedRecipientEmail)
                             ->whereIn('status', ['sent', 'queued'])
                             ->orderBy('created_at', 'desc')
                             ->first();
