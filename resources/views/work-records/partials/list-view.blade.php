@@ -1,30 +1,4 @@
-{{-- ▼▼▼【ここから変更】月ナビゲーションフィルター ▼▼▼ --}}
-<div class="mb-6 bg-white dark:bg-gray-800 shadow rounded-lg p-4">
-    <form action="{{ route('work-records.index') }}" method="GET"
-        class="flex flex-col sm:flex-row justify-between items-center gap-4">
-        <input type="hidden" name="view" value="list">
 
-        {{-- 前の月へのリンク --}}
-        <a href="{{ route('work-records.index', ['view' => 'list', 'month' => $currentMonth->copy()->subMonth()->format('Y-m')]) }}"
-            class="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 font-semibold">
-            <i class="fas fa-chevron-left"></i> 前の月
-        </a>
-
-        {{-- 月選択フォーム --}}
-        <input type="month" name="month" value="{{ $currentMonth->format('Y-m') }}" onchange="this.form.submit()"
-            class="border-gray-300 dark:bg-gray-700 dark:text-gray-200 focus:ring-blue-500 focus:border-blue-500 rounded-md shadow-sm text-lg font-semibold">
-
-        {{-- 次の月へのリンク --}}
-        <a href="{{ route('work-records.index', ['view' => 'list', 'month' => $currentMonth->copy()->addMonth()->format('Y-m')]) }}"
-            class="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 font-semibold">
-            次の月 <i class="fas fa-chevron-right"></i>
-        </a>
-    </form>
-</div>
-{{-- ▲▲▲【変更ここまで】▲▲▲ --}}
-
-
-{{-- ▼▼▼【これ以降のテーブル部分は変更ありません】▼▼▼ --}}
 <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
     <div class="overflow-x-auto">
         <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">

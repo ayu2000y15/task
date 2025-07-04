@@ -21,12 +21,12 @@
             </div>
         </div>
 
+        {{-- 期間・日付ナビゲーション --}}
         <div class="mb-6 bg-white dark:bg-gray-800 shadow rounded-lg p-4">
             {{-- 期間モード切り替えボタン --}}
-            <div class="flex justify-center border-b dark:border-gray-700 pb-4">
+            <div class="flex justify-center border-b dark:border-gray-700 pb-4 mb-4">
                 <div class="inline-flex rounded-md shadow-sm" role="group">
                     @php
-                        // 表示モードは維持し、dateは今日にリセットして期間モードを切り替える
                         $queryParams = ['view' => $viewMode, 'date' => now()->format('Y-m-d')];
                     @endphp
                     <a href="{{ route('work-records.index', array_merge($queryParams, ['period' => 'day'])) }}"
@@ -46,7 +46,7 @@
 
             {{-- 日付/週/月 ナビゲーション --}}
             <form action="{{ route('work-records.index') }}" method="GET"
-                class="flex flex-col sm:flex-row justify-between items-center gap-4 pt-4">
+                class="flex flex-col sm:flex-row justify-between items-center gap-4">
                 <input type="hidden" name="view" value="{{ $viewMode }}">
                 <input type="hidden" name="period" value="{{ $period }}">
 
@@ -87,9 +87,11 @@
                     </a>
                 @endif
             </form>
+        </div>
 
-            {{-- サマリー表示エリア --}}
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center mt-4 pt-4 border-t dark:border-gray-700">
+        {{-- サマリー表示エリア --}}
+        <div class="mb-6 bg-white dark:bg-gray-800 shadow rounded-lg p-4">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
                 <div>
                     <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400">総勤務時間 (拘束時間)</h4>
                     <p class="text-2xl font-bold text-gray-800 dark:text-gray-200 mt-1">
@@ -103,7 +105,6 @@
                     </p>
                 </div>
                 <div>
-                    {{-- 【名称変更】支払対象時間 -> 実質勤務時間 --}}
                     <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400">実質勤務時間</h4>
                     <p class="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-1">
                         {{ gmdate('H:i:s', $summary['payable_seconds']) }}
@@ -111,7 +112,6 @@
                 </div>
             </div>
         </div>
-
         @if ($viewMode === 'list')
             @include('work-records.partials.list-view')
         @else

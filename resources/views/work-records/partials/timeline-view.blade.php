@@ -1,21 +1,3 @@
-{{-- 日付ナビゲーション (変更なし) --}}
-<div class="mb-6 bg-white dark:bg-gray-800 shadow rounded-lg p-4">
-    <form action="{{ route('work-records.index') }}" method="GET"
-        class="flex flex-col sm:flex-row justify-between items-center gap-4">
-        <input type="hidden" name="view" value="timeline">
-        <a href="{{ route('work-records.index', ['view' => 'timeline', 'date' => $currentDate->copy()->subDay()->format('Y-m-d')]) }}"
-            class="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500">
-            <i class="fas fa-chevron-left"></i> 前日
-        </a>
-        <input type="date" name="date" value="{{ $currentDate->format('Y-m-d') }}" onchange="this.form.submit()"
-            class="border-gray-300 dark:bg-gray-700 dark:text-gray-200 focus:ring-blue-500 focus:border-blue-500 rounded-md shadow-sm">
-        <a href="{{ route('work-records.index', ['view' => 'timeline', 'date' => $currentDate->copy()->addDay()->format('Y-m-d')]) }}"
-            class="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500">
-            翌日 <i class="fas fa-chevron-right"></i>
-        </a>
-    </form>
-</div>
-
 {{-- タイムライン本体 --}}
 <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg">
     {{-- ヘッダー (変更なし) --}}
@@ -50,7 +32,8 @@
 
                 <div class="flex-grow pb-10">
                     <p class="md:hidden font-mono text-sm text-gray-800 dark:text-gray-200 mb-2">
-                        {{ $item->timestamp->format('H:i') }}</p>
+                        {{ $item->timestamp->format('H:i') }}
+                    </p>
 
                     @if ($item->type === 'work_log')
                         @include('work-records.partials.timeline-item-work', ['log' => $item->model])

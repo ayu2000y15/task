@@ -52,29 +52,18 @@ class WorkRecordController extends Controller
 
 
         if ($viewMode === 'list') {
-            $monthString = $request->input('month', now()->format('Y-m'));
-            try {
-                $currentMonth = Carbon::createFromFormat('Y-m', $monthString)->startOfMonth();
-            } catch (\Exception $e) {
-                $currentMonth = now()->startOfMonth();
-            }
-
-            $listStartDate = $currentMonth->copy()->startOfMonth();
-            $listEndDate = $currentMonth->copy()->endOfMonth();
-
             $workLogs = WorkLog::where('user_id', $user->id)
-                ->whereBetween('start_time', [$listStartDate, $listEndDate])
+                ->whereBetween('start_time', [$startDate, $endDate])
                 ->get();
             $attendanceLogs = AttendanceLog::where('user_id', $user->id)
-                ->whereBetween('timestamp', [$listStartDate, $listEndDate])
+                ->whereBetween('timestamp', [$startDate, $endDate])
                 ->get();
 
             $allLogs = $this->mapAndMergeLogs($workLogs, $attendanceLogs);
             $logsByDate = $allLogs->groupBy(fn($item) => $item->timestamp->format('Y-m-d'));
 
-            // ▼▼▼【ここから追加】欠落していた dailySummaries の生成ロジックを復元 ▼▼▼
             $dailySummaries = collect();
-            for ($date = $listStartDate->copy(); $date->lte($listEndDate); $date->addDay()) {
+            for ($date = $startDate->copy(); $date->lte($endDate); $date->addDay()) {
                 $dateString = $date->format('Y-m-d');
                 $dayLogs = $logsByDate->get($dateString);
 
@@ -94,12 +83,11 @@ class WorkRecordController extends Controller
                     ]);
                 }
             }
-            // ▲▲▲【追加ここまで】▲▲▲
 
             $templateData['dailySummaries'] = $dailySummaries;
-            $templateData['currentMonth'] = $currentMonth;
-        } else {
-            // タイムライン表示のロジック
+            // 'currentMonth' は不要になったので削除
+
+        } else { // timeline
             $currentDate = $targetDate;
             $workLogs = WorkLog::where('user_id', $user->id)->whereDate('start_time', $currentDate)->get();
             $attendanceLogs = AttendanceLog::where('user_id', $user->id)->whereDate('timestamp', $currentDate)->get();
