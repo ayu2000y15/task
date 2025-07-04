@@ -15,7 +15,7 @@
         <div class="font-medium">{{ $date->format('n/j') }} ({{ $weekMap[$date->dayOfWeek] }})</div>
     </td>
     <td class="px-2 py-3"><i class="fas fa-bed text-gray-400"></i></td>
-    <td colspan="6" class="px-2 py-3 text-sm text-gray-500">
+    <td colspan="7" class="px-2 py-3 text-sm text-gray-500">
         @if ($workShift && in_array($workShift->type, ['full_day_off', 'am_off', 'pm_off']))
             @php
                 $typeLabels = ['full_day_off' => '全休', 'am_off' => '午前休', 'pm_off' => '午後休'];

@@ -2,7 +2,7 @@
 
 <tr class="details-row"
     id="details-{{ $date->format('Y-m-d') }}{{ is_null($sessionIndex) ? '' : '-' . $sessionIndex }}">
-    <td colspan="10" class="p-0">
+    <td colspan="11" class="p-0">
         <div class="bg-gray-100 dark:bg-gray-900/50 p-4 border-l-4 border-blue-400">
             {{-- 作業ログ詳細 --}}
             <div
@@ -38,7 +38,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="py-4 px-3 text-center text-gray-500">この時間帯の作業ログはありません。</td>
+                                <td colspan="7" class="py-4 px-3 text-center text-gray-500">この時間帯の作業ログはありません。</td>
                             </tr>
                         @endforelse
                     </tbody>

@@ -55,7 +55,7 @@
                 <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4 border-b dark:border-gray-700 pb-3">
                     {{ $targetMonth->format('Y年n月') }} サマリー
                 </h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-y-4 gap-x-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-y-4 gap-x-6">
                     <div>
                         <span class="text-sm font-medium text-gray-500 dark:text-gray-400 block">総勤務時間 (拘束時間)</span>
                         <span class="text-xl font-bold text-gray-800 dark:text-gray-200 block">
@@ -72,6 +72,12 @@
                         <span class="text-sm font-medium text-gray-500 dark:text-gray-400 block">支払対象時間 (勤務 - 休憩)</span>
                         <span class="text-xl font-bold text-blue-600 dark:text-blue-400 block">
                             {{ format_seconds_to_hms($monthTotalActualWorkSeconds) }}
+                        </span>
+                    </div>
+                    <div>
+                        <span class="text-sm font-medium text-gray-500 dark:text-gray-400 block">実働時間 (作業ログ合計)</span>
+                        <span class="text-xl font-bold text-green-600 dark:text-green-500 block">
+                            {{ format_seconds_to_hms($monthTotalWorkLogSeconds) }}
                         </span>
                     </div>
                 </div>
@@ -115,10 +121,9 @@
                 </h4>
                 <ul class="list-disc list-inside pl-2 space-y-1 text-gray-700 dark:text-gray-300">
                     <li><strong>拘束時間:</strong> 「退勤時刻」から「出勤時刻」を引いた合計時間です。</li>
-                    <li><strong>実働時間:</strong> 作業ログ(WorkLog)に記録された、純粋な作業時間の合計です。</li>
-                    <li><strong>日給合計:</strong> (拘束時間 - 休憩等)
-                        の時間に時給を掛けて算出されます。<strong><u>実働時間とは異なる基準</u></strong>で計算される点にご注意ください。
-                    </li>
+                    <li><strong>実働時間:</strong> 実際にPCを操作した作業ログ(WorkLog)の合計時間です。</li>
+                    <li><strong>支払対象:</strong> 「拘束時間」から「休憩等」を引いた、日給計算の基準となる時間です。</li>
+                    <li><strong>日給合計:</strong> 「支払対象」の時間に時給を掛けて算出されます。</li>
                 </ul>
             </div>
 
@@ -128,7 +133,6 @@
                     <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                         <thead class="bg-gray-50 dark:bg-gray-700 sticky top-0 z-10">
                             <tr>
-                                {{-- ▼▼▼【追加】トグルアイコン用の列を追加 ▼▼▼ --}}
                                 <th class="w-10 px-2"></th>
                                 <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">日付</th>
                                 <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">状態</th>
@@ -137,6 +141,8 @@
                                 <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">拘束時間</th>
                                 <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">休憩等</th>
                                 <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">実働時間</th>
+                                <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase text-blue-500">
+                                    支払対象</th>
                                 <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">日給合計</th>
                                 <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">操作</th>
                             </tr>
@@ -169,8 +175,8 @@
                         </tbody>
                         <tfoot class="bg-gray-100 dark:bg-gray-700 sticky bottom-0">
                             <tr class="border-t-2 border-gray-300 dark:border-gray-600 font-bold">
-                                <td class="px-2 py-3 text-left" colspan="7">月の合計</td>
-                                <td class="px-2 py-3 text-left whitespace-nowrap">
+                                <td class="px-2 py-3 text-left" colspan="8">月の合計</td>
+                                <td class="px-2 py-3 text-left whitespace-nowrap text-blue-600 dark:text-blue-400">
                                     {{ format_seconds_to_hms($monthTotalActualWorkSeconds) }}
                                 </td>
                                 <td class="px-2 py-3 text-left whitespace-nowrap">¥{{ number_format($monthTotalSalary, 0) }}
@@ -200,7 +206,6 @@
                         <input type="time" x-model="modal.end_time" class="mt-1 w-full dark:bg-gray-700 rounded-md">
                         <p class="mt-1 text-red-500 text-xs">※出勤時間より早い時刻を選択した場合、翌日の退勤時間となります。</p>
                     </div>
-                    {{-- ▼▼▼【ここから修正】休憩入力欄を動的フォームに変更 ▼▼▼ --}}
                     <div>
                         <label class="block text-sm font-medium mb-1">休憩 / 中抜け</label>
                         <div class="space-y-2">
@@ -227,7 +232,6 @@
                             <i class="fas fa-plus-circle mr-1"></i>休憩/中抜けを追加
                         </button>
                     </div>
-                    {{-- ▲▲▲【ここまで修正】▲▲▲ --}}
                     <div>
                         <label class="block text-sm font-medium">備考</label>
                         <textarea x-model="modal.note" rows="3" class="mt-1 w-full dark:bg-gray-700 rounded-md"></textarea>
@@ -280,7 +284,6 @@
                         this.closeEditModal();
                     }
                 },
-                // ▼▼▼【ここから修正】submitData関数内のエラーハンドリングを強化 ▼▼▼
                 submitData(payload) {
                     const url = `/admin/attendances/{{ $user->id }}/${this.modal.date}`;
                     fetch(url, {
@@ -296,7 +299,6 @@
                             if (res.ok) {
                                 return res.json();
                             }
-                            // res.okでない場合(4xx, 5xxエラー)、レスポンスをPromise.rejectに渡す
                             return Promise.reject(res);
                         })
                         .then(data => {
@@ -307,24 +309,18 @@
                             }
                         })
                         .catch(err => {
-                            // rejectされたレスポンスをここで処理する
                             if (err instanceof Response && err.status === 422) {
-                                // 422エラー(バリデーションエラー)の場合
                                 err.json().then(errorData => {
-                                    // errorsオブジェクトからエラーメッセージを抽出
                                     const messages = Object.values(errorData.errors).flat();
-                                    // 複数のエラーメッセージを改行で連結して表示
                                     const errorMessage = messages.join('\n');
                                     alert(errorMessage);
                                 });
                             } else {
-                                // 500エラーやネットワークエラーなど、その他のエラーの場合
                                 alert('エラーが発生しました。');
                                 console.error(err);
                             }
                         });
                 }
-                // ▲▲▲【ここまで修正】▲▲▲
             }));
         });
 

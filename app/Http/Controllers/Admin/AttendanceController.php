@@ -31,7 +31,14 @@ class AttendanceController extends Controller
         // --- 1. 必要なデータを全て取得 ---
         $holidays = Holiday::whereBetween('date', [$startDate, $endDate])->get()->keyBy(fn($item) => $item->date->format('Y-m-d'));
         $workShifts = WorkShift::where('user_id', $user->id)->whereBetween('date', [$startDate, $endDate])->get()->keyBy(fn($item) => $item->date->format('Y-m-d'));
-        $workLogs = WorkLog::where('user_id', $user->id)->where('status', 'stopped')->whereBetween('start_time', [$startDate, $endDate])->with('task.project', 'task.character')->orderBy('start_time')->get();
+        $workLogs = WorkLog::where('user_id', $user->id)
+            ->where('status', 'stopped')
+            ->whereBetween('start_time', [$startDate, $endDate])
+            ->with('task.project', 'task.character')
+            ->orderBy('start_time')->get();
+
+        // 月のWorkLog合計時間を計算
+        $monthTotalWorkLogSeconds = $workLogs->sum('effective_duration');
         $attendanceLogs = AttendanceLog::where('user_id', $user->id)->whereBetween('timestamp', [$startDate, $endDate])->orderBy('timestamp')->get();
         $applicableRates = $user->getApplicableRatesForMonth($targetMonth);
 
@@ -86,12 +93,14 @@ class AttendanceController extends Controller
             if ($report['type'] === 'edited') {
                 $monthTotalDetentionSeconds += $report['summary']->detention_seconds;
                 $monthTotalBreakSeconds += $report['summary']->break_seconds;
-                $monthTotalActualWorkSeconds += $report['worklog_total_seconds'];
+                // 「実働時間」ではなく、日給計算の基準となる「支払対象時間」を加算する
+                $monthTotalActualWorkSeconds += $report['summary']->actual_work_seconds;
                 $monthTotalSalary += $report['summary']->daily_salary;
             } elseif ($report['type'] === 'workday') {
                 $monthTotalDetentionSeconds += collect($report['sessions'])->sum('detention_seconds');
                 $monthTotalBreakSeconds += collect($report['sessions'])->sum('break_seconds');
-                $monthTotalActualWorkSeconds += collect($report['sessions'])->sum('actual_work_seconds');
+                // 「実働時間」ではなく、日給計算の基準となる「支払対象時間」を加算する
+                $monthTotalActualWorkSeconds += collect($report['sessions'])->sum('payable_work_seconds');
                 $monthTotalSalary += collect($report['sessions'])->sum('daily_salary');
             }
         }
@@ -104,7 +113,8 @@ class AttendanceController extends Controller
             'monthTotalSalary',
             'applicableRates',
             'monthTotalDetentionSeconds',
-            'monthTotalBreakSeconds'
+            'monthTotalBreakSeconds',
+            'monthTotalWorkLogSeconds'
         ));
     }
 
@@ -143,15 +153,17 @@ class AttendanceController extends Controller
             $sessionWorkLogs = $allWorkLogs->where('start_time', '>=', $startTime)->when($endTime, fn($q) => $q->where('start_time', '<=', $endTime));
             $actualWorkSeconds = $sessionWorkLogs->sum('effective_duration');
             $rateForDay = $user->getHourlyRateForDate($startTime);
+
             return [
                 'start_time' => $startTime,
                 'end_time' => $endTime,
                 'detention_seconds' => $detentionSeconds,
                 'break_seconds' => $breakSeconds,
-                'actual_work_seconds' => $actualWorkSeconds,
+                'actual_work_seconds' => $actualWorkSeconds, // テーブルの「実働時間」列に表示
+                'payable_work_seconds' => $payableWorkSeconds, // サマリーの「支払対象時間」の計算に使用
                 'daily_salary' => $rateForDay > 0 ? round(($payableWorkSeconds / 3600) * $rateForDay) : 0,
                 'logs' => $sessionWorkLogs,
-                'break_details' => $breakDetails, // 詳細表示用に休憩・中抜けリストを渡す
+                'break_details' => $breakDetails,
             ];
         });
     }

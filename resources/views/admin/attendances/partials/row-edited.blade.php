@@ -41,8 +41,12 @@
         {{ $summary->end_time ? format_seconds_to_hms($summary->detention_seconds) : '-' }}
     </td>
     <td class="px-2 py-3 font-mono text-sm">{{ format_seconds_to_hms($summary->break_seconds) }}</td>
+    {{-- 実働時間 (WorkLogの合計) --}}
     <td class="px-2 py-3 font-mono text-sm font-semibold">{{ format_seconds_to_hms($report['worklog_total_seconds']) }}
     </td>
+    {{-- 支払対象時間 (拘束時間 - 休憩等) --}}
+    <td class="px-2 py-3 font-mono text-sm font-bold text-blue-600 dark:text-blue-400">
+        {{ format_seconds_to_hms($summary->actual_work_seconds) }}</td>
     <td class="px-2 py-3 font-mono text-sm">¥{{ number_format($summary->daily_salary) }}</td>
     <td class="px-2 py-3 text-center">
         @php
