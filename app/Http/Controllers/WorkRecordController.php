@@ -16,35 +16,65 @@ class WorkRecordController extends Controller
         $this->authorize('viewOwn', WorkLog::class);
         $user = Auth::user();
         $viewMode = $request->input('view', 'timeline');
-        $templateData = ['viewMode' => $viewMode, 'user' => $user];
+
+        $period = $request->input('period', 'day');
+        try {
+            $targetDate = Carbon::parse($request->input('date', now()));
+        } catch (\Exception $e) {
+            $targetDate = now();
+        }
+
+        switch ($period) {
+            case 'week':
+                $startDate = $targetDate->copy()->startOfWeek();
+                $endDate = $targetDate->copy()->endOfWeek();
+                break;
+            case 'month':
+                $startDate = $targetDate->copy()->startOfMonth();
+                $endDate = $targetDate->copy()->endOfMonth();
+                break;
+            case 'day':
+            default:
+                $startDate = $targetDate->copy()->startOfDay();
+                $endDate = $targetDate->copy()->endOfDay();
+                break;
+        }
+
+        $summary = $this->calculateAttendanceSummary($user, $startDate, $endDate);
+
+        $templateData = [
+            'viewMode' => $viewMode,
+            'user' => $user,
+            'period' => $period,
+            'summary' => $summary,
+            'targetDate' => $targetDate,
+        ];
+
 
         if ($viewMode === 'list') {
-            // --- ▼▼▼【ここから変更】リスト表示のロジックを月単位に修正 ▼▼▼ ---
             $monthString = $request->input('month', now()->format('Y-m'));
             try {
-                // YYYY-MM形式の文字列からCarbonインスタンスを生成
                 $currentMonth = Carbon::createFromFormat('Y-m', $monthString)->startOfMonth();
             } catch (\Exception $e) {
-                // 不正なフォーマットの場合は当月にフォールバック
                 $currentMonth = now()->startOfMonth();
             }
 
-            $startDate = $currentMonth->copy()->startOfMonth();
-            $endDate = $currentMonth->copy()->endOfMonth();
+            $listStartDate = $currentMonth->copy()->startOfMonth();
+            $listEndDate = $currentMonth->copy()->endOfMonth();
 
             $workLogs = WorkLog::where('user_id', $user->id)
-                ->whereBetween('start_time', [$startDate, $endDate])
+                ->whereBetween('start_time', [$listStartDate, $listEndDate])
                 ->get();
             $attendanceLogs = AttendanceLog::where('user_id', $user->id)
-                ->whereBetween('timestamp', [$startDate, $endDate])
+                ->whereBetween('timestamp', [$listStartDate, $listEndDate])
                 ->get();
 
-            // これ以降の集計ロジックは変更なし
             $allLogs = $this->mapAndMergeLogs($workLogs, $attendanceLogs);
             $logsByDate = $allLogs->groupBy(fn($item) => $item->timestamp->format('Y-m-d'));
 
+            // ▼▼▼【ここから追加】欠落していた dailySummaries の生成ロジックを復元 ▼▼▼
             $dailySummaries = collect();
-            for ($date = $startDate->copy(); $date->lte($endDate); $date->addDay()) {
+            for ($date = $listStartDate->copy(); $date->lte($listEndDate); $date->addDay()) {
                 $dateString = $date->format('Y-m-d');
                 $dayLogs = $logsByDate->get($dateString);
 
@@ -64,19 +94,13 @@ class WorkRecordController extends Controller
                     ]);
                 }
             }
+            // ▲▲▲【追加ここまで】▲▲▲
 
             $templateData['dailySummaries'] = $dailySummaries;
-            $templateData['currentMonth'] = $currentMonth; // ビューでのナビゲーション用に渡す
-            // --- ▲▲▲【変更ここまで】▲▲▲ ---
-
+            $templateData['currentMonth'] = $currentMonth;
         } else {
-            // --- タイムライン表示のロジック (変更なし) ---
-            try {
-                $currentDate = Carbon::parse($request->input('date', now()));
-            } catch (\Exception $e) {
-                $currentDate = now();
-            }
-
+            // タイムライン表示のロジック
+            $currentDate = $targetDate;
             $workLogs = WorkLog::where('user_id', $user->id)->whereDate('start_time', $currentDate)->get();
             $attendanceLogs = AttendanceLog::where('user_id', $user->id)->whereDate('timestamp', $currentDate)->get();
 
@@ -95,9 +119,6 @@ class WorkRecordController extends Controller
         return $workLogItems->toBase()->merge($attendanceLogItems);
     }
 
-    /**
-     * 特定の開始/終了タイプのペア間の合計時間を計算する
-     */
     private function calculateTimeDifference($logs, $startType, $endType): int
     {
         $totalSeconds = 0;
@@ -108,7 +129,74 @@ class WorkRecordController extends Controller
                 $startTime = $log->timestamp;
             } elseif (data_get($log, 'model.type') === $endType && $startTime) {
                 $totalSeconds += $startTime->diffInSeconds($log->timestamp);
-                $startTime = null; // 次のペアのためにリセット
+                $startTime = null;
+            }
+        }
+        return $totalSeconds;
+    }
+
+    /**
+     * 指定された期間の勤怠サマリーを計算する
+     * @param \App\Models\User $user
+     * @param \Carbon\Carbon $startDate
+     * @param \Carbon\Carbon $endDate
+     * @return array
+     */
+    private function calculateAttendanceSummary($user, $startDate, $endDate): array
+    {
+        // 期間内の勤怠ログを取得
+        $attendanceLogs = AttendanceLog::where('user_id', $user->id)
+            ->whereBetween('timestamp', [$startDate, $endDate])
+            ->orderBy('timestamp')
+            ->get();
+
+        // 日付ごとにグループ化
+        $logsByDate = $attendanceLogs->groupBy(fn($log) => $log->timestamp->format('Y-m-d'));
+
+        $totalDetentionSeconds = 0;
+        $totalBreakSeconds = 0;
+        $totalAwaySeconds = 0;
+
+        foreach ($logsByDate as $date => $dayLogs) {
+            // その日の最初の出勤記録
+            $firstClockIn = $dayLogs->firstWhere('type', 'clock_in');
+            // その日の最後の退勤記録
+            $lastClockOut = $dayLogs->last(fn($log) => $log->type === 'clock_out');
+
+            // 出勤・退勤が揃っている日のみ拘束時間を計算
+            if ($firstClockIn && $lastClockOut) {
+                $totalDetentionSeconds += $firstClockIn->timestamp->diffInSeconds($lastClockOut->timestamp);
+            }
+
+            // 休憩と中抜けの時間を計算
+            $totalBreakSeconds += $this->calculateDurationForPairs($dayLogs, 'break_start', 'break_end');
+            $totalAwaySeconds += $this->calculateDurationForPairs($dayLogs, 'away_start', 'away_end');
+        }
+
+        $totalCombinedBreak = $totalBreakSeconds + $totalAwaySeconds;
+        $payableSeconds = max(0, $totalDetentionSeconds - $totalCombinedBreak);
+
+        return [
+            'detention_seconds' => $totalDetentionSeconds,
+            'break_seconds' => $totalCombinedBreak,
+            'payable_seconds' => $payableSeconds,
+        ];
+    }
+
+    /**
+     * AttendanceLogのコレクションからペアの合計時間を計算するヘルパー
+     */
+    private function calculateDurationForPairs($logs, $startType, $endType): int
+    {
+        $totalSeconds = 0;
+        $startTime = null;
+
+        foreach ($logs as $log) {
+            if ($log->type === $startType) {
+                $startTime = $log->timestamp;
+            } elseif ($log->type === $endType && $startTime) {
+                $totalSeconds += $startTime->diffInSeconds($log->timestamp);
+                $startTime = null; // ペアを成立させたのでリセット
             }
         }
         return $totalSeconds;
