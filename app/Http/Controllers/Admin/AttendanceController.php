@@ -22,6 +22,8 @@ class AttendanceController extends Controller
      */
     public function show(User $user, $month = null)
     {
+        $this->authorize('viewAny', WorkLog::class);
+
         $targetMonth = $month ? Carbon::parse($month) : Carbon::now();
         $startDate = $targetMonth->copy()->startOfMonth();
         $endDate = $targetMonth->copy()->endOfMonth();
