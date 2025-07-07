@@ -946,7 +946,7 @@ class SalesToolController extends Controller
 
         $recipientLogs = $sentEmail->recipientLogs()
             ->with('subscriber')
-            ->orderByRaw('processed_at IS NULL ASC, processed_at ASC')
+            ->orderByRaw('processed_at IS NULL asc, processed_at desc')
             ->paginate(100);
         $summary = [
             'total' => $sentEmail->recipientLogs()->count(),
