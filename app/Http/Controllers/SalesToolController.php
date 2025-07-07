@@ -749,7 +749,7 @@ class SalesToolController extends Controller
     {
         $this->authorize(self::SALES_TOOL_ACCESS_PERMISSION); // またはブラックリスト管理専用の権限
 
-        $blacklistedEmails = BlacklistEntry::orderBy('updated_at')->paginate(100); // 1ページあたり20件
+        $blacklistedEmails = BlacklistEntry::orderBy('updated_at', 'desc')->paginate(100); // 1ページあたり20件
 
         return view('tools.sales.blacklist.index', compact('blacklistedEmails'));
     }
