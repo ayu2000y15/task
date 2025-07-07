@@ -125,6 +125,16 @@
             </div>
         </div>
 
+        <div
+            class="p-2 mb-2 text-xs bg-yellow-50 text-yellow-700 border border-yellow-200 rounded-md dark:bg-yellow-700/30 dark:text-yellow-200 dark:border-yellow-500">
+            <i class="fas fa-info-circle mr-1"></i>
+            計測データの注意点<br>
+            開封・クリック結果は以下の仕様に基づき記録されます。<br>
+            <strong>開封率が低く見える理由：</strong>多くのメールソフトは画像の自動表示をブロックするため、受信者が「画像を表示」しない限り開封は記録されません。そのため、実際の閲覧数より低く表示されるのが一般的です。<br>
+            <strong>意図しないクリックが記録される可能性：</strong>セキュリティ機能がリンクの安全性を確認するために、ユーザーより先にアクセスすることがあります。これにより、開封前にクリックが記録される場合があります。
+        </div>
+
+
         {{-- 受信者別 送信ログ --}}
         <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
             <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
