@@ -240,7 +240,7 @@
                             <p class="px-6 py-12 text-center text-sm text-gray-500 dark:text-gray-400">本日の作業はありません</p>
                         @else
                             @foreach($workItemsByAssignee as $assigneeData)
-                                <div x-data="{ userOpen: true }"
+                                <div x-data="{ userOpen: {{ $assigneeData['assignee']->id === Auth::id() ? 'true' : 'false' }} }"
                                     class="border-b border-gray-200 dark:border-gray-700 last:border-b-0">
                                     <div @click="userOpen = !userOpen"
                                         class="p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition {{ $assigneeData['assignee']->id === Auth::id() ? 'bg-blue-50 dark:bg-blue-900/50' : '' }}">
