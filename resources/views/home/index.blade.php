@@ -240,49 +240,59 @@
                             <p class="px-6 py-12 text-center text-sm text-gray-500 dark:text-gray-400">本日の作業はありません</p>
                         @else
                             @foreach($workItemsByAssignee as $assigneeData)
-                                <div
-                                    class="p-4 {{ $assigneeData['assignee']->id === Auth::id() ? 'bg-blue-50 dark:bg-blue-900/50' : '' }}">
-                                    @php
-                                        $holidayForUser = $todaysHolidays->firstWhere('user_id', $assigneeData['assignee']->id);
-                                        $holidayBadgeText = null;
-                                        $holidayBadgeTextStyle = "";
+                                <div x-data="{ userOpen: true }"
+                                    class="border-b border-gray-200 dark:border-gray-700 last:border-b-0">
+                                    <div @click="userOpen = !userOpen"
+                                        class="p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition {{ $assigneeData['assignee']->id === Auth::id() ? 'bg-blue-50 dark:bg-blue-900/50' : '' }}">
+                                        @php
+                                            $holidayForUser = $todaysHolidays->firstWhere('user_id', $assigneeData['assignee']->id);
+                                            $holidayBadgeText = null;
+                                            $holidayBadgeTextStyle = "";
 
-                                        if ($holidayForUser) {
-                                            $type = $holidayForUser->type;
-                                            if ($type === 'full_day_off') {
-                                                $holidayBadgeText = '休暇中 (全休)';
-                                            } elseif ($type === 'am_off' && now()->hour < 12) {
-                                                $holidayBadgeText = '休暇中 (午前)';
-                                            } elseif ($type === 'pm_off' && now()->hour >= 12) {
-                                                $holidayBadgeText = '休暇中 (午後)';
-                                            } else {
-                                                $holidayBadgeTextStyle = "display: none;";
+                                            if ($holidayForUser) {
+                                                $type = $holidayForUser->type;
+                                                if ($type === 'full_day_off') {
+                                                    $holidayBadgeText = '休暇中 (全休)';
+                                                } elseif ($type === 'am_off' && now()->hour < 12) {
+                                                    $holidayBadgeText = '休暇中 (午前)';
+                                                } elseif ($type === 'pm_off' && now()->hour >= 12) {
+                                                    $holidayBadgeText = '休暇中 (午後)';
+                                                } else {
+                                                    $holidayBadgeTextStyle = "display: none;";
+                                                }
                                             }
-                                        }
-                                    @endphp
-                                    <h3
-                                        class="font-semibold mb-2 flex items-center gap-x-2 {{ $assigneeData['assignee']->id === Auth::id() ? 'text-blue-600 dark:text-blue-400' : 'text-gray-800 dark:text-gray-200' }}">
-                                        <i
-                                            class="fas fa-user mr-1 {{ $assigneeData['assignee']->id === Auth::id() ? 'text-blue-500' : 'text-gray-400' }}"></i>
-                                        <span>{{ $assigneeData['assignee']->name }}</span>
-                                        @if($todaysHolidays->contains('user_id', $assigneeData['assignee']->id))
-                                            <span
-                                                class="px-2 py-0.5 text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300 rounded-full"
-                                                style="{{ $holidayBadgeTextStyle }}">{{ $holidayBadgeText }}</span>
-                                        @endif
-                                    </h3>
-                                    <ul class="ml-6 divide-y space-y-2 divide-gray-200 dark:divide-gray-700">
-                                        @foreach($assigneeData['items'] as $item)
-                                            @if($item instanceof \App\Models\Task)
-                                            @include('home.partials.home-task-item', [
-                                                'task' => $item,
-                                                'isCurrentUserSection' => $assigneeData['assignee']->id === Auth::id()
-                                            ])
-                                            @elseif($item instanceof \App\Models\RequestItem)
-                                                @include('home.partials.home-request-item', ['item' => $item])
-                                            @endif
-                                        @endforeach
-                                    </ul>
+                                        @endphp
+                                        <div class="flex justify-between items-center">
+                                            <h3 class="font-semibold flex items-center gap-x-2 {{ $assigneeData['assignee']->id === Auth::id() ? 'text-blue-600 dark:text-blue-400' : 'text-gray-800 dark:text-gray-200' }}">
+                                                <i class="fas fa-user mr-1 {{ $assigneeData['assignee']->id === Auth::id() ? 'text-blue-500' : 'text-gray-400' }}"></i>
+                                                <span>{{ $assigneeData['assignee']->name }}</span>
+                                                <span class="ml-2 px-2 py-0.5 text-xs font-semibold text-white bg-gray-500 rounded-full">{{ $assigneeData['items']->count() }}</span>
+                                                @if($todaysHolidays->contains('user_id', $assigneeData['assignee']->id))
+                                                    <span
+                                                        class="px-2 py-0.5 text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300 rounded-full"
+                                                        style="{{ $holidayBadgeTextStyle }}">{{ $holidayBadgeText }}</span>
+                                                @endif
+                                            </h3>
+                                            <button aria-label="{{ $assigneeData['assignee']->name }}のタスクを展開/折りたたむ">
+                                                <i class="fas fa-fw transition-transform" :class="userOpen ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div x-show="userOpen" x-transition
+                                        class="px-4 pb-4 {{ $assigneeData['assignee']->id === Auth::id() ? 'bg-blue-50 dark:bg-blue-900/50' : '' }}">
+                                        <ul class="ml-6 divide-y space-y-2 divide-gray-200 dark:divide-gray-700">
+                                            @foreach($assigneeData['items'] as $item)
+                                                @if($item instanceof \App\Models\Task)
+                                                @include('home.partials.home-task-item', [
+                                                    'task' => $item,
+                                                    'isCurrentUserSection' => $assigneeData['assignee']->id === Auth::id()
+                                                ])
+                                                @elseif($item instanceof \App\Models\RequestItem)
+                                                    @include('home.partials.home-request-item', ['item' => $item])
+                                                @endif
+                                            @endforeach
+                                        </ul>
+                                    </div>
                                 </div>
                             @endforeach
                         @endif
