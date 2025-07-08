@@ -44,9 +44,22 @@ class HomeController extends Controller
         // --- データソースA: 指定日のタスクを取得 ---
         $todaysTasks = Task::with(['project', 'character', 'assignees', 'workLogs'])
             ->where('is_milestone', false)->where('is_folder', false)
-            ->whereNotIn('status', ['cancelled']) // ★完了タスクは除外
-            ->whereDate('start_date', '<=', $targetDate)
-            ->whereDate('end_date', '>=', $targetDate)
+            ->whereNotIn('status', ['completed', 'cancelled']) // ★完了・キャンセルタスクは除外
+            ->whereHas('project', function ($query) {
+                $query->where('status', '!=', 'cancelled'); // ★キャンセルされた案件のタスクを除外
+            })
+            ->where(function ($query) use ($targetDate) {
+                // 指定日に進行中のタスク、または期限切れの未完了タスクを取得
+                $query->where(function ($q) use ($targetDate) {
+                    // 指定日に進行中のタスク
+                    $q->whereDate('start_date', '<=', $targetDate)
+                        ->whereDate('end_date', '>=', $targetDate);
+                })->orWhere(function ($q) use ($targetDate) {
+                    // 期限切れの未完了タスク（開始日が指定日以前で、終了日が指定日より前）
+                    $q->whereDate('start_date', '<=', $targetDate)
+                        ->whereDate('end_date', '<', $targetDate);
+                });
+            })
             ->get();
 
         foreach ($todaysTasks as $task) {
@@ -184,6 +197,9 @@ class HomeController extends Controller
             // ->whereDate('end_date', '>=', $targetDate) // この行を削除して、期限切れも対象に
             ->whereDate('end_date', '<=', $targetDate->copy()->addDays(2))
             ->whereNotIn('status', ['completed', 'cancelled'])
+            ->whereHas('project', function ($query) {
+                $query->where('status', '!=', 'cancelled'); // ★キャンセルされた案件のタスクを除外
+            })
             ->where('is_milestone', false)
             ->where('is_folder', false)
             ->orderBy('end_date')
@@ -194,6 +210,9 @@ class HomeController extends Controller
         // タスクごとに最新の1件に絞り込み、関連データも一緒に読み込みます
         $allActiveLogs = WorkLog::where('status', 'active')
             ->with(['task.project', 'task.assignees', 'user']) // 必要なリレーションを全てここで読み込む
+            ->whereHas('task.project', function ($query) {
+                $query->where('status', '!=', 'cancelled'); // ★キャンセルされた案件のタスクを除外
+            })
             ->get();
 
         // 作業中の全ユーザーIDの配列（オンラインメンバー表示用）

@@ -52,6 +52,9 @@ class SidebarComposer
                 // ->whereDate('end_date', '>=', Carbon::today()) // この行を削除またはコメントアウト
                 ->whereDate('end_date', '<=', Carbon::today()->addDays(2))
                 ->whereNotIn('status', ['completed', 'cancelled'])
+                ->whereHas('project', function ($query) {
+                    $query->where('status', '!=', 'cancelled'); // ★キャンセルされた案件のタスクを除外
+                })
                 ->where('is_milestone', false)
                 ->where('is_folder', false)
                 ->orderBy('end_date')
