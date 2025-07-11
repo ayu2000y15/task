@@ -1028,8 +1028,12 @@ class TaskController extends Controller
     {
         $this->authorize('delete', $task);
 
-        $this->deleteTaskAndChildren($task);
-        return redirect()->route('projects.show', $project)->with('success', '工程が削除されました。');
+        try {
+            $this->deleteTaskAndChildren($task);
+            return redirect()->route('projects.show', $project)->with('success', '工程が削除されました。');
+        } catch (\Exception $e) {
+            return redirect()->route('projects.tasks.edit', [$project, $task])->with('error', $e->getMessage());
+        }
     }
 
     /**

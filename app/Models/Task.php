@@ -86,6 +86,14 @@ class Task extends Model
      */
     protected static function booted(): void
     {
+        // 削除前にwork_logsの存在をチェック
+        static::deleting(function (Task $task) {
+            $workLogsCount = $task->workLogs()->count();
+            if ($workLogsCount > 0) {
+                throw new \Exception("工程「{$task->name}」には{$workLogsCount}件の作業ログが関連付けられているため削除できません。削除の代わりに工程をキャンセル状態に変更してください。");
+            }
+        });
+
         // --- ▼▼▼ 既存の updated イベントリスナーを修正 ▼▼▼ ---
         static::updated(function (Task $task) {
             if (!$task->parent_id) {
