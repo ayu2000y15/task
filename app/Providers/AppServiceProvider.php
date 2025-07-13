@@ -17,7 +17,6 @@ use App\Services\ProductivityService;
 use App\View\Composers\PendingShiftRequestComposer;
 use App\Models\BoardPostType;
 use App\Observers\BoardPostTypeObserver;
-use Illuminate\Support\Facades\URL;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -34,11 +33,6 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        if (config('app.env') === 'production') {
-            URL::forceScheme('https');
-            URL::forceRootUrl(config('app.url'));
-        }
-
         // オブザーバーを登録
         BoardPostType::observe(BoardPostTypeObserver::class);
 
