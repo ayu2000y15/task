@@ -1,23 +1,38 @@
 @extends('layouts.app')
 
-@section('title', '案件依頼項目定義管理')
-
-{{-- @push('scripts') セクションはここから削除 --}}
-{{--
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable.js/1.15.0/Sortable.min.js"></script> --}}
-{{--
-<script> ... (以前のインラインスクリプト全体) ... </script> --}}
-{{-- @endpush --}}
+@section('title', 'カスタム項目管理')
 
 @section('content')
     <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-            <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-200">案件依頼項目定義 管理</h1>
+            <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-200">カスタム項目管理</h1>
             @can('create', App\Models\FormFieldDefinition::class)
-                <x-primary-button onclick="location.href='{{ route('admin.form-definitions.create') }}'">
+                <x-primary-button
+                    onclick="location.href='{{ route('admin.form-definitions.create', ['category' => $category]) }}'">
                     <i class="fas fa-plus mr-2"></i>新規項目定義を作成
                 </x-primary-button>
             @endcan
+        </div>
+
+        {{-- タブ切り替え --}}
+        <div class="mb-6">
+            <nav class="flex space-x-8" aria-label="Tabs">
+                @foreach($availableCategories as $key => $label)
+                    <a href="{{ route('admin.form-definitions.index', ['category' => $key]) }}"
+                        class="py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap {{ $category === $key ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300' }}">
+                        {{ $label }}
+                        @php
+                            $count = \App\Models\FormFieldDefinition::category($key)->count();
+                        @endphp
+                        @if($count > 0)
+                            <span
+                                class="ml-2 inline-flex items-center justify-center w-5 h-5 text-xs font-medium bg-gray-500 text-white rounded-full dark:bg-gray-600">
+                                {{ $count }}
+                            </span>
+                        @endif
+                    </a>
+                @endforeach
+            </nav>
         </div>
 
         <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
@@ -57,14 +72,17 @@
                             <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50" data-id="{{ $definition->id }}">
                                 <td
                                     class="px-4 py-4 whitespace-nowrap text-sm text-gray-400 dark:text-gray-500 cursor-move drag-handle text-center">
-                                    <i class="fas fa-arrows-alt"></i>
+                                    <i class="fas fa-grip-vertical"></i>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                    {{ $definition->order }}</td>
+                                    {{ $definition->order }}
+                                </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
-                                    {{ $definition->label }}</td>
+                                    {{ $definition->label }}
+                                </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                    {{ $definition->name }}</td>
+                                    {{ $definition->name }}
+                                </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                                     {{ App\Models\FormFieldDefinition::FIELD_TYPES[$definition->type] ?? $definition->type }}
                                 </td>
@@ -89,12 +107,18 @@
                                                 icon="fas fa-edit" title="編集" color="blue" />
                                         @endcan
                                         @can('delete', $definition)
-                                            <form action="{{ route('admin.form-definitions.destroy', $definition) }}" method="POST"
-                                                onsubmit="return confirm('本当に削除しますか？この項目定義を使用しているプロジェクトがある場合、表示に影響が出る可能性があります。');">
-                                                @csrf
-                                                @method('DELETE')
-                                                <x-icon-button icon="fas fa-trash" title="削除" color="red" type="submit" />
-                                            </form>
+                                            @if($definition->isBeingUsed())
+                                                <x-icon-button icon="fas fa-trash"
+                                                    title="この項目は {{ $definition->getUsageCount() }} 件の投稿で使用されているため削除できません" color="gray"
+                                                    disabled="true" />
+                                            @else
+                                                <form action="{{ route('admin.form-definitions.destroy', $definition) }}" method="POST"
+                                                    onsubmit="return confirm('本当に削除しますか？この操作は取り消せません。');">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <x-icon-button icon="fas fa-trash" title="削除" color="red" type="submit" />
+                                                </form>
+                                            @endif
                                         @endcan
                                     </div>
                                 </td>
@@ -102,7 +126,7 @@
                         @empty
                             <tr>
                                 <td colspan="8" class="px-6 py-12 text-center text-sm text-gray-500 dark:text-gray-400">
-                                    案件依頼項目定義がありません。
+                                    カスタム項目定義がありません。
                                 </td>
                             </tr>
                         @endforelse

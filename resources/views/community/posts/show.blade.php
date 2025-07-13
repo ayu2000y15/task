@@ -421,12 +421,12 @@
                         @endif
                     </div>
                     <div class="flex-shrink-0 flex items-center space-x-2 w-full md:w-auto">
-                        @can('update', $post)
+                        @if(auth()->check() && auth()->id() === $post->user_id)
                             <x-secondary-button as="a" href="{{ route('community.posts.edit', $post) }}"
                                 class="py-1 px-3 text-xs w-1/2 md:w-auto justify-center">
                                 <i class="fas fa-edit mr-1"></i>編集
                             </x-secondary-button>
-                        @endcan
+                        @endif
                         @can('delete', $post)
                             <form action="{{ route('community.posts.destroy', $post) }}" method="POST"
                                 class="inline-block w-1/2 md:w-auto"
@@ -482,9 +482,97 @@
                 @endif
             </div>
             <div class="p-6 sm:p-8">
-                <div class="tinymce-content prose dark:prose-invert max-w-none text-gray-800 dark:text-gray-200">
-                    {!! $post->formatted_body !!}
-                </div>
+                {{-- お知らせの場合のみ本文を表示 --}}
+                @if($post->boardPostType && $post->boardPostType->name === 'announcement' && !empty($post->body))
+                    <div class="tinymce-content prose dark:prose-invert max-w-none text-gray-800 dark:text-gray-200">
+                        {!! $post->formatted_body !!}
+                    </div>
+                @endif
+
+                {{-- 投稿タイプとカスタム項目の表示 --}}
+                @if($post->boardPostType)
+                    @if($post->boardPostType->name !== 'announcement')
+                        {{-- お知らせ以外の場合は投稿タイプとカスタム項目を表示 --}}
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg overflow-hidden">
+                            <div class="bg-indigo-600 dark:bg-indigo-700 px-4 py-3">
+                                <div class="flex items-center">
+                                    <i class="fas fa-tag mr-2 text-white"></i>
+                                    <h3 class="text-lg font-medium text-white">
+                                        {{ $post->boardPostType->display_name }}
+                                    </h3>
+                                </div>
+                            </div>
+
+                            @if($post->customFieldValues->isNotEmpty())
+                                <div class="bg-white dark:bg-gray-800">
+                                    <table class="w-full border border-gray-300 dark:border-gray-400">
+                                        @foreach($post->customFieldValues as $fieldValue)
+                                            @if($fieldValue->formFieldDefinition && !empty($fieldValue->value))
+                                                <tr class="border-b border-gray-200 dark:border-gray-600 last:border-b-0">
+                                                    <td class="px-4 py-3 bg-gray-100 dark:bg-gray-700 text-sm font-medium text-gray-700 dark:text-gray-300 w-1/3 align-top">
+                                                        {{ $fieldValue->formFieldDefinition->label }}
+                                                    </td>
+                                                    <td class="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
+                                                        @switch($fieldValue->formFieldDefinition->type)
+                                                            @case('date')
+                                                                {{ $fieldValue->value ? \Carbon\Carbon::parse($fieldValue->value)->format('Y年m月d日') : '' }}
+                                                                @break
+                                                            @case('number')
+                                                                {{ number_format($fieldValue->value) }}
+                                                                @break
+                                                            @case('checkbox')
+                                                                @if($fieldValue->value === '1')
+                                                                    <i class="fas fa-check-circle text-green-500 mr-1"></i> はい
+                                                                @else
+                                                                    <i class="fas fa-times-circle text-red-500 mr-1"></i> いいえ
+                                                                @endif
+                                                                @break
+                                                            @case('select')
+                                                                @php
+                                                                    $options = $fieldValue->formFieldDefinition->options ?? [];
+                                                                    $displayValue = $options[$fieldValue->value] ?? $fieldValue->value;
+                                                                @endphp
+                                                                {{ $displayValue }}
+                                                                @break
+                                                            @case('url')
+                                                                <a href="{{ $fieldValue->value }}" target="_blank" rel="noopener noreferrer"
+                                                                   class="text-blue-600 dark:text-blue-400 hover:underline">
+                                                                    {{ $fieldValue->value }}
+                                                                    <i class="fas fa-external-link-alt ml-1 text-xs"></i>
+                                                                </a>
+                                                                @break
+                                                            @case('email')
+                                                                <a href="mailto:{{ $fieldValue->value }}"
+                                                                   class="text-blue-600 dark:text-blue-400 hover:underline">
+                                                                    {{ $fieldValue->value }}
+                                                                </a>
+                                                                @break
+                                                            @case('tel')
+                                                                <a href="tel:{{ $fieldValue->value }}"
+                                                                   class="text-blue-600 dark:text-blue-400 hover:underline">
+                                                                    {{ $fieldValue->value }}
+                                                                </a>
+                                                                @break
+                                                            @case('textarea')
+                                                                <div class="whitespace-pre-wrap">{{ $fieldValue->value }}</div>
+                                                                @break
+                                                            @default
+                                                                {{ $fieldValue->value }}
+                                                        @endswitch
+                                                    </td>
+                                                </tr>
+                                            @endif
+                                        @endforeach
+                                    </table>
+                                </div>
+                            @else
+                                <div class="px-4 py-6 text-center text-gray-500 dark:text-gray-400">
+                                    カスタム項目の入力はありません
+                                </div>
+                            @endif
+                        </div>
+                    @endif
+                @endif
 
                 <div class="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
                     {{-- リアクション表示エリア (左側) --}}

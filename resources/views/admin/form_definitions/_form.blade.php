@@ -1,5 +1,14 @@
 @csrf
 <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-6">
+    @if(isset($categories))
+        <div class="md:col-span-2">
+            <x-input-label for="category" value="カテゴリ" :required="true" />
+            <x-select-input id="category" name="category" class="mt-1 block w-full" :options="$categories"
+                :selected="old('category', $formFieldDefinition->category ?? request('category', 'project'))" required />
+            <x-input-error :messages="$errors->get('category')" class="mt-2" />
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">この項目がどの用途で使用されるかを選択してください。</p>
+        </div>
+    @endif
     <div>
         <x-input-label for="label" value="表示ラベル" :required="true" />
         <x-text-input id="label" name="label" type="text" class="mt-1 block w-full" :value="old('label', $formFieldDefinition->label ?? '')" required />
@@ -45,16 +54,16 @@
         <x-input-error :messages="$errors->get('order')" class="mt-2" />
     </div>
 
-    <div class="md:col-span-1">
-        <x-checkbox-input id="is_required" name="is_required" value="1" :label="'この項目を必須にする'"
-            :checked="old('is_required', $formFieldDefinition->is_required ?? false)" />
-        <x-checkbox-input id="is_enabled" name="is_enabled" value="1" :label="'この項目定義を有効にする (プロジェクト作成時に選択可能にする)'"
-            :checked="old('is_enabled', $formFieldDefinition->is_enabled ?? true)" />
-    </div>
+</div>
+<div class="mt-4">
+    <x-checkbox-input id="is_required" name="is_required" value="1" :label="'この項目を必須にする'" :checked="old('is_required', $formFieldDefinition->is_required ?? false)" />
+</div>
+<div class="mt-4">
+    <x-checkbox-input id="is_enabled" name="is_enabled" value="1" :label="'この項目定義を有効にする'" :checked="old('is_enabled', $formFieldDefinition->is_enabled ?? true)" />
 </div>
 
 <div class="mt-8 flex justify-end space-x-3">
-    <x-secondary-button as="a" :href="route('admin.form-definitions.index')">
+    <x-secondary-button as="a" :href="route('admin.form-definitions.index', ['category' => request('category', 'project')])">
         キャンセル
     </x-secondary-button>
     <x-primary-button type="submit">

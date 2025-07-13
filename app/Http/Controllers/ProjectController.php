@@ -39,6 +39,7 @@ class ProjectController extends Controller
         }
 
         $globalDefinitions = FormFieldDefinition::where('is_enabled', true)
+            ->where('category', 'project')
             ->orderBy('order')
             ->orderBy('label')
             ->get();

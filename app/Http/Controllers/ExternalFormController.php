@@ -20,6 +20,7 @@ class ExternalFormController extends Controller
     public function create()
     {
         $customFormFields = FormFieldDefinition::where('is_enabled', true)
+            ->where('category', 'project')
             ->orderBy('order')
             ->orderBy('label')
             ->get()
@@ -61,7 +62,7 @@ class ExternalFormController extends Controller
 
     public function store(Request $request)
     {
-        $customFieldDefinitions = FormFieldDefinition::where('is_enabled', true)->get();
+        $customFieldDefinitions = FormFieldDefinition::where('is_enabled', true)->where('category', 'project')->get();
         $validationRules = [
             'submitter_name' => 'required|string|max:255',
             'submitter_email' => 'required|email|max:255',
@@ -257,6 +258,7 @@ class ExternalFormController extends Controller
 
         // 全ての有効な案件依頼フィールド定義を取得 (順序も考慮)
         $allFieldDefinitions = FormFieldDefinition::where('is_enabled', true)
+            ->where('category', 'project')
             ->orderBy('order')
             ->orderBy('label')
             ->get();

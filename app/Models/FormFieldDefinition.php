@@ -13,6 +13,7 @@ class FormFieldDefinition extends Model
 
     protected $fillable = [
         'name',
+        'category',
         'label',
         'type',
         'options',
@@ -66,4 +67,74 @@ class FormFieldDefinition extends Model
         'url' => 'URL',
         'file_multiple' => 'ファイル (複数可)',
     ];
+
+    public const CATEGORIES = [
+        'project' => '案件依頼',
+        'board' => '掲示板',
+        'announcement' => 'お知らせ',
+        'proposal' => '企画書',
+    ];
+
+    /**
+     * カテゴリでフィルタするスコープ
+     */
+    public function scopeCategory($query, $category)
+    {
+        return $query->where('category', $category);
+    }
+
+    /**
+     * 有効なフィールドのみを取得するスコープ
+     */
+    public function scopeEnabled($query)
+    {
+        return $query->where('is_enabled', true);
+    }
+
+    /**
+     * 順序で並び替えるスコープ
+     */
+    public function scopeOrdered($query)
+    {
+        return $query->orderBy('order')->orderBy('label');
+    }
+
+    /**
+     * このフィールド定義が属するカテゴリ
+     */
+    public function categoryModel()
+    {
+        return $this->belongsTo(FormFieldCategory::class, 'category', 'name');
+    }
+
+    /**
+     * このフィールド定義が使用されているかチェック
+     */
+    public function isBeingUsed()
+    {
+        // BoardPostCustomFieldValueで使用されているかチェック
+        return \App\Models\BoardPostCustomFieldValue::where('form_field_definition_id', $this->id)->exists();
+    }
+
+    /**
+     * このフィールド定義を使用している投稿数を取得
+     */
+    public function getUsageCount()
+    {
+        return \App\Models\BoardPostCustomFieldValue::where('form_field_definition_id', $this->id)->count();
+    }
+
+    /**
+     * このフィールド定義を使用している投稿のタイトルを取得（最大5件）
+     */
+    public function getUsedInPosts()
+    {
+        return \App\Models\BoardPostCustomFieldValue::where('form_field_definition_id', $this->id)
+            ->with('boardPost:id,title')
+            ->limit(5)
+            ->get()
+            ->pluck('boardPost.title')
+            ->filter()
+            ->toArray();
+    }
 }

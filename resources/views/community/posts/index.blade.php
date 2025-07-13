@@ -16,21 +16,54 @@
             </div>
         </div>
 
-        {{-- タグ絞り込み表示 --}}
-        @if(request('tag'))
-            <div class="mb-6 p-4 bg-purple-50 dark:bg-purple-900/50 border-l-4 border-purple-400 dark:border-purple-500">
-                <div class="flex">
-                    <div class="flex-shrink-0">
-                        <i class="fas fa-tag text-purple-500 dark:text-purple-400"></i>
+        {{-- 絞り込み表示 --}}
+        @if(request('tag') || request('post_type'))
+            <div class="mb-6 space-y-4">
+                {{-- タグ絞り込み --}}
+                @if(request('tag'))
+                    <div class="p-4 bg-purple-50 dark:bg-purple-900/50 border-l-4 border-purple-400 dark:border-purple-500">
+                        <div class="flex">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-tag text-purple-500 dark:text-purple-400"></i>
+                            </div>
+                            <div class="ml-3">
+                                <p class="text-sm text-purple-700 dark:text-purple-200">
+                                    タグ「<strong>{{ request('tag') }}</strong>」で絞り込み中。
+                                    <a href="{{ route('community.posts.index', array_filter(['post_type' => request('post_type')])) }}"
+                                        class="font-medium underline hover:text-purple-600 dark:hover:text-purple-100 ml-2">タグ絞り込みを解除</a>
+                                </p>
+                            </div>
+                        </div>
                     </div>
-                    <div class="ml-3">
-                        <p class="text-sm text-purple-700 dark:text-purple-200">
-                            タグ「<strong>{{ request('tag') }}</strong>」で絞り込み中。
-                            <a href="{{ route('community.posts.index') }}"
-                                class="font-medium underline hover:text-purple-600 dark:hover:text-purple-100 ml-2">絞り込みを解除</a>
-                        </p>
+                @endif
+
+                {{-- 投稿タイプ絞り込み --}}
+                @if(request('post_type'))
+                    <div class="p-4 bg-indigo-50 dark:bg-indigo-900/50 border-l-4 border-indigo-400 dark:border-indigo-500">
+                        <div class="flex">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-tag text-indigo-500 dark:text-indigo-400"></i>
+                            </div>
+                            <div class="ml-3">
+                                <p class="text-sm text-indigo-700 dark:text-indigo-200">
+                                    投稿タイプ「<strong>{{ \App\Models\BoardPostType::where('name', request('post_type'))->first()->display_name ?? request('post_type') }}</strong>」で絞り込み中。
+                                    <a href="{{ route('community.posts.index', array_filter(['tag' => request('tag')])) }}"
+                                        class="font-medium underline hover:text-indigo-600 dark:hover:text-indigo-100 ml-2">投稿タイプ絞り込みを解除</a>
+                                </p>
+                            </div>
+                        </div>
                     </div>
-                </div>
+                @endif
+
+                {{-- 全ての絞り込みを解除 --}}
+                @if(request('tag') && request('post_type'))
+                    <div class="text-center">
+                        <a href="{{ route('community.posts.index') }}"
+                            class="inline-flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-md transition">
+                            <i class="fas fa-times mr-2"></i>すべての絞り込みを解除
+                        </a>
+                    </div>
+                @endif
             </div>
         @endif
 
@@ -46,6 +79,10 @@
                         <th scope="col"
                             class="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                             閲覧範囲
+                        </th>
+                        <th scope="col"
+                            class="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            投稿タイプ
                         </th>
                         {{-- ▼▼▼【ここから追加】▼▼▼ --}}
                         <th scope="col"
@@ -124,6 +161,22 @@
                                         @endif
                                     </div>
                                 </td>
+
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                    @if($post->boardPostType)
+                                        <a href="{{ route('community.posts.index', ['post_type' => $post->boardPostType->name]) }}"
+                                            class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium hover:shadow transition no-underline
+                                                                                            @if($post->boardPostType->name === 'announcement')
+                                                                                                bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800
+                                                                                            @else
+                                                                                                bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300 hover:bg-indigo-200 dark:hover:bg-indigo-800
+                                                                                            @endif">
+                                            <i class="fas fa-tag mr-1"></i>
+                                            {{ $post->boardPostType->display_name }}
+                                        </a>
+                                    @endif
+                                </td>
+
                                 {{-- ▼▼▼【ここから追加】▼▼▼ --}}
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                                     @if($post->tags->isNotEmpty())
@@ -163,12 +216,12 @@
                                             <i class="fas fa-eye mr-1"></i>詳細
                                         </x-secondary-button>
 
-                                        @can('update', $post)
+                                        @if(auth()->check() && auth()->id() === $post->user_id)
                                             <x-secondary-button as="a" href="{{ route('community.posts.edit', $post) }}"
                                                 class="py-1 px-3 text-xs">
                                                 <i class="fas fa-edit mr-1"></i>編集
                                             </x-secondary-button>
-                                        @endcan
+                                        @endif
 
                                         @can('delete', $post)
                                             <form action="{{ route('community.posts.destroy', $post) }}" method="POST"

@@ -15,6 +15,8 @@ use App\View\Composers\PendingRequestComposer; // ★ この行を追加
 use Illuminate\Support\Facades\Auth;
 use App\Services\ProductivityService;
 use App\View\Composers\PendingShiftRequestComposer;
+use App\Models\BoardPostType;
+use App\Observers\BoardPostTypeObserver;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -31,6 +33,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // オブザーバーを登録
+        BoardPostType::observe(BoardPostTypeObserver::class);
+
         Carbon::setLocale(config('app.locale'));
         View::composer('layouts.app', SidebarComposer::class);
         View::composer(['layouts.app', 'admin.*'], UnreadFeedbackComposer::class);

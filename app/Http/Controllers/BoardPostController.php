@@ -17,6 +17,9 @@ use Illuminate\Validation\ValidationException;
 use App\Models\Tag;
 use Illuminate\Support\Str;
 use Illuminate\Database\Eloquent\Builder;
+use App\Models\BoardPostType;
+use App\Models\FormFieldDefinition;
+use App\Models\BoardPostCustomFieldValue;
 
 class BoardPostController extends Controller
 {
@@ -44,12 +47,19 @@ class BoardPostController extends Controller
             \App\Models\BoardCommentRead::where('user_id', auth()->id())->whereNull('read_at')->pluck('comment_id')
         )->pluck('board_post_id')->unique();
 
-        $query = BoardPost::with('user', 'role', 'comments', 'readableUsers', 'tags');
+        $query = BoardPost::with('user', 'role', 'comments', 'readableUsers', 'tags', 'boardPostType');
 
         if ($request->has('tag')) {
             $tag = $request->input('tag');
             $query->whereHas('tags', function ($q) use ($tag) {
                 $q->where('name', $tag);
+            });
+        }
+
+        if ($request->has('post_type')) {
+            $postType = $request->input('post_type');
+            $query->whereHas('boardPostType', function ($q) use ($postType) {
+                $q->where('name', $postType);
             });
         }
 
@@ -63,26 +73,112 @@ class BoardPostController extends Controller
     {
         $this->authorize('create', BoardPost::class);
         // ログインユーザーが所属するロールのみを取得
-        $roles = Auth::user()->roles;
+        $userRoles = Auth::user()->roles;
+
+        // everyoneロールを追加（全ユーザー公開用）
+        $everyoneRole = (object)[
+            'id' => 'everyone',
+            'name' => 'everyone',
+            'display_name' => '全ユーザー'
+        ];
+
+        // ユーザーロールとeveryoneロールを結合
+        $roles = $userRoles->push($everyoneRole);
+
         // 全てのアクティブなユーザーを取得
         $allActiveUsers = User::where('status', User::STATUS_ACTIVE)->orderBy('name')->pluck('name', 'id');
+        // アクティブな投稿タイプを取得
+        $boardPostTypes = BoardPostType::active()->ordered()->get();
 
-        return view('community.posts.create', compact('roles', 'allActiveUsers'));
+        return view('community.posts.create', compact('roles', 'allActiveUsers', 'boardPostTypes'));
     }
 
     public function store(Request $request)
     {
         $this->authorize('create', BoardPost::class);
 
-        $validated = $request->validate([
+        // 基本項目のバリデーション
+        $baseValidation = [
             'title' => 'required|string|max:255',
-            'body' => 'required|string',
-            'role_id' => 'nullable|exists:roles,id',
-            'readable_user_ids' => 'nullable|array', // ユーザー選択用のバリデーション
-            'readable_user_ids.*' => 'exists:users,id', // 配列内の各IDが存在するか
-        ]);
+            'body' => 'nullable|string',
+            'role_id' => 'required', // 必須に変更（everyoneまたは既存ロールのID）
+            'board_post_type_id' => 'nullable|exists:board_post_types,id',
+            'readable_user_ids' => 'nullable|array',
+            'readable_user_ids.*' => 'exists:users,id',
+        ];
+
+        // 投稿タイプが指定されていない場合はデフォルトを設定
+        $postTypeId = $request->input('board_post_type_id');
+        if (empty($postTypeId)) {
+            $defaultType = BoardPostType::getDefault();
+            $postTypeId = $defaultType ? $defaultType->id : null;
+            $request->merge(['board_post_type_id' => $postTypeId]);
+        }
+
+        // カスタム項目のバリデーションルールを追加
+        $customFieldRules = [];
+        if ($postTypeId) {
+            $postType = BoardPostType::find($postTypeId);
+            if ($postType) {
+                $formFields = FormFieldDefinition::where('category', $postType->name)
+                    ->where('is_enabled', true)
+                    ->get();
+
+                foreach ($formFields as $field) {
+                    $fieldName = "custom_field_{$field->id}";
+                    $rules = [];
+
+                    if ($field->is_required) {
+                        $rules[] = 'required';
+                    } else {
+                        $rules[] = 'nullable';
+                    }
+
+                    switch ($field->type) {
+                        case 'email':
+                            $rules[] = 'email';
+                            break;
+                        case 'url':
+                            $rules[] = 'url';
+                            break;
+                        case 'number':
+                            $rules[] = 'numeric';
+                            break;
+                        case 'date':
+                            $rules[] = 'date';
+                            break;
+                        case 'text':
+                        case 'textarea':
+                            $rules[] = 'string|max:1000';
+                            break;
+                    }
+
+                    $customFieldRules[$fieldName] = implode('|', $rules);
+                }
+            }
+        }
+
+        $validated = $request->validate(array_merge($baseValidation, $customFieldRules));
+
+        // everyoneロールの特別処理
+        if ($validated['role_id'] === 'everyone') {
+            $validated['role_id'] = null; // everyoneの場合はnullに設定（全公開）
+        }
+
+        // 投稿タイプに応じたバリデーション
+        $postType = BoardPostType::find($validated['board_post_type_id']);
+        if ($postType && $postType->name === 'announcement' && empty($validated['body'])) {
+            throw ValidationException::withMessages([
+                'body' => 'お知らせの場合、本文は必須です。'
+            ]);
+        }
 
         $post = Auth::user()->boardPosts()->create($validated);
+
+        // カスタム項目の値を保存
+        if ($post->board_post_type_id) {
+            $this->saveCustomFieldValues($post, $request);
+        }
 
         // 閲覧可能ユーザーを中間テーブルに保存
         if (isset($validated['readable_user_ids'])) {
@@ -122,7 +218,7 @@ class BoardPostController extends Controller
         $appendRepliesRecursively(null);
 
         // 7. 投稿本体の関連データを読み込む
-        $post->load('user', 'role', 'readableUsers', 'tags', 'reactions.user');
+        $post->load('user', 'role', 'readableUsers', 'tags', 'reactions.user', 'boardPostType', 'customFieldValues.formFieldDefinition');
 
         $authUserId = auth()->id();
 
@@ -168,14 +264,26 @@ class BoardPostController extends Controller
         $this->authorize('update', $post);
 
         // ログインユーザーが所属するロールのみを取得
-        $roles = Auth::user()->roles;
+        $userRoles = Auth::user()->roles;
+
+        // everyoneロールを追加（全ユーザー公開用）
+        $everyoneRole = (object)[
+            'id' => 'everyone',
+            'name' => 'everyone',
+            'display_name' => '全ユーザー'
+        ];
+
+        // ユーザーロールとeveryoneロールを結合
+        $roles = $userRoles->push($everyoneRole);
+
         // 全てのアクティブなユーザーを取得
         $allActiveUsers = User::where('status', User::STATUS_ACTIVE)->orderBy('name')->pluck('name', 'id');
         // この投稿で既に選択されている閲覧可能ユーザーのIDを取得
         $selectedReadableUserIds = $post->readableUsers()->pluck('id')->toArray();
+        // アクティブな投稿タイプを取得
+        $boardPostTypes = BoardPostType::active()->ordered()->get();
 
-
-        return view('community.posts.edit', compact('post', 'roles', 'allActiveUsers', 'selectedReadableUserIds'));
+        return view('community.posts.edit', compact('post', 'roles', 'allActiveUsers', 'selectedReadableUserIds', 'boardPostTypes'));
     }
 
     /**
@@ -186,17 +294,82 @@ class BoardPostController extends Controller
         // ポリシーで更新権限をチェック
         $this->authorize('update', $post);
 
-        // バリデーション
-        $validated = $request->validate([
+        // 基本項目のバリデーション
+        $baseValidation = [
             'title' => 'required|string|max:255',
-            'body' => 'required|string',
-            'role_id' => 'nullable|exists:roles,id',
-            'readable_user_ids' => 'nullable|array', // ユーザー選択用のバリデーション
+            'body' => 'nullable|string',
+            'role_id' => 'required', // 必須に変更
+            'board_post_type_id' => 'nullable|exists:board_post_types,id',
+            'readable_user_ids' => 'nullable|array',
             'readable_user_ids.*' => 'exists:users,id',
-        ]);
+        ];
+
+        // カスタム項目のバリデーションルールを追加
+        $customFieldRules = [];
+        $postTypeId = $request->input('board_post_type_id');
+        if ($postTypeId) {
+            $postType = BoardPostType::find($postTypeId);
+            if ($postType) {
+                $formFields = FormFieldDefinition::where('category', $postType->name)
+                    ->where('is_enabled', true)
+                    ->get();
+
+                foreach ($formFields as $field) {
+                    $fieldName = "custom_field_{$field->id}";
+                    $rules = [];
+
+                    if ($field->is_required) {
+                        $rules[] = 'required';
+                    } else {
+                        $rules[] = 'nullable';
+                    }
+
+                    switch ($field->type) {
+                        case 'email':
+                            $rules[] = 'email';
+                            break;
+                        case 'url':
+                            $rules[] = 'url';
+                            break;
+                        case 'number':
+                            $rules[] = 'numeric';
+                            break;
+                        case 'date':
+                            $rules[] = 'date';
+                            break;
+                        case 'text':
+                        case 'textarea':
+                            $rules[] = 'string|max:1000';
+                            break;
+                    }
+
+                    $customFieldRules[$fieldName] = implode('|', $rules);
+                }
+            }
+        }
+
+        $validated = $request->validate(array_merge($baseValidation, $customFieldRules));
+
+        // everyoneロールの特別処理
+        if ($validated['role_id'] === 'everyone') {
+            $validated['role_id'] = null; // everyoneの場合はnullに設定（全公開）
+        }
+
+        // 投稿タイプに応じたバリデーション
+        $postType = BoardPostType::find($validated['board_post_type_id']);
+        if ($postType && $postType->name === 'announcement' && empty($validated['body'])) {
+            throw ValidationException::withMessages([
+                'body' => 'お知らせの場合、本文は必須です。'
+            ]);
+        }
 
         // 投稿を更新
         $post->update($validated);
+
+        // カスタム項目の値を保存
+        if ($post->board_post_type_id) {
+            $this->saveCustomFieldValues($post, $request);
+        }
 
         // 閲覧可能ユーザーを中間テーブルに保存（syncで差分を自動更新）
         if (isset($validated['readable_user_ids'])) {
@@ -492,5 +665,121 @@ class BoardPostController extends Controller
         }
 
         return response()->json($results);
+    }
+
+    /**
+     * カスタム項目の値を保存する
+     */
+    protected function saveCustomFieldValues(BoardPost $post, Request $request)
+    {
+        if (!$post->boardPostType) {
+            Log::warning('BoardPost has no boardPostType', ['post_id' => $post->id]);
+            return;
+        }
+
+        // 投稿タイプのnameと一致するcategoryのFormFieldDefinitionを取得
+        $formFields = FormFieldDefinition::where('category', $post->boardPostType->name)
+            ->where('is_enabled', true)
+            ->orderBy('order')
+            ->orderBy('label')
+            ->get();
+
+        Log::info('Saving custom field values', [
+            'post_id' => $post->id,
+            'post_type' => $post->boardPostType->name,
+            'form_fields_count' => $formFields->count(),
+            'request_data' => $request->only(
+                $formFields->map(fn($field) => "custom_field_{$field->id}")->toArray()
+            )
+        ]);
+
+        $validationErrors = [];
+
+        foreach ($formFields as $field) {
+            $fieldName = "custom_field_{$field->id}";
+            $value = $request->input($fieldName);
+
+            Log::debug('Processing custom field', [
+                'field_id' => $field->id,
+                'field_name' => $fieldName,
+                'field_label' => $field->label,
+                'field_type' => $field->type,
+                'is_required' => $field->is_required,
+                'value' => $value
+            ]);
+
+            // バリデーション
+            if ($field->is_required && empty($value)) {
+                $validationErrors[$fieldName] = ["{$field->label}は必須です。"];
+                continue;
+            }
+
+            // 値を保存または削除
+            if ($value !== null && $value !== '') {
+                $post->setCustomFieldValue($field->id, $value);
+                Log::info('Custom field value saved', [
+                    'post_id' => $post->id,
+                    'field_id' => $field->id,
+                    'value' => $value
+                ]);
+            } else {
+                // 空の値の場合は削除
+                $deleted = $post->customFieldValues()
+                    ->where('form_field_definition_id', $field->id)
+                    ->delete();
+
+                if ($deleted) {
+                    Log::info('Custom field value deleted', [
+                        'post_id' => $post->id,
+                        'field_id' => $field->id
+                    ]);
+                }
+            }
+        }
+
+        // バリデーションエラーがある場合は例外を投げる
+        if (!empty($validationErrors)) {
+            Log::warning('Custom field validation errors', $validationErrors);
+            throw ValidationException::withMessages($validationErrors);
+        }
+    }
+
+    /**
+     * 投稿タイプに応じたカスタム項目を取得（AJAX用）
+     */
+    public function getCustomFields(Request $request)
+    {
+        $postTypeId = $request->input('post_type_id');
+
+        if (!$postTypeId) {
+            return response()->json(['fields' => []]);
+        }
+
+        $postType = BoardPostType::find($postTypeId);
+
+        if (!$postType) {
+            return response()->json(['fields' => []]);
+        }
+
+        // BoardPostTypeのnameと一致するcategoryのFormFieldDefinitionを取得
+        $fields = FormFieldDefinition::where('category', $postType->name)
+            ->where('is_enabled', true)
+            ->orderBy('order')
+            ->orderBy('label')
+            ->get()
+            ->map(function ($field) {
+                return [
+                    'id' => $field->id,
+                    'name' => $field->name,
+                    'label' => $field->label,
+                    'type' => $field->type,
+                    'options' => $field->options,
+                    'placeholder' => $field->placeholder,
+                    'is_required' => $field->is_required,
+                    'order' => $field->order,
+                ];
+            });
+
+        return response()->json(['fields' => $fields]);
     }
 }

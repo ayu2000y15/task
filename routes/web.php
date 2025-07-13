@@ -26,6 +26,7 @@ use App\Http\Controllers\Admin\FeedbackController as AdminFeedbackController;
 use App\Http\Controllers\Admin\FeedbackCategoryController as AdminFeedbackCategoryController;
 use App\Http\Controllers\Admin\LogController as AdminLogController;
 use App\Http\Controllers\Admin\FormFieldDefinitionController;
+use App\Http\Controllers\Admin\BoardPostTypeController;
 use App\Http\Controllers\Admin\InventoryController;
 use App\Http\Controllers\Admin\StockOrderController;
 use App\Http\Controllers\Admin\InventoryLogController;
@@ -156,13 +157,16 @@ Route::middleware('auth')->group(function () {
         Route::get('posts/{post}/search-users', [BoardPostController::class, 'searchMentionableUsers'])
             ->name('posts.users.search');
 
+        // カスタム項目取得用のルート（resourceより前に定義）
+        Route::get('posts/custom-fields', [BoardPostController::class, 'getCustomFields'])->name('posts.customFields');
+        // 画像アップロード (TinyMCE用)
+        Route::post('posts/upload-image', [BoardPostController::class, 'uploadImage'])->name('posts.uploadImage');
+        // メンション用のユーザー検索ルート
+        Route::get('/users/search', [BoardPostController::class, 'searchUsers'])->name('users.search');
+
         Route::resource('posts', BoardPostController::class);
         // コメント投稿
         Route::post('posts/{post}/comments', [BoardCommentController::class, 'store'])->name('posts.comments.store');
-        // メンション用のユーザー検索ルート
-        Route::get('/users/search', [BoardPostController::class, 'searchUsers'])->name('users.search');
-        // 画像アップロード (TinyMCE用)
-        Route::post('posts/upload-image', [BoardPostController::class, 'uploadImage'])->name('posts.uploadImage');
         // コメント更新・削除・リアクション用のルート
         Route::patch('comments/{comment}', [BoardCommentController::class, 'update'])->name('comments.update');
         Route::delete('comments/{comment}', [BoardCommentController::class, 'destroy'])->name('comments.destroy');
@@ -180,7 +184,6 @@ Route::middleware('auth')->group(function () {
     // 外部からの管理連絡先登録
     Route::get('/contact-register', [ExternalFormController::class, 'createContact'])->name('external-contact.create');
     Route::post('/contact-register', [ExternalFormController::class, 'storeContact'])->name('external-contact.store');
-    Route::get('/contact-register/thanks', [ExternalFormController::class, 'thanksContact'])->name('external-contact.thanks');
     Route::post('/check-email-external', [ExternalFormController::class, 'checkEmail'])->name('external-contact.checkEmail');
 
 
@@ -211,6 +214,10 @@ Route::middleware('auth')->group(function () {
     Route::post('/transportation-expenses/batch-store', [TransportationExpenseController::class, 'batchStore'])->name('transportation-expenses.batch-store');
 
     Route::prefix('admin')->name('admin.')->middleware(['can:viewAny,App\Models\ProcessTemplate'])->group(function () { // 管理者用などのミドルウェアを想定
+        // 投稿タイプ管理
+        Route::resource('board-post-types', BoardPostTypeController::class);
+        Route::post('/board-post-types/update-order', [BoardPostTypeController::class, 'updateOrder'])->name('board-post-types.update-order');
+
         Route::resource('form-definitions', FormFieldDefinitionController::class)
             ->parameters(['form-definitions' => 'formFieldDefinition'])
             ->except(['show']);
@@ -405,6 +412,7 @@ Route::post('/unsubscribe/process', [TrackingController::class, 'processUnsubscr
 // 外部向け申請フォーム (認証外)
 Route::get('/costume-request', [ExternalFormController::class, 'create'])->name('external-form.create');
 Route::post('/costume-request', [ExternalFormController::class, 'store'])->name('external-form.store');
+Route::get('/contact-register/thanks', [ExternalFormController::class, 'thanks'])->name('external-form.thanks');
 
 
 require __DIR__ . '/auth.php';

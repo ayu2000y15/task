@@ -15,7 +15,7 @@ class BoardPost extends Model
 {
     use HasFactory, LogsActivity;
 
-    protected $fillable = ['user_id', 'role_id', 'title', 'body'];
+    protected $fillable = ['user_id', 'role_id', 'board_post_type_id', 'title', 'body'];
 
     public function user(): BelongsTo
     {
@@ -25,6 +25,22 @@ class BoardPost extends Model
     public function role(): BelongsTo
     {
         return $this->belongsTo(Role::class);
+    }
+
+    /**
+     * この投稿の投稿タイプ
+     */
+    public function boardPostType(): BelongsTo
+    {
+        return $this->belongsTo(BoardPostType::class);
+    }
+
+    /**
+     * この投稿のカスタム項目値
+     */
+    public function customFieldValues(): HasMany
+    {
+        return $this->hasMany(BoardPostCustomFieldValue::class);
     }
 
     public function comments(): HasMany
@@ -59,6 +75,11 @@ class BoardPost extends Model
     {
         $body = $this->body;
 
+        // 本文が空の場合は空文字を返す
+        if (empty($body)) {
+            return '';
+        }
+
         // #タグ を検索し、リンク付きのバッジに置換
         $body = preg_replace_callback('/\[([^\]]+?)\]/u', function ($matches) {
             $tag = $matches[1];
@@ -83,6 +104,29 @@ class BoardPost extends Model
         }, $body);
 
         return $body;
+    }
+
+    /**
+     * カスタム項目の値を取得するヘルパーメソッド
+     */
+    public function getCustomFieldValue($formFieldDefinitionId)
+    {
+        $customFieldValue = $this->customFieldValues()
+            ->where('form_field_definition_id', $formFieldDefinitionId)
+            ->first();
+
+        return $customFieldValue ? $customFieldValue->value : null;
+    }
+
+    /**
+     * カスタム項目の値を設定するヘルパーメソッド
+     */
+    public function setCustomFieldValue($formFieldDefinitionId, $value)
+    {
+        $this->customFieldValues()->updateOrCreate(
+            ['form_field_definition_id' => $formFieldDefinitionId],
+            ['value' => $value]
+        );
     }
 
     public function getActivitylogOptions(): LogOptions

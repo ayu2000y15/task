@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\FormFieldDefinition;
+use App\Models\FormFieldCategory;
 use Illuminate\Http\Request; // 必要に応じて
 use Illuminate\Support\Facades\DB;
 
@@ -16,26 +17,64 @@ class FormFieldDefinitionController extends Controller
         // 各メソッドで明示的に $this->authorize() を呼ぶことを推奨します。
     }
 
-    public function index()
+    public function index(Request $request)
     {
         //$this->authorize('viewAny', FormFieldDefinition::class);
-        $fieldDefinitions = FormFieldDefinition::orderBy('order')->orderBy('label')->get();
-        return view('admin.form_definitions.index', compact('fieldDefinitions'));
+
+        // データベースからカテゴリを取得（お知らせを除外）
+        $availableCategories = FormFieldCategory::enabled()
+            ->excludeAnnouncement()
+            ->ordered()
+            ->pluck('display_name', 'name')
+            ->toArray();
+
+        $category = $request->get('category', 'project'); // デフォルトは案件依頼
+
+        // 有効なカテゴリかチェック
+        if (!array_key_exists($category, $availableCategories)) {
+            $category = array_key_first($availableCategories) ?: 'project';
+        }
+
+        $fieldDefinitions = FormFieldDefinition::category($category)
+            ->ordered()
+            ->get();
+
+        return view('admin.form_definitions.index', compact('fieldDefinitions', 'availableCategories', 'category'));
     }
 
-    public function create()
+    public function create(Request $request)
     {
         //$this->authorize('create', FormFieldDefinition::class);
+
+        // データベースからカテゴリを取得（お知らせを除外）
+        $categories = FormFieldCategory::enabled()
+            ->excludeAnnouncement()
+            ->ordered()
+            ->pluck('display_name', 'name')
+            ->toArray();
+
+        $category = $request->get('category', 'project');
+
+        // 有効なカテゴリかチェック
+        if (!array_key_exists($category, $categories)) {
+            $category = array_key_first($categories) ?: 'project';
+        }
+
         $fieldTypes = FormFieldDefinition::FIELD_TYPES;
-        return view('admin.form_definitions.create', compact('fieldTypes'));
+
+        return view('admin.form_definitions.create', compact('fieldTypes', 'categories', 'category'));
     }
 
     public function store(Request $request) // Request $request を追加
     {
         //$this->authorize('create', FormFieldDefinition::class);
-        // ... (storeメソッドのロジックは前回の回答を参照) ...
+
+        // 有効なカテゴリを取得
+        $validCategories = FormFieldCategory::enabled()->pluck('name')->toArray();
+
         $validated = $request->validate([
-            'name' => 'required|string|max:100|regex:/^[a-z0-9_]+$/u|unique:form_field_definitions,name',
+            'name' => 'required|string|max:100|regex:/^[a-z0-9_]+$/u',
+            'category' => 'required|string|in:' . implode(',', $validCategories),
             'label' => 'required|string|max:255',
             'type' => 'required|string|in:' . implode(',', array_keys(FormFieldDefinition::FIELD_TYPES)),
             'options_text' => 'nullable|string', // options_textとして受け取る
@@ -47,6 +86,15 @@ class FormFieldDefinitionController extends Controller
         ], [
             'name.regex' => 'フィールド名は半角英数字とアンダースコアのみ使用できます。',
         ]);
+
+        // 同一カテゴリ内でのname重複チェック
+        $existingField = FormFieldDefinition::where('category', $validated['category'])
+            ->where('name', $validated['name'])
+            ->first();
+
+        if ($existingField) {
+            return back()->withErrors(['name' => '同じカテゴリ内でフィールド名が重複しています。']);
+        }
 
         $validated['options'] = null;
         if ($request->filled('options_text') && in_array($validated['type'], ['select', 'radio', 'checkbox'])) {
@@ -70,7 +118,8 @@ class FormFieldDefinitionController extends Controller
 
         FormFieldDefinition::create($validated);
 
-        return redirect()->route('admin.form-definitions.index')->with('success', '案件依頼項目定義が作成されました。');
+        return redirect()->route('admin.form-definitions.index', ['category' => $validated['category']])
+            ->with('success', 'カスタム項目定義が作成されました。');
     }
 
     public function edit(FormFieldDefinition $formFieldDefinition) // ★ ルートモデルバインディング
@@ -85,6 +134,7 @@ class FormFieldDefinitionController extends Controller
         $this->authorize('update', $formFieldDefinition); // 認可
 
         $fieldTypes = FormFieldDefinition::FIELD_TYPES;
+        $categories = FormFieldDefinition::CATEGORIES;
         $optionsText = '';
         if (!is_null($formFieldDefinition->options) && is_array($formFieldDefinition->options)) {
             $tempOptions = [];
@@ -103,7 +153,7 @@ class FormFieldDefinitionController extends Controller
             }
         }
 
-        return view('admin.form_definitions.edit', compact('formFieldDefinition', 'fieldTypes', 'optionsText'));
+        return view('admin.form_definitions.edit', compact('formFieldDefinition', 'fieldTypes', 'categories', 'optionsText'));
     }
 
     public function update(Request $request, FormFieldDefinition $formFieldDefinition) // Request $request を追加
@@ -114,7 +164,8 @@ class FormFieldDefinitionController extends Controller
         //$this->authorize('update', $formFieldDefinition);
         // ... (updateメソッドのロジックは前回の回答を参照) ...
         $validated = $request->validate([
-            'name' => 'required|string|max:100|regex:/^[a-z0-9_]+$/u|unique:form_field_definitions,name,' . $formFieldDefinition->id,
+            'name' => 'required|string|max:100|regex:/^[a-z0-9_]+$/u',
+            'category' => 'required|string|in:' . implode(',', array_keys(FormFieldDefinition::CATEGORIES)),
             'label' => 'required|string|max:255',
             'type' => 'required|string|in:' . implode(',', array_keys(FormFieldDefinition::FIELD_TYPES)),
             'options_text' => 'nullable|string', // options_textとして受け取る
@@ -126,6 +177,16 @@ class FormFieldDefinitionController extends Controller
         ], [
             'name.regex' => 'フィールド名は半角英数字とアンダースコアのみ使用できます。',
         ]);
+
+        // 同一カテゴリ内でのname重複チェック（自分自身は除外）
+        $existingField = FormFieldDefinition::where('category', $validated['category'])
+            ->where('name', $validated['name'])
+            ->where('id', '!=', $formFieldDefinition->id)
+            ->first();
+
+        if ($existingField) {
+            return back()->withErrors(['name' => '同じカテゴリ内でフィールド名が重複しています。']);
+        }
 
         $validated['options'] = null;
         if ($request->filled('options_text') && in_array($validated['type'], ['select', 'radio', 'checkbox'])) {
@@ -149,7 +210,8 @@ class FormFieldDefinitionController extends Controller
 
         $formFieldDefinition->update($validated);
 
-        return redirect()->route('admin.form-definitions.index')->with('success', '案件依頼項目定義が更新されました。');
+        return redirect()->route('admin.form-definitions.index', ['category' => $validated['category']])
+            ->with('success', 'カスタム項目定義が更新されました。');
     }
 
     public function destroy(FormFieldDefinition $formFieldDefinition)
@@ -158,8 +220,30 @@ class FormFieldDefinitionController extends Controller
             abort(404, '指定されたフォーム定義が見つかりません。');
         }
         //$this->authorize('delete', $formFieldDefinition);
+
+        // 使用状況をチェック
+        if ($formFieldDefinition->isBeingUsed()) {
+            $usageCount = $formFieldDefinition->getUsageCount();
+            $usedInPosts = $formFieldDefinition->getUsedInPosts();
+
+            $errorMessage = "この項目定義は {$usageCount} 件の投稿で使用されているため削除できません。";
+
+            if (!empty($usedInPosts)) {
+                $postTitles = implode('、', array_slice($usedInPosts, 0, 3));
+                if (count($usedInPosts) > 3) {
+                    $postTitles .= ' など';
+                }
+                $errorMessage .= "\n使用されている投稿例: {$postTitles}";
+            }
+
+            return redirect()->route('admin.form-definitions.index', ['category' => $formFieldDefinition->category])
+                ->with('error', $errorMessage);
+        }
+
+        $category = $formFieldDefinition->category;
         $formFieldDefinition->delete();
-        return redirect()->route('admin.form-definitions.index')->with('success', '案件依頼項目定義が削除されました。');
+        return redirect()->route('admin.form-definitions.index', ['category' => $category])
+            ->with('success', 'カスタム項目定義が削除されました。');
     }
 
     public function reorder(Request $request)

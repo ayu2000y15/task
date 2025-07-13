@@ -150,13 +150,184 @@
             });
 
             // Tom Selectの初期化
+            let userTomSelectEdit = null;
             if (document.getElementById('readable_users_select_edit')) {
-                new TomSelect('#readable_users_select_edit', {
+                userTomSelectEdit = new TomSelect('#readable_users_select_edit', {
                     plugins: ['remove_button'],
                     create: false,
                     placeholder: 'ユーザーを検索・選択...'
                 });
             }
+
+            // ロール選択時の制御
+            const roleSelect = document.getElementById('role_id');
+            const userSelectionSection = document.getElementById('user-selection-section');
+
+            function toggleUserSelection() {
+                const selectedRole = roleSelect.value;
+                const isEveryone = selectedRole === 'everyone';
+
+                if (isEveryone) {
+                    // 全ユーザー選択時はユーザー個別指定を無効化
+                    userSelectionSection.style.display = 'none';
+                    if (userTomSelectEdit) {
+                        userTomSelectEdit.clear(); // 選択をクリア
+                    }
+                } else {
+                    // その他のロール選択時はユーザー個別指定を有効化
+                    userSelectionSection.style.display = 'block';
+                }
+            }
+
+            // 初期状態の設定
+            toggleUserSelection();
+
+            // ロール変更時のイベントリスナー
+            if (roleSelect) {
+                roleSelect.addEventListener('change', toggleUserSelection);
+            }
+
+            // 投稿タイプ変更時のカスタム項目取得（編集用）
+            // 編集時は投稿タイプの変更を無効にしているため、初期表示のみ
+            const postTypeInput = document.getElementById('board_post_type_id');
+            const customFieldsSection = document.getElementById('custom-fields-section');
+            const customFieldsContainer = document.getElementById('custom-fields-container');
+            const bodySection = document.getElementById('body-section');
+            const bodyEditor = document.getElementById('body_editor_edit');
+
+            // 既存のカスタム項目値を保持
+            const existingValues = @json($post->customFieldValues->pluck('value', 'form_field_definition_id')->toArray());
+
+            function loadCustomFields(postTypeId) {
+                // 現在の投稿タイプ情報を取得
+                const currentPostType = @json($post->boardPostType);
+                const isAnnouncement = currentPostType && currentPostType.name === 'announcement';
+
+                // お知らせの場合は本文を表示、それ以外はカスタム項目を表示
+                if (isAnnouncement) {
+                    bodySection.style.display = 'block';
+                    customFieldsSection.style.display = 'none';
+                    // 本文を必須にする
+                    bodyEditor.setAttribute('required', 'required');
+                    const bodyLabel = bodySection.querySelector('label');
+                    if (bodyLabel) {
+                        bodyLabel.innerHTML = '本文 <span class="text-red-500">*</span>';
+                    }
+                    // カスタム項目のコンテナをクリア
+                    customFieldsContainer.innerHTML = '';
+                    return; // お知らせの場合はここで処理終了
+                } else {
+                    bodySection.style.display = 'none';
+                    // 本文の必須を解除
+                    bodyEditor.removeAttribute('required');
+
+                    if (!postTypeId) {
+                        customFieldsSection.style.display = 'none';
+                        customFieldsContainer.innerHTML = '';
+                        return;
+                    }
+
+                    fetch(`{{ route('community.posts.customFields') }}?post_type_id=${postTypeId}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            customFieldsContainer.innerHTML = '';
+
+                            if (data.fields && data.fields.length > 0) {
+                                data.fields.forEach(field => {
+                                    const fieldHtml = createCustomFieldHtml(field, existingValues[field.id] || '');
+                                    customFieldsContainer.insertAdjacentHTML('beforeend', fieldHtml);
+                                });
+                                customFieldsSection.style.display = 'block';
+                            } else {
+                                customFieldsSection.style.display = 'none';
+                            }
+                        })
+                        .catch(error => {
+                            console.error('カスタム項目の取得に失敗しました:', error);
+                            customFieldsSection.style.display = 'none';
+                            customFieldsContainer.innerHTML = '';
+                        });
+                }
+            }
+
+            function createCustomFieldHtml(field, existingValue = '') {
+                const fieldId = `custom_field_${field.id}`;
+                const required = field.is_required ? 'required' : '';
+                const requiredLabel = field.is_required ? '<span class="text-red-500">*</span>' : '';
+
+                let inputHtml = '';
+
+                switch (field.type) {
+                    case 'text':
+                    case 'email':
+                    case 'url':
+                    case 'tel':
+                        inputHtml = `<input type="${field.type}" id="${fieldId}" name="${fieldId}"
+                                        class="mt-1 block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow-sm"
+                                        placeholder="${field.placeholder || ''}" value="${existingValue}" ${required}>`;
+                        break;
+                    case 'textarea':
+                        inputHtml = `<textarea id="${fieldId}" name="${fieldId}" rows="3"
+                                        class="mt-1 block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow-sm"
+                                        placeholder="${field.placeholder || ''}" ${required}>${existingValue}</textarea>`;
+                        break;
+                    case 'date':
+                        inputHtml = `<input type="date" id="${fieldId}" name="${fieldId}"
+                                        class="mt-1 block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow-sm"
+                                        value="${existingValue}" ${required}>`;
+                        break;
+                    case 'number':
+                        inputHtml = `<input type="number" id="${fieldId}" name="${fieldId}"
+                                        class="mt-1 block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow-sm"
+                                        placeholder="${field.placeholder || ''}" value="${existingValue}" ${required}>`;
+                        break;
+                    case 'select':
+                        let options = '<option value="">選択してください</option>';
+                        if (field.options && typeof field.options === 'object') {
+                            Object.entries(field.options).forEach(([value, label]) => {
+                                const selected = value === existingValue ? 'selected' : '';
+                                options += `<option value="${value}" ${selected}>${label}</option>`;
+                            });
+                        }
+                        inputHtml = `<select id="${fieldId}" name="${fieldId}"
+                                        class="mt-1 block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow-sm" ${required}>
+                                        ${options}
+                                    </select>`;
+                        break;
+                    case 'checkbox':
+                        const checked = existingValue === '1' ? 'checked' : '';
+                        inputHtml = `<div class="flex items-center">
+                                        <input type="checkbox" id="${fieldId}" name="${fieldId}" value="1" ${checked}
+                                            class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500 dark:bg-gray-900 dark:border-gray-700 dark:focus:ring-indigo-600">
+                                        <label for="${fieldId}" class="ml-2 text-sm text-gray-600 dark:text-gray-400">${field.label}</label>
+                                    </div>`;
+                        break;
+                    default:
+                        inputHtml = `<input type="text" id="${fieldId}" name="${fieldId}"
+                                        class="mt-1 block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow-sm"
+                                        placeholder="${field.placeholder || ''}" value="${existingValue}" ${required}>`;
+                }
+
+                return `
+                                <div>
+                                    <label for="${fieldId}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        ${field.label} ${requiredLabel}
+                                    </label>
+                                    ${inputHtml}
+                                </div>
+                            `;
+            }
+
+            // 初期表示時に現在の投稿タイプのカスタム項目を読み込み
+            // TinyMCEの初期化後に実行するため、少し遅延させる
+            setTimeout(() => {
+                if (postTypeInput && postTypeInput.value) {
+                    loadCustomFields(postTypeInput.value);
+                }
+            }, 100);
+
+            // 編集時は投稿タイプの変更を無効にしているため、
+            // 投稿タイプ変更時のイベントリスナーは不要
         });
     </script>
 @endpush
@@ -186,18 +357,49 @@
                     @method('PUT')
                     <div class="space-y-6">
                         <div>
+                            <x-input-label for="board_post_type_display" value="投稿タイプ" />
+                            <div
+                                class="mt-1 p-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md">
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-sm font-medium
+                                        @if($post->boardPostType && $post->boardPostType->name === 'announcement')
+                                            bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300
+                                        @else
+                                            bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300
+                                        @endif">
+                                    <i class="fas fa-tag mr-1"></i>
+                                    {{ $post->boardPostType->display_name ?? '未設定' }}
+                                </span>
+                                <span class="ml-2 text-sm text-gray-500 dark:text-gray-400">
+                                    （編集時は変更できません）
+                                </span>
+                            </div>
+                            <!-- 投稿タイプIDを隠しフィールドで保持 -->
+                            <input type="hidden" id="board_post_type_id" name="board_post_type_id"
+                                value="{{ $post->board_post_type_id }}">
+                        </div>
+
+                        <div>
                             <x-input-label for="title" value="タイトル" :required="true" />
                             <x-text-input type="text" id="title" name="title" class="mt-1 block w-full" :value="old('title', $post->title)" required />
                             <x-input-error :messages="$errors->get('title')" class="mt-2" />
                         </div>
 
-                        <div>
+                        <div id="body-section" style="display: block;">
                             <x-input-label for="body_editor_edit" value="本文" :required="true" />
-                            <textarea id="body_editor_edit" name="body"
-                                class="tinymce-content mt-1 block w-full">{{ old('body', $post->body) }}</textarea>
+                            <textarea id="body_editor_edit" name="body" class="tinymce-content mt-1 block w-full"
+                                required>{{ old('body', $post->body) }}</textarea>
                             <x-input-error :messages="$errors->get('body')" class="mt-2" />
                             <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">メンションするには `@` を入力して候補から選択、タグ付けするには
                                 `[タグ名]` と入力します。</p>
+                        </div>
+
+                        {{-- カスタム項目 --}}
+                        <div id="custom-fields-section" style="display: none;">
+                            <hr class="dark:border-gray-600">
+                            <h3 class="text-lg font-medium text-gray-900 dark:text-gray-200">追加項目</h3>
+                            <div id="custom-fields-container" class="space-y-4">
+                                {{-- カスタム項目がここに動的に表示される --}}
+                            </div>
                         </div>
 
                         <hr class="dark:border-gray-600">
@@ -205,26 +407,37 @@
                         <div>
                             <h3 class="text-lg font-medium text-gray-900 dark:text-gray-200">閲覧範囲</h3>
                             <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                                どちらか、または両方を指定できます。どちらも指定しない場合は全ユーザーに公開されます。<br>本文中でメンションしたユーザーは自動で閲覧範囲に追加されます。</p>
+                                ロールまたはユーザーを個別に指定してください。<br>本文中でメンションしたユーザーは自動で閲覧範囲に追加されます。</p>
                         </div>
 
                         {{-- ロール選択 --}}
                         <div>
-                            <x-input-label for="role_id" value="ロールで指定" />
-                            <select id="role_id" name="role_id"
+                            <x-input-label for="role_id" value="ロールで指定" :required="true" />
+                            <select id="role_id" name="role_id" required
                                 class="mt-1 block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow-sm">
-                                <option value="">-- ロールを選択 --</option>
+                                <option value="">-- ロールを選択してください --</option>
+                                {{-- 全ユーザーを一番上に表示 --}}
                                 @foreach($roles as $role)
-                                    <option value="{{ $role->id }}" @selected(old('role_id', $post->role_id) == $role->id)>
-                                        {{ $role->display_name ?? $role->name }}
-                                    </option>
+                                    @if($role->id === 'everyone')
+                                        <option value="{{ $role->id }}" @selected(old('role_id', $post->role_id ?? 'everyone') == $role->id)>
+                                            {{ $role->display_name ?? $role->name }}
+                                        </option>
+                                    @endif
+                                @endforeach
+                                {{-- その他のロールを表示 --}}
+                                @foreach($roles as $role)
+                                    @if($role->id !== 'everyone')
+                                        <option value="{{ $role->id }}" @selected(old('role_id', $post->role_id ?? 'everyone') == $role->id)>
+                                            {{ $role->display_name ?? $role->name }}
+                                        </option>
+                                    @endif
                                 @endforeach
                             </select>
                             <x-input-error :messages="$errors->get('role_id')" class="mt-2" />
                         </div>
 
                         {{-- ユーザー選択 --}}
-                        <div>
+                        <div id="user-selection-section">
                             <x-input-label for="readable_users_select_edit" value="ユーザーを個別に指定" />
                             <select name="readable_user_ids[]" id="readable_users_select_edit" multiple
                                 class="mt-1 block w-full">
