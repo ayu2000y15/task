@@ -263,23 +263,23 @@
                     case 'url':
                     case 'tel':
                         inputHtml = `<input type="${field.type}" id="${fieldId}" name="${fieldId}"
-                                        class="mt-1 block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow-sm"
-                                        placeholder="${field.placeholder || ''}" value="${existingValue}" ${required}>`;
+                                            class="mt-1 block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow-sm"
+                                            placeholder="${field.placeholder || ''}" value="${existingValue}" ${required}>`;
                         break;
                     case 'textarea':
                         inputHtml = `<textarea id="${fieldId}" name="${fieldId}" rows="3"
-                                        class="mt-1 block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow-sm"
-                                        placeholder="${field.placeholder || ''}" ${required}>${existingValue}</textarea>`;
+                                            class="mt-1 block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow-sm"
+                                            placeholder="${field.placeholder || ''}" ${required}>${existingValue}</textarea>`;
                         break;
                     case 'date':
                         inputHtml = `<input type="date" id="${fieldId}" name="${fieldId}"
-                                        class="mt-1 block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow-sm"
-                                        value="${existingValue}" ${required}>`;
+                                            class="mt-1 block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow-sm"
+                                            value="${existingValue}" ${required}>`;
                         break;
                     case 'number':
                         inputHtml = `<input type="number" id="${fieldId}" name="${fieldId}"
-                                        class="mt-1 block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow-sm"
-                                        placeholder="${field.placeholder || ''}" value="${existingValue}" ${required}>`;
+                                            class="mt-1 block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow-sm"
+                                            placeholder="${field.placeholder || ''}" value="${existingValue}" ${required}>`;
                         break;
                     case 'select':
                         let options = '<option value="">選択してください</option>';
@@ -290,32 +290,32 @@
                             });
                         }
                         inputHtml = `<select id="${fieldId}" name="${fieldId}"
-                                        class="mt-1 block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow-sm" ${required}>
-                                        ${options}
-                                    </select>`;
+                                            class="mt-1 block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow-sm" ${required}>
+                                            ${options}
+                                        </select>`;
                         break;
                     case 'checkbox':
                         const checked = existingValue === '1' ? 'checked' : '';
                         inputHtml = `<div class="flex items-center">
-                                        <input type="checkbox" id="${fieldId}" name="${fieldId}" value="1" ${checked}
-                                            class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500 dark:bg-gray-900 dark:border-gray-700 dark:focus:ring-indigo-600">
-                                        <label for="${fieldId}" class="ml-2 text-sm text-gray-600 dark:text-gray-400">${field.label}</label>
-                                    </div>`;
+                                            <input type="checkbox" id="${fieldId}" name="${fieldId}" value="1" ${checked}
+                                                class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500 dark:bg-gray-900 dark:border-gray-700 dark:focus:ring-indigo-600">
+                                            <label for="${fieldId}" class="ml-2 text-sm text-gray-600 dark:text-gray-400">${field.label}</label>
+                                        </div>`;
                         break;
                     default:
                         inputHtml = `<input type="text" id="${fieldId}" name="${fieldId}"
-                                        class="mt-1 block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow-sm"
-                                        placeholder="${field.placeholder || ''}" value="${existingValue}" ${required}>`;
+                                            class="mt-1 block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow-sm"
+                                            placeholder="${field.placeholder || ''}" value="${existingValue}" ${required}>`;
                 }
 
                 return `
-                                <div>
-                                    <label for="${fieldId}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                        ${field.label} ${requiredLabel}
-                                    </label>
-                                    ${inputHtml}
-                                </div>
-                            `;
+                                    <div>
+                                        <label for="${fieldId}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                            ${field.label} ${requiredLabel}
+                                        </label>
+                                        ${inputHtml}
+                                    </div>
+                                `;
             }
 
             // 初期表示時に現在の投稿タイプのカスタム項目を読み込み
@@ -361,11 +361,11 @@
                             <div
                                 class="mt-1 p-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md">
                                 <span class="inline-flex items-center px-2 py-0.5 rounded text-sm font-medium
-                                        @if($post->boardPostType && $post->boardPostType->name === 'announcement')
-                                            bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300
-                                        @else
-                                            bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300
-                                        @endif">
+                                            @if($post->boardPostType && $post->boardPostType->name === 'announcement')
+                                                bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300
+                                            @else
+                                                bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300
+                                            @endif">
                                     <i class="fas fa-tag mr-1"></i>
                                     {{ $post->boardPostType->display_name ?? '未設定' }}
                                 </span>
@@ -404,22 +404,52 @@
 
                         <hr class="dark:border-gray-600">
 
+                        {{-- 現在の閲覧範囲を表示 --}}
+                        <div class="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+                            <h3 class="text-sm font-medium text-blue-800 dark:text-blue-200 mb-2">現在の閲覧範囲</h3>
+                            <div class="flex flex-wrap items-center gap-2">
+                                @if ($post->role)
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200">
+                                        <i class="fas fa-users mr-1.5"></i><strong>ロール:</strong>&nbsp;{{ $post->role->display_name ?? $post->role->name }}
+                                    </span>
+                                @endif
+                                @if ($post->readableUsers->isNotEmpty())
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">
+                                        <i class="fas fa-user-check mr-1.5"></i>個別ユーザー: {{ $post->readableUsers->count() }}人
+                                    </span>
+                                    @foreach($post->readableUsers->take(3) as $user)
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">
+                                            {{ $user->name }}
+                                        </span>
+                                    @endforeach
+                                    @if($post->readableUsers->count() > 3)
+                                        <span class="text-xs text-blue-600 dark:text-blue-400">他{{ $post->readableUsers->count() - 3 }}人</span>
+                                    @endif
+                                @endif
+                                @if (!$post->role && $post->readableUsers->isEmpty())
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-700 dark:text-green-100">
+                                        <i class="fas fa-globe-asia mr-1.5"></i>全公開
+                                    </span>
+                                @endif
+                            </div>
+                        </div>
+
                         <div>
                             <h3 class="text-lg font-medium text-gray-900 dark:text-gray-200">閲覧範囲</h3>
                             <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                                ロールまたはユーザーを個別に指定してください。<br>本文中でメンションしたユーザーは自動で閲覧範囲に追加されます。</p>
+                                ロールまたはユーザーを個別に指定してください（どちらか一方は必須）。<br>本文中でメンションしたユーザーは自動で閲覧範囲に追加されます。</p>
                         </div>
 
                         {{-- ロール選択 --}}
                         <div>
-                            <x-input-label for="role_id" value="ロールで指定" :required="true" />
-                            <select id="role_id" name="role_id" required
+                            <x-input-label for="role_id" value="ロールで指定" />
+                            <select id="role_id" name="role_id"
                                 class="mt-1 block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow-sm">
                                 <option value="">-- ロールを選択してください --</option>
                                 {{-- 全ユーザーを一番上に表示 --}}
                                 @foreach($roles as $role)
                                     @if($role->id === 'everyone')
-                                        <option value="{{ $role->id }}" @selected(old('role_id', $post->role_id ?? 'everyone') == $role->id)>
+                                        <option value="{{ $role->id }}" @selected(old('role_id', $currentRoleId) == $role->id)>
                                             {{ $role->display_name ?? $role->name }}
                                         </option>
                                     @endif
@@ -427,7 +457,7 @@
                                 {{-- その他のロールを表示 --}}
                                 @foreach($roles as $role)
                                     @if($role->id !== 'everyone')
-                                        <option value="{{ $role->id }}" @selected(old('role_id', $post->role_id ?? 'everyone') == $role->id)>
+                                        <option value="{{ $role->id }}" @selected(old('role_id', $currentRoleId) == $role->id)>
                                             {{ $role->display_name ?? $role->name }}
                                         </option>
                                     @endif

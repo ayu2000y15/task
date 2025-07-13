@@ -101,7 +101,7 @@ class BoardPostController extends Controller
         $baseValidation = [
             'title' => 'required|string|max:255',
             'body' => 'nullable|string',
-            'role_id' => 'required', // 必須に変更（everyoneまたは既存ロールのID）
+            'role_id' => 'nullable', // 必須から変更
             'board_post_type_id' => 'nullable|exists:board_post_types,id',
             'readable_user_ids' => 'nullable|array',
             'readable_user_ids.*' => 'exists:users,id',
@@ -159,6 +159,14 @@ class BoardPostController extends Controller
         }
 
         $validated = $request->validate(array_merge($baseValidation, $customFieldRules));
+
+        // ロールまたはユーザー指定のいずれかが必須のカスタムバリデーション
+        if (empty($validated['role_id']) && empty($validated['readable_user_ids'])) {
+            throw ValidationException::withMessages([
+                'role_id' => '閲覧範囲を指定してください。ロールまたはユーザーを個別に指定する必要があります。',
+                'readable_user_ids' => '閲覧範囲を指定してください。ロールまたはユーザーを個別に指定する必要があります。'
+            ]);
+        }
 
         // everyoneロールの特別処理
         if ($validated['role_id'] === 'everyone') {
@@ -283,7 +291,20 @@ class BoardPostController extends Controller
         // アクティブな投稿タイプを取得
         $boardPostTypes = BoardPostType::active()->ordered()->get();
 
-        return view('community.posts.edit', compact('post', 'roles', 'allActiveUsers', 'selectedReadableUserIds', 'boardPostTypes'));
+        // 現在の閲覧範囲の設定を判定
+        $currentRoleId = null;
+        if ($post->role_id) {
+            // 特定のロールが設定されている場合
+            $currentRoleId = $post->role_id;
+        } elseif (!$post->role_id && $selectedReadableUserIds) {
+            // ロールが設定されておらず、個別ユーザーのみが設定されている場合
+            $currentRoleId = null;
+        } elseif (!$post->role_id && !$selectedReadableUserIds) {
+            // ロールもユーザーも設定されていない場合（全公開）
+            $currentRoleId = 'everyone';
+        }
+
+        return view('community.posts.edit', compact('post', 'roles', 'allActiveUsers', 'selectedReadableUserIds', 'boardPostTypes', 'currentRoleId'));
     }
 
     /**
@@ -298,7 +319,7 @@ class BoardPostController extends Controller
         $baseValidation = [
             'title' => 'required|string|max:255',
             'body' => 'nullable|string',
-            'role_id' => 'required', // 必須に変更
+            'role_id' => 'nullable', // 必須から変更
             'board_post_type_id' => 'nullable|exists:board_post_types,id',
             'readable_user_ids' => 'nullable|array',
             'readable_user_ids.*' => 'exists:users,id',
@@ -349,6 +370,14 @@ class BoardPostController extends Controller
         }
 
         $validated = $request->validate(array_merge($baseValidation, $customFieldRules));
+
+        // ロールまたはユーザー指定のいずれかが必須のカスタムバリデーション
+        if (empty($validated['role_id']) && empty($validated['readable_user_ids'])) {
+            throw ValidationException::withMessages([
+                'role_id' => '閲覧範囲を指定してください。ロールまたはユーザーを個別に指定する必要があります。',
+                'readable_user_ids' => '閲覧範囲を指定してください。ロールまたはユーザーを個別に指定する必要があります。'
+            ]);
+        }
 
         // everyoneロールの特別処理
         if ($validated['role_id'] === 'everyone') {
