@@ -85,7 +85,7 @@
                             let url;
                             if (postId) {
                                 // 新しいルートを使用
-                                url = `/community/posts/${postId}/search-users?query=${encodeURIComponent(term)}`;
+                                url = "{{ route('community.posts.search-users', ['post' => ':postId']) }}".replace(':postId', postId) + `?query=${encodeURIComponent(term)}`;
                             } else {
                                 // 従来のルート（フォールバック用）
                                 url = `{{ route('community.users.search') }}?query=${encodeURIComponent(term)}`;
@@ -160,7 +160,8 @@
             function togglePostReaction(emoji) {
                 const postId = postReactionsContainer.dataset.postId;
                 const token = document.head.querySelector('meta[name="csrf-token"]').content;
-                fetch(`/community/posts/${postId}/reactions`, {
+                const url = "{{ route('community.posts.reactions.store', ['post' => ':postId']) }}".replace(':postId', postId);
+                fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': token },
                     body: JSON.stringify({ emoji: emoji })
@@ -176,7 +177,8 @@
             // コメントへのリアクションを処理する関数
             function toggleCommentReaction(commentId, emoji) {
                 const token = document.head.querySelector('meta[name="csrf-token"]').content;
-                fetch(`/community/comments/${commentId}/reactions`, {
+                const url = "{{ route('community.comments.reactions.store', ['comment' => ':commentId']) }}".replace(':commentId', commentId);
+                fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': token },
                     body: JSON.stringify({ emoji: emoji })
@@ -247,7 +249,8 @@
                         if (confirm('本当にこのコメントを削除しますか？')) {
                             const commentId = deleteBtn.dataset.commentId;
                             const token = document.head.querySelector('meta[name="csrf-token"]').content;
-                            fetch(`/community/comments/${commentId}`, {
+                            const url = "{{ route('community.comments.destroy', ['comment' => ':commentId']) }}".replace(':commentId', commentId);
+                            fetch(url, {
                                 method: 'DELETE',
                                 headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': token }
                             }).then(response => response.json()).then(data => {
@@ -299,8 +302,9 @@
                         const editorInstance = tinymce.get(editorId);
                         const newBody = editorInstance ? editorInstance.getContent() : form.querySelector('textarea').value;
                         const token = document.head.querySelector('meta[name="csrf-token"]').content;
+                        const url = "{{ route('community.comments.update', ['comment' => ':commentId']) }}".replace(':commentId', commentId);
 
-                        fetch(`/community/comments/${commentId}`, {
+                        fetch(url, {
                             method: 'PATCH',
                             headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': token },
                             body: JSON.stringify({ body: newBody })

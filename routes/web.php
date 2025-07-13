@@ -155,7 +155,7 @@ Route::middleware('auth')->group(function () {
     // -------------------------------------------------------------------------
     Route::prefix('community')->name('community.')->middleware(['can:viewAny,App\Models\BoardPost'])->group(function () {
         Route::get('posts/{post}/search-users', [BoardPostController::class, 'searchMentionableUsers'])
-            ->name('posts.users.search');
+            ->name('posts.search-users');
 
         // カスタム項目取得用のルート（resourceより前に定義）
         Route::get('posts/custom-fields', [BoardPostController::class, 'getCustomFields'])->name('posts.customFields');
@@ -170,9 +170,9 @@ Route::middleware('auth')->group(function () {
         // コメント更新・削除・リアクション用のルート
         Route::patch('comments/{comment}', [BoardCommentController::class, 'update'])->name('comments.update');
         Route::delete('comments/{comment}', [BoardCommentController::class, 'destroy'])->name('comments.destroy');
-        Route::post('comments/{comment}/reactions', [BoardCommentController::class, 'toggleReaction'])->name('comments.toggleReaction');
+        Route::post('comments/{comment}/reactions', [BoardCommentController::class, 'toggleReaction'])->name('comments.reactions.store');
         // リアクション用のルート
-        Route::post('posts/{post}/reactions', [BoardPostController::class, 'toggleReaction'])->name('posts.toggleReaction');
+        Route::post('posts/{post}/reactions', [BoardPostController::class, 'toggleReaction'])->name('posts.reactions.store');
     });
 
     // 時間記録のアクション
