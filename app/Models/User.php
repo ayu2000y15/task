@@ -115,8 +115,12 @@ class User extends Authenticatable
 
     public function hasPermissionTo(string $permissionName): bool
     {
-        foreach ($this->roles as $role) {
-            if ($role->permissions->contains('name', $permissionName)) {
+        // rolesリレーションをpermissionsと一緒にeager loadする
+        $roles = $this->roles()->with('permissions')->get();
+        
+        foreach ($roles as $role) {
+            // permissionsが存在し、指定された権限名を含むかチェック
+            if ($role->permissions && $role->permissions->contains('name', $permissionName)) {
                 return true;
             }
         }

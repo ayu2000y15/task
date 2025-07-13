@@ -76,7 +76,7 @@ document.addEventListener('DOMContentLoaded', function() {
         <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
             <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-200">投稿タイプ管理</h1>
             <div>
-                @can('create', App\Models\BoardPostType::class)
+                @can('create', App\Models\BoardPost::class)
                     <x-primary-button as="a" href="{{ route('admin.board-post-types.create') }}">
                         <i class="fas fa-plus mr-1"></i> 新規作成
                     </x-primary-button>
