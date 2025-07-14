@@ -167,11 +167,14 @@ class FormFieldDefinitionController extends Controller
         if (!$formFieldDefinition->exists) {
             abort(404, '指定されたフォーム定義が見つかりません。');
         }
+        // 有効なカテゴリを取得
+        $validCategories = FormFieldCategory::enabled()->pluck('name')->toArray();
+
         //$this->authorize('update', $formFieldDefinition);
         // ... (updateメソッドのロジックは前回の回答を参照) ...
         $validated = $request->validate([
             'name' => 'required|string|max:100|regex:/^[a-z0-9_]+$/u',
-            'category' => 'required|string|in:' . implode(',', array_keys(FormFieldDefinition::CATEGORIES)),
+            'category' => 'required|string|in:' . implode(',', $validCategories),
             'label' => 'required|string|max:255',
             'type' => 'required|string|in:' . implode(',', array_keys(FormFieldDefinition::FIELD_TYPES)),
             'options_text' => 'nullable|string', // options_textとして受け取る
