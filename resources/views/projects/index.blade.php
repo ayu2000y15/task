@@ -37,7 +37,8 @@
                         @endphp
                         <div class="mb-8">
                             <h3 class="text-lg font-medium text-gray-600 dark:text-gray-400 mb-4 flex items-center">
-                                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-200 mr-2">
+                                <span
+                                    class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-200 mr-2">
                                     {{ $categoryName }}
                                 </span>
                                 <span class="text-sm text-gray-500">({{ $projects->count() }}件)</span>
@@ -74,7 +75,8 @@
                             @endphp
                             <div class="mb-8">
                                 <h3 class="text-lg font-medium text-gray-600 dark:text-gray-400 mb-4 flex items-center">
-                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200 mr-2">
+                                    <span
+                                        class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200 mr-2">
                                         {{ $categoryName }}
                                     </span>
                                     <span class="text-sm text-gray-500">({{ $projects->count() }}件)</span>

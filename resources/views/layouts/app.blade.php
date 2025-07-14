@@ -343,7 +343,7 @@
                                 $categoryId = 'category_' . str_replace([' ', '-'], '_', $categoryKey);
                             @endphp
                             <div class="ml-2">
-                                <div @click="openCategoryProjects['{{ $categoryId }}'] = !openCategoryProjects['{{ $categoryId }}']" 
+                                <div @click="openCategoryProjects['{{ $categoryId }}'] = !openCategoryProjects['{{ $categoryId }}']"
                                      class="flex items-center justify-between px-2 py-1 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
                                     <span class="flex items-center">
                                         <i class="fas fa-tag mr-1 text-blue-500"></i>
@@ -356,7 +356,7 @@
                                         @php
                                             $_projectStatusOptionsSb = ['' => '未設定'] + (\App\Models\Project::PROJECT_STATUS_OPTIONS ?? []);
                                             $_projectStatusIconsSb = [
-                                                'not_started' => 'fa-minus-circle text-gray-400 dark:text-gray-500', 
+                                                'not_started' => 'fa-minus-circle text-gray-400 dark:text-gray-500',
                                                 'in_progress' => 'fa-play-circle text-blue-400 dark:text-blue-500',
                                                 'completed'   => 'fa-check-circle text-green-400 dark:text-green-500',
                                                 'on_hold'     => 'fa-pause-circle text-yellow-400 dark:text-yellow-500',
@@ -421,7 +421,7 @@
                                 $categoryId = 'archived_category_' . str_replace([' ', '-'], '_', $categoryKey);
                             @endphp
                             <div class="ml-2">
-                                <div @click="openArchivedCategoryProjects['{{ $categoryId }}'] = !openArchivedCategoryProjects['{{ $categoryId }}']" 
+                                <div @click="openArchivedCategoryProjects['{{ $categoryId }}'] = !openArchivedCategoryProjects['{{ $categoryId }}']"
                                      class="flex items-center justify-between px-2 py-1 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
                                     <span class="flex items-center">
                                         <i class="fas fa-tag mr-1 text-gray-500"></i>

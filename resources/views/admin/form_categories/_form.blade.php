@@ -176,14 +176,14 @@
                 <form id="add-category-form" novalidate>
                     <div class="mb-4">
                         <label for="new_category_name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">カテゴリ名（システム内部用）</label>
-                        <input type="text" id="new_category_name" name="new_category_name" required 
+                        <input type="text" id="new_category_name" name="new_category_name" required
                                class="mt-1 block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow-sm"
                                placeholder="例: new_category">
                         <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">半角英数字とアンダースコアのみ</p>
                     </div>
                     <div class="mb-4">
                         <label for="new_category_display_name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">表示名</label>
-                        <input type="text" id="new_category_display_name" name="new_category_display_name" required 
+                        <input type="text" id="new_category_display_name" name="new_category_display_name" required
                                class="mt-1 block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow-sm"
                                placeholder="例: 新しいカテゴリ">
                     </div>
@@ -221,7 +221,7 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM Content Loaded - Starting initialization');
-    
+
     const isExternalFormCheckbox = document.getElementById('is_external_form');
     const externalFormSettings = document.getElementById('external-form-settings');
     const slugInput = document.getElementById('slug');
@@ -298,7 +298,7 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('addCategoryModal not found');
         }
     }
-    
+
     // グローバルスコープにも設定
     window.showAddCategoryModal = showAddCategoryModal;
 
@@ -315,28 +315,28 @@ document.addEventListener('DOMContentLoaded', function() {
     // 新規カテゴリ追加
     async function addNewCategory(formData) {
         console.log('Starting category creation...');
-        
+
         const requestData = {
             name: formData.get('new_category_name'),
             display_name: formData.get('new_category_display_name'),
             description: formData.get('new_category_description'),
             display_order: 0
         };
-        
+
         console.log('Request data:', requestData);
-        
+
         // クライアント側バリデーション
         if (!requestData.name || !requestData.display_name) {
             showNotification('カテゴリ名と表示名は必須です', 'error');
             return;
         }
-        
+
         // カテゴリ名の形式チェック
         if (!/^[a-z0-9_]+$/.test(requestData.name)) {
             showNotification('カテゴリ名は半角英数字とアンダースコアのみ使用できます', 'error');
             return;
         }
-        
+
         try {
             const response = await fetch('{{ route("admin.project-categories.store") }}', {
                 method: 'POST',
@@ -366,7 +366,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (response.ok) {
                 console.log('Category created successfully:', result);
-                
+
                 // セレクトボックスに新しいオプションを追加
                 if (projectCategorySelect) {
                     const option = new Option(result.display_name || result.name, result.id);
@@ -375,15 +375,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     projectCategorySelect.value = result.id;
                     console.log('Option added to select, value set to:', result.id);
                 }
-                
+
                 hideAddCategoryModal();
-                
+
                 // 成功メッセージを表示
                 showNotification('案件カテゴリが追加されました', 'success');
             } else {
                 console.error('Server error:', result);
                 let errorMessage = 'エラーが発生しました';
-                
+
                 if (result.message) {
                     errorMessage = result.message;
                 } else if (result.errors) {
@@ -391,7 +391,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     const errorArray = Object.values(result.errors).flat();
                     errorMessage = errorArray.join(', ');
                 }
-                
+
                 showNotification(errorMessage, 'error');
             }
         } catch (error) {
@@ -405,12 +405,12 @@ document.addEventListener('DOMContentLoaded', function() {
         // 簡単な通知システム
         const notification = document.createElement('div');
         notification.className = `fixed top-4 right-4 px-4 py-2 rounded-md text-white z-50 ${
-            type === 'success' ? 'bg-green-500' : 
+            type === 'success' ? 'bg-green-500' :
             type === 'error' ? 'bg-red-500' : 'bg-blue-500'
         }`;
         notification.textContent = message;
         document.body.appendChild(notification);
-        
+
         setTimeout(() => {
             notification.remove();
         }, 3000);
@@ -460,7 +460,7 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('Submit add category button clicked!');
             e.preventDefault();
             e.stopPropagation();
-            
+
             if (addCategoryForm) {
                 const formData = new FormData(addCategoryForm);
                 addNewCategory(formData);
@@ -487,7 +487,7 @@ document.addEventListener('DOMContentLoaded', function() {
     toggleExternalFormSettings();
     toggleProjectCategorySelection();
     updateSlugPreview();
-    
+
     // デバッグ用グローバル関数
     window.debugFormCategories = function() {
         console.log('=== Debug Info ===');
@@ -502,10 +502,10 @@ document.addEventListener('DOMContentLoaded', function() {
             'project-category-selection': !!document.getElementById('project-category-selection')
         });
     };
-    
+
     // デバッグ情報を即座に出力
     window.debugFormCategories();
-    
+
     console.log('Script initialization completed');
 });
 </script>

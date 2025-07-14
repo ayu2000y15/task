@@ -31,12 +31,6 @@ class ProjectCategoryController extends Controller
      */
     public function store(Request $request)
     {
-        // デバッグログ
-        \Log::info('ProjectCategory store method called');
-        \Log::info('Request data: ', $request->all());
-        \Log::info('Request headers: ', $request->headers->all());
-        \Log::info('Request content type: ' . $request->header('Content-Type'));
-        
         try {
             $validated = $request->validate([
                 'name' => 'required|string|max:50|regex:/^[a-z0-9_]+$/|unique:project_categories,name',
@@ -76,7 +70,6 @@ class ProjectCategoryController extends Controller
             \Log::info('Redirecting to index');
             return redirect()->route('admin.project-categories.index')
                 ->with('success', '案件カテゴリが正常に作成されました。');
-
         } catch (\Illuminate\Validation\ValidationException $e) {
             \Log::error('Validation error: ', $e->errors());
             if ($request->expectsJson()) {
@@ -90,14 +83,14 @@ class ProjectCategoryController extends Controller
         } catch (\Exception $e) {
             \Log::error('ProjectCategory creation failed: ' . $e->getMessage());
             \Log::error('Stack trace: ' . $e->getTraceAsString());
-            
+
             if ($request->expectsJson()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'エラーが発生しました: ' . $e->getMessage()
                 ], 500);
             }
-            
+
             return back()->withErrors(['error' => 'エラーが発生しました: ' . $e->getMessage()]);
         }
     }
