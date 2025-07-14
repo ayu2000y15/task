@@ -487,13 +487,13 @@
 
         <div class="flex flex-col flex-1 md:ml-72">
             <header class="flex items-center justify-between h-16 px-2 sm:px-4 bg-white border-b dark:bg-gray-800 dark:border-gray-700 sticky top-0 z-50">
-                 <div class="flex items-center">
+                <div class="flex items-center">
                     <div class="md:hidden">
                         <button @click="sidebarOpen = !sidebarOpen" class="text-gray-500 dark:text-gray-300 focus:outline-none p-2">
                             <i class="fas fa-bars w-6 h-6"></i>
                         </button>
                     </div>
-                 </div>
+                </div>
 
                 <nav class="header-main-nav flex items-center overflow-x-auto space-x-1 md:space-x-2 md:flex-grow md:justify-start">
                     @can('viewAny', App\Models\Project::class)
