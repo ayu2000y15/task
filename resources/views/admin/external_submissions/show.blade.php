@@ -30,10 +30,10 @@
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         {{-- 左側: 各情報カード --}}
         <div class="md:col-span-2 space-y-6">
-            {{-- 依頼基本情報カード --}}
+            {{-- 基本情報カード --}}
             <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
                 <div class="p-6">
-                    <h3 class="text-lg font-semibold border-b border-gray-300 dark:border-gray-600 pb-2 mb-4">依頼基本情報</h3>
+                    <h3 class="text-lg font-semibold border-b border-gray-300 dark:border-gray-600 pb-2 mb-4">基本情報</h3>
                     <div class="space-y-0">
                         <div class="grid grid-cols-[theme(spacing.40)_1fr] gap-x-2 items-start py-3 border-b border-gray-200 dark:border-gray-700">
                             <strong class="font-semibold text-gray-700 dark:text-gray-300">依頼者名:</strong>

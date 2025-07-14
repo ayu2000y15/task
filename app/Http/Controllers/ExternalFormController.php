@@ -292,38 +292,100 @@ class ExternalFormController extends Controller
         // フォームカテゴリを取得
         $formCategory = $submission->getFormCategory();
 
-        // 全ての有効な案件依頼フィールド定義を取得 (順序も考慮)
-        $allFieldDefinitions = \App\Models\FormFieldDefinition::where('is_enabled', true)
-            ->where('category', 'project')
-            ->orderBy('order')
-            ->orderBy('label')
-            ->get();
-
-        // 提出されたデータと全フィールド定義をマージ
         $displayData = [];
         $fileFields = []; // ファイルタイプのフィールドを別途格納
 
-        foreach ($allFieldDefinitions as $definition) {
-            $fieldName = $definition->name;
-            $fieldValue = $submission->submitted_data[$fieldName] ?? null; // submitted_data から値を取得、なければ null
+        if ($formCategory) {
+            // 特定のフォームカテゴリに関連するフィールド定義のみを取得
+            $fieldDefinitions = \App\Models\FormFieldDefinition::where('is_enabled', true)
+                ->where('category', $formCategory->name) // フォームカテゴリ名と一致するcategoryのフィールドを取得
+                ->orderBy('order')
+                ->orderBy('label')
+                ->get();
 
-            if ($definition->type === 'file_multiple') {
-                $fileFields[] = [
-                    'label' => $definition->label,
-                    'name' => $fieldName, // name も渡す
-                    'value' => $fieldValue, // これはファイルの配列になるはず
-                    'type' => $definition->type, // type も渡す
-                ];
+            // フィールド定義が見つからない場合は、submitted_dataから動的に構築
+            if ($fieldDefinitions->isEmpty()) {
+                // submitted_dataのキーから動的にフィールドを構築（システムフィールドは除外）
+                foreach ($submission->submitted_data as $key => $value) {
+                    // システムフィールドをスキップ
+                    if (in_array($key, ['form_category_id', 'form_category_name', '_token', 'submitter_name', 'submitter_email', 'submitter_notes'])) {
+                        continue;
+                    }
+
+                    // ファイルフィールドかどうかを判定
+                    $isFileField = is_array($value) && !empty($value) && isset($value[0]['path']);
+
+                    if ($isFileField) {
+                        $fileFields[] = [
+                            'label' => ucfirst(str_replace('_', ' ', $key)),
+                            'name' => $key,
+                            'value' => $value,
+                            'type' => 'file_multiple',
+                        ];
+                    } else {
+                        $displayData[] = [
+                            'label' => ucfirst(str_replace('_', ' ', $key)),
+                            'name' => $key,
+                            'value' => $value,
+                            'type' => 'text',
+                            'options' => [],
+                        ];
+                    }
+                }
             } else {
-                $displayData[] = [
-                    'label' => $definition->label,
-                    'name' => $fieldName, // name も渡す
-                    'value' => $fieldValue,
-                    'type' => $definition->type, // type も渡す
-                    'options' => $definition->options_array, // selectやradioの場合の選択肢 (モデルにアクセサ定義が必要)
-                ];
+                // フィールド定義が見つかった場合は定義に基づいて表示
+                foreach ($fieldDefinitions as $definition) {
+                    $fieldName = $definition->name;
+                    $fieldValue = $submission->submitted_data[$fieldName] ?? null;
+
+                    if ($definition->type === 'file_multiple') {
+                        $fileFields[] = [
+                            'label' => $definition->label,
+                            'name' => $fieldName,
+                            'value' => $fieldValue,
+                            'type' => $definition->type,
+                        ];
+                    } else {
+                        $displayData[] = [
+                            'label' => $definition->label,
+                            'name' => $fieldName,
+                            'value' => $fieldValue,
+                            'type' => $definition->type,
+                            'options' => $definition->options ?? [],
+                        ];
+                    }
+                }
+            }
+        } else {
+            // フォームカテゴリが見つからない場合は、submitted_dataから全て表示
+            foreach ($submission->submitted_data as $key => $value) {
+                // システムフィールドをスキップ
+                if (in_array($key, ['form_category_id', 'form_category_name', '_token', 'submitter_name', 'submitter_email', 'submitter_notes'])) {
+                    continue;
+                }
+
+                // ファイルフィールドかどうかを判定
+                $isFileField = is_array($value) && !empty($value) && isset($value[0]['path']);
+
+                if ($isFileField) {
+                    $fileFields[] = [
+                        'label' => ucfirst(str_replace('_', ' ', $key)),
+                        'name' => $key,
+                        'value' => $value,
+                        'type' => 'file_multiple',
+                    ];
+                } else {
+                    $displayData[] = [
+                        'label' => ucfirst(str_replace('_', ' ', $key)),
+                        'name' => $key,
+                        'value' => $value,
+                        'type' => 'text',
+                        'options' => [],
+                    ];
+                }
             }
         }
+
         $statusOptions = \App\Models\ExternalProjectSubmission::STATUS_OPTIONS;
         return view('admin.external_submissions.show', compact('submission', 'displayData', 'fileFields', 'statusOptions', 'formCategory'));
     }

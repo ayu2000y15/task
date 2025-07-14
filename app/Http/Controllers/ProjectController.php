@@ -320,7 +320,6 @@ class ProjectController extends Controller
     public function create(Request $request)
     {
         $this->authorize('create', Project::class);
-        $customFormFields = $this->getProjectCustomFieldDefinitions(null);
         $formDisplayName = '新規案件';
         $prefillStandardData = [];
         $prefillCustomAttributes = [];
@@ -359,6 +358,18 @@ class ProjectController extends Controller
             }
         }
 
+        // カスタムフィールドの取得 - 外部申請がある場合はそのフォームカテゴリに基づく
+        if ($externalSubmission && $externalSubmission->formCategory) {
+            logger()->info('Using form category custom fields:', [
+                'form_category_id' => $externalSubmission->formCategory->id,
+                'form_category_name' => $externalSubmission->formCategory->name
+            ]);
+            $customFormFields = $this->getCustomFieldsForFormCategory($externalSubmission->formCategory);
+        } else {
+            logger()->info('Using default project custom fields (no external submission or form category)');
+            $customFormFields = $this->getProjectCustomFieldDefinitions(null);
+        }
+
         return view('projects.create', compact('customFormFields', 'formDisplayName', 'prefillStandardData', 'prefillCustomAttributes', 'externalSubmission', 'categories'));
     }
 
@@ -368,7 +379,28 @@ class ProjectController extends Controller
     public function store(Request $request)
     {
         $this->authorize('create', Project::class);
-        $activeGlobalFieldDefinitions = $this->getProjectCustomFieldDefinitions(null);
+
+        // 外部申請がある場合は、そのフォームカテゴリに基づくカスタムフィールドを使用
+        $externalSubmission = null;
+        if ($request->filled('external_submission_id_on_creation')) {
+            $externalSubmission = ExternalProjectSubmission::find($request->input('external_submission_id_on_creation'));
+            logger()->info('External submission found for store operation:', [
+                'id' => $externalSubmission?->id,
+                'form_category' => $externalSubmission?->formCategory?->name
+            ]);
+        }
+
+        if ($externalSubmission && $externalSubmission->formCategory) {
+            $activeGlobalFieldDefinitions = $this->getCustomFieldsForFormCategory($externalSubmission->formCategory);
+            logger()->info('Using form category fields for validation:', [
+                'form_category' => $externalSubmission->formCategory->name,
+                'fields_count' => count($activeGlobalFieldDefinitions)
+            ]);
+        } else {
+            $activeGlobalFieldDefinitions = $this->getProjectCustomFieldDefinitions(null);
+            logger()->info('Using default project fields for validation');
+        }
+
         $validationConfig = $this->buildValidationRulesAndNames($activeGlobalFieldDefinitions, $request, false);
 
         $validatedData = Validator::make($request->all(), $validationConfig['rules'], $validationConfig['messages'], $validationConfig['names'])->validate();
@@ -1147,5 +1179,51 @@ class ProjectController extends Controller
         $projects = Project::all();
 
         return response()->json($projects);
+    }
+
+    /**
+     * フォームカテゴリに基づくカスタムフィールドを取得
+     */
+    private function getCustomFieldsForFormCategory($formCategory)
+    {
+        // フォームカテゴリ名と一致するFormFieldDefinitionを取得
+        $globalDefinitions = FormFieldDefinition::where('is_enabled', true)
+            ->where('category', $formCategory->name)
+            ->orderBy('order')
+            ->orderBy('label')
+            ->get();
+
+        logger()->info('Custom fields filtered by form category:', [
+            'form_category' => $formCategory->name,
+            'fields_count' => $globalDefinitions->count(),
+            'fields' => $globalDefinitions->pluck('name', 'id')->toArray()
+        ]);
+
+        if ($globalDefinitions->isEmpty()) {
+            return [];
+        }
+
+        return $globalDefinitions->map(function (FormFieldDefinition $def) {
+            $optionsString = '';
+            if (is_array($def->options)) {
+                $optionsParts = [];
+                foreach ($def->options as $value => $label) {
+                    $optionsParts[] = $value . ':' . $label;
+                }
+                $optionsString = implode(',', $optionsParts);
+            } elseif (is_string($def->options)) {
+                $optionsString = $def->options;
+            }
+            return [
+                'name' => $def->name,
+                'label' => $def->label,
+                'type' => $def->type,
+                'options' => $optionsString,
+                'placeholder' => $def->placeholder,
+                'required' => $def->is_required,
+                'order' => $def->order,
+                'maxlength' => $def->max_length,
+            ];
+        })->sortBy('order')->values()->all();
     }
 }

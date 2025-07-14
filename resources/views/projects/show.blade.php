@@ -542,7 +542,7 @@
                     @if(!empty($customFormFields) && count($customFormFields) > 0)
                         @if(collect($customFormFields)->isNotEmpty())
                             <hr class="dark:border-gray-600 my-3">
-                            <h6 class="text-sm font-semibold text-gray-600 dark:text-gray-400 pt-1 -mb-1">追加情報（案件依頼項目）</h6>
+                            <h6 class="text-sm font-semibold text-gray-600 dark:text-gray-400 pt-1 -mb-1">詳細情報</h6>
                             @foreach($customFormFields as $field)
                                 @php
                                     $fieldName = $field['name'];
