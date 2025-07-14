@@ -1,12 +1,12 @@
 @extends('layouts.app')
 
-@section('title', $formDisplayName ?? '新規衣装案件')
+@section('title', $formDisplayName ?? '新規案件')
 
 @section('content')
     <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8" id="project-form-page">
         <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
             <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-200">
-                {{ $formDisplayName ?? '新規衣装案件' }}
+                {{ $formDisplayName ?? '新規案件' }}
                 @if($externalSubmission)
                     <span class="text-base font-normal text-gray-500 dark:text-gray-400">(外部申請 ID: {{ $externalSubmission->id }} より作成)</span>
                 @endif
@@ -30,6 +30,18 @@
                             <x-input-label for="title" value="案件名" :required="true" />
                             <x-text-input id="title" name="title" type="text" class="mt-1 block w-full" :value="old('title', $prefillStandardData['title'] ?? '')" required :hasError="$errors->has('title')" />
                             <x-input-error :messages="$errors->get('title')" class="mt-2" />
+                        </div>
+
+                        {{-- カテゴリ選択 --}}
+                        <div>
+                            <x-input-label for="project_category_id" value="案件カテゴリ" />
+                            <select id="project_category_id" name="project_category_id" class="form-select mt-1 block w-full rounded-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200">
+                                <option value="">選択してください</option>
+                                @foreach($categories as $cat)
+                                    <option value="{{ $cat->id }}" {{ old('project_category_id', $prefillStandardData['project_category_id'] ?? '') == $cat->id ? 'selected' : '' }}>{{ $cat->display_name ?? $cat->name }}</option>
+                                @endforeach
+                            </select>
+                            <x-input-error :messages="$errors->get('project_category_id')" class="mt-2" />
                         </div>
                         <div>
                             <x-input-label for="series_title" value="作品名" />

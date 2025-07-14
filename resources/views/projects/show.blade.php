@@ -381,6 +381,16 @@
                 <div class="p-5 space-y-3">
                     {{-- 専用カラムの情報を直接表示 --}}
                     <div class="flex justify-between items-start"><span class="text-sm font-semibold text-gray-500 dark:text-gray-400 w-28 flex-shrink-0">案件名</span><span class="text-sm text-gray-700 dark:text-gray-300 text-right flex-1 whitespace-pre-wrap break-words">{{ $project->title }}</span></div>
+                    @if($project->projectCategory)
+                    <div class="flex justify-between items-start">
+                        <span class="text-sm font-semibold text-gray-500 dark:text-gray-400 w-28 flex-shrink-0">カテゴリ</span>
+                        <span class="text-sm text-gray-700 dark:text-gray-300 text-right flex-1">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-200">
+                                {{ $project->projectCategory->display_name ?? $project->projectCategory->name }}
+                            </span>
+                        </span>
+                    </div>
+                    @endif
                     @if($project->series_title)<div class="flex justify-between items-start"><span class="text-sm font-semibold text-gray-500 dark:text-gray-400 w-28 flex-shrink-0">作品名</span><span class="text-sm text-gray-700 dark:text-gray-300 text-right flex-1 whitespace-pre-wrap break-words">{{ $project->series_title }}</span></div>@endif
                     @if($project->client_name)<div class="flex justify-between items-start"><span class="text-sm font-semibold text-gray-500 dark:text-gray-400 w-28 flex-shrink-0">依頼主名</span><span class="text-sm text-gray-700 dark:text-gray-300 text-right flex-1 whitespace-pre-wrap break-words">{{ $project->client_name }}</span></div>@endif
                     <div class="flex justify-between items-start"><span class="text-sm font-semibold text-gray-500 dark:text-gray-400 w-28 flex-shrink-0">期間</span><span class="text-sm text-gray-700 dark:text-gray-300 text-right">{{ $project->start_date ? $project->start_date->format('Y/m/d') : '-' }} 〜 {{ $project->end_date ? $project->end_date->format('Y/m/d') : '-' }}</span></div>
@@ -815,7 +825,7 @@
                                         </div>
                                         <div>
                                             <label for="new_character_description" class="block text-xs font-medium text-gray-700 dark:text-gray-300">備考</label>
-                                            <textarea name="description" id="new_character_description" rows="3" class="form-input mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200" placeholder="例: メイン衣装">{{ old('description') }}</textarea>
+                                            <textarea name="description" id="new_character_description" rows="3" class="form-input mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200" placeholder="例: メイン">{{ old('description') }}</textarea>
                                             @error('description', 'characterCreation')<span class="text-xs text-red-500">{{ $message }}</span>@enderror
                                         </div>
                                         <div class="flex justify-end">

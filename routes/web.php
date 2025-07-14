@@ -26,6 +26,8 @@ use App\Http\Controllers\Admin\FeedbackController as AdminFeedbackController;
 use App\Http\Controllers\Admin\FeedbackCategoryController as AdminFeedbackCategoryController;
 use App\Http\Controllers\Admin\LogController as AdminLogController;
 use App\Http\Controllers\Admin\FormFieldDefinitionController;
+use App\Http\Controllers\Admin\FormCategoryController;
+use App\Http\Controllers\Admin\ProjectCategoryController;
 use App\Http\Controllers\Admin\BoardPostTypeController;
 use App\Http\Controllers\Admin\InventoryController;
 use App\Http\Controllers\Admin\StockOrderController;
@@ -52,7 +54,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/', [HomeController::class, 'index'])->name('home.index');
     Route::get('/dashboard', fn() => redirect()->route('home.index'))->middleware(['auth', 'verified'])->name('dashboard');
 
-    // 衣装案件
+    // 案件
     Route::resource('projects', ProjectController::class);
     // 担当者更新用のルート
     Route::post('/projects/{project}/tasks/{task}/assignee', [TaskController::class, 'updateAssignee'])->name('projects.tasks.assignee');
@@ -218,10 +220,21 @@ Route::middleware('auth')->group(function () {
         Route::resource('board-post-types', BoardPostTypeController::class);
         Route::post('/board-post-types/update-order', [BoardPostTypeController::class, 'updateOrder'])->name('board-post-types.update-order');
 
+        // フォームフィールド定義管理
         Route::resource('form-definitions', FormFieldDefinitionController::class)
             ->parameters(['form-definitions' => 'formFieldDefinition'])
             ->except(['show']);
         Route::post('/form-definitions/reorder', [FormFieldDefinitionController::class, 'reorder'])->name('form-definitions.reorder');
+
+        // フォームカテゴリ管理
+        Route::resource('form-categories', FormCategoryController::class)
+            ->parameters(['form-categories' => 'formCategory']);
+        Route::post('/form-categories/reorder', [FormCategoryController::class, 'reorder'])->name('form-categories.reorder');
+        Route::patch('/form-categories/{formCategory}/toggle-external', [FormCategoryController::class, 'toggleExternalForm'])->name('form-categories.toggle-external');
+
+        // 案件カテゴリ管理
+        Route::resource('project-categories', ProjectCategoryController::class)
+            ->parameters(['project-categories' => 'projectCategory']);
 
         // 工程テンプレート管理
         Route::resource('process-templates', ProcessTemplateController::class);
@@ -245,8 +258,6 @@ Route::middleware('auth')->group(function () {
         Route::get('users/{user}/edit', [UserController::class, 'edit'])->name('users.edit');
         Route::put('users/{user}', [UserController::class, 'update'])->name('users.update');
         Route::resource('roles', RolePermissionController::class);
-        Route::get('roles', [RolePermissionController::class, 'index'])->name('roles.index');
-        Route::put('roles/{role}', [RolePermissionController::class, 'update'])->name('roles.update');
 
 
         // --- 管理者向けフィードバック機能 ---
@@ -283,7 +294,7 @@ Route::middleware('auth')->group(function () {
         // ★ 操作ログ閲覧ルートを追加
         Route::get('/logs', [AdminLogController::class, 'index'])->name('logs.index');
 
-        // ★ 衣装案件依頼フォーム一覧ルートを追加
+        // ★ 案件依頼フォーム一覧ルートを追加
         Route::get('/external-submissions', [ExternalFormController::class, 'index'])->name('external-submissions.index');
         Route::patch('/external-submissions/{submission}/status', [ExternalFormController::class, 'updateStatus'])->name('external-submissions.updateStatus'); // ステータス更新用
         Route::get('/external-submissions/{submission}', [ExternalFormController::class, 'show'])->name('external-submissions.show'); // 詳細表示用
@@ -413,6 +424,11 @@ Route::post('/unsubscribe/process', [TrackingController::class, 'processUnsubscr
 Route::get('/costume-request', [ExternalFormController::class, 'create'])->name('external-form.create');
 Route::post('/costume-request', [ExternalFormController::class, 'store'])->name('external-form.store');
 Route::get('/contact-register/thanks', [ExternalFormController::class, 'thanks'])->name('external-form.thanks');
+
+// 動的外部フォーム (認証外)
+Route::get('/form/{slug}', [ExternalFormController::class, 'showDynamicForm'])->name('external-form.show');
+Route::post('/form/{slug}', [ExternalFormController::class, 'storeDynamicForm'])->name('external-form.store');
+Route::get('/form/{slug}/thanks', [ExternalFormController::class, 'showDynamicThanks'])->name('external-form.thanks');
 
 
 require __DIR__ . '/auth.php';

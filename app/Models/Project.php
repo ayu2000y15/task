@@ -35,6 +35,7 @@ class Project extends Model
         'target_cost',
         'target_material_cost',     // ▼▼▼ 追加 ▼▼▼
         'target_labor_cost_rate',
+        'project_category_id',
     ];
 
     protected $casts = [
@@ -53,7 +54,7 @@ class Project extends Model
             ->logFillable() // $fillable属性の変更をログに記録
             ->logOnlyDirty() // 変更があった属性のみをログに記録
             ->dontSubmitEmptyLogs() // 空のログを送信しない
-            ->setDescriptionForEvent(fn(string $eventName) => "衣装案件「{$this->title}」が{$this->getEventDescription($eventName)}されました");
+            ->setDescriptionForEvent(fn(string $eventName) => "案件「{$this->title}」が{$this->getEventDescription($eventName)}されました");
     }
 
     // ★ イベント名を日本語に変換するヘルパーメソッド (任意)
@@ -145,5 +146,13 @@ class Project extends Model
     public function requests(): HasMany
     {
         return $this->hasMany(TaskRequest::class);
+    }
+
+    /**
+     * プロジェクトカテゴリとのリレーション
+     */
+    public function projectCategory()
+    {
+        return $this->belongsTo(ProjectCategory::class);
     }
 }

@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', '衣装案件依頼フォーム一覧')
+@section('title', '外部フォーム一覧')
 
 @push('styles')
     <style>
@@ -50,7 +50,7 @@
     <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8"
         x-data="{ filtersOpen: {{ count(array_filter(request()->query())) > 0 ? 'true' : 'false' }} }">
         <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-            <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-200">衣装案件依頼フォーム 一覧</h1>
+            <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-200">外部フォーム一覧</h1>
             <x-secondary-button @click="filtersOpen = !filtersOpen">
                 <i class="fas fa-filter mr-1"></i>フィルター
                 <span x-show="filtersOpen" style="display:none;"><i class="fas fa-chevron-up fa-xs ml-2"></i></span>
@@ -108,6 +108,9 @@
                                 ID</th>
                             <th scope="col"
                                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                フォーム種別</th>
+                            <th scope="col"
+                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                                 依頼者名</th>
                             <th scope="col"
                                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
@@ -131,6 +134,18 @@
                             <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                                     {{ $submission->id }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                                    @php
+                                        $formCategory = $submission->getFormCategory();
+                                    @endphp
+                                    @if($formCategory)
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                                            {{ $formCategory->display_name }}
+                                        </span>
+                                    @else
+                                        <span class="text-gray-400">不明</span>
+                                    @endif
+                                </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
                                     {{ $submission->submitter_name }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
@@ -168,7 +183,10 @@
                                         詳細確認
                                     </x-secondary-button>
                                     @can('create', App\Models\Project::class)
-                                    @if($submission->status === 'new' || $submission->status === 'in_progress')
+                                    @php
+                                        $showProjectButton = ($submission->status === 'new' || $submission->status === 'in_progress') && $submission->shouldShowProjectButton();
+                                    @endphp
+                                    @if($showProjectButton)
                                         <x-primary-button as="a"
                                             href="{{ route('projects.create', ['external_request_id' => $submission->id]) }}"
                                             class="py-1 px-2 text-xs bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
@@ -181,7 +199,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="px-6 py-12 text-center text-sm text-gray-500 dark:text-gray-400">
+                                <td colspan="8" class="px-6 py-12 text-center text-sm text-gray-500 dark:text-gray-400">
                                     <div class="flex flex-col items-center">
                                         <i class="fas fa-envelope-open-text fa-3x text-gray-400 dark:text-gray-500 mb-3"></i>
                                         <span>該当する依頼はありません。</span>

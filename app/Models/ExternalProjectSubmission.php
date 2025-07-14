@@ -43,4 +43,44 @@ class ExternalProjectSubmission extends Model
     {
         return $this->belongsTo(User::class, 'processed_by_user_id');
     }
+
+    /**
+     * フォームカテゴリを取得
+     */
+    public function getFormCategory()
+    {
+        // 新しいデータ: form_category_idから取得
+        $formCategoryId = $this->submitted_data['form_category_id'] ?? null;
+        if ($formCategoryId) {
+            return \App\Models\FormFieldCategory::find($formCategoryId);
+        }
+
+        // 古いデータ: form_category_nameから取得
+        $formCategoryName = $this->submitted_data['form_category_name'] ?? null;
+        if ($formCategoryName) {
+            return \App\Models\FormFieldCategory::where('name', $formCategoryName)->first();
+        }
+
+        // 最後の手段: 外部フォームの最初のカテゴリを返す（暫定対応）
+        return \App\Models\FormFieldCategory::where('type', 'form')
+            ->where('is_external_form', true)
+            ->first();
+    }
+
+    /**
+     * フォームカテゴリプロパティ（リレーションのように使える）
+     */
+    public function getFormCategoryAttribute()
+    {
+        return $this->getFormCategory();
+    }
+
+    /**
+     * 案件化ボタンの表示判定
+     */
+    public function shouldShowProjectButton()
+    {
+        $formCategory = $this->getFormCategory();
+        return $formCategory && $formCategory->requires_approval;
+    }
 }

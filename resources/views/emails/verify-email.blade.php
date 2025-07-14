@@ -34,7 +34,7 @@
                 <strong style="color: #333333;">🎉 認証後にできること</strong><br>
                 <span style="color: #333333;">• すべての機能をご利用いただけます</span><br>
                 <span style="color: #333333;">• 工程の作成・管理</span><br>
-                <span style="color: #333333;">• 衣装案件の共有</span><br>
+                <span style="color: #333333;">• 案件の共有</span><br>
                 <span style="color: #333333;">• 通知の受信</span>
             </div>
 

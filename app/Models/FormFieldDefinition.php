@@ -61,10 +61,12 @@ class FormFieldDefinition extends Model
         'date' => '日付',
         'number' => '数値',
         'select' => 'セレクトボックス',
+        'radio' => 'ラジオボタン',
         'checkbox' => 'チェックボックス',
         'tel' => '電話番号',
         'email' => 'メールアドレス',
         'url' => 'URL',
+        'file' => 'ファイル (単一)',
         'file_multiple' => 'ファイル (複数可)',
     ];
 

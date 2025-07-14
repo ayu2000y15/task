@@ -10,7 +10,7 @@
             <div class="flex-shrink-0">
                 @can('create', App\Models\Project::class)
                     <x-primary-button class="ml-2" onclick="location.href='{{ route('projects.create') }}'"><i
-                            class="fas fa-plus mr-1"></i>新規衣装案件</x-primary-button>
+                            class="fas fa-plus mr-1"></i>新規案件</x-primary-button>
                 @endcan
             </div>
         </div>
@@ -470,15 +470,15 @@
                     </ul>
                 </div>
                 <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
-                    <h5 class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4">衣装案件概要</h5>
+                    <h5 class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4">案件概要</h5>
                     <div class="space-y-3">
                         <div class="flex justify-between items-center">
-                            <span class="text-sm text-gray-600 dark:text-gray-400">全衣装案件数:</span>
+                            <span class="text-sm text-gray-600 dark:text-gray-400">全案件数:</span>
                             <span
                                 class="px-2 py-1 text-xs font-semibold text-blue-800 bg-blue-100 rounded-full dark:bg-blue-700 dark:text-blue-200">{{ $projectCount }}</span>
                         </div>
                         <div class="flex justify-between items-center">
-                            <span class="text-sm text-gray-600 dark:text-gray-400">進行中の衣装案件:</span>
+                            <span class="text-sm text-gray-600 dark:text-gray-400">進行中の案件:</span>
                             <span
                                 class="px-2 py-1 text-xs font-semibold text-green-800 bg-green-100 rounded-full dark:bg-green-700 dark:text-green-200">{{ $activeProjectCount }}</span>
                         </div>

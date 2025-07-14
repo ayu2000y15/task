@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ExternalProjectSubmission;
 use App\Models\FormFieldDefinition;
+use App\Models\FormFieldCategory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Arr;
@@ -13,6 +14,8 @@ use App\Models\User;
 use Illuminate\Support\Facades\Storage; // Storageファサードをインポート
 use App\Models\ManagedContact; // ★ ManagedContactモデルをuse
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\ExternalFormCompletionMail;
 
 class ExternalFormController extends Controller
 {
@@ -201,13 +204,43 @@ class ExternalFormController extends Controller
             }
         }
 
-        ExternalProjectSubmission::create([
+        $submission = ExternalProjectSubmission::create([
             'submitter_name' => $validatedData['submitter_name'],
             'submitter_email' => $validatedData['submitter_email'],
             'submitted_data' => $processedCustomData,
             'submitter_notes' => $validatedData['submitter_notes'] ?? null,
             'status' => 'new',
         ]);
+
+        // 送信完了メールを送信
+        $formCategory = FormFieldCategory::where('name', 'project')
+            ->where('type', 'form')
+            ->first();
+
+        if ($formCategory && $formCategory->send_completion_email) {
+            try {
+                $emailData = [
+                    'name' => $validatedData['submitter_name'],
+                    'email' => $validatedData['submitter_email'],
+                    'notes' => $validatedData['submitter_notes'] ?? '',
+                    'custom_fields' => $processedCustomData
+                ];
+
+                Mail::to($validatedData['submitter_email'])
+                    ->send(new ExternalFormCompletionMail(
+                        $formCategory,
+                        $emailData,
+                        $validatedData['submitter_email'],
+                        $validatedData['submitter_name']
+                    ));
+            } catch (\Exception $e) {
+                // メール送信エラーをログに記録するが、フォーム送信は成功として扱う
+                \Log::error('外部フォーム送信完了メールの送信に失敗しました: ' . $e->getMessage(), [
+                    'submitter_email' => $validatedData['submitter_email'],
+                    'form_category' => $formCategory->name
+                ]);
+            }
+        }
 
         return redirect()->route('external-form.thanks');
     }
@@ -256,8 +289,11 @@ class ExternalFormController extends Controller
         $this->authorize('view', $submission);
         $submission->load('processedBy');
 
+        // フォームカテゴリを取得
+        $formCategory = $submission->getFormCategory();
+
         // 全ての有効な案件依頼フィールド定義を取得 (順序も考慮)
-        $allFieldDefinitions = FormFieldDefinition::where('is_enabled', true)
+        $allFieldDefinitions = \App\Models\FormFieldDefinition::where('is_enabled', true)
             ->where('category', 'project')
             ->orderBy('order')
             ->orderBy('label')
@@ -288,8 +324,8 @@ class ExternalFormController extends Controller
                 ];
             }
         }
-        $statusOptions = ExternalProjectSubmission::STATUS_OPTIONS;
-        return view('admin.external_submissions.show', compact('submission', 'displayData', 'fileFields', 'statusOptions'));
+        $statusOptions = \App\Models\ExternalProjectSubmission::STATUS_OPTIONS;
+        return view('admin.external_submissions.show', compact('submission', 'displayData', 'fileFields', 'statusOptions', 'formCategory'));
     }
 
 
@@ -393,5 +429,251 @@ class ExternalFormController extends Controller
         $exists = ManagedContact::where('email', $request->input('email'))->exists();
 
         return response()->json(['exists' => $exists]);
+    }
+
+    /**
+     * 動的外部フォーム表示
+     */
+    public function showDynamicForm($slug)
+    {
+        $formCategory = \App\Models\FormFieldCategory::where('slug', $slug)
+            ->where('is_external_form', true)
+            ->where('is_enabled', true)
+            ->firstOrFail();
+
+        $customFormFields = FormFieldDefinition::where('is_enabled', true)
+            ->where('category', $formCategory->name)
+            ->orderBy('order')
+            ->orderBy('label')
+            ->get()
+            ->map(function ($field) {
+                $optionsString = '';
+                if (is_array($field->options)) {
+                    $optionsParts = [];
+                    foreach ($field->options as $value => $label) {
+                        $optionsParts[] = $value . ':' . $label;
+                    }
+                    $optionsString = implode(',', $optionsParts);
+                } elseif (is_string($field->options)) {
+                    $decoded = json_decode($field->options, true);
+                    if (is_array($decoded)) {
+                        $optionsParts = [];
+                        foreach ($decoded as $value => $label) {
+                            $optionsParts[] = $value . ':' . $label;
+                        }
+                        $optionsString = implode(',', $optionsParts);
+                    } else {
+                        $optionsString = $field->options;
+                    }
+                }
+
+                return [
+                    'name' => $field->name,
+                    'label' => $field->label,
+                    'type' => $field->type,
+                    'is_required' => $field->is_required,
+                    'placeholder' => $field->placeholder,
+                    'help_text' => $field->help_text,
+                    'options' => $optionsString,
+                ];
+            });
+
+        return view('external.dynamic_form', compact('customFormFields', 'formCategory'));
+    }
+
+    /**
+     * 動的外部フォーム送信処理
+     */
+    public function storeDynamicForm(Request $request, $slug)
+    {
+        $formCategory = \App\Models\FormFieldCategory::where('slug', $slug)
+            ->where('is_external_form', true)
+            ->where('is_enabled', true)
+            ->firstOrFail();
+
+        $customFormFields = FormFieldDefinition::where('is_enabled', true)
+            ->where('category', $formCategory->name)
+            ->orderBy('order')
+            ->get();
+
+        // バリデーションルール作成
+        $rules = [
+            'submitter_name' => 'required|string|max:255',
+            'submitter_email' => 'required|email|max:255',
+            'submitter_notes' => 'nullable|string|max:2000',
+        ];
+        $customFieldNames = [];
+
+        foreach ($customFormFields as $field) {
+            $fieldRules = [];
+
+            if ($field->is_required) {
+                $fieldRules[] = 'required';
+            } else {
+                $fieldRules[] = 'nullable';
+            }
+
+            // タイプ別バリデーション
+            switch ($field->type) {
+                case 'email':
+                    $fieldRules[] = 'email';
+                    break;
+                case 'number':
+                    $fieldRules[] = 'numeric';
+                    break;
+                case 'date':
+                    $fieldRules[] = 'date';
+                    break;
+                case 'tel':
+                    $fieldRules[] = 'string';
+                    if ($field->max_length) {
+                        $fieldRules[] = 'max:' . $field->max_length;
+                    }
+                    break;
+                case 'url':
+                    $fieldRules[] = 'url';
+                    break;
+                case 'text':
+                case 'textarea':
+                    $fieldRules[] = 'string';
+                    if ($field->max_length) {
+                        $fieldRules[] = 'max:' . $field->max_length;
+                    }
+                    break;
+                case 'select':
+                case 'radio':
+                    if ($field->options) {
+                        $optionsArray = is_array($field->options) ? $field->options : json_decode($field->options, true);
+                        if (is_array($optionsArray)) {
+                            $validValues = array_keys($optionsArray);
+                            $fieldRules[] = Rule::in($validValues);
+                        }
+                    }
+                    break;
+                case 'checkbox':
+                    $fieldRules[] = 'array';
+                    break;
+                case 'file':
+                    $fieldRules[] = 'file';
+                    $fieldRules[] = 'max:10240'; // 10MB
+                    break;
+                case 'file_multiple':
+                    $fieldRules[] = 'array';
+                    // 個別ファイルのバリデーション
+                    $rules['custom_' . $field->name . '.*'] = ['file', 'max:10240']; // 各ファイル10MB制限
+                    break;
+            }
+
+            $rules['custom_' . $field->name] = $fieldRules;
+            $customFieldNames[] = 'custom_' . $field->name;
+        }
+
+        $validator = Validator::make($request->all(), $rules);
+
+        if ($validator->fails()) {
+            return back()->withErrors($validator)->withInput();
+        }
+
+        // カスタムフィールドデータ準備
+        $customFieldData = [
+            'submitter_name' => $request->input('submitter_name'),
+            'submitter_email' => $request->input('submitter_email'),
+            'submitter_notes' => $request->input('submitter_notes'),
+            'form_category_id' => $formCategory->id, // フォームカテゴリIDを追加
+            'form_category_name' => $formCategory->name, // フォームカテゴリ名を追加
+        ];
+
+        foreach ($customFormFields as $field) {
+            $fieldName = 'custom_' . $field->name;
+            $value = $request->input($fieldName);
+
+            if ($field->type === 'file' && $request->hasFile($fieldName)) {
+                $file = $request->file($fieldName);
+                $filename = time() . '_' . $file->getClientOriginalName();
+                $path = $file->storeAs('external_submissions', $filename, 'public');
+                $value = $path;
+            } elseif ($field->type === 'file_multiple' && $request->hasFile($fieldName)) {
+                $files = $request->file($fieldName);
+                $storedFilePaths = [];
+                foreach ($files as $file) {
+                    $filename = time() . '_' . $file->getClientOriginalName();
+                    $path = $file->storeAs('external_submissions', $filename, 'public');
+                    $storedFilePaths[] = [
+                        'path' => $path,
+                        'original_name' => $file->getClientOriginalName(),
+                        'mime_type' => $file->getClientMimeType(),
+                        'size' => $file->getSize(),
+                    ];
+                }
+                $value = $storedFilePaths;
+            }
+
+            $customFieldData[$field->name] = $value;
+        }
+
+        // 申請データ保存
+        $submission = ExternalProjectSubmission::create([
+            'submitter_name' => $request->input('submitter_name'),
+            'submitter_email' => $request->input('submitter_email'),
+            'submitter_notes' => $request->input('submitter_notes'),
+            'submitted_data' => $customFieldData,
+            'status' => 'new', // 常に新規ステータスで登録
+        ]);
+
+        // 送信完了メールを送信
+        if ($formCategory->send_completion_email) {
+            try {
+                $emailData = [
+                    'name' => $request->input('submitter_name'),
+                    'email' => $request->input('submitter_email'),
+                    'notes' => $request->input('submitter_notes', ''),
+                    'custom_fields' => collect($customFormFields)->mapWithKeys(function ($field) use ($customFieldData) {
+                        return [$field->label => $customFieldData[$field->name] ?? ''];
+                    })->toArray()
+                ];
+
+                Mail::to($request->input('submitter_email'))
+                    ->send(new ExternalFormCompletionMail(
+                        $formCategory,
+                        $emailData,
+                        $request->input('submitter_email'),
+                        $request->input('submitter_name', '')
+                    ));
+            } catch (\Exception $e) {
+                // メール送信エラーをログに記録するが、フォーム送信は成功として扱う
+                \Log::error('外部フォーム送信完了メールの送信に失敗しました: ' . $e->getMessage(), [
+                    'submitter_email' => $request->input('submitter_email'),
+                    'form_category' => $formCategory->name,
+                    'form_slug' => $formCategory->slug
+                ]);
+            }
+        }
+
+        // 通知メール送信
+        if ($formCategory->notification_emails) {
+            try {
+                \Mail::to($formCategory->notification_emails)->send(
+                    new \App\Mail\ExternalFormSubmissionMail($submission, $formCategory)
+                );
+            } catch (\Exception $e) {
+                \Log::error('外部フォーム通知メール送信エラー: ' . $e->getMessage());
+            }
+        }
+
+        return redirect()->route('external-form.thanks', $slug)
+            ->with('success', 'フォームを送信しました。');
+    }
+
+    /**
+     * 動的外部フォーム完了画面
+     */
+    public function showDynamicThanks($slug)
+    {
+        $formCategory = \App\Models\FormFieldCategory::where('slug', $slug)
+            ->where('is_external_form', true)
+            ->where('is_enabled', true)
+            ->firstOrFail();
+
+        return view('external.form_thanks', compact('formCategory'));
     }
 }

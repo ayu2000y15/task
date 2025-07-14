@@ -1,9 +1,9 @@
 @extends('layouts.guest')
 
-@section('title', '衣装製作依頼')
+@section('title', '製作依頼')
 
 @section('content')
-    <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-6 text-center">衣装製作依頼フォーム</h1>
+    <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-6 text-center">製作依頼フォーム</h1>
 
     {{-- Global error display for file validation --}}
     <div id="globalFileError" class="hidden mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-md dark:bg-red-700/50 dark:text-red-200 dark:border-red-600" role="alert">

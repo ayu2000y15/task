@@ -1,11 +1,11 @@
 @extends('layouts.app')
 
-@section('title', '衣装案件編集 - ' . $project->title)
+@section('title', '案件編集 - ' . $project->title)
 
 @section('content')
     <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8" id="project-form-page">
         <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-            <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-200">衣装案件編集: {{ $project->title }}</h1>
+            <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-200">案件編集: {{ $project->title }}</h1>
             <div>
                 <a href="{{ route('projects.show', $project) }}"
                     class="inline-flex items-center px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md font-semibold text-xs text-gray-700 dark:text-gray-200 uppercase tracking-widest shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 disabled:opacity-25 transition ease-in-out duration-150 mr-2">
@@ -13,7 +13,7 @@
                 </a>
                 @can('delete', $project)
                     <form action="{{ route('projects.destroy', $project) }}" method="POST" class="inline-block"
-                        onsubmit="return confirm('本当に削除しますか？衣装案件内のすべての工程も削除されます。');">
+                        onsubmit="return confirm('本当に削除しますか？案件内のすべての工程も削除されます。');">
                         @csrf
                         @method('DELETE')
                         <x-danger-button type="submit">
@@ -35,6 +35,16 @@
                             <x-input-label for="title" value="案件名" :required="true" />
                             <x-text-input id="title" name="title" type="text" class="mt-1 block w-full" :value="old('title', $project->title)" required :hasError="$errors->has('title')" />
                             <x-input-error :messages="$errors->get('title')" class="mt-2" />
+                        </div>
+                        <div>
+                            <x-input-label for="project_category_id" value="案件カテゴリ" />
+                            <select id="project_category_id" name="project_category_id" class="form-select mt-1 block w-full rounded-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200">
+                                <option value="">選択してください</option>
+                                @foreach($categories as $cat)
+                                    <option value="{{ $cat->id }}" {{ old('project_category_id', $project->project_category_id) == $cat->id ? 'selected' : '' }}>{{ $cat->display_name ?? $cat->name }}</option>
+                                @endforeach
+                            </select>
+                            <x-input-error :messages="$errors->get('project_category_id')" class="mt-2" />
                         </div>
                         <div>
                             <x-input-label for="series_title" value="作品名" />

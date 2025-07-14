@@ -53,7 +53,7 @@
                 </a>
                 @can('create', App\Models\Project::class)
                     <x-primary-button class="ml-2" onclick="location.href='{{ route('projects.create') }}'"><i
-                            class="fas fa-plus mr-1"></i>新規衣装案件</x-primary-button>
+                            class="fas fa-plus mr-1"></i>新規案件</x-primary-button>
                 @endcan
             </div>
         </div>

@@ -14,12 +14,12 @@ class PermissionsSeeder extends Seeder
     {
         // パーミッションの基本セット
         $permissions = [
-            // 衣装案件関連
-            ['name' => 'projects.viewAny', 'display_name' => '衣装案件一覧（閲覧）', 'description' => '衣装案件の一覧を閲覧できます。'],
-            ['name' => 'projects.view', 'display_name' => '衣装案件詳細（閲覧）', 'description' => '衣装案件の詳細情報を閲覧できます。'],
-            ['name' => 'projects.create', 'display_name' => '衣装案件（作成）', 'description' => '新しい衣装案件を作成できます。'],
-            ['name' => 'projects.update', 'display_name' => '衣装案件（更新）', 'description' => '既存の衣装案件情報を編集できます。'],
-            ['name' => 'projects.delete', 'display_name' => '衣装案件（削除）', 'description' => '衣装案件を削除できます。'],
+            // 案件関連
+            ['name' => 'projects.viewAny', 'display_name' => '案件一覧（閲覧）', 'description' => '案件の一覧を閲覧できます。'],
+            ['name' => 'projects.view', 'display_name' => '案件詳細（閲覧）', 'description' => '案件の詳細情報を閲覧できます。'],
+            ['name' => 'projects.create', 'display_name' => '案件（作成）', 'description' => '新しい案件を作成できます。'],
+            ['name' => 'projects.update', 'display_name' => '案件（更新）', 'description' => '既存の案件情報を編集できます。'],
+            ['name' => 'projects.delete', 'display_name' => '案件（削除）', 'description' => '案件を削除できます。'],
 
             // 工程関連
             ['name' => 'tasks.viewAny', 'display_name' => '工程（閲覧）', 'description' => '工程の一覧を閲覧できます。'],

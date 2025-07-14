@@ -1,13 +1,13 @@
 {{-- resources/views/admin/external_submissions/show.blade.php --}}
 @extends('layouts.app')
 
-@section('title', '衣装案件依頼詳細 - ID: ' . $submission->id)
+@section('title', '外部フォーム詳細 - ID: ' . $submission->id)
 
 @section('content')
 <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
         <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-200">
-            衣装案件依頼詳細 - ID: {{ $submission->id }}
+            {{ $formCategory ? $formCategory->display_name : 'フォーム種別不明' }} - ID: {{ $submission->id }}
             {{-- ステータスバッジはサーバーサイドでレンダリングされるため、IDは必須ではなくなります --}}
             <span class="px-2 py-0.5 ml-2 inline-flex text-xs leading-5 font-semibold rounded-full
                 @switch($submission->status)
@@ -55,10 +55,10 @@
                 </div>
             </div>
 
-            {{-- 案件依頼フィールド入力内容カード --}}
+            {{-- 外部フォームフィールド入力内容カード --}}
             <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
                 <div class="p-6">
-                    <h3 class="text-lg font-semibold border-b border-gray-300 dark:border-gray-600 pb-2 mb-4">案件依頼フィールド入力内容</h3>
+                    <h3 class="text-lg font-semibold border-b border-gray-300 dark:border-gray-600 pb-2 mb-4">{{ $formCategory ? $formCategory->display_name : 'フォーム種別不明' }} フィールド入力内容</h3>
                     <div class="space-y-0">
                         @forelse ($displayData as $data)
                             <div class="grid grid-cols-[theme(spacing.40)_1fr] gap-x-2 items-start py-3 @if(!$loop->last || count($fileFields) > 0) border-b border-gray-200 dark:border-gray-700 @endif">

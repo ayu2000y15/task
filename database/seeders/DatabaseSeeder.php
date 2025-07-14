@@ -16,6 +16,7 @@ class DatabaseSeeder extends Seeder
             HolidaySeeder::class,
             RolesAndPermissionsSeeder::class,
             PermissionsSeeder::class,
+            ProjectCategorySeeder::class, // ←追加
         ]);
     }
 }

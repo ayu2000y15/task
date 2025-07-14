@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>衣装案件管理 - @yield('title', config('app.name', 'Laravel'))</title>
+    <title>案件管理 - @yield('title', config('app.name', 'Laravel'))</title>
 
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
@@ -84,7 +84,7 @@
         class="fixed inset-y-0 left-0 z-30 w-72 max-w-66 h-screen overflow-y-auto transition duration-300 ease-in-out transform bg-white shadow-lg dark:bg-gray-800 md:translate-x-0"
         :class="{'translate-x-0': sidebarOpen, '-translate-x-full': !sidebarOpen}">
         <div class="flex items-center justify-center h-16 bg-gray-50 dark:bg-gray-700">
-            <a href="{{ route('home.index') }}" class="text-xl font-semibold text-gray-700 dark:text-white">衣装案件管理</a>
+            <a href="{{ route('home.index') }}" class="text-xl font-semibold text-gray-700 dark:text-white">案件管理</a>
         </div>
 
         {{-- サイドバーナビゲーション --}}
@@ -94,7 +94,9 @@
                 openFavorites: localStorage.getItem('openFavorites') === null ? true : localStorage.getItem('openFavorites') === 'true',
                 openNormalProjects: localStorage.getItem('openNormalProjects') === null ? true : localStorage.getItem('openNormalProjects') === 'true',
                 openUpcomingTasks: localStorage.getItem('openUpcomingTasks') === null ? true : localStorage.getItem('openUpcomingTasks') === 'true',
-                openArchivedProjects: localStorage.getItem('openArchivedProjects') === null ? false : localStorage.getItem('openArchivedProjects') === 'true'
+                openArchivedProjects: localStorage.getItem('openArchivedProjects') === null ? false : localStorage.getItem('openArchivedProjects') === 'true',
+                openCategoryProjects: JSON.parse(localStorage.getItem('openCategoryProjects') || '{}'),
+                openArchivedCategoryProjects: JSON.parse(localStorage.getItem('openArchivedCategoryProjects') || '{}')
             }"
             x-init="
                 $watch('openProductivity', value => localStorage.setItem('openProductivity', value));
@@ -102,10 +104,12 @@
                 $watch('openNormalProjects', value => localStorage.setItem('openNormalProjects', value));
                 $watch('openUpcomingTasks', value => localStorage.setItem('openUpcomingTasks', value));
                 $watch('openArchivedProjects', value => localStorage.setItem('openArchivedProjects', value));
+                $watch('openCategoryProjects', value => localStorage.setItem('openCategoryProjects', JSON.stringify(value)));
+                $watch('openArchivedCategoryProjects', value => localStorage.setItem('openArchivedCategoryProjects', JSON.stringify(value)));
             ">
             @can('create', App\Models\Project::class)
             <a href="{{ route('projects.create') }}" class="flex items-center px-3 py-2 mb-3 text-sm font-medium text-gray-700 transition-colors duration-200 rounded-md dark:text-gray-200 hover:bg-gray-800 hover:text-white dark:hover:bg-blue-600">
-                <i class="fas fa-plus w-5 h-5 mr-2"></i> 新規衣装案件
+                <i class="fas fa-plus w-5 h-5 mr-2"></i> 新規案件
             </a>
             @endcan
 
@@ -325,116 +329,156 @@
                 </ul>
             </div>
 
-            {{-- 衣装案件セクション --}}
+            {{-- 案件セクション --}}
             <div>
                 <div @click="openNormalProjects = !openNormalProjects" class="flex items-center justify-between px-3 py-2 text-xs font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md cursor-pointer">
-                    <span>衣装案件（進行中） ({{ $activeProjects->count() }})</span>
+                    <span>案件（進行中） ({{ $activeProjects->count() }})</span>
                     <i class="fas fa-fw text-xs" :class="{'fa-chevron-down': openNormalProjects, 'fa-chevron-right': !openNormalProjects}"></i>
                 </div>
                 <div x-show="openNormalProjects" x-transition class="mt-1 space-y-1">
-                    @forelse($activeProjects as $project)
-                    @php
-                        $_projectStatusOptionsSb = ['' => '未設定'] + (\App\Models\Project::PROJECT_STATUS_OPTIONS ?? []);
-                        $_projectStatusIconsSb = [
-                            'not_started' => 'fa-minus-circle text-gray-400 dark:text-gray-500', '
-                            in_progress' => 'fa-play-circle text-blue-400 dark:text-blue-500',
-                            'completed'   => 'fa-check-circle text-green-400 dark:text-green-500',
-                            'on_hold'     => 'fa-pause-circle text-yellow-400 dark:text-yellow-500',
-                            'cancelled'   => 'fa-times-circle text-red-400 dark:text-red-500',
-                            '' => 'fa-question-circle text-gray-400 dark:text-gray-500',
-                        ];
-                        $_currentProjectStatusSb = $project->status ?? '';
-                        $_projectStatusTooltipSb = $_projectStatusOptionsSb[$_currentProjectStatusSb] ?? $_currentProjectStatusSb;
-                        $_projectStatusIconClassSb = $_projectStatusIconsSb[$_currentProjectStatusSb] ?? $_projectStatusIconsSb[''];
-                        $_deliveryFlagValueSb = $project->delivery_flag ?? '0';
-                        $_deliveryIconSb = $_deliveryFlagValueSb == '1' ? 'fa-check-circle text-green-400 dark:text-green-500' : 'fa-truck text-yellow-400 dark:text-yellow-500';
-                        $_deliveryTooltipSb = $_deliveryFlagValueSb == '1' ? '納品済み' : '未納品';
-                        $_paymentFlagOptionsSb = ['' => '未設定'] + (\App\Models\Project::PAYMENT_FLAG_OPTIONS ?? []);
-                        $_paymentFlagIconsSb = [
-                            'Pending'        => 'fa-clock text-yellow-400 dark:text-yellow-500', 'Processing'     => 'fa-hourglass-half text-blue-400 dark:text-blue-500',
-                            'Completed'      => 'fa-check-circle text-green-400 dark:text-green-500', 'Partially Paid' => 'fa-adjust text-orange-400 dark:text-orange-500',
-                            'Overdue'        => 'fa-exclamation-triangle text-red-400 dark:text-red-500', 'Cancelled'      => 'fa-ban text-gray-400 dark:text-gray-500',
-                            'Refunded'       => 'fa-undo text-purple-400 dark:text-purple-500', 'On Hold'        => 'fa-pause-circle text-indigo-400 dark:text-indigo-500',
-                            ''               => 'fa-question-circle text-gray-400 dark:text-gray-500',
-                        ];
-                        $_currentPaymentFlagSb = $project->payment_flag ?? '';
-                        $_paymentFlagTooltipSb = $_paymentFlagOptionsSb[$_currentPaymentFlagSb] ?? $_currentPaymentFlagSb;
-                        $_paymentFlagIconClassSb = $_paymentFlagIconsSb[$_currentPaymentFlagSb] ?? $_paymentFlagIconsSb[''];
-                    @endphp
-                    <a href="{{ route('projects.show', $project) }}"
-                       class="block px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 {{ (request()->is('projects/'.$project->id.'*') || (isset($currentProject) && $currentProject->id == $project->id)) ? 'bg-blue-500 text-white dark:bg-blue-600' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700' }}">
-                        <div class="project-link-content">
-                            <div class="project-title-group">
-                                <span class="flex items-center justify-center w-5 h-5 mr-2 text-xs font-bold text-white rounded flex-shrink-0" style="background-color: {{ $project->color ?? '#6c757d' }};">
-                                    {{ mb_substr($project->title, 0, 1) }}
-                                </span>
-                                <span class="project-title-text" title="{{ $project->title }}">{{ $project->title }}</span>
+                    @if($activeProjectsByCategory->isNotEmpty())
+                        @foreach($activeProjectsByCategory as $categoryKey => $projects)
+                            @php
+                                $categoryName = $categoryKey === 'uncategorized' ? '未分類' : ($projectCategories->where('name', $categoryKey)->first()->display_name ?? $categoryKey);
+                                $categoryId = 'category_' . str_replace([' ', '-'], '_', $categoryKey);
+                            @endphp
+                            <div class="ml-2">
+                                <div @click="openCategoryProjects['{{ $categoryId }}'] = !openCategoryProjects['{{ $categoryId }}']" 
+                                     class="flex items-center justify-between px-2 py-1 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
+                                    <span class="flex items-center">
+                                        <i class="fas fa-tag mr-1 text-blue-500"></i>
+                                        {{ $categoryName }} ({{ $projects->count() }})
+                                    </span>
+                                    <i class="fas fa-fw text-xs" :class="{'fa-chevron-down': openCategoryProjects['{{ $categoryId }}'], 'fa-chevron-right': !openCategoryProjects['{{ $categoryId }}']}"></i>
+                                </div>
+                                <div x-show="openCategoryProjects['{{ $categoryId }}']" x-transition class="ml-3 mt-1 space-y-1">
+                                    @foreach($projects as $project)
+                                        @php
+                                            $_projectStatusOptionsSb = ['' => '未設定'] + (\App\Models\Project::PROJECT_STATUS_OPTIONS ?? []);
+                                            $_projectStatusIconsSb = [
+                                                'not_started' => 'fa-minus-circle text-gray-400 dark:text-gray-500', 
+                                                'in_progress' => 'fa-play-circle text-blue-400 dark:text-blue-500',
+                                                'completed'   => 'fa-check-circle text-green-400 dark:text-green-500',
+                                                'on_hold'     => 'fa-pause-circle text-yellow-400 dark:text-yellow-500',
+                                                'cancelled'   => 'fa-times-circle text-red-400 dark:text-red-500',
+                                                '' => 'fa-question-circle text-gray-400 dark:text-gray-500',
+                                            ];
+                                            $_currentProjectStatusSb = $project->status ?? '';
+                                            $_projectStatusTooltipSb = $_projectStatusOptionsSb[$_currentProjectStatusSb] ?? $_currentProjectStatusSb;
+                                            $_projectStatusIconClassSb = $_projectStatusIconsSb[$_currentProjectStatusSb] ?? $_projectStatusIconsSb[''];
+                                            $_deliveryFlagValueSb = $project->delivery_flag ?? '0';
+                                            $_deliveryIconSb = $_deliveryFlagValueSb == '1' ? 'fa-check-circle text-green-400 dark:text-green-500' : 'fa-truck text-yellow-400 dark:text-yellow-500';
+                                            $_deliveryTooltipSb = $_deliveryFlagValueSb == '1' ? '納品済み' : '未納品';
+                                            $_paymentFlagOptionsSb = ['' => '未設定'] + (\App\Models\Project::PAYMENT_FLAG_OPTIONS ?? []);
+                                            $_paymentFlagIconsSb = [
+                                                'Pending'        => 'fa-clock text-yellow-400 dark:text-yellow-500', 'Processing'     => 'fa-hourglass-half text-blue-400 dark:text-blue-500',
+                                                'Completed'      => 'fa-check-circle text-green-400 dark:text-green-500', 'Partially Paid' => 'fa-adjust text-orange-400 dark:text-orange-500',
+                                                'Overdue'        => 'fa-exclamation-triangle text-red-400 dark:text-red-500', 'Cancelled'      => 'fa-ban text-gray-400 dark:text-gray-500',
+                                                'Refunded'       => 'fa-undo text-purple-400 dark:text-purple-500', 'On Hold'        => 'fa-pause-circle text-indigo-400 dark:text-indigo-500',
+                                                ''               => 'fa-question-circle text-gray-400 dark:text-gray-500',
+                                            ];
+                                            $_currentPaymentFlagSb = $project->payment_flag ?? '';
+                                            $_paymentFlagTooltipSb = $_paymentFlagOptionsSb[$_currentPaymentFlagSb] ?? $_currentPaymentFlagSb;
+                                            $_paymentFlagIconClassSb = $_paymentFlagIconsSb[$_currentPaymentFlagSb] ?? $_paymentFlagIconsSb[''];
+                                        @endphp
+                                        <a href="{{ route('projects.show', $project) }}"
+                                           class="block px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 {{ (request()->is('projects/'.$project->id.'*') || (isset($currentProject) && $currentProject->id == $project->id)) ? 'bg-blue-500 text-white dark:bg-blue-600' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700' }}">
+                                            <div class="project-link-content">
+                                                <div class="project-title-group">
+                                                    <span class="flex items-center justify-center w-5 h-5 mr-2 text-xs font-bold text-white rounded flex-shrink-0" style="background-color: {{ $project->color ?? '#6c757d' }};">
+                                                        {{ mb_substr($project->title, 0, 1) }}
+                                                    </span>
+                                                    <span class="project-title-text" title="{{ $project->title }}">{{ $project->title }}</span>
+                                                </div>
+                                                <div class="project-status-icons-sidebar text-xs">
+                                                     @if($project->status)<span title="案件ステータス: {{ $_projectStatusTooltipSb }}"><i class="fas {{ $_projectStatusIconClassSb }}"></i></span>@endif
+                                                    <span title="納品状況: {{ $_deliveryTooltipSb }}"><i class="fas {{ $_deliveryIconSb }}"></i></span>
+                                                    @if($project->payment_flag)<span title="支払い状況: {{ $_paymentFlagTooltipSb }}"><i class="fas {{ $_paymentFlagIconClassSb }}"></i></span>@endif
+                                                </div>
+                                            </div>
+                                        </a>
+                                    @endforeach
+                                </div>
                             </div>
-                            <div class="project-status-icons-sidebar text-xs">
-                                 @if($project->status)<span title="案件ステータス: {{ $_projectStatusTooltipSb }}"><i class="fas {{ $_projectStatusIconClassSb }}"></i></span>@endif
-                                <span title="納品状況: {{ $_deliveryTooltipSb }}"><i class="fas {{ $_deliveryIconSb }}"></i></span>
-                                @if($project->payment_flag)<span title="支払い状況: {{ $_paymentFlagTooltipSb }}"><i class="fas {{ $_paymentFlagIconClassSb }}"></i></span>@endif
-                            </div>
-                        </div>
-                    </a>
-                    @empty
-                        <p class="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">衣装案件はありません</p>
-                    @endforelse
+                        @endforeach
+                    @else
+                        <p class="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">案件はありません</p>
+                    @endif
                 </div>
             </div>
 
-            {{-- 衣装案件（完了・キャンセル）セクション --}}
+            {{-- 案件（完了・キャンセル）セクション --}}
             <div>
                 <div @click="openArchivedProjects = !openArchivedProjects" class="flex items-center justify-between px-3 py-2 text-xs font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md cursor-pointer">
-                    <span>衣装案件（完了・キャンセル） ({{ $archivedProjects->count() }})</span>
+                    <span>案件（完了・キャンセル） ({{ $archivedProjects->count() }})</span>
                     <i class="fas fa-fw text-xs" :class="{'fa-chevron-down': openArchivedProjects, 'fa-chevron-right': !openArchivedProjects}"></i>
                 </div>
                 <div x-show="openArchivedProjects" x-transition class="mt-1 space-y-1">
-                    @forelse($archivedProjects as $project)
-                    @php
-                        $_projectStatusOptionsSb = ['' => '未設定'] + (\App\Models\Project::PROJECT_STATUS_OPTIONS ?? []);
-                        $_projectStatusIconsSb = [
-                            'not_started' => 'fa-minus-circle text-gray-400 dark:text-gray-500', 'in_progress' => 'fa-play-circle text-blue-400 dark:text-blue-500',
-                            'completed'   => 'fa-check-circle text-green-400 dark:text-green-500', 'on_hold'     => 'fa-pause-circle text-yellow-400 dark:text-yellow-500',
-                            'cancelled'   => 'fa-times-circle text-red-400 dark:text-red-500', '' => 'fa-question-circle text-gray-400 dark:text-gray-500',
-                        ];
-                        $_currentProjectStatusSb = $project->status ?? '';
-                        $_projectStatusTooltipSb = $_projectStatusOptionsSb[$_currentProjectStatusSb] ?? $_currentProjectStatusSb;
-                        $_projectStatusIconClassSb = $_projectStatusIconsSb[$_currentProjectStatusSb] ?? $_projectStatusIconsSb[''];
-                        $_deliveryFlagValueSb = $project->delivery_flag ?? '0';
-                        $_deliveryIconSb = $_deliveryFlagValueSb == '1' ? 'fa-check-circle text-green-400 dark:text-green-500' : 'fa-truck text-yellow-400 dark:text-yellow-500';
-                        $_deliveryTooltipSb = $_deliveryFlagValueSb == '1' ? '納品済み' : '未納品';
-                        $_paymentFlagOptionsSb = ['' => '未設定'] + (\App\Models\Project::PAYMENT_FLAG_OPTIONS ?? []);
-                        $_paymentFlagIconsSb = [
-                            'Pending'        => 'fa-clock text-yellow-400 dark:text-yellow-500', 'Processing'     => 'fa-hourglass-half text-blue-400 dark:text-blue-500',
-                            'Completed'      => 'fa-check-circle text-green-400 dark:text-green-500', 'Partially Paid' => 'fa-adjust text-orange-400 dark:text-orange-500',
-                            'Overdue'        => 'fa-exclamation-triangle text-red-400 dark:text-red-500', 'Cancelled'      => 'fa-ban text-gray-400 dark:text-gray-500',
-                            'Refunded'       => 'fa-undo text-purple-400 dark:text-purple-500', 'On Hold'        => 'fa-pause-circle text-indigo-400 dark:text-indigo-500',
-                            ''               => 'fa-question-circle text-gray-400 dark:text-gray-500',
-                        ];
-                        $_currentPaymentFlagSb = $project->payment_flag ?? '';
-                        $_paymentFlagTooltipSb = $_paymentFlagOptionsSb[$_currentPaymentFlagSb] ?? $_currentPaymentFlagSb;
-                        $_paymentFlagIconClassSb = $_paymentFlagIconsSb[$_currentPaymentFlagSb] ?? $_paymentFlagIconsSb[''];
-                    @endphp
-                    <a href="{{ route('projects.show', $project) }}"
-                    class="block px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 {{ (request()->is('projects/'.$project->id.'*') || (isset($currentProject) && $currentProject->id == $project->id)) ? 'bg-blue-500 text-white dark:bg-blue-600' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700' }}">
-                        <div class="project-link-content">
-                            <div class="project-title-group">
-                                <span class="flex items-center justify-center w-5 h-5 mr-2 text-xs font-bold text-white rounded flex-shrink-0" style="background-color: {{ $project->color ?? '#6c757d' }};">
-                                    {{ mb_substr($project->title, 0, 1) }}
-                                </span>
-                                <span class="project-title-text" title="{{ $project->title }}">{{ $project->title }}</span>
+                    @if($archivedProjectsByCategory->isNotEmpty())
+                        @foreach($archivedProjectsByCategory as $categoryKey => $projects)
+                            @php
+                                $categoryName = $categoryKey === 'uncategorized' ? '未分類' : ($projectCategories->where('name', $categoryKey)->first()->display_name ?? $categoryKey);
+                                $categoryId = 'archived_category_' . str_replace([' ', '-'], '_', $categoryKey);
+                            @endphp
+                            <div class="ml-2">
+                                <div @click="openArchivedCategoryProjects['{{ $categoryId }}'] = !openArchivedCategoryProjects['{{ $categoryId }}']" 
+                                     class="flex items-center justify-between px-2 py-1 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
+                                    <span class="flex items-center">
+                                        <i class="fas fa-tag mr-1 text-gray-500"></i>
+                                        {{ $categoryName }} ({{ $projects->count() }})
+                                    </span>
+                                    <i class="fas fa-fw text-xs" :class="{'fa-chevron-down': openArchivedCategoryProjects['{{ $categoryId }}'], 'fa-chevron-right': !openArchivedCategoryProjects['{{ $categoryId }}']}"></i>
+                                </div>
+                                <div x-show="openArchivedCategoryProjects['{{ $categoryId }}']" x-transition class="ml-3 mt-1 space-y-1">
+                                    @foreach($projects as $project)
+                                        @php
+                                            $_projectStatusOptionsSb = ['' => '未設定'] + (\App\Models\Project::PROJECT_STATUS_OPTIONS ?? []);
+                                            $_projectStatusIconsSb = [
+                                                'not_started' => 'fa-minus-circle text-gray-400 dark:text-gray-500', 'in_progress' => 'fa-play-circle text-blue-400 dark:text-blue-500',
+                                                'completed'   => 'fa-check-circle text-green-400 dark:text-green-500', 'on_hold'     => 'fa-pause-circle text-yellow-400 dark:text-yellow-500',
+                                                'cancelled'   => 'fa-times-circle text-red-400 dark:text-red-500', '' => 'fa-question-circle text-gray-400 dark:text-gray-500',
+                                            ];
+                                            $_currentProjectStatusSb = $project->status ?? '';
+                                            $_projectStatusTooltipSb = $_projectStatusOptionsSb[$_currentProjectStatusSb] ?? $_currentProjectStatusSb;
+                                            $_projectStatusIconClassSb = $_projectStatusIconsSb[$_currentProjectStatusSb] ?? $_projectStatusIconsSb[''];
+                                            $_deliveryFlagValueSb = $project->delivery_flag ?? '0';
+                                            $_deliveryIconSb = $_deliveryFlagValueSb == '1' ? 'fa-check-circle text-green-400 dark:text-green-500' : 'fa-truck text-yellow-400 dark:text-yellow-500';
+                                            $_deliveryTooltipSb = $_deliveryFlagValueSb == '1' ? '納品済み' : '未納品';
+                                            $_paymentFlagOptionsSb = ['' => '未設定'] + (\App\Models\Project::PAYMENT_FLAG_OPTIONS ?? []);
+                                            $_paymentFlagIconsSb = [
+                                                'Pending'        => 'fa-clock text-yellow-400 dark:text-yellow-500', 'Processing'     => 'fa-hourglass-half text-blue-400 dark:text-blue-500',
+                                                'Completed'      => 'fa-check-circle text-green-400 dark:text-green-500', 'Partially Paid' => 'fa-adjust text-orange-400 dark:text-orange-500',
+                                                'Overdue'        => 'fa-exclamation-triangle text-red-400 dark:text-red-500', 'Cancelled'      => 'fa-ban text-gray-400 dark:text-gray-500',
+                                                'Refunded'       => 'fa-undo text-purple-400 dark:text-purple-500', 'On Hold'        => 'fa-pause-circle text-indigo-400 dark:text-indigo-500',
+                                                ''               => 'fa-question-circle text-gray-400 dark:text-gray-500',
+                                            ];
+                                            $_currentPaymentFlagSb = $project->payment_flag ?? '';
+                                            $_paymentFlagTooltipSb = $_paymentFlagOptionsSb[$_currentPaymentFlagSb] ?? $_currentPaymentFlagSb;
+                                            $_paymentFlagIconClassSb = $_paymentFlagIconsSb[$_currentPaymentFlagSb] ?? $_paymentFlagIconsSb[''];
+                                        @endphp
+                                        <a href="{{ route('projects.show', $project) }}"
+                                        class="block px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 {{ (request()->is('projects/'.$project->id.'*') || (isset($currentProject) && $currentProject->id == $project->id)) ? 'bg-blue-500 text-white dark:bg-blue-600' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700' }}">
+                                            <div class="project-link-content">
+                                                <div class="project-title-group">
+                                                    <span class="flex items-center justify-center w-5 h-5 mr-2 text-xs font-bold text-white rounded flex-shrink-0" style="background-color: {{ $project->color ?? '#6c757d' }};">
+                                                        {{ mb_substr($project->title, 0, 1) }}
+                                                    </span>
+                                                    <span class="project-title-text" title="{{ $project->title }}">{{ $project->title }}</span>
+                                                </div>
+                                                <div class="project-status-icons-sidebar text-xs">
+                                                    @if($project->status)<span title="案件ステータス: {{ $_projectStatusTooltipSb }}"><i class="fas {{ $_projectStatusIconClassSb }}"></i></span>@endif
+                                                    <span title="納品状況: {{ $_deliveryTooltipSb }}"><i class="fas {{ $_deliveryIconSb }}"></i></span>
+                                                    @if($project->payment_flag)<span title="支払い状況: {{ $_paymentFlagTooltipSb }}"><i class="fas {{ $_paymentFlagIconClassSb }}"></i></span>@endif
+                                                </div>
+                                            </div>
+                                        </a>
+                                    @endforeach
+                                </div>
                             </div>
-                            <div class="project-status-icons-sidebar text-xs">
-                                @if($project->status)<span title="案件ステータス: {{ $_projectStatusTooltipSb }}"><i class="fas {{ $_projectStatusIconClassSb }}"></i></span>@endif
-                                <span title="納品状況: {{ $_deliveryTooltipSb }}"><i class="fas {{ $_deliveryIconSb }}"></i></span>
-                                @if($project->payment_flag)<span title="支払い状況: {{ $_paymentFlagTooltipSb }}"><i class="fas {{ $_paymentFlagIconClassSb }}"></i></span>@endif
-                            </div>
-                        </div>
-                    </a>
-                    @empty
+                        @endforeach
+                    @else
                         <p class="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">完了・キャンセルの案件はありません</p>
-                    @endforelse
+                    @endif
                 </div>
             </div>
 
@@ -502,8 +546,8 @@
                     @endcan
                     @can('viewAny', App\Models\Project::class)
                     <a class="inline-flex items-center p-2 text-sm font-medium rounded-md {{ (request()->routeIs('projects.*') || (isset($currentProject) && request()->is('projects/*'))) && !request()->routeIs('projects.*.tasks.*') ? 'text-blue-600 bg-blue-100 dark:text-blue-300 dark:bg-gray-700' : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700' }}"
-                        href="{{ route('projects.index') }}" title="衣装案件">
-                        <i class="fas fa-tshirt"></i><span class="hidden md:inline ml-2">衣装案件</span>
+                        href="{{ route('projects.index') }}" title="案件">
+                        <i class="fas fa-tshirt"></i><span class="hidden md:inline ml-2">案件</span>
                     </a>
                     @endcan
 
@@ -571,7 +615,7 @@
                                 <div x-show="openGroup === 'group1'" x-transition class="bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-600">
                                     @can('viewAny', App\Models\ExternalProjectSubmission::class)
                                     <a href="{{ route('admin.external-submissions.index') }}" class="flex justify-between items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
-                                        案件依頼一覧
+                                        外部フォーム一覧
                                         @if(isset($newExternalSubmissionsCountGlobal) && $newExternalSubmissionsCountGlobal > 0)
                                             <span class="ml-auto inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-red-600 rounded-full">{{ $newExternalSubmissionsCountGlobal }}</span>
                                         @endif
@@ -669,6 +713,9 @@
                                     @can('viewAny', App\Models\BoardPostType::class)
                                         <a href="{{ route('admin.board-post-types.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">投稿タイプ管理</a>
                                     @endcan
+                                    @can('viewAny', App\Models\BoardPostType::class)
+                                        <a href="{{ route('admin.form-categories.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">外部フォーム管理</a>
+                                    @endcan
                                 </div>
                             </div>
                             @php if($canViewGroup3) $isFirstVisibleGroup = false; @endphp
@@ -701,11 +748,6 @@
                                     @can('viewAny', App\Models\User::class)
                                     <a href="javascript:void(0)" onclick="copyLink(this)" data-copy-value="{{ url('/register') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
                                         新規ユーザー登録リンク
-                                    </a>
-                                    @endcan
-                                    @can('viewAny', App\Models\ExternalProjectSubmission::class)
-                                    <a href="javascript:void(0)" onclick="copyLink(this)" data-copy-value="{{ url('/costume-request') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
-                                        案件依頼リンク
                                     </a>
                                     @endcan
                                 </div>

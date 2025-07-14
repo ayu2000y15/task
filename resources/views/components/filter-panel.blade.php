@@ -9,7 +9,7 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
                 <label for="project_id_filter"
-                    class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">衣装案件</label>
+                    class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">案件</label>
                 <select id="project_id_filter" name="project_id"
                     class="form-select mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 dark:focus:border-indigo-500">
                     <option value="">すべて</option>

@@ -5,7 +5,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>コスプラットフォーム株式会社 - @yield('title', '衣装製作依頼フォーム')</title>
+    <title>コスプラットフォーム株式会社 - @yield('title', '製作依頼フォーム')</title>
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
     <link rel="preconnect" href="https://fonts.bunny.net">

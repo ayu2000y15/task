@@ -31,7 +31,7 @@ class TaskService
     }
 
     /**
-     * 衣装案件IDでフィルタリング
+     * 案件IDでフィルタリング
      */
     public function applyProjectFilter(Builder|Relation $query, ?string $projectId): void
     {

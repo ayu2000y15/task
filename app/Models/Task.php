@@ -154,7 +154,7 @@ class Task extends Model
     }
 
     /**
-     * この工程が属する衣装案件
+     * この工程が属する案件
      */
     public function project()
     {

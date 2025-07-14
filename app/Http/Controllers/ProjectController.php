@@ -17,6 +17,7 @@ use App\Models\InventoryItem;
 use Illuminate\Database\Eloquent\Collection;
 use App\Models\WorkLog;
 use App\Models\Cost;
+use App\Models\ProjectCategory;
 
 class ProjectController extends Controller
 {
@@ -125,6 +126,7 @@ class ProjectController extends Controller
             ],
             'target_material_cost' => ($isUpdate ? 'sometimes|' : '') . 'nullable|integer|min:0',
             'target_labor_cost_rate' => ($isUpdate ? 'sometimes|' : '') . 'nullable|integer|min:0',
+            'project_category_id' => 'nullable|exists:project_categories,id',
         ];
         $dedicatedAttributeNames = [
             'title' => '案件名',
@@ -146,6 +148,7 @@ class ProjectController extends Controller
             'target_cost' => '予算',
             'target_material_cost' => '目標材料費',
             'target_labor_cost_rate' => '目標人件費 時給',
+            'project_category_id' => '案件カテゴリ',
         ];
 
         $rules = array_merge($rules, $dedicatedRules);
@@ -274,7 +277,7 @@ class ProjectController extends Controller
     public function index()
     {
         $this->authorize('viewAny', Project::class);
-        $allProjects = Project::orderBy('start_date')->orderBy('title')->get();
+        $allProjects = Project::with('projectCategory')->orderBy('start_date')->orderBy('title')->get();
 
         // 「完了」または「キャンセル」のステータスを持つ案件をアーカイブ済みとする
         $archivedStatuses = ['completed', 'cancelled'];
@@ -284,7 +287,31 @@ class ProjectController extends Controller
             return in_array($project->status, $archivedStatuses);
         });
 
-        return view('projects.index', compact('activeProjects', 'archivedProjects'));
+        // カテゴリ情報を取得（display_order順）
+        $categories = \App\Models\ProjectCategory::orderBy('display_order')->orderBy('name')->get();
+
+        // カテゴリ別にグループ化（並び順考慮）
+        $activeProjectsByCategory = $activeProjects->groupBy(function ($project) {
+            return $project->projectCategory ? $project->projectCategory->name : 'uncategorized';
+        })->sortBy(function ($projects, $categoryKey) use ($categories) {
+            if ($categoryKey === 'uncategorized') {
+                return 999999; // 未分類を最後に
+            }
+            $category = $categories->where('name', $categoryKey)->first();
+            return $category ? $category->display_order : 999998;
+        });
+
+        $archivedProjectsByCategory = $archivedProjects->groupBy(function ($project) {
+            return $project->projectCategory ? $project->projectCategory->name : 'uncategorized';
+        })->sortBy(function ($projects, $categoryKey) use ($categories) {
+            if ($categoryKey === 'uncategorized') {
+                return 999999; // 未分類を最後に
+            }
+            $category = $categories->where('name', $categoryKey)->first();
+            return $category ? $category->display_order : 999998;
+        });
+
+        return view('projects.index', compact('activeProjects', 'archivedProjects', 'activeProjectsByCategory', 'archivedProjectsByCategory', 'categories'));
     }
 
     /**
@@ -294,11 +321,11 @@ class ProjectController extends Controller
     {
         $this->authorize('create', Project::class);
         $customFormFields = $this->getProjectCustomFieldDefinitions(null);
-        $formDisplayName = '新規衣装案件';
-
+        $formDisplayName = '新規案件';
         $prefillStandardData = [];
         $prefillCustomAttributes = [];
         $externalSubmission = null;
+        $categories = ProjectCategory::all();
 
         if ($request->has('external_request_id')) {
             $externalRequestId = $request->input('external_request_id');
@@ -316,6 +343,10 @@ class ProjectController extends Controller
                     $prefillStandardData['budget'] = $externalSubmission->budget ?? null;
                     $prefillStandardData['target_cost'] = $externalSubmission->target_cost ?? null;
 
+                    // フォームカテゴリから案件カテゴリを取得
+                    if ($externalSubmission->formCategory && $externalSubmission->formCategory->project_category_id) {
+                        $prefillStandardData['project_category_id'] = $externalSubmission->formCategory->project_category_id;
+                    }
 
                     $prefillCustomAttributes = $externalSubmission->submitted_data ?? [];
                     logger()->info('Prefill Custom Attributes for view:', $prefillCustomAttributes);
@@ -328,7 +359,7 @@ class ProjectController extends Controller
             }
         }
 
-        return view('projects.create', compact('customFormFields', 'formDisplayName', 'prefillStandardData', 'prefillCustomAttributes', 'externalSubmission'));
+        return view('projects.create', compact('customFormFields', 'formDisplayName', 'prefillStandardData', 'prefillCustomAttributes', 'externalSubmission', 'categories'));
     }
 
     /**
@@ -359,6 +390,7 @@ class ProjectController extends Controller
             'target_cost',
             'target_material_cost',
             'target_labor_cost_rate',
+            'project_category_id', // 追加
         ]);
         if (empty($dedicatedData['title'])) {
             $dedicatedData['title'] = '名称未設定案件 - ' . now()->format('YmdHis');
@@ -386,6 +418,11 @@ class ProjectController extends Controller
         $dedicatedData['target_material_cost'] = $dedicatedData['target_material_cost'] === '' ? null : $dedicatedData['target_material_cost'];
         $dedicatedData['target_labor_cost_rate'] = $dedicatedData['target_labor_cost_rate'] === '' ? null : $dedicatedData['target_labor_cost_rate'];
 
+
+        // project_category_idが空文字や未選択の場合はnullにする
+        if (array_key_exists('project_category_id', $dedicatedData) && (is_null($dedicatedData['project_category_id']) || $dedicatedData['project_category_id'] === '')) {
+            $dedicatedData['project_category_id'] = null;
+        }
 
         $project = new Project();
         $project->fill($dedicatedData);
@@ -480,7 +517,7 @@ class ProjectController extends Controller
             }
         }
 
-        return redirect()->route('projects.show', $project)->with('success', '衣装案件が作成されました。');
+        return redirect()->route('projects.show', $project)->with('success', '案件が作成されました。');
     }
 
     /**
@@ -489,6 +526,9 @@ class ProjectController extends Controller
     public function show(Request $request, Project $project)
     {
         $this->authorize('view', $project);
+
+        // プロジェクトカテゴリのリレーションを読み込み
+        $project->load('projectCategory');
 
         $appendTasksRecursively = function ($parentId, $tasksGroupedByParent, &$sortedTasksList) use (&$appendTasksRecursively) {
             $keyForGrouping = $parentId === null ? '' : $parentId;
@@ -817,8 +857,9 @@ class ProjectController extends Controller
     {
         $this->authorize('update', $project);
         $customFormFields = $this->getProjectCustomFieldDefinitions($project);
-        $formDisplayName = '衣装案件編集';
-        return view('projects.edit', compact('project', 'customFormFields', 'formDisplayName'));
+        $formDisplayName = '案件編集';
+        $categories = ProjectCategory::all();
+        return view('projects.edit', compact('project', 'customFormFields', 'formDisplayName', 'categories'));
     }
 
     /**
@@ -830,7 +871,6 @@ class ProjectController extends Controller
         $currentCustomFieldDefinitions = $this->getProjectCustomFieldDefinitions($project);
         $validationConfig = $this->buildValidationRulesAndNames($currentCustomFieldDefinitions, $request, true, $project);
         $validatedData = Validator::make($request->all(), $validationConfig['rules'], $validationConfig['messages'], $validationConfig['names'])->validate();
-
         $dedicatedDataToUpdate = Arr::only($validatedData, [
             'title',
             'series_title',
@@ -848,6 +888,7 @@ class ProjectController extends Controller
             'target_cost',
             'target_material_cost',
             'target_labor_cost_rate',
+            'project_category_id', // 追加
         ]);
         if ($request->has('is_favorite') || array_key_exists('is_favorite', $validatedData)) {
             $dedicatedDataToUpdate['is_favorite'] = $request->boolean('is_favorite');
@@ -879,6 +920,11 @@ class ProjectController extends Controller
             $dedicatedDataToUpdate['tracking_info'] = array_values(array_filter($dedicatedDataToUpdate['tracking_info'], function ($item) {
                 return !empty($item['carrier']) && !empty($item['number']);
             }));
+        }
+
+        // project_category_idが空文字や未選択の場合はnullにする
+        if (array_key_exists('project_category_id', $dedicatedDataToUpdate) && (is_null($dedicatedDataToUpdate['project_category_id']) || $dedicatedDataToUpdate['project_category_id'] === '')) {
+            $dedicatedDataToUpdate['project_category_id'] = null;
         }
 
         $customAttributesValues = $project->attributes ?? [];
@@ -969,7 +1015,7 @@ class ProjectController extends Controller
             }
         }
 
-        return redirect()->route('projects.show', $project)->with('success', '衣装案件が更新されました。');
+        return redirect()->route('projects.show', $project)->with('success', '案件が更新されました。');
     }
 
     /**
@@ -1034,7 +1080,7 @@ class ProjectController extends Controller
         $project->delete();
 
         return redirect()->route('projects.index')
-            ->with('success', '衣装案件が削除されました。');
+            ->with('success', '案件が削除されました。');
     }
 
     /**

@@ -121,7 +121,7 @@ class ProjectControllerTest extends TestCase
 
         // アクティビティログの確認
         $this->assertDatabaseHas('activity_log', [
-            'description' => "衣装案件「{$project->title}」が作成されました",
+            'description' => "案件「{$project->title}」が作成されました",
             'subject_type' => Project::class,
             'subject_id' => $project->id,
             'causer_id' => $this->user->id,
@@ -241,7 +241,7 @@ class ProjectControllerTest extends TestCase
 
         // アクティビティログの確認
         $this->assertDatabaseHas('activity_log', [
-            'description' => "衣装案件「Updated Title」が更新されました",
+            'description' => "案件「Updated Title」が更新されました",
             'subject_type' => Project::class,
             'subject_id' => $project->id,
         ]);
@@ -328,7 +328,7 @@ class ProjectControllerTest extends TestCase
         Storage::disk('public')->assertMissing($filePath);
 
         $response->assertRedirect(route('projects.index'));
-        $response->assertSessionHas('success', '衣装案件が削除されました。');
+        $response->assertSessionHas('success', '案件が削除されました。');
     }
 
     /**

@@ -7,6 +7,14 @@
         @endif
     </div>
     <div class="p-5 flex-grow space-y-4">
+        @if($project->projectCategory)
+        <div class="flex justify-start">
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-200">
+                <i class="fas fa-tag mr-1"></i>
+                {{ $project->projectCategory->display_name ?? $project->projectCategory->name }}
+            </span>
+        </div>
+        @endif
         <div>
             <small class="text-gray-500 dark:text-gray-400">期間:</small>
             <p class="text-sm text-gray-700 dark:text-gray-300 mb-0">{{ $project->start_date->format('Y/m/d') }}
