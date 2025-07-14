@@ -134,7 +134,13 @@ class FormFieldDefinitionController extends Controller
         $this->authorize('update', $formFieldDefinition); // 認可
 
         $fieldTypes = FormFieldDefinition::FIELD_TYPES;
-        $categories = FormFieldDefinition::CATEGORIES;
+        // データベースからカテゴリを取得（お知らせを除外）
+        $categories = FormFieldCategory::enabled()
+            ->excludeAnnouncement()
+            ->ordered()
+            ->pluck('display_name', 'name')
+            ->toArray();
+
         $optionsText = '';
         if (!is_null($formFieldDefinition->options) && is_array($formFieldDefinition->options)) {
             $tempOptions = [];
