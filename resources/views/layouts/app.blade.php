@@ -713,7 +713,7 @@
                                     @can('viewAny', App\Models\BoardPostType::class)
                                         <a href="{{ route('admin.board-post-types.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">投稿タイプ管理</a>
                                     @endcan
-                                    @can('viewAny', App\Models\BoardPostType::class)
+                                    @can('viewAny', App\Models\FormFieldDefinition::class)
                                         <a href="{{ route('admin.form-categories.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">外部フォーム管理</a>
                                     @endcan
                                 </div>
