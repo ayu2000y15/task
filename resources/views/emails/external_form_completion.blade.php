@@ -98,7 +98,7 @@
         }
 
         .message-content {
-            white-space: pre-line;
+            white-space: pre-wrap;
         }
     </style>
 </head>
@@ -145,19 +145,32 @@
                 @endif
 
                 @if(!empty($submissionData['custom_fields']))
-                    @foreach($submissionData['custom_fields'] as $fieldName => $fieldValue)
-                        @if(!empty($fieldValue))
-                            <div class="detail-item">
-                                <div class="detail-label">{{ $fieldName }}</div>
-                                <div class="detail-value">
-                                    @if(is_array($fieldValue))
-                                        {{ implode('、', $fieldValue) }}
-                                    @else
-                                        <span class="message-content">{{ $fieldValue }}</span>
-                                    @endif
-                                </div>
+                    @foreach($submissionData['custom_fields'] as $field)
+                        <div class="detail-item">
+                            {{-- フィールド名($fieldName)の代わりに表示ラベル($field['label'])を使用 --}}
+                            <div class="detail-label">{{ $field['label'] }}</div>
+                            <div class="detail-value">
+                                @php $fieldValue = $field['value']; @endphp
+
+                                @if(in_array($field['type'], ['file', 'file_multiple']) && !empty($fieldValue))
+                                    @php
+                                        // 単一ファイルも複数ファイルも同じように扱えるよう配列に統一
+                                        $files = ($field['type'] === 'file' && is_array($fieldValue)) ? [$fieldValue] : $fieldValue;
+                                    @endphp
+                                    <ul style="list-style: none; padding: 0; margin: 0;">
+                                        @foreach($files as $fileInfo)
+                                            @if(is_array($fileInfo) && isset($fileInfo['original_name']))
+                                                <li>{{ $fileInfo['original_name'] }}</li>
+                                            @endif
+                                        @endforeach
+                                    </ul>
+                                @elseif(is_array($fieldValue))
+                                    {{ implode('、', $fieldValue) }}
+                                @else
+                                    <span class="message-content">{{ $fieldValue }}</span>
+                                @endif
                             </div>
-                        @endif
+                        </div>
                     @endforeach
                 @endif
             </div>

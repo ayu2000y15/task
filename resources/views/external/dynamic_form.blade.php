@@ -337,7 +337,7 @@
                 <div class="pt-6 border-t border-gray-200">
                     <button type="submit"
                             class="w-full bg-blue-600 text-white py-4 px-6 rounded-lg hover:bg-blue-700 focus:ring-4 focus:ring-blue-500 focus:ring-opacity-50 transition duration-200 font-medium text-lg">
-                        送信する
+                        送信内容を確認する
                     </button>
                 </div>
             </form>

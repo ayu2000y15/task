@@ -623,11 +623,26 @@ class ExternalFormController extends Controller
         // 送信完了メールを送信
         if ($formCategory->send_completion_email) {
             try {
+                $emailCustomFields = [];
+                foreach ($customFormFields as $field) {
+                    // 保存されたデータから値を取得
+                    $fieldValue = $customFieldData[$field->name] ?? null;
+
+                    // 値が空でないフィールドのみメールに記載
+                    if (!empty($fieldValue)) {
+                        $emailCustomFields[] = [
+                            'label' => $field->label, // ★ 表示ラベルを取得
+                            'value' => $fieldValue,
+                            'type'  => $field->type, // ファイルなどのタイプ判別用にタイプも渡す
+                        ];
+                    }
+                }
+
                 $emailData = [
                     'name' => $validatedData['submitter_name'],
                     'email' => $validatedData['submitter_email'],
                     'notes' => $validatedData['submitter_notes'] ?? '',
-                    'custom_fields' => $customFieldData
+                    'custom_fields' => $emailCustomFields // ★ 新しい配列を渡す
                 ];
 
                 Mail::to($validatedData['submitter_email'])
