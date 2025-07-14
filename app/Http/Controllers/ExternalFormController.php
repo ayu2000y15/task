@@ -576,41 +576,34 @@ class ExternalFormController extends Controller
         $tempFilePaths = $formInput['temp_file_paths'];
 
         // データベースに保存するカスタムフィールドのデータを準備
-        $customFieldData = [
-            'submitter_name' => $validatedData['submitter_name'],
-            'submitter_email' => $validatedData['submitter_email'],
-            'submitter_notes' => $validatedData['submitter_notes'],
-            'form_category_id' => $formCategory->id,
-            'form_category_name' => $formCategory->name,
-        ];
-
-        // 一時保存されたファイルを正式な場所に移動
+        $customFieldData = [];
         foreach ($customFormFields as $field) {
-            if (isset($tempFilePaths[$field->name])) {
+            $dbFieldName = $field->name;
+            $formFieldName = 'custom_' . $field->name;
+
+            // ファイルフィールドの処理
+            if (isset($tempFilePaths[$dbFieldName])) {
                 $permanentFilePaths = [];
-                foreach ($tempFilePaths[$field->name] as $fileInfo) {
+                foreach ($tempFilePaths[$dbFieldName] as $fileInfo) {
                     $tempPath = $fileInfo['path'];
                     if (Storage::disk('local')->exists($tempPath)) {
-                        // ファイル名を一意にするか、元の名前を保持するかは要件によります
                         $permanentPath = 'external_submissions/' . basename($tempPath);
-                        // 一時ファイルを読み取り、公開ディスクに書き込む
                         Storage::disk('public')->put($permanentPath, Storage::disk('local')->get($tempPath));
-                        // 一時ファイルを削除
                         Storage::disk('local')->delete($tempPath);
 
                         $permanentFilePaths[] = [
                             'path' => $permanentPath,
                             'original_name' => $fileInfo['original_name'],
                             'size' => $fileInfo['size'],
-                            'mime_type' => $fileInfo['mime_type'],
+                            'mime_type' => $fileInfo['mime_type'] ?? null,
                         ];
                     }
                 }
-                // 単一ファイルか複数ファイルかで保存形式を分岐
-                $customFieldData[$field->name] = $field->type === 'file' ? ($permanentFilePaths[0] ?? null) : $permanentFilePaths;
-            } else {
-                // ファイル以外のフィールドの値を設定
-                $customFieldData[$field->name] = $validatedData['custom_' . $field->name] ?? null;
+                $customFieldData[$dbFieldName] = $field->type === 'file' ? ($permanentFilePaths[0] ?? null) : $permanentFilePaths;
+            }
+            // ファイル以外のフィールドの処理
+            else {
+                $customFieldData[$dbFieldName] = $validatedData[$formFieldName] ?? null;
             }
         }
 
