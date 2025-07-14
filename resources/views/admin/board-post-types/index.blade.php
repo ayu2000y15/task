@@ -126,19 +126,13 @@
 
         <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
             <div class="overflow-x-auto w-full">
-                <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-                    <p class="text-sm text-gray-600 dark:text-gray-400">
-                        <i class="fas fa-info-circle mr-1"></i>
-                        行をドラッグ&ドロップして表示順序を変更できます。投稿タイプを追加すると、カスタム項目のカテゴリにも自動的に追加されます。
-                    </p>
-                </div>
 
                 <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                     <thead class="bg-gray-50 dark:bg-gray-700">
                         <tr>
                             <th scope="col"
                                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                <i class="fas fa-arrows-alt mr-1"></i>順序
+                                順序
                             </th>
                             <th scope="col"
                                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
