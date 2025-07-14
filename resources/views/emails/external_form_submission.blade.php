@@ -196,8 +196,8 @@
 
     <div class="footer">
         <p>この申請の詳細を確認するには、管理画面にログインしてください。</p>
-        <a href="{{ route('admin.external-submissions.show', $submission) }}" class="admin-link">
-            申請詳細を確認
+        <a href="{{ route('admin.external-submissions.show', $submission) }}" class="admin-link text-white">
+            <span style="color:white">申請詳細を確認</span>
         </a>
         <p style="margin-top: 20px; font-size: 12px;">
             このメールは {{ config('app.name') }} から自動送信されています。

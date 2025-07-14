@@ -25,35 +25,32 @@
                     <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
                         <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100">基本情報</h2>
                     </div>
-                    <div class="p-6 space-y-4">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
+                    {{-- ▼▼▼ 基本情報セクションのデザインを修正 ▼▼▼ --}}
+                    <div class="border-t border-gray-200 dark:border-gray-700">
+                        <dl class="divide-y divide-gray-200 dark:divide-gray-700">
+                            <div class="px-6 py-4 grid grid-cols-1 sm:grid-cols-3 sm:gap-4">
                                 <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">カテゴリ名</dt>
-                                <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100">
+                                <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100 sm:col-span-2 sm:mt-0">
                                     <code class="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">{{ $formCategory->name }}</code>
                                 </dd>
                             </div>
-                            <div>
+                            <div class="px-6 py-4 grid grid-cols-1 sm:grid-cols-3 sm:gap-4">
                                 <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">表示名</dt>
-                                <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100">{{ $formCategory->display_name }}</dd>
+                                <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100 sm:col-span-2 sm:mt-0">{{ $formCategory->display_name }}</dd>
                             </div>
-                        </div>
-
-                        @if($formCategory->description)
-                            <div>
-                                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">説明</dt>
-                                <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100">{{ $formCategory->description }}</dd>
-                            </div>
-                        @endif
-
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div>
+                            @if($formCategory->description)
+                                <div class="px-6 py-4 grid grid-cols-1 sm:grid-cols-3 sm:gap-4">
+                                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">説明</dt>
+                                    <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100 sm:col-span-2 sm:mt-0">{{ $formCategory->description }}</dd>
+                                </div>
+                            @endif
+                            <div class="px-6 py-4 grid grid-cols-1 sm:grid-cols-3 sm:gap-4">
                                 <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">表示順序</dt>
-                                <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100">{{ $formCategory->order }}</dd>
+                                <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100 sm:col-span-2 sm:mt-0">{{ $formCategory->order }}</dd>
                             </div>
-                            <div>
+                            <div class="px-6 py-4 grid grid-cols-1 sm:grid-cols-3 sm:gap-4">
                                 <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">状態</dt>
-                                <dd class="mt-1">
+                                <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100 sm:col-span-2 sm:mt-0">
                                     @if($formCategory->is_enabled)
                                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
                                             有効
@@ -65,12 +62,13 @@
                                     @endif
                                 </dd>
                             </div>
-                            <div>
+                            <div class="px-6 py-4 grid grid-cols-1 sm:grid-cols-3 sm:gap-4">
                                 <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">フィールド数</dt>
-                                <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100">{{ $formCategory->form_field_definitions_count }}</dd>
+                                <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100 sm:col-span-2 sm:mt-0">{{ $formCategory->form_field_definitions_count }}</dd>
                             </div>
-                        </div>
+                        </dl>
                     </div>
+                    {{-- ▲▲▲ ここまで修正 ▲▲▲ --}}
                 </div>
 
                 {{-- フィールド一覧 --}}

@@ -427,8 +427,8 @@ Route::get('/contact-register/thanks', [ExternalFormController::class, 'thanks']
 
 // 動的外部フォーム (認証外)
 Route::get('/form/{slug}', [ExternalFormController::class, 'showDynamicForm'])->name('external-form.show');
-Route::post('/form/{slug}', [ExternalFormController::class, 'storeDynamicForm'])->name('external-form.store');
+Route::post('/form/{slug}/confirm', [ExternalFormController::class, 'confirmDynamicForm'])->name('external-form.confirm');
+Route::post('/form/{slug}/complete', [ExternalFormController::class, 'storeDynamicForm'])->name('external-form.store');
 Route::get('/form/{slug}/thanks', [ExternalFormController::class, 'showDynamicThanks'])->name('external-form.thanks');
-
 
 require __DIR__ . '/auth.php';

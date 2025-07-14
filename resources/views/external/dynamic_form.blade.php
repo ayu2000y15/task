@@ -4,10 +4,53 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ $formCategory->form_title ?: $formCategory->display_name }}</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @vite(['resources/css/app.css'])
     <style>
         body {
             font-family: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', 'Meiryo', sans-serif;
+        }
+        .file-drop-zone {
+            border: 2px dashed #cbd5e0;
+            border-radius: 0.75rem;
+            padding: 3rem 2rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            position: relative;
+        }
+        .file-drop-zone:hover, .file-drop-zone.dragover {
+            border-color: #3b82f6;
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+        }
+        .file-input-hidden {
+            position: absolute;
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .file-preview-item {
+            transition: all 0.2s ease;
+        }
+        .file-preview-item:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        .delete-file-btn {
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+        .file-preview-item:hover .delete-file-btn {
+            opacity: 1;
+        }
+        .upload-icon-animation {
+            animation: uploadPulse 2s ease-in-out infinite;
+        }
+        @keyframes uploadPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
         }
     </style>
 </head>
@@ -50,8 +93,7 @@
 
         {{-- フォーム --}}
         <div class="bg-white shadow-lg rounded-lg overflow-hidden">
-            <form method="POST" action="{{ route('external-form.store', $formCategory->slug) }}" enctype="multipart/form-data" class="p-8 space-y-6">
-                @csrf
+<form method="POST" action="{{ route('external-form.confirm', $formCategory->slug) }}" enctype="multipart/form-data" class="p-8 space-y-6">                @csrf
 
                 {{-- 依頼基本情報 --}}
                 <div class="border-b border-gray-200 pb-8 mb-8">
@@ -226,21 +268,60 @@
                                         @break
 
                                     @case('file')
+                                        <div class="file-drop-zone"
+                                             onclick="document.getElementById('custom_{{ $field['name'] }}').click()"
+                                             ondrop="handleDrop(event, 'custom_{{ $field['name'] }}')"
+                                             ondragover="handleDragOver(event)"
+                                             ondragleave="handleDragLeave(event)">
+                                            <div class="text-gray-600">
+                                                <div class="upload-icon-animation mb-4">
+                                                    <i class="fas fa-cloud-upload-alt text-5xl text-blue-500"></i>
+                                                </div>
+                                                <p class="text-xl font-semibold text-gray-800 mb-2">ファイルをアップロード</p>
+                                                <p class="text-lg font-medium text-blue-600 mb-1">ドラッグ＆ドロップまたはクリックして選択</p>
+                                                <div class="flex items-center justify-center space-x-2 text-sm text-gray-500 mt-3">
+                                                    <i class="fas fa-info-circle"></i>
+                                                    <span>最大10MB（JPG, PNG, GIF, PDF, DOC, XLS, ZIP, TXT）</span>
+                                                </div>
+                                            </div>
+                                        </div>
                                         <input type="file"
                                                id="custom_{{ $field['name'] }}"
                                                name="custom_{{ $field['name'] }}"
-                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200 @error('custom_' . $field['name']) border-red-500 @enderror"
-                                               @if($field['is_required']) required @endif>
+                                               accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.zip,.txt"
+                                               class="file-input-hidden"
+                                               @if($field['is_required']) required @endif
+                                               onchange="handleFileSelection(this, false)">
+                                        <div class="mt-4" id="preview_custom_{{ $field['name'] }}"></div>
                                         @break
 
                                     @case('file_multiple')
+                                        <div class="file-drop-zone"
+                                             onclick="document.getElementById('custom_{{ $field['name'] }}').click()"
+                                             ondrop="handleDrop(event, 'custom_{{ $field['name'] }}')"
+                                             ondragover="handleDragOver(event)"
+                                             ondragleave="handleDragLeave(event)">
+                                            <div class="text-gray-600">
+                                                <div class="upload-icon-animation mb-4">
+                                                    <i class="fas fa-cloud-upload-alt text-5xl text-blue-500"></i>
+                                                </div>
+                                                <p class="text-xl font-semibold text-gray-800 mb-2">ファイルアップロード</p>
+                                                <p class="text-lg font-medium text-blue-600 mb-1">ドラッグ＆ドロップまたはクリックして選択</p>
+                                                <div class="flex items-center justify-center space-x-2 text-sm text-gray-500 mt-3">
+                                                    <i class="fas fa-info-circle"></i>
+                                                    <span>複数ファイル選択可能・各ファイル最大10MB（JPG, PNG, GIF, PDF, DOC, XLS, ZIP, TXT）</span>
+                                                </div>
+                                            </div>
+                                        </div>
                                         <input type="file"
                                                id="custom_{{ $field['name'] }}"
                                                name="custom_{{ $field['name'] }}[]"
                                                multiple
-                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200 @error('custom_' . $field['name']) border-red-500 @enderror"
-                                               @if($field['is_required']) required @endif>
-                                        <p class="mt-2 text-sm text-gray-500">複数のファイルを選択できます</p>
+                                               accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.zip,.txt"
+                                               class="file-input-hidden"
+                                               @if($field['is_required']) required @endif
+                                               onchange="handleFileSelection(this, true)">
+                                        <div class="mt-4" id="preview_custom_{{ $field['name'] }}"></div>
                                         @break
                                 @endswitch
 
@@ -267,5 +348,188 @@
             <p>{{ config('app.name') }}</p>
         </div>
     </div>
+
+    <script>
+        // 選択されたファイルを格納するオブジェクト
+        const selectedFiles = {};
+
+        // ドラッグアンドドロップ処理
+        function handleDragOver(event) {
+            event.preventDefault();
+            event.currentTarget.classList.add('dragover');
+        }
+
+        function handleDragLeave(event) {
+            event.preventDefault();
+            event.currentTarget.classList.remove('dragover');
+        }
+
+        function handleDrop(event, inputId) {
+            event.preventDefault();
+            event.currentTarget.classList.remove('dragover');
+
+            const files = event.dataTransfer.files;
+            const input = document.getElementById(inputId);
+
+            // 既存のファイルと新しいファイルを結合
+            if (!selectedFiles[inputId]) selectedFiles[inputId] = [];
+
+            for (let i = 0; i < files.length; i++) {
+                selectedFiles[inputId].push(files[i]);
+            }
+
+            updateInputFiles(inputId);
+            displayFilePreview(inputId);
+        }
+
+        // ファイル選択処理（input changeイベント用）
+        function handleFileSelection(input, multiple) {
+            const inputId = input.id;
+
+            if (!selectedFiles[inputId]) selectedFiles[inputId] = [];
+
+            // 新しく選択されたファイルを追加
+            for (let i = 0; i < input.files.length; i++) {
+                selectedFiles[inputId].push(input.files[i]);
+            }
+
+            displayFilePreview(inputId);
+        }
+
+        // inputのfilesプロパティを更新
+        function updateInputFiles(inputId) {
+            const input = document.getElementById(inputId);
+            const dt = new DataTransfer();
+
+            if (selectedFiles[inputId]) {
+                selectedFiles[inputId].forEach(file => {
+                    dt.items.add(file);
+                });
+            }
+
+            input.files = dt.files;
+        }
+
+        // ファイルを削除
+        function removeFile(inputId, fileIndex) {
+            if (selectedFiles[inputId]) {
+                selectedFiles[inputId].splice(fileIndex, 1);
+            }
+            updateInputFiles(inputId);
+            displayFilePreview(inputId);
+        }
+
+        // ファイルプレビューを表示
+        function displayFilePreview(inputId) {
+            const previewId = 'preview_' + inputId;
+            const preview = document.getElementById(previewId);
+            preview.innerHTML = '';
+
+            const files = selectedFiles[inputId];
+            if (!files || files.length === 0) return;
+
+            let hasError = false;
+
+            files.forEach((file, index) => {
+                const sizeMB = (file.size / 1024 / 1024).toFixed(2);
+
+            if (file.size > 10 * 1024 * 1024) {
+                    preview.innerHTML += `
+                        <div class='p-4 mb-3 bg-red-50 border border-red-200 rounded-xl file-preview-item'>
+                            <div class='flex items-center justify-between'>
+                                <div class='flex items-center'>
+                                    <i class='fas fa-exclamation-triangle text-red-500 text-xl mr-3'></i>
+                                    <div>
+                                        <p class='text-red-600 text-sm font-medium'>ファイル「${file.name}」は5MBを超えています</p>
+                                        <p class='text-red-500 text-xs'>${sizeMB}MB</p>
+                                    </div>
+                                </div>
+                                <button type='button' onclick='removeFile("${inputId}", ${index})'
+                                        class='text-red-500 hover:text-red-700 p-1 rounded transition-colors text-xl font-bold'>
+                                    ×
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    hasError = true;
+                    return;
+                }
+
+                if (file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const imagePreview = document.createElement('div');
+                        imagePreview.className = 'file-preview-item';
+                        imagePreview.innerHTML = `
+                            <div class='flex items-start p-4 mb-3 bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-all'>
+                                <img src='${e.target.result}' alt='preview' class='w-20 h-20 object-cover rounded-lg shadow mr-4'>
+                                <div class='flex-1 min-w-0'>
+                                    <div class='text-sm font-semibold text-gray-900 truncate'>${file.name}</div>
+                                    <div class='text-xs text-gray-500 mt-1'>${sizeMB}MB・${file.type}</div>
+                                    <div class='flex items-center mt-2'>
+                                        <i class='fas fa-check-circle text-green-500 mr-1'></i>
+                                        <span class='text-xs text-green-600 font-medium'>アップロード準備完了</span>
+                                    </div>
+                                </div>
+                                <button type='button' onclick='removeFile("${inputId}", ${index})'
+                                        class='delete-file-btn bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-red-600 transition-all shadow-lg ml-3 flex-shrink-0 text-xl font-bold'>
+                                    ×
+                                </button>
+                            </div>
+                        `;
+                        preview.appendChild(imagePreview);
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    // ファイルタイプに応じたアイコンと色を設定
+                    let icon = 'fa-file-alt';
+                    let iconColor = 'text-gray-500';
+
+                    if (file.type.includes('pdf')) {
+                        icon = 'fa-file-pdf';
+                        iconColor = 'text-red-500';
+                    } else if (file.type.includes('word') || file.name.toLowerCase().includes('.doc')) {
+                        icon = 'fa-file-word';
+                        iconColor = 'text-blue-500';
+                    } else if (file.type.includes('excel') || file.name.toLowerCase().includes('.xls')) {
+                        icon = 'fa-file-excel';
+                        iconColor = 'text-green-500';
+                    } else if (file.type.includes('zip') || file.name.toLowerCase().includes('.zip')) {
+                        icon = 'fa-file-archive';
+                        iconColor = 'text-yellow-600';
+                    } else if (file.type.includes('text')) {
+                        icon = 'fa-file-alt';
+                        iconColor = 'text-gray-600';
+                    }
+
+                    preview.innerHTML += `
+                        <div class='flex items-center p-4 mb-3 bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md file-preview-item transition-all'>
+                            <div class='w-16 h-16 bg-gray-50 rounded-lg flex items-center justify-center mr-4'>
+                                <i class='fas ${icon} text-3xl ${iconColor}'></i>
+                            </div>
+                            <div class='flex-1 min-w-0'>
+                                <div class='text-sm font-semibold text-gray-900 truncate'>${file.name}</div>
+                                <div class='text-xs text-gray-500 mt-1'>${sizeMB}MB・${file.type}</div>
+                                <div class='flex items-center mt-2'>
+                                    <i class='fas fa-check-circle text-green-500 mr-1'></i>
+                                    <span class='text-xs text-green-600 font-medium'>アップロード準備完了</span>
+                                </div>
+                            </div>
+                            <button type='button' onclick='removeFile("${inputId}", ${index})'
+                                    class='delete-file-btn bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-red-600 transition-all shadow-lg ml-3 flex-shrink-0 text-xl font-bold'>
+                                ×
+                            </button>
+                        </div>
+                    `;
+                }
+            });
+
+            if (hasError) {
+                // エラーファイルを配列から除去
+                selectedFiles[inputId] = selectedFiles[inputId].filter(file => file.size <= 10 * 1024 * 1024);
+                updateInputFiles(inputId);
+            }
+        }
+    </script>
 </body>
 </html>

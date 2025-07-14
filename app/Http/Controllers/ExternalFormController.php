@@ -16,6 +16,8 @@ use App\Models\ManagedContact; // ★ ManagedContactモデルをuse
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\ExternalFormCompletionMail;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
 
 class ExternalFormController extends Controller
 {
@@ -548,170 +550,109 @@ class ExternalFormController extends Controller
      */
     public function storeDynamicForm(Request $request, $slug)
     {
+        // 「修正する」ボタンが押された場合、入力画面に戻る
+        if ($request->input('action') === 'back') {
+            return redirect()->route('external-form.show', $slug)->withInput($request->session()->get('form_input.validated_data'));
+        }
+
+        // セッションからフォーム入力データを取得
+        $formInput = $request->session()->get('form_input');
+        if (!$formInput) {
+            // セッション切れの場合、フォーム入力画面にリダイレクト
+            return redirect()->route('external-form.show', $slug)->withErrors(['session_expired' => 'セッションが切れました。もう一度入力してください。']);
+        }
+
         $formCategory = \App\Models\FormFieldCategory::where('slug', $slug)
             ->where('is_external_form', true)
             ->where('is_enabled', true)
             ->firstOrFail();
 
-        $customFormFields = FormFieldDefinition::where('is_enabled', true)
+        $customFormFields = \App\Models\FormFieldDefinition::where('is_enabled', true)
             ->where('category', $formCategory->name)
             ->orderBy('order')
             ->get();
 
-        // バリデーションルール作成
-        $rules = [
-            'submitter_name' => 'required|string|max:255',
-            'submitter_email' => 'required|email|max:255',
-            'submitter_notes' => 'nullable|string|max:2000',
-        ];
-        $customFieldNames = [];
+        $validatedData = $formInput['validated_data'];
+        $tempFilePaths = $formInput['temp_file_paths'];
 
-        foreach ($customFormFields as $field) {
-            $fieldRules = [];
-
-            if ($field->is_required) {
-                $fieldRules[] = 'required';
-            } else {
-                $fieldRules[] = 'nullable';
-            }
-
-            // タイプ別バリデーション
-            switch ($field->type) {
-                case 'email':
-                    $fieldRules[] = 'email';
-                    break;
-                case 'number':
-                    $fieldRules[] = 'numeric';
-                    break;
-                case 'date':
-                    $fieldRules[] = 'date';
-                    break;
-                case 'tel':
-                    $fieldRules[] = 'string';
-                    if ($field->max_length) {
-                        $fieldRules[] = 'max:' . $field->max_length;
-                    }
-                    break;
-                case 'url':
-                    $fieldRules[] = 'url';
-                    break;
-                case 'text':
-                case 'textarea':
-                    $fieldRules[] = 'string';
-                    if ($field->max_length) {
-                        $fieldRules[] = 'max:' . $field->max_length;
-                    }
-                    break;
-                case 'select':
-                case 'radio':
-                    if ($field->options) {
-                        $optionsArray = is_array($field->options) ? $field->options : json_decode($field->options, true);
-                        if (is_array($optionsArray)) {
-                            $validValues = array_keys($optionsArray);
-                            $fieldRules[] = Rule::in($validValues);
-                        }
-                    }
-                    break;
-                case 'checkbox':
-                    $fieldRules[] = 'array';
-                    break;
-                case 'file':
-                    $fieldRules[] = 'file';
-                    $fieldRules[] = 'max:10240'; // 10MB
-                    break;
-                case 'file_multiple':
-                    $fieldRules[] = 'array';
-                    // 個別ファイルのバリデーション
-                    $rules['custom_' . $field->name . '.*'] = ['file', 'max:10240']; // 各ファイル10MB制限
-                    break;
-            }
-
-            $rules['custom_' . $field->name] = $fieldRules;
-            $customFieldNames[] = 'custom_' . $field->name;
-        }
-
-        $validator = Validator::make($request->all(), $rules);
-
-        if ($validator->fails()) {
-            return back()->withErrors($validator)->withInput();
-        }
-
-        // カスタムフィールドデータ準備
+        // データベースに保存するカスタムフィールドのデータを準備
         $customFieldData = [
-            'submitter_name' => $request->input('submitter_name'),
-            'submitter_email' => $request->input('submitter_email'),
-            'submitter_notes' => $request->input('submitter_notes'),
-            'form_category_id' => $formCategory->id, // フォームカテゴリIDを追加
-            'form_category_name' => $formCategory->name, // フォームカテゴリ名を追加
+            'submitter_name' => $validatedData['submitter_name'],
+            'submitter_email' => $validatedData['submitter_email'],
+            'submitter_notes' => $validatedData['submitter_notes'],
+            'form_category_id' => $formCategory->id,
+            'form_category_name' => $formCategory->name,
         ];
 
+        // 一時保存されたファイルを正式な場所に移動
         foreach ($customFormFields as $field) {
-            $fieldName = 'custom_' . $field->name;
-            $value = $request->input($fieldName);
+            if (isset($tempFilePaths[$field->name])) {
+                $permanentFilePaths = [];
+                foreach ($tempFilePaths[$field->name] as $fileInfo) {
+                    $tempPath = $fileInfo['path'];
+                    if (Storage::disk('local')->exists($tempPath)) {
+                        // ファイル名を一意にするか、元の名前を保持するかは要件によります
+                        $permanentPath = 'external_submissions/' . basename($tempPath);
+                        // 一時ファイルを読み取り、公開ディスクに書き込む
+                        Storage::disk('public')->put($permanentPath, Storage::disk('local')->get($tempPath));
+                        // 一時ファイルを削除
+                        Storage::disk('local')->delete($tempPath);
 
-            if ($field->type === 'file' && $request->hasFile($fieldName)) {
-                $file = $request->file($fieldName);
-                $filename = time() . '_' . $file->getClientOriginalName();
-                $path = $file->storeAs('external_submissions', $filename, 'public');
-                $value = $path;
-            } elseif ($field->type === 'file_multiple' && $request->hasFile($fieldName)) {
-                $files = $request->file($fieldName);
-                $storedFilePaths = [];
-                foreach ($files as $file) {
-                    $filename = time() . '_' . $file->getClientOriginalName();
-                    $path = $file->storeAs('external_submissions', $filename, 'public');
-                    $storedFilePaths[] = [
-                        'path' => $path,
-                        'original_name' => $file->getClientOriginalName(),
-                        'mime_type' => $file->getClientMimeType(),
-                        'size' => $file->getSize(),
-                    ];
+                        $permanentFilePaths[] = [
+                            'path' => $permanentPath,
+                            'original_name' => $fileInfo['original_name'],
+                            'size' => $fileInfo['size'],
+                            'mime_type' => $fileInfo['mime_type'],
+                        ];
+                    }
                 }
-                $value = $storedFilePaths;
+                // 単一ファイルか複数ファイルかで保存形式を分岐
+                $customFieldData[$field->name] = $field->type === 'file' ? ($permanentFilePaths[0] ?? null) : $permanentFilePaths;
+            } else {
+                // ファイル以外のフィールドの値を設定
+                $customFieldData[$field->name] = $validatedData['custom_' . $field->name] ?? null;
             }
-
-            $customFieldData[$field->name] = $value;
         }
 
-        // 申請データ保存
-        $submission = ExternalProjectSubmission::create([
-            'submitter_name' => $request->input('submitter_name'),
-            'submitter_email' => $request->input('submitter_email'),
-            'submitter_notes' => $request->input('submitter_notes'),
+        // 申請データをデータベースに保存
+        $submission = \App\Models\ExternalProjectSubmission::create([
+            'submitter_name' => $validatedData['submitter_name'],
+            'submitter_email' => $validatedData['submitter_email'],
+            'submitter_notes' => $validatedData['submitter_notes'],
             'submitted_data' => $customFieldData,
-            'status' => 'new', // 常に新規ステータスで登録
+            'status' => 'new',
         ]);
 
+        // 処理が完了したので、セッションデータを削除
+        $request->session()->forget('form_input');
+
+        // --- メール送信処理 ---
         // 送信完了メールを送信
         if ($formCategory->send_completion_email) {
             try {
                 $emailData = [
-                    'name' => $request->input('submitter_name'),
-                    'email' => $request->input('submitter_email'),
-                    'notes' => $request->input('submitter_notes', ''),
-                    'custom_fields' => collect($customFormFields)->mapWithKeys(function ($field) use ($customFieldData) {
-                        return [$field->label => $customFieldData[$field->name] ?? ''];
-                    })->toArray()
+                    'name' => $validatedData['submitter_name'],
+                    'email' => $validatedData['submitter_email'],
+                    'notes' => $validatedData['submitter_notes'] ?? '',
+                    'custom_fields' => $customFieldData
                 ];
 
-                Mail::to($request->input('submitter_email'))
-                    ->send(new ExternalFormCompletionMail(
+                Mail::to($validatedData['submitter_email'])
+                    ->send(new \App\Mail\ExternalFormCompletionMail(
                         $formCategory,
                         $emailData,
-                        $request->input('submitter_email'),
-                        $request->input('submitter_name', '')
+                        $validatedData['submitter_email'],
+                        $validatedData['submitter_name']
                     ));
             } catch (\Exception $e) {
-                // メール送信エラーをログに記録するが、フォーム送信は成功として扱う
                 \Log::error('外部フォーム送信完了メールの送信に失敗しました: ' . $e->getMessage(), [
-                    'submitter_email' => $request->input('submitter_email'),
-                    'form_category' => $formCategory->name,
-                    'form_slug' => $formCategory->slug
+                    'submitter_email' => $validatedData['submitter_email'],
+                    'form_category' => $formCategory->name
                 ]);
             }
         }
 
-        // 通知メール送信
+        // 管理者への通知メール送信
         if ($formCategory->notification_emails) {
             try {
                 \Mail::to($formCategory->notification_emails)->send(
@@ -721,7 +662,10 @@ class ExternalFormController extends Controller
                 \Log::error('外部フォーム通知メール送信エラー: ' . $e->getMessage());
             }
         }
+        // --- メール送信処理ここまで ---
 
+
+        // 完了ページへリダイレクト
         return redirect()->route('external-form.thanks', $slug)
             ->with('success', 'フォームを送信しました。');
     }
@@ -737,5 +681,154 @@ class ExternalFormController extends Controller
             ->firstOrFail();
 
         return view('external.form_thanks', compact('formCategory'));
+    }
+
+    /**
+     * 【新規】動的外部フォームの確認ページ表示
+     */
+    public function confirmDynamicForm(Request $request, $slug)
+    {
+        $formCategory = FormFieldCategory::where('slug', $slug)
+            ->where('is_external_form', true)
+            ->where('is_enabled', true)
+            ->firstOrFail();
+
+        $customFormFields = FormFieldDefinition::where('is_enabled', true)
+            ->where('category', $formCategory->name)
+            ->orderBy('order')
+            ->get();
+
+        list($rules, $customFieldNames) = $this->buildValidationRules($customFormFields);
+        $validator = Validator::make($request->all(), $rules);
+
+        if ($validator->fails()) {
+            return back()->withErrors($validator)->withInput();
+        }
+
+        $validatedData = $validator->validated();
+        $existingTempFiles = json_decode($request->input('existing_temp_files', '[]'), true);
+
+        $displayData = [];
+        $tempFilePaths = $existingTempFiles;
+
+        foreach ($customFormFields as $field) {
+            $fieldName = 'custom_' . $field->name;
+            $dbFieldName = $field->name;
+
+            if (in_array($field->type, ['file', 'file_multiple'])) {
+                $tempFilePaths[$dbFieldName] = $tempFilePaths[$dbFieldName] ?? [];
+
+                if ($request->hasFile($fieldName)) {
+                    $files = is_array($request->file($fieldName)) ? $request->file($fieldName) : [$request->file($fieldName)];
+
+                    foreach ($files as $file) {
+                        $tempPath = $file->store('temp_uploads', 'local');
+
+                        // ▼▼▼【重要】ここでmime_typeを追加します ▼▼▼
+                        $fileInfo = [
+                            'path' => $tempPath,
+                            'original_name' => $file->getClientOriginalName(),
+                            'size' => $file->getSize(),
+                            'mime_type' => $file->getClientMimeType(), // ★ mime_typeを追加
+                        ];
+                        // ▲▲▲【ここまで修正】▲▲▲
+
+                        if (str_starts_with($fileInfo['mime_type'], 'image/')) {
+                            try {
+                                $fileContents = File::get(storage_path('app/' . $tempPath));
+                                $fileInfo['preview_src'] = 'data:' . $fileInfo['mime_type'] . ';base64,' . base64_encode($fileContents);
+                            } catch (\Exception $e) {
+                                Log::error('Image preview generation failed: ' . $e->getMessage());
+                            }
+                        }
+                        $tempFilePaths[$dbFieldName][] = $fileInfo;
+                    }
+                }
+                $displayData[$dbFieldName] = $tempFilePaths[$dbFieldName];
+            } else {
+                $displayData[$dbFieldName] = $request->input($fieldName);
+            }
+        }
+
+        foreach ($customFormFields as $field) {
+            if (in_array($field->type, ['file', 'file_multiple'])) {
+                unset($validatedData['custom_' . $field->name]);
+            }
+        }
+
+        session(['form_input' => [
+            'validated_data' => $validatedData,
+            'display_data' => $displayData,
+            'temp_file_paths' => $tempFilePaths
+        ]]);
+
+        return view('external.confirm_dynamic', compact('formCategory', 'customFormFields', 'validatedData', 'displayData'));
+    }
+
+
+    /**
+     * ★【ヘルパー】バリデーションルール構築（共通化のため）
+     */
+    private function buildValidationRules($customFormFields)
+    {
+        $rules = [
+            'submitter_name' => 'required|string|max:255',
+            'submitter_email' => 'required|email|max:255',
+            'submitter_notes' => 'nullable|string|max:2000',
+        ];
+        $customFieldNames = [];
+
+        foreach ($customFormFields as $field) {
+            $fieldName = 'custom_' . $field->name;
+            $fieldRules = [];
+
+            if ($field->is_required) {
+                $fieldRules[] = 'required';
+            } else {
+                $fieldRules[] = 'nullable';
+            }
+
+            switch ($field->type) {
+                case 'email':
+                    $fieldRules[] = 'email';
+                    break;
+                case 'number':
+                    $fieldRules[] = 'numeric';
+                    break;
+                case 'date':
+                    $fieldRules[] = 'date';
+                    break;
+                case 'url':
+                    $fieldRules[] = 'url';
+                    break;
+                case 'text':
+                case 'textarea':
+                case 'tel':
+                    $fieldRules[] = 'string';
+                    if ($field->max_length) $fieldRules[] = 'max:' . $field->max_length;
+                    break;
+                case 'select':
+                case 'radio':
+                    // ... (既存のロジック)
+                    break;
+                case 'checkbox':
+                    if ($field->is_required) $fieldRules[] = 'array|min:1';
+                    else $fieldRules[] = 'array';
+                    break;
+                case 'file':
+                    $fieldRules[] = 'file|max:10240'; // 10MB
+                    break;
+                case 'file_multiple':
+                    if ($field->is_required) $fieldRules[] = 'array|min:1';
+                    else $fieldRules[] = 'array';
+                    $rules[$fieldName . '.*'] = ['file', 'max:10240'];
+                    break;
+            }
+
+            $rules[$fieldName] = $fieldRules;
+            $customFieldNames[] = $fieldName;
+        }
+
+        return [$rules, $customFieldNames];
     }
 }

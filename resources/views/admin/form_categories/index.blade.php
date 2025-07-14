@@ -14,45 +14,54 @@
 
         <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
             <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700" id="categories-table">
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                     <thead class="bg-gray-50 dark:bg-gray-700">
                         <tr>
-                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-12">
-                                <i class="fas fa-grip-vertical text-gray-400"></i>
-                            </th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            <th scope="col"
+                                class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-12">
+                            </th> {{-- ドラッグハンドル用 --}}
+                            <th scope="col"
+                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                                 順序
                             </th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            <th scope="col"
+                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                                 表示名
                             </th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            <th scope="col"
+                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                                 カテゴリ名
                             </th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            <th scope="col"
+                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                                 フィールド数
                             </th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            <th scope="col"
+                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                                 外部フォーム
                             </th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            <th scope="col"
+                                class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                                 状態
                             </th>
-                            <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            <th scope="col"
+                                class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                                 操作
                             </th>
                         </tr>
                     </thead>
                     <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700" id="sortable-categories">
-                        @foreach ($categories as $category)
-                            <tr data-id="{{ $category->id }}" class="hover:bg-gray-50 dark:hover:bg-gray-700">
-                                <td class="px-4 py-4 whitespace-nowrap drag-handle cursor-move">
-                                    <i class="fas fa-grip-vertical text-gray-400"></i>
+                        @forelse ($categories as $category)
+                            {{-- 行クリックで詳細ページに遷移するための属性を追加 --}}
+                            <tr data-id="{{ $category->id }}"
+                                data-href="{{ route('admin.form-categories.show', $category) }}"
+                                class="hover:bg-gray-100 dark:hover:bg-gray-700/50 cursor-pointer">
+                                <td
+                                    class="px-4 py-4 whitespace-nowrap text-sm text-gray-400 dark:text-gray-500 cursor-move drag-handle text-center">
+                                    <i class="fas fa-grip-vertical"></i>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 order-badge">
-                                        {{ $category->order }}
-                                    </span>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 order-cell">
+                                    {{ $category->order }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="text-sm font-medium text-gray-900 dark:text-gray-100">
@@ -64,21 +73,24 @@
                                         </div>
                                     @endif
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <code class="text-sm text-gray-900 dark:text-gray-100 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                    <code class="text-sm bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded">
                                         {{ $category->name }}
                                     </code>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                                     {{ $category->form_field_definitions_count }}
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
+                                <td class="px-6 py-4">
                                     @if($category->is_external_form)
                                         <div class="flex flex-col space-y-1">
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                                                公開中
-                                            </span>
+                                            <div>
+                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                                                    公開中
+                                                </span>
+                                            </div>
                                             @if($category->slug)
+                                                {{-- 外部リンクのクリックはページ遷移を妨げないようにする --}}
                                                 <a href="{{ $category->external_form_url }}" target="_blank"
                                                    class="text-xs text-blue-600 dark:text-blue-400 hover:underline">
                                                     /{{ $category->slug }}
@@ -86,47 +98,47 @@
                                             @endif
                                         </div>
                                     @else
+                                    <div>
                                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">
                                             非公開
                                         </span>
+                                    </div>
                                     @endif
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-center">
                                     @if($category->is_enabled)
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                                            有効
-                                        </span>
+                                        <i class="fas fa-check-circle text-green-500"></i>
                                     @else
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
-                                            無効
-                                        </span>
+                                        <i class="fas fa-times-circle text-gray-400"></i>
                                     @endif
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                    {{-- 操作ボタンのクリックはページ遷移を妨げないようにJSで制御 --}}
                                     <div class="flex items-center justify-end space-x-2">
-                                        <a href="{{ route('admin.form-categories.show', $category) }}"
-                                           class="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300">
-                                            <i class="fas fa-eye"></i>
-                                        </a>
-                                        <a href="{{ route('admin.form-categories.edit', $category) }}"
-                                           class="text-yellow-600 dark:text-yellow-400 hover:text-yellow-900 dark:hover:text-yellow-300">
-                                            <i class="fas fa-edit"></i>
-                                        </a>
-                                        @if(!$category->isBeingUsed())
-                                            <form action="{{ route('admin.form-categories.destroy', $category) }}" method="POST" class="inline">
+                                        <x-icon-button :href="route('admin.form-categories.edit', $category)"
+                                            icon="fas fa-edit" title="編集" color="blue" />
+                                        @if($category->isBeingUsed())
+                                            <x-icon-button icon="fas fa-trash"
+                                                title="このカテゴリは {{ $category->form_field_definitions_count }} 件の項目定義を持つため削除できません" color="gray"
+                                                disabled="true" />
+                                        @else
+                                            <form action="{{ route('admin.form-categories.destroy', $category) }}" method="POST"
+                                                onsubmit="return confirm('本当に削除しますか？この操作は取り消せません。');">
                                                 @csrf
                                                 @method('DELETE')
-                                                <button type="submit"
-                                                        class="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300"
-                                                        onclick="return confirm('このカテゴリを削除してもよろしいですか？')">
-                                                    <i class="fas fa-trash"></i>
-                                                </button>
+                                                <x-icon-button icon="fas fa-trash" title="削除" color="red" type="submit" />
                                             </form>
                                         @endif
                                     </div>
                                 </td>
                             </tr>
-                        @endforeach
+                        @empty
+                            <tr>
+                                <td colspan="8" class="px-6 py-12 text-center text-sm text-gray-500 dark:text-gray-400">
+                                    フォームカテゴリがありません。
+                                </td>
+                            </tr>
+                        @endforelse
                     </tbody>
                 </table>
             </div>
@@ -141,6 +153,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const tbody = document.getElementById('sortable-categories');
 
     if (tbody) {
+        // 並べ替え機能の初期化
         const sortable = Sortable.create(tbody, {
             handle: '.drag-handle',
             animation: 150,
@@ -149,14 +162,29 @@ document.addEventListener('DOMContentLoaded', function() {
                 saveOrder();
             }
         });
+
+        // 行クリックによるページ遷移の処理
+        tbody.addEventListener('click', function(e) {
+            // クリックされた要素が操作ボタン、リンク、フォーム要素、またはドラッグハンドル内ではないかチェック
+            const ignoreElements = 'A, BUTTON, FORM, INPUT, .drag-handle, .fa-grip-vertical';
+            if (e.target.closest(ignoreElements)) {
+                return; // これらの要素がクリックされた場合は何もしない
+            }
+
+            // クリックされた行（tr）を探し、data-href属性があればページ遷移する
+            const row = e.target.closest('tr[data-href]');
+            if (row && row.dataset.href) {
+                window.location.href = row.dataset.href;
+            }
+        });
     }
 
     function updateOrderNumbers() {
         const rows = document.querySelectorAll('#sortable-categories tr');
         rows.forEach((row, index) => {
-            const orderBadge = row.querySelector('.order-badge');
-            if (orderBadge) {
-                orderBadge.textContent = index + 1;
+            const orderCell = row.querySelector('.order-cell');
+            if (orderCell) {
+                orderCell.textContent = index + 1;
             }
         });
     }
@@ -173,16 +201,20 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             body: JSON.stringify({ orderedIds: orderedIds })
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => { throw err; });
+            }
+            return response.json();
+        })
         .then(data => {
             if (!data.success) {
-                console.error('順序の保存に失敗しました:', data.error);
-                location.reload(); // エラー時はページをリロード
+                console.error('順序の保存に失敗しました:', data.message || '不明なエラー');
             }
         })
         .catch(error => {
             console.error('順序の保存中にエラーが発生しました:', error);
-            location.reload(); // エラー時はページをリロード
+            // location.reload(); // 必要に応じてページをリロードして状態をリセット
         });
     }
 });

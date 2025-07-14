@@ -63,23 +63,24 @@
                     <i class="fas fa-info-circle mr-2"></i>
                     ご注意事項
                 </h2>
-                <div class="text-sm text-blue-800 space-y-2">
-                    <p>• お申し込み内容の確認メールをお送りしております。届かない場合は迷惑メールフォルダもご確認ください。</p>
+                <div class="text-left text-sm text-blue-800 space-y-2">
+                    <p>• お申し込み内容の確認メールをお送りしております。</p>
+                    <p>• 届かない場合は迷惑メールフォルダもご確認ください。</p>
                     <p>• ご不明な点がございましたら、お気軽にお問い合わせください。</p>
                     @if($formCategory->requires_approval)
-                        <p>• 承認にお時間をいただく場合がございます。予めご了承ください。</p>
+                        <p>• 確認にお時間をいただく場合がございます。予めご了承ください。</p>
                     @endif
                 </div>
             </div>
 
             {{-- 戻るボタン --}}
-            <div class="space-y-4">
+            {{-- <div class="space-y-4">
                 <a href="{{ route('external-form.show', $formCategory->slug) }}"
                     class="inline-flex items-center px-6 py-3 bg-gray-600 text-white font-medium rounded-lg hover:bg-gray-700 transition duration-200">
                     <i class="fas fa-arrow-left mr-2"></i>
                     フォームに戻る
                 </a>
-            </div>
+            </div> --}}
         </div>
 
         {{-- フッター --}}
