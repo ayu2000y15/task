@@ -976,8 +976,8 @@
     </div>
 
     <div id="taskDescriptionTooltip"
-         class="fixed z-[100] hidden rounded-md bg-gray-900 px-3 py-1.5 text-xs font-medium text-white shadow-lg whitespace-pre-wrap dark:bg-gray-700 max-w-xs"
-         role="tooltip">
+        class="fixed z-[100] hidden rounded-md bg-gray-900 px-3 py-1.5 text-xs font-medium text-white shadow-lg whitespace-pre-wrap dark:bg-gray-700 max-w-xs"
+        role="tooltip">
     </div>
     <div id="imagePreviewModalGlobal" class="fixed top-0 left-0 w-full h-full bg-black bg-opacity-80 z-[1050] items-center justify-center p-4" style="display: none;">
         <img id="previewImageFullGlobal" src="" alt="Full Image" class="max-w-[90vw] max-h-[90vh] object-contain block">
