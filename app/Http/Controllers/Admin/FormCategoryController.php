@@ -57,21 +57,28 @@ class FormCategoryController extends Controller
             'slug.regex' => 'URLスラッグは半角英数字、ハイフン、アンダースコアのみ使用できます。',
         ]);
 
-        // スラッグが未入力の場合、nameから自動生成
-        if (empty($validated['slug']) && $validated['is_external_form']) {
-            $validated['slug'] = $validated['name'];
-        }
+        $category = new FormFieldCategory();
 
-        // チェックボックスの値を明示的に処理
-        $validated['requires_approval'] = $request->has('requires_approval');
-        $validated['is_external_form'] = $request->has('is_external_form');
-        $validated['send_completion_email'] = $request->has('send_completion_email');
-        $validated['is_enabled'] = $request->has('is_enabled');
+        // --- データを1つずつ明示的に設定 ---
+        $category->name = $validated['name'];
+        $category->display_name = $validated['display_name'];
+        $category->description = $validated['description'] ?? null;
+        $category->slug = (isset($validated['is_external_form']) && $validated['is_external_form'] && empty($validated['slug'])) ? $validated['name'] : ($validated['slug'] ?? null);
+        $category->form_title = $validated['form_title'] ?? null;
+        $category->form_description = $validated['form_description'] ?? null;
+        $category->thank_you_title = $validated['thank_you_title'] ?? null;
+        $category->thank_you_message = $validated['thank_you_message'] ?? null;
+        $category->order = $validated['order'] ?? 0;
+        $category->project_category_id = $validated['project_category_id'] ?? null;
 
-        // typeをformに設定
-        $validated['type'] = 'form';
+        // チェックボックスの値を設定
+        $category->is_external_form = $request->has('is_external_form');
+        $category->requires_approval = $request->has('requires_approval');
+        $category->send_completion_email = $request->has('send_completion_email');
+        $category->is_enabled = $request->has('is_enabled');
 
-        $category = new FormFieldCategory($validated);
+        // 固定値を設定
+        $category->type = 'form';
 
         // 通知先メールアドレスの処理
         if (!empty($validated['notification_emails_string'])) {
@@ -144,18 +151,23 @@ class FormCategoryController extends Controller
             'slug.regex' => 'URLスラッグは半角英数字、ハイフン、アンダースコアのみ使用できます。',
         ]);
 
-        // スラッグが未入力の場合、nameから自動生成
-        if (empty($validated['slug']) && $validated['is_external_form']) {
-            $validated['slug'] = $validated['name'];
-        }
+        // --- データを1つずつ明示的に設定 ---
+        $formCategory->name = $validated['name'];
+        $formCategory->display_name = $validated['display_name'];
+        $formCategory->description = $validated['description'] ?? null;
+        $formCategory->slug = ($request->has('is_external_form') && empty($validated['slug'])) ? $validated['name'] : ($validated['slug'] ?? null);
+        $formCategory->form_title = $validated['form_title'] ?? null;
+        $formCategory->form_description = $validated['form_description'] ?? null;
+        $formCategory->thank_you_title = $validated['thank_you_title'] ?? null;
+        $formCategory->thank_you_message = $validated['thank_you_message'] ?? null;
+        $formCategory->order = $validated['order'] ?? 0;
+        $formCategory->project_category_id = $validated['project_category_id'] ?? null;
 
-        // チェックボックスの値を明示的に処理
-        $validated['requires_approval'] = $request->has('requires_approval');
-        $validated['is_external_form'] = $request->has('is_external_form');
-        $validated['send_completion_email'] = $request->has('send_completion_email');
-        $validated['is_enabled'] = $request->has('is_enabled');
-
-        $formCategory->fill($validated);
+        // チェックボックスの値を設定
+        $formCategory->is_external_form = $request->has('is_external_form');
+        $formCategory->requires_approval = $request->has('requires_approval');
+        $formCategory->send_completion_email = $request->has('send_completion_email');
+        $formCategory->is_enabled = $request->has('is_enabled');
 
         // 通知先メールアドレスの処理
         if (!empty($validated['notification_emails_string'])) {

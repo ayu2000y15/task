@@ -17,6 +17,9 @@
                     @csrf
                     @include('admin.form_categories._form', ['formCategory' => new App\Models\FormFieldCategory()])
                 </form>
+
+                @include('admin.form_categories.partials.project-category-modal-script')
+
             </div>
         </div>
     </div>

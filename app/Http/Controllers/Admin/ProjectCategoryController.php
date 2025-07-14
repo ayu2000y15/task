@@ -42,7 +42,6 @@ class ProjectCategoryController extends Controller
                 'name.unique' => 'このカテゴリ名は既に使用されています。',
             ]);
 
-            \Log::info('Validation passed: ', $validated);
 
             // display_orderが未指定の場合、最大値+10を設定
             if (!isset($validated['display_order'])) {
@@ -51,11 +50,9 @@ class ProjectCategoryController extends Controller
             }
 
             $category = ProjectCategory::create($validated);
-            \Log::info('Category created successfully: ', $category->toArray());
 
             // AJAX リクエストの場合はJSONを返す
             if ($request->expectsJson()) {
-                \Log::info('Returning JSON response');
                 return response()->json([
                     'success' => true,
                     'id' => $category->id,
@@ -67,11 +64,9 @@ class ProjectCategoryController extends Controller
                 ], 201);
             }
 
-            \Log::info('Redirecting to index');
             return redirect()->route('admin.project-categories.index')
                 ->with('success', '案件カテゴリが正常に作成されました。');
         } catch (\Illuminate\Validation\ValidationException $e) {
-            \Log::error('Validation error: ', $e->errors());
             if ($request->expectsJson()) {
                 return response()->json([
                     'success' => false,
@@ -81,9 +76,6 @@ class ProjectCategoryController extends Controller
             }
             throw $e;
         } catch (\Exception $e) {
-            \Log::error('ProjectCategory creation failed: ' . $e->getMessage());
-            \Log::error('Stack trace: ' . $e->getTraceAsString());
-
             if ($request->expectsJson()) {
                 return response()->json([
                     'success' => false,

@@ -20,6 +20,9 @@
                     @method('PUT')
                     @include('admin.form_categories._form', ['formCategory' => $formCategory])
                 </form>
+
+                @include('admin.form_categories.partials.project-category-modal-script')
+
             </div>
         </div>
     </div>

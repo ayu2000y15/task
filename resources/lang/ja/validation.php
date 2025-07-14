@@ -153,7 +153,6 @@ return [
     */
 
     'attributes' => [
-        'name' => '工程名',
         'description' => '説明',
         'start_date' => '開始日',
         'end_date' => '終了日',
