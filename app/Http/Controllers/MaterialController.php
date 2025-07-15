@@ -582,6 +582,7 @@ class MaterialController extends Controller
     {
         if ($material->price > 0) { // 価格が0より大きい場合のみコスト計上
             $character->costs()->create([
+                'project_id' => $character->project_id, // プロジェクトIDを明示的にセット
                 'item_description' => $material->name, // 材料名を説明として使用
                 'amount' => $material->price,          // 材料の合計価格をコストとして計上
                 'type' => '材料費',                   // コストタイプ

@@ -15,13 +15,15 @@ class SidebarComposer
      */
     public function compose(View $view)
     {
+
         $favoriteProjects = collect();
         $activeProjects = collect();
         $archivedProjects = collect();
         $activeProjectsByCategory = collect();
         $archivedProjectsByCategory = collect();
-        $projectCategories = collect();
+        $projectCategories = \App\Models\ProjectCategory::orderBy('display_order')->orderBy('name')->get();
         $upcomingTasksForSidebar = collect();
+
 
         if (Auth::check()) {
             $user = Auth::user();
@@ -29,7 +31,6 @@ class SidebarComposer
                 ->orderBy('title')
                 ->get();
 
-            // ▼▼▼【変更箇所-START】▼▼▼
             // is_favorite = false のプロジェクトを全て取得（カテゴリリレーションを含む）
             $allNormalProjects = Project::where('is_favorite', false)
                 ->with('projectCategory')
@@ -45,29 +46,34 @@ class SidebarComposer
             });
 
             // カテゴリ別にグループ化（未分類を最後にするためのソート付き）
-            $activeProjectsByCategory = $activeProjects->groupBy(function ($project) {
-                return $project->projectCategory ? $project->projectCategory->name : 'uncategorized';
-            })->sortBy(function ($projects, $categoryKey) use ($projectCategories) {
-                if ($categoryKey === 'uncategorized') {
-                    return 999999; // 未分類を最後に
-                }
-                $category = $projectCategories->where('name', $categoryKey)->first();
-                return $category ? $category->display_order : 999998;
-            });
+            $activeProjectsByCategory = collect();
+            $archivedProjectsByCategory = collect();
 
-            $archivedProjectsByCategory = $archivedProjects->groupBy(function ($project) {
-                return $project->projectCategory ? $project->projectCategory->name : 'uncategorized';
-            })->sortBy(function ($projects, $categoryKey) use ($projectCategories) {
-                if ($categoryKey === 'uncategorized') {
-                    return 999999; // 未分類を最後に
+            // カテゴリ順にグループ化
+            foreach ($projectCategories as $category) {
+                $catName = $category->name;
+                $activeGroup = $activeProjects->filter(function($p) use ($catName) {
+                    return $p->projectCategory && $p->projectCategory->name === $catName;
+                });
+                if ($activeGroup->isNotEmpty()) {
+                    $activeProjectsByCategory[$catName] = $activeGroup;
                 }
-                $category = $projectCategories->where('name', $categoryKey)->first();
-                return $category ? $category->display_order : 999998;
-            });
-
-            // プロジェクトカテゴリ一覧も取得（display_order順）
-            $projectCategories = \App\Models\ProjectCategory::orderBy('display_order')->orderBy('name')->get();
-            // ▲▲▲【変更箇所-END】▲▲▲
+                $archivedGroup = $archivedProjects->filter(function($p) use ($catName) {
+                    return $p->projectCategory && $p->projectCategory->name === $catName;
+                });
+                if ($archivedGroup->isNotEmpty()) {
+                    $archivedProjectsByCategory[$catName] = $archivedGroup;
+                }
+            }
+            // 未分類（カテゴリなし）は最後に
+            $uncatActive = $activeProjects->filter(function($p){ return !$p->projectCategory; });
+            if ($uncatActive->isNotEmpty()) {
+                $activeProjectsByCategory['uncategorized'] = $uncatActive;
+            }
+            $uncatArchived = $archivedProjects->filter(function($p){ return !$p->projectCategory; });
+            if ($uncatArchived->isNotEmpty()) {
+                $archivedProjectsByCategory['uncategorized'] = $uncatArchived;
+            }
 
             $upcomingTasksForSidebar = Task::where(function ($query) use ($user) {
                 $query->whereHas('assignees', function ($q) use ($user) {
@@ -88,9 +94,6 @@ class SidebarComposer
                 ->get();
         }
 
-        // ▼▼▼【変更箇所-START】▼▼▼
-        // viewに渡す変数を変更
         $view->with(compact('favoriteProjects', 'activeProjects', 'archivedProjects', 'activeProjectsByCategory', 'archivedProjectsByCategory', 'projectCategories', 'upcomingTasksForSidebar'));
-        // ▲▲▲【変更箇所-END】▲▲▲
     }
 }
