@@ -11,84 +11,8 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use App\Models\User;
 
-
 class WorkLogController extends Controller
 {
-
-    /**
-     * 作業ログ手修正申請画面表示(GET)
-     */
-    public function showManualEditRequestForm(WorkLog $log)
-    {
-        $this->authorize('update', $log);
-        return view('work_logs.manual_edit_request', compact('log'));
-    }
-
-    /**
-     * 作業ログの手修正申請
-     */
-    public function requestManualEdit(Request $request, WorkLog $log)
-    {
-        $this->authorize('update', $log);
-        $validated = $request->validate([
-            'start_time' => 'required|date',
-            'end_time' => 'required|date|after:start_time',
-            'memo' => 'nullable|string|max:2000',
-        ]);
-        $manualLog = WorkLog::create([
-            'user_id' => $log->user_id,
-            'task_id' => $log->task_id,
-            'start_time' => $validated['start_time'],
-            'end_time' => $validated['end_time'],
-            'status' => 'stopped',
-            'memo' => $validated['memo'],
-            'parent_log_id' => $log->id,
-            'edit_type' => 'manual',
-            'edit_status' => 'pending',
-        ]);
-        // 承認権限者にメール通知（例: "worklog-approver"権限を持つ全ユーザー）
-        $approvers = \App\Models\User::whereHas('roles.permissions', function($q){ $q->where('name', 'worklog-approve'); })->get();
-        foreach ($approvers as $approver) {
-            \Mail::to($approver->email)->send(new \App\Mail\WorkLogManualEditRequestMail($manualLog));
-        }
-        return response()->json(['success' => true, 'message' => '手修正申請を送信しました。', 'manual_log_id' => $manualLog->id]);
-    }
-
-    /**
-     * 手修正申請の承認
-     */
-    public function approveManualEdit(Request $request, WorkLog $manualLog)
-    {
-        $this->authorize('approve', $manualLog);
-        if ($manualLog->edit_type !== 'manual' || $manualLog->edit_status !== 'pending') {
-            return response()->json(['success' => false, 'message' => '承認できる状態ではありません。'], 400);
-        }
-        $manualLog->edit_status = 'approved';
-        $manualLog->save();
-        // 申請者に承認メール通知
-        \Mail::to($manualLog->user->email)->send(new \App\Mail\WorkLogManualEditResultMail($manualLog, true));
-        return response()->json(['success' => true, 'message' => '手修正を承認しました。']);
-    }
-
-    /**
-     * 手修正申請の拒否
-     */
-    public function rejectManualEdit(Request $request, WorkLog $manualLog)
-    {
-        $this->authorize('approve', $manualLog);
-        $validated = $request->validate([
-            'reason' => 'required|string|max:500',
-        ]);
-        if ($manualLog->edit_type !== 'manual' || $manualLog->edit_status !== 'pending') {
-            return response()->json(['success' => false, 'message' => '拒否できる状態ではありません。'], 400);
-        }
-        $manualLog->edit_status = 'rejected';
-        $manualLog->edit_reject_reason = $validated['reason'];
-        $manualLog->save();
-        // 申請者に拒否メール通知
-        \Mail::to($manualLog->user->email)->send(new \App\Mail\WorkLogManualEditResultMail($manualLog, false));
-        return response()->json(['success' => true, 'message' => '手修正申請を拒否しました。']);
-    }
     /**
      * 作業を開始する (このメソッドは変更なし)
      */
