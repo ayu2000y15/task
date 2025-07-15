@@ -183,6 +183,10 @@ Route::middleware('auth')->group(function () {
     Route::post('/work-logs/start', [App\Http\Controllers\WorkLogController::class, 'start'])->name('work-logs.start');
     Route::post('/work-logs/stop-by-task', [App\Http\Controllers\WorkLogController::class, 'stopByTask'])->name('work-logs.stop-by-task');
 
+    Route::post('/work-logs/{log}/manual-edit-request', [\App\Http\Controllers\WorkLogController::class, 'requestManualEdit'])->name('work-logs.manual-edit-request');
+    Route::post('/work-logs/{manualLog}/manual-edit-approve', [\App\Http\Controllers\WorkLogController::class, 'approveManualEdit'])->name('work-logs.manual-edit-approve');
+    Route::post('/work-logs/{manualLog}/manual-edit-reject', [\App\Http\Controllers\WorkLogController::class, 'rejectManualEdit'])->name('work-logs.manual-edit-reject');
+
     // 外部からの管理連絡先登録
     Route::get('/contact-register', [ExternalFormController::class, 'createContact'])->name('external-contact.create');
     Route::post('/contact-register', [ExternalFormController::class, 'storeContact'])->name('external-contact.store');

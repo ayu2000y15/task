@@ -26,6 +26,10 @@ class WorkLog extends Model
         'end_time',
         'status',
         'memo',
+        'parent_log_id',
+        'edit_type',
+        'edit_status',
+        'edit_reject_reason',
     ];
 
     /**
@@ -35,6 +39,16 @@ class WorkLog extends Model
         'start_time' => 'datetime',
         'end_time'   => 'datetime',
     ];
+
+    public function parentLog(): BelongsTo
+    {
+        return $this->belongsTo(WorkLog::class, 'parent_log_id');
+    }
+
+    public function manualEdits()
+    {
+        return $this->hasMany(WorkLog::class, 'parent_log_id')->where('edit_type', 'manual');
+    }
 
     protected $appends = ['effective_duration'];
 
