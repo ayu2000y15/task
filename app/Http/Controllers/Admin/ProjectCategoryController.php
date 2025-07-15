@@ -49,6 +49,14 @@ class ProjectCategoryController extends Controller
                 $validated['display_order'] = $maxOrder + 10;
             }
 
+            // 既存の「その他」カテゴリがあれば、display_orderを最大値+100に更新
+            $otherCategory = ProjectCategory::where('name', 'other')->orWhere('display_name', 'その他')->first();
+            if ($otherCategory) {
+                $maxOrder = ProjectCategory::max('display_order') ?? 0;
+                $otherCategory->display_order = $maxOrder + 100;
+                $otherCategory->save();
+            }
+
             $category = ProjectCategory::create($validated);
 
             // AJAX リクエストの場合はJSONを返す

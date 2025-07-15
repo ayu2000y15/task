@@ -52,13 +52,13 @@ class SidebarComposer
             // カテゴリ順にグループ化
             foreach ($projectCategories as $category) {
                 $catName = $category->name;
-                $activeGroup = $activeProjects->filter(function($p) use ($catName) {
+                $activeGroup = $activeProjects->filter(function ($p) use ($catName) {
                     return $p->projectCategory && $p->projectCategory->name === $catName;
                 });
                 if ($activeGroup->isNotEmpty()) {
                     $activeProjectsByCategory[$catName] = $activeGroup;
                 }
-                $archivedGroup = $archivedProjects->filter(function($p) use ($catName) {
+                $archivedGroup = $archivedProjects->filter(function ($p) use ($catName) {
                     return $p->projectCategory && $p->projectCategory->name === $catName;
                 });
                 if ($archivedGroup->isNotEmpty()) {
@@ -66,11 +66,15 @@ class SidebarComposer
                 }
             }
             // 未分類（カテゴリなし）は最後に
-            $uncatActive = $activeProjects->filter(function($p){ return !$p->projectCategory; });
+            $uncatActive = $activeProjects->filter(function ($p) {
+                return !$p->projectCategory;
+            });
             if ($uncatActive->isNotEmpty()) {
                 $activeProjectsByCategory['uncategorized'] = $uncatActive;
             }
-            $uncatArchived = $archivedProjects->filter(function($p){ return !$p->projectCategory; });
+            $uncatArchived = $archivedProjects->filter(function ($p) {
+                return !$p->projectCategory;
+            });
             if ($uncatArchived->isNotEmpty()) {
                 $archivedProjectsByCategory['uncategorized'] = $uncatArchived;
             }
