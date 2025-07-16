@@ -687,7 +687,7 @@ class ProjectController extends Controller
         $actual_labor_cost_from_logs = 0;
         $labor_cost_breakdown = []; // 内訳を格納する配列
         // 完了だけでなく一時停止・進行中も含める
-        $labor_statuses = ['completed', 'on_hold'];
+        $labor_statuses = ['completed', 'on_hold', 'cancelled', 'in_progress', 'rework'];
         $target_tasks = Task::where('project_id', $project->id)
             ->whereIn('status', $labor_statuses)
             ->with('workLogs.user.hourlyRates')
