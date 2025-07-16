@@ -686,12 +686,14 @@ class ProjectController extends Controller
         // 3-2. 人件費（作業ログから）
         $actual_labor_cost_from_logs = 0;
         $labor_cost_breakdown = []; // 内訳を格納する配列
-        $completed_tasks = Task::where('project_id', $project->id)
-            ->where('status', 'completed')
+        // 完了だけでなく一時停止・進行中も含める
+        $labor_statuses = ['completed', 'on_hold'];
+        $target_tasks = Task::where('project_id', $project->id)
+            ->whereIn('status', $labor_statuses)
             ->with('workLogs.user.hourlyRates')
             ->get();
 
-        foreach ($completed_tasks as $task) {
+        foreach ($target_tasks as $task) {
             $actual_work_seconds_per_task = 0;
             $cost_per_task = 0;
             foreach ($task->workLogs as $log) {
