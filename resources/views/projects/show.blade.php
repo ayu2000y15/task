@@ -265,7 +265,7 @@
                                         <tr>
                                             <td class="px-2 py-1.5 whitespace-nowrap text-gray-600 dark:text-gray-300">{{ $cost->character->name ?? '案件全体' }}</td>
                                             <td class="px-2 py-1.5 whitespace-nowrap text-gray-600 dark:text-gray-300">{{ $cost->type ?? '-' }}</td>
-                                            <td class="px-2 py-1.5 text-gray-600 dark:text-gray-300 truncate" title="{{ $cost->name }}">{{ $cost->name }}</td>
+                                            <td class="px-2 py-1.5 text-gray-600 dark:text-gray-300 truncate" title="{{ $cost->item_description }}">{{ $cost->item_description }}</td>
                                             <td class="px-2 py-1.5 text-right font-semibold text-gray-800 dark:text-gray-200">¥{{ number_format($cost->amount) }}</td>
                                         </tr>
                                     @empty
