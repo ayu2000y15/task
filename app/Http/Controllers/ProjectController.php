@@ -338,7 +338,7 @@ class ProjectController extends Controller
             if ($externalSubmission) {
                 logger()->info('External Submission found:', $externalSubmission->toArray());
                 if ($externalSubmission->status === 'new' || $externalSubmission->status === 'in_progress') {
-                    $prefillStandardData['title'] = ($externalSubmission->submitter_name ?? '外部申請') . '様からの依頼案件（仮）';
+                    $prefillStandardData['title'] = ($externalSubmission->submitter_name ?? '外部申請') . '★';
                     $prefillStandardData['client_name'] = $externalSubmission->submitter_name;
                     $prefillStandardData['description'] = $externalSubmission->submitter_notes;
                     // budgetとtarget_costもプリフィル対象に含める（もし外部申請にあれば）
