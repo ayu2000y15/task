@@ -35,7 +35,7 @@
                                 この度は、{{ $formCategory->display_name }}をご利用いただき、ありがとうございます。<br>お送りいただいた内容を正常に受信いたしました。
                             </p>
                             @if($formCategory->thank_you_message)
-                                <p style="white-space: pre-wrap; margin-bottom: 20px;">
+                                <p style="margin-bottom: 20px;">
                                     {{ $formCategory->thank_you_message }}</p>
                             @endif
 
@@ -72,7 +72,7 @@
                                                         <div style="font-weight: 600; color: #6b7280; font-size: 14px;">備考
                                                         </div>
                                                         <div
-                                                            style="color: #111827; margin-top: 5px; white-space: pre-wrap;">
+                                                            style="color: #111827; margin-top: 5px;">
                                                             {{ $submissionData['notes'] }}</div>
                                                     </td>
                                                 </tr>
@@ -85,7 +85,7 @@
                                                             <div style="font-weight: 600; color: #6b7280; font-size: 14px;">
                                                                 {{ $field['label'] }}</div>
                                                             <div
-                                                                style="color: #111827; margin-top: 5px; white-space: pre-wrap; word-break: break-all;">
+                                                                style="color: #111827; margin-top: 5px; word-break: break-all;">
                                                                 @php $fieldValue = $field['value']; @endphp
                                                                 @if(in_array($field['type'], ['file', 'file_multiple']) && !empty($fieldValue))
                                                                     @php $files = ($field['type'] === 'file' && is_array($fieldValue)) ? [$fieldValue] : $fieldValue; @endphp

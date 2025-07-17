@@ -34,7 +34,7 @@
                                 <tr>
                                     <td style="padding: 10px 0; border-bottom: 1px solid #f3f4f6;">
                                         <b style="font-weight: bold; color: #6b7280; font-size: 14px; width: 120px; display: inline-block;">申請日時:</b>
-                                        <span style="color: #111827;">{{ $submission->created_at->format('Y年n月j日 H:i') }}</span>
+                                        <span style="color: #111827;">{{ $submission->created_at->format('n/j H:i') }}</span>
                                     </td>
                                 </tr>
                                 <tr>
