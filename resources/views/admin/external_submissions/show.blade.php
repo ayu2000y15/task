@@ -67,7 +67,13 @@
                                     @if ($data['type'] === 'textarea')
                                         <p class="whitespace-pre-wrap bg-gray-50 dark:bg-gray-700/50 p-2 rounded-md break-all">{{ $data['value'] ? trim($data['value']) : '-' }}</p>
                                     @elseif ($data['type'] === 'checkbox')
-                                        <span>{{ $data['value'] ? 'はい' : 'いいえ' }}</span>
+                                        @if (is_array($data['value']))
+                                            {{-- 値が配列の場合、カンマ区切りで表示 --}}
+                                            <span>{{ !empty($data['value']) ? implode(', ', $data['value']) : '-' }}</span>
+                                        @else
+                                            {{-- 値が配列でない場合（単一のチェックボックスなど）、はい/いいえで表示 --}}
+                                            <span>{{ $data['value'] ? 'はい' : 'いいえ' }}</span>
+                                        @endif
                                     @elseif (($data['type'] === 'select' || $data['type'] === 'radio') && isset($data['options']) && is_array($data['options']))
                                         <span>{{ $data['options'][$data['value']] ?? $data['value'] ?: '-' }}</span>
                                     @elseif ($data['type'] === 'color')
@@ -88,7 +94,13 @@
                                             <span>-</span>
                                         @endif
                                     @else
-                                        <span>{{ $data['value'] ?: '-' }}</span>
+                                        @if(is_array($data['value']))
+                                            {{-- 値が配列の場合、カンマ区切りで安全に表示 --}}
+                                            <span>{{ implode(', ', $data['value']) }}</span>
+                                        @else
+                                            {{-- 配列でない場合はそのまま表示 --}}
+                                            <span>{{ $data['value'] ?: '-' }}</span>
+                                        @endif
                                     @endif
                                 </div>
                             </div>
@@ -97,16 +109,35 @@
                         @endforelse
 
                         @foreach ($fileFields as $fileField)
+                            @php
+                                // ★★★ ここから追加 ★★★
+                                // データ構造を正規化して、単一・複数の両方に対応する
+                                $filesToDisplay = [];
+                                if (!empty($fileField['value'])) {
+                                    // タイプが'file'の場合、値はファイル情報そのものなので、配列でラップする
+                                    if ($fileField['type'] === 'file' && isset($fileField['value']['path'])) {
+                                        $filesToDisplay = [$fileField['value']];
+                                    }
+                                    // タイプが'file_multiple'の場合、値はファイルの配列なのでそのまま使う
+                                    elseif ($fileField['type'] === 'file_multiple' && is_array($fileField['value'])) {
+                                        $filesToDisplay = $fileField['value'];
+                                    }
+                                }
+                                // ★★★ ここまで追加 ★★★
+                            @endphp
                             <div class="grid grid-cols-[theme(spacing.40)_1fr] gap-x-2 items-start py-3 @if(!$loop->last) border-b border-gray-200 dark:border-gray-700 @endif">
                                 <strong class="font-semibold text-gray-700 dark:text-gray-300 pt-1">{{ $fileField['label'] }}:</strong>
                                 <div>
-                                    @if(!empty($fileField['value']) && is_array($fileField['value']) && count($fileField['value']) > 0)
+                                    {{-- ★ ifの条件を新しい変数に変更 --}}
+                                    @if(!empty($filesToDisplay))
                                         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-3 gap-y-4 mt-1">
-                                            @foreach($fileField['value'] as $fileInfo)
+                                            {{-- ★ foreachの対象を新しい変数に変更 --}}
+                                            @foreach($filesToDisplay as $fileInfo)
+                                                {{-- カード表示のロジック (この中身は変更なし) --}}
                                                 @if(is_array($fileInfo) && isset($fileInfo['path']) && isset($fileInfo['original_name']))
                                                     @if(isset($fileInfo['mime_type']) && Str::startsWith($fileInfo['mime_type'], 'image/'))
                                                         <div class="flex flex-col items-center">
-                                                            {{-- 画像プレビューカード (モーダル表示トリガー) --}}
+                                                            {{-- 画像プレビューカード --}}
                                                             <a href="{{ Storage::url($fileInfo['path']) }}"
                                                             class="block relative group rounded-md overflow-hidden border dark:border-gray-600 aspect-square w-full hover:shadow-lg transition-shadow image-preview-trigger"
                                                             title="プレビュー: {{ $fileInfo['original_name'] }} @if(isset($fileInfo['size'])) ({{ \Illuminate\Support\Number::fileSize($fileInfo['size']) }}) @endif">
@@ -115,7 +146,7 @@
                                                                     <i class="fas fa-search-plus text-white text-2xl opacity-0 group-hover:opacity-100 transition-opacity"></i>
                                                                 </div>
                                                             </a>
-                                                            {{-- ファイル名とサイズをカードの下、ボタンの上に配置 --}}
+                                                            {{-- ファイル名とサイズ --}}
                                                             <div class="mt-2 text-center w-full px-1">
                                                                 <a href="{{ Storage::url($fileInfo['path']) }}" download="{{ $fileInfo['original_name'] }}"
                                                                 class="text-xs text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-200 font-medium break-all leading-tight line-clamp-2 underline"
@@ -128,7 +159,7 @@
                                                             </div>
                                                         </div>
                                                     @else
-                                                        {{-- (画像ファイル以外の表示部分は変更なし) --}}
+                                                        {{-- 画像以外のファイルカード --}}
                                                         <div class="flex flex-col items-center">
                                                             <div class="block relative group rounded-md overflow-hidden border dark:border-gray-600 aspect-square w-full cursor-default"
                                                                 title="{{ $fileInfo['original_name'] }} @if(isset($fileInfo['size'])) ({{ \Illuminate\Support\Number::fileSize($fileInfo['size']) }}) @endif">

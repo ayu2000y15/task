@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ $formCategory->form_title ?: $formCategory->display_name }}</title>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+
     @vite(['resources/css/app.css'])
     <style>
         body {
@@ -136,7 +139,7 @@
                     </div>
 
                     {{-- 備考・ご要望など --}}
-                    <div class="form-group mt-6">
+                    <div class="hidden form-group mt-6">
                         <label for="submitter_notes" class="block text-sm font-medium text-gray-700 mb-2">
                             備考・ご要望など
                         </label>
@@ -200,13 +203,8 @@
                                                 class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200 @error('custom_' . $field['name']) border-red-500 @enderror"
                                                 @if($field['is_required']) required @endif>
                                             <option value="">選択してください</option>
-                                            @if($field['options'])
-                                                @foreach(explode(',', $field['options']) as $option)
-                                                    @php
-                                                        $parts = explode(':', $option, 2);
-                                                        $value = trim($parts[0]);
-                                                        $label = count($parts) > 1 ? trim($parts[1]) : $value;
-                                                    @endphp
+                                            @if(is_array($field['options']))
+                                                @foreach($field['options'] as $value => $label)
                                                     <option value="{{ $value }}" @if(old('custom_' . $field['name']) == $value) selected @endif>
                                                         {{ $label }}
                                                     </option>
@@ -217,21 +215,16 @@
 
                                     @case('radio')
                                         <div class="space-y-3">
-                                            @if($field['options'])
-                                                @foreach(explode(',', $field['options']) as $option)
-                                                    @php
-                                                        $parts = explode(':', $option, 2);
-                                                        $value = trim($parts[0]);
-                                                        $label = count($parts) > 1 ? trim($parts[1]) : $value;
-                                                    @endphp
+                                            @if(is_array($field['options']))
+                                                @foreach($field['options'] as $value => $label)
                                                     <div class="flex items-center">
                                                         <input type="radio"
-                                                               id="custom_{{ $field['name'] }}_{{ $loop->index }}"
-                                                               name="custom_{{ $field['name'] }}"
-                                                               value="{{ $value }}"
-                                                               class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                                                               @if(old('custom_' . $field['name']) == $value) checked @endif
-                                                               @if($field['is_required']) required @endif>
+                                                                id="custom_{{ $field['name'] }}_{{ $loop->index }}"
+                                                                name="custom_{{ $field['name'] }}"
+                                                                value="{{ $value }}"
+                                                                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                                                                @if(old('custom_' . $field['name']) == $value) checked @endif
+                                                                @if($field['is_required']) required @endif>
                                                         <label for="custom_{{ $field['name'] }}_{{ $loop->index }}" class="ml-3 text-sm text-gray-700">
                                                             {{ $label }}
                                                         </label>
@@ -243,21 +236,18 @@
 
                                     @case('checkbox')
                                         <div class="space-y-3">
-                                            @if($field['options'])
-                                                @foreach(explode(',', $field['options']) as $option)
+                                            @if(is_array($field['options']))
+                                                @foreach($field['options'] as $value => $label)
                                                     @php
-                                                        $parts = explode(':', $option, 2);
-                                                        $value = trim($parts[0]);
-                                                        $label = count($parts) > 1 ? trim($parts[1]) : $value;
                                                         $oldValues = old('custom_' . $field['name'], []);
                                                     @endphp
                                                     <div class="flex items-center">
                                                         <input type="checkbox"
-                                                               id="custom_{{ $field['name'] }}_{{ $loop->index }}"
-                                                               name="custom_{{ $field['name'] }}[]"
-                                                               value="{{ $value }}"
-                                                               class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                                                               @if(in_array($value, $oldValues)) checked @endif>
+                                                                id="custom_{{ $field['name'] }}_{{ $loop->index }}"
+                                                                name="custom_{{ $field['name'] }}[]"
+                                                                value="{{ $value }}"
+                                                                class="flex-shrink-0 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                                                @if(is_array($oldValues) && in_array($value, $oldValues)) checked @endif>
                                                         <label for="custom_{{ $field['name'] }}_{{ $loop->index }}" class="ml-3 text-sm text-gray-700">
                                                             {{ $label }}
                                                         </label>
@@ -267,7 +257,60 @@
                                         </div>
                                         @break
 
+                                    @case('image_select')
+    @php
+        $max = $field['max_selections'] ?? null;
+        $options = is_array($field['options']) ? $field['options'] : [];
+        $oldValues = old('custom_' . $field['name'], []);
+    @endphp
+
+    @if($max)
+        <p class="text-sm text-gray-600 mb-3">
+            <i class="fas fa-info-circle mr-1 text-blue-500"></i>
+            最大{{ $max }}個まで選択できます。
+        </p>
+    @endif
+
+    {{-- ↓ 変更箇所 --}}
+    <div class="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-4 gap-4 image-selector-container"
+         data-max-selections="{{ $max }}">
+    {{-- ↑ 変更箇所 --}}
+        @if(!empty($options))
+            @foreach($options as $value => $imageUrl)
+                {{-- ↓ 変更箇所 (onclickイベント内でスタイルを制御) --}}
+                <label for="custom_{{ $field['name'] }}_{{ $loop->index }}"
+                    class="block border rounded-lg overflow-hidden transition-all duration-200 bg-white cursor-pointer">
+
+                    <div class="bg-gray-100 dark:bg-gray-700 flex items-center justify-center p-2">
+                        <img src="{{ $imageUrl }}" alt="{{ $value }}" class="max-w-full h-40 object-contain">
+                    </div>
+
+                    <div class="p-3 border-t dark:border-gray-700">
+                        <div class="flex items-center">
+                            <input type="checkbox"
+                                id="custom_{{ $field['name'] }}_{{ $loop->index }}"
+                                name="custom_{{ $field['name'] }}[]"
+                                value="{{ $value }}"
+                                {{-- ↓ 変更箇所 --}}
+                                onclick="handleImageSelection(this)"
+                                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                @if(is_array($oldValues) && in_array($value, $oldValues)) checked @endif>
+                            {{-- ↑ 変更箇所 --}}
+                            <span class="ml-2 block text-sm font-medium text-gray-800 truncate" title="{{ $value }}">
+                                {{ $value }}
+                            </span>
+                        </div>
+                    </div>
+                </label>
+            @endforeach
+        @endif
+    </div>
+    {{-- エラーメッセージ表示用の要素は任意で設置してください --}}
+    <div id="error-custom_{{ $field['name'] }}" class="mt-2 text-sm text-red-600"></div>
+    @break
+
                                     @case('file')
+                                    @case('file_multiple')
                                         <div class="file-drop-zone"
                                              onclick="document.getElementById('custom_{{ $field['name'] }}').click()"
                                              ondrop="handleDrop(event, 'custom_{{ $field['name'] }}')"
@@ -281,51 +324,40 @@
                                                 <p class="text-lg font-medium text-blue-600 mb-1">ドラッグ＆ドロップまたはクリックして選択</p>
                                                 <div class="flex items-center justify-center space-x-2 text-sm text-gray-500 mt-3">
                                                     <i class="fas fa-info-circle"></i>
-                                                    <span>最大10MB（JPG, PNG, GIF, PDF, DOC, XLS, ZIP, TXT）</span>
+                                                    @if($field['type'] === 'file_multiple')
+                                                        <span>複数ファイル選択可能・各ファイル最大10MB（JPG, PNG, GIF, PDF, DOC, XLS, ZIP, TXT）</span>
+                                                    @else
+                                                        <span>最大10MB（JPG, PNG, GIF, PDF, DOC, XLS, ZIP, TXT）</span>
+                                                    @endif
                                                 </div>
                                             </div>
                                         </div>
                                         <input type="file"
                                                id="custom_{{ $field['name'] }}"
-                                               name="custom_{{ $field['name'] }}"
+                                               name="custom_{{ $field['name'] }}{{ $field['type'] === 'file_multiple' ? '[]' : '' }}"
+                                               {{ $field['type'] === 'file_multiple' ? 'multiple' : '' }}
                                                accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.zip,.txt"
                                                class="file-input-hidden"
-                                               @if($field['is_required']) required @endif
-                                               onchange="handleFileSelection(this, false)">
-                                        <div class="mt-4" id="preview_custom_{{ $field['name'] }}"></div>
-                                        @break
-
-                                    @case('file_multiple')
-                                        <div class="file-drop-zone"
-                                             onclick="document.getElementById('custom_{{ $field['name'] }}').click()"
-                                             ondrop="handleDrop(event, 'custom_{{ $field['name'] }}')"
-                                             ondragover="handleDragOver(event)"
-                                             ondragleave="handleDragLeave(event)">
-                                            <div class="text-gray-600">
-                                                <div class="upload-icon-animation mb-4">
-                                                    <i class="fas fa-cloud-upload-alt text-5xl text-blue-500"></i>
-                                                </div>
-                                                <p class="text-xl font-semibold text-gray-800 mb-2">ファイルアップロード</p>
-                                                <p class="text-lg font-medium text-blue-600 mb-1">ドラッグ＆ドロップまたはクリックして選択</p>
-                                                <div class="flex items-center justify-center space-x-2 text-sm text-gray-500 mt-3">
-                                                    <i class="fas fa-info-circle"></i>
-                                                    <span>複数ファイル選択可能・各ファイル最大10MB（JPG, PNG, GIF, PDF, DOC, XLS, ZIP, TXT）</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <input type="file"
-                                               id="custom_{{ $field['name'] }}"
-                                               name="custom_{{ $field['name'] }}[]"
-                                               multiple
-                                               accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.zip,.txt"
-                                               class="file-input-hidden"
-                                               @if($field['is_required']) required @endif
-                                               onchange="handleFileSelection(this, true)">
+                                               onchange="handleFileSelection(this, {{ $field['type'] === 'file_multiple' ? 'true' : 'false' }})">
+                                        @php
+                                            // ★ 修正: セッションから既存ファイル情報の配列を一度に取得します
+                                            $existingFilesArray = old('existing_temp_files', session('existing_temp_files', []));
+                                            // ★ 修正: 現在のフィールドに対応するファイル情報を取り出します
+                                            $currentFieldFiles = $existingFilesArray[$field['name']] ?? [];
+                                        @endphp
+                                        {{-- 既存ファイル情報を保持するための隠しフィールド --}}
+                                        <input type="hidden"
+                                            name="existing_temp_files[{{ $field['name'] }}]"
+                                            id="existing_files_hidden_{{ $field['name'] }}"
+                                            value="{{ json_encode($currentFieldFiles) }}">
                                         <div class="mt-4" id="preview_custom_{{ $field['name'] }}"></div>
                                         @break
                                 @endswitch
 
                                 @error('custom_' . $field['name'])
+                                    <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
+                                @enderror
+                                @error('custom_' . $field['name'] . '.*')
                                     <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
                                 @enderror
                             </div>
@@ -348,188 +380,259 @@
             <p>{{ config('app.name') }}</p>
         </div>
     </div>
+<script>
+    // -------------------------------------------------------------------------
+    // 画像選択フィールド（image_select）の制御ロジック
+    // -------------------------------------------------------------------------
 
-    <script>
-        // 選択されたファイルを格納するオブジェクト
-        const selectedFiles = {};
+    /**
+     * 画像選択のクリックを処理し、選択数を制御する関数
+     * @param {HTMLInputElement} checkbox - クリックされたチェックボックス要素
+     */
+    function handleImageSelection(checkbox) {
+        const container = checkbox.closest('.image-selector-container');
+        if (!container) return;
 
-        // ドラッグアンドドロップ処理
-        function handleDragOver(event) {
-            event.preventDefault();
-            event.currentTarget.classList.add('dragover');
+        const maxSelections = parseInt(container.dataset.maxSelections, 10);
+        // maxSelectionsが未設定または0の場合は、制限なし
+        if (!maxSelections) {
+            updateImageSelectionStates(container);
+            return;
+        };
+
+        const allCheckboxes = container.querySelectorAll('input[type=checkbox]');
+        const checkedCount = Array.from(allCheckboxes).filter(cb => cb.checked).length;
+        const fieldName = container.querySelector('input').name.replace(/\[\]$/, '');
+        const errorContainer = document.getElementById('error-' + fieldName);
+
+        if (errorContainer) {
+            errorContainer.textContent = ''; // エラーメッセージをリセット
         }
 
-        function handleDragLeave(event) {
-            event.preventDefault();
-            event.currentTarget.classList.remove('dragover');
+        // 選択数が上限を超えた場合、今クリックしたチェックを外して処理を中断
+        if (checkedCount > maxSelections) {
+            checkbox.checked = false;
+            if (errorContainer) {
+                 errorContainer.textContent = `選択できるのは${maxSelections}個までです。`;
+            }
+            return;
         }
 
-        function handleDrop(event, inputId) {
-            event.preventDefault();
-            event.currentTarget.classList.remove('dragover');
+        // 状態の更新
+        updateImageSelectionStates(container);
+    }
 
-            const files = event.dataTransfer.files;
-            const input = document.getElementById(inputId);
+    /**
+     * コンテナ内のすべてのチェックボックスの状態（有効/無効）とスタイルを更新する
+     * @param {HTMLElement} container - .image-selector-container要素
+     */
+    function updateImageSelectionStates(container) {
+        const maxSelections = parseInt(container.dataset.maxSelections, 10);
+        if (!maxSelections) return;
 
-            // 既存のファイルと新しいファイルを結合
-            if (!selectedFiles[inputId]) selectedFiles[inputId] = [];
+        const allCheckboxes = container.querySelectorAll('input[type=checkbox]');
+        const checkedCount = Array.from(allCheckboxes).filter(cb => cb.checked).length;
+        const limitReached = checkedCount >= maxSelections;
 
-            for (let i = 0; i < files.length; i++) {
-                selectedFiles[inputId].push(files[i]);
+        allCheckboxes.forEach(cb => {
+            const label = cb.closest('label');
+            // 他のチェックボックスを無効化するかどうか
+            if (limitReached && !cb.checked) {
+                cb.disabled = true;
+            } else {
+                cb.disabled = false;
             }
 
-            updateInputFiles(inputId);
-            displayFilePreview(inputId);
+            // 選択中のスタイルを適用
+            if (cb.checked) {
+                label.classList.add('ring-2', 'ring-blue-500', 'border-blue-500', 'shadow-md');
+            } else {
+                label.classList.remove('ring-2', 'ring-blue-500', 'border-blue-500', 'shadow-md');
+            }
+        });
+    }
+
+    // -------------------------------------------------------------------------
+    // ファイルアップロードフィールド（file, file_multiple）の制御ロジック
+    // -------------------------------------------------------------------------
+
+    // グローバル変数として、選択されたファイルをフィールドごとに管理します
+    const selectedFiles = {};
+
+    /**
+     * ドラッグ＆ドロップのイベントハンドラ
+     */
+    function handleDragOver(event) {
+        event.preventDefault();
+        event.currentTarget.classList.add('dragover');
+    }
+
+    function handleDragLeave(event) {
+        event.preventDefault();
+        event.currentTarget.classList.remove('dragover');
+    }
+
+    function handleDrop(event, inputId) {
+        event.preventDefault();
+        event.currentTarget.classList.remove('dragover');
+        const files = event.dataTransfer.files;
+        const input = document.getElementById(inputId);
+        input.files = files;
+        handleFileSelection(input, input.multiple);
+    }
+
+    /**
+     * ファイルが選択された（またはドロップされた）時のメイン処理
+     */
+    function handleFileSelection(input, multiple) {
+        const inputId = input.id;
+        if (!selectedFiles[inputId]) {
+            selectedFiles[inputId] = [];
         }
 
-        // ファイル選択処理（input changeイベント用）
-        function handleFileSelection(input, multiple) {
-            const inputId = input.id;
+        const newFiles = Array.from(input.files);
+        const existingFileNames = selectedFiles[inputId].map(f => f.name || f.original_name);
 
-            if (!selectedFiles[inputId]) selectedFiles[inputId] = [];
+        newFiles.forEach(file => {
+            if (!existingFileNames.includes(file.name)) {
+                selectedFiles[inputId].push(file);
+            }
+        });
 
-            // 新しく選択されたファイルを追加
-            for (let i = 0; i < input.files.length; i++) {
-                selectedFiles[inputId].push(input.files[i]);
+        syncInputFiles(inputId);
+        displayFilePreview(inputId);
+    }
+
+    /**
+     * ファイルを削除する処理
+     */
+    function removeFile(inputId, fileIndex) {
+        if (!selectedFiles[inputId] || !selectedFiles[inputId][fileIndex]) return;
+
+        selectedFiles[inputId].splice(fileIndex, 1);
+
+        updateHiddenInput(inputId);
+        syncInputFiles(inputId);
+        displayFilePreview(inputId);
+    }
+
+    /**
+     * selectedFiles（マスターリスト）の状態を実際の<input type="file">に反映させる関数
+     */
+    function syncInputFiles(inputId) {
+        const input = document.getElementById(inputId);
+        const dt = new DataTransfer();
+        const clientSideFiles = selectedFiles[inputId].filter(file => file instanceof File);
+
+        clientSideFiles.forEach(file => {
+            dt.items.add(file);
+        });
+        input.files = dt.files;
+    }
+
+    /**
+     * サーバー由来のファイル情報を保持する隠しフィールドを更新する関数
+     */
+    function updateHiddenInput(inputId) {
+        const fieldName = inputId.replace('custom_', '');
+        const hiddenInput = document.getElementById(`existing_files_hidden_${fieldName}`);
+        if (hiddenInput) {
+            const serverFiles = selectedFiles[inputId].filter(file => !(file instanceof File));
+            hiddenInput.value = JSON.stringify(serverFiles);
+        }
+    }
+
+    /**
+     * ファイルプレビューを描画する関数
+     */
+    function displayFilePreview(inputId) {
+        const previewContainer = document.getElementById('preview_' + inputId);
+        previewContainer.innerHTML = ''; // プレビューを一旦クリア
+
+        const files = selectedFiles[inputId];
+        if (!files || files.length === 0) return;
+
+        files.forEach((file, index) => {
+            const fileName = file.name || file.original_name;
+            const fileSize = file.size;
+            const sizeKB = fileSize ? (fileSize / 1024).toFixed(2) : 'N/A';
+            const fileType = file.type || file.mime_type || 'application/octet-stream';
+
+            const previewItemWrapper = document.createElement('div');
+            previewItemWrapper.className = 'file-preview-item';
+
+            let innerHTML = '';
+            const src = (file instanceof File) ? URL.createObjectURL(file) : (file.preview_src || '');
+
+            innerHTML = `
+                <div class='flex items-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 mb-2'>
+            `;
+
+            if (fileType.startsWith('image/') && src) {
+                innerHTML += `
+                    <img src="${src}" alt="プレビュー" class="w-16 h-16 object-cover rounded-md mr-4" ${(file instanceof File) ? 'onload="URL.revokeObjectURL(this.src)"' : ''}>
+                `;
+            } else {
+                let icon = 'fa-file-alt';
+                if (fileType.includes('pdf')) { icon = 'fa-file-pdf'; }
+                else if (fileType.includes('word')) { icon = 'fa-file-word'; }
+                else if (fileType.includes('excel')) { icon = 'fa-file-excel'; }
+                else if (fileType.includes('zip')) { icon = 'fa-file-archive'; }
+                innerHTML += `
+                    <div class="w-16 h-16 bg-gray-200 dark:bg-gray-600 rounded-md flex items-center justify-center mr-4 flex-shrink-0">
+                        <i class="fas ${icon} text-3xl text-gray-500 dark:text-gray-400"></i>
+                    </div>
+                `;
             }
 
-            displayFilePreview(inputId);
-        }
+            innerHTML += `
+                <div class="flex-grow min-w-0">
+                    <p class="font-medium truncate">${fileName}</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">${sizeKB} KB</p>
+                </div>
+            `;
 
-        // inputのfilesプロパティを更新
-        function updateInputFiles(inputId) {
-            const input = document.getElementById(inputId);
-            const dt = new DataTransfer();
+            innerHTML += `
+                <button type='button' onclick='removeFile("${inputId}", ${index})'
+                        class='delete-file-btn bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition-all shadow-md ml-3 flex-shrink-0 text-base'>
+                    ×
+                </button>
+            `;
 
-            if (selectedFiles[inputId]) {
-                selectedFiles[inputId].forEach(file => {
-                    dt.items.add(file);
-                });
-            }
+            innerHTML += `</div>`;
 
-            input.files = dt.files;
-        }
+            previewItemWrapper.innerHTML = innerHTML;
+            previewContainer.appendChild(previewItemWrapper);
+        });
+    }
 
-        // ファイルを削除
-        function removeFile(inputId, fileIndex) {
-            if (selectedFiles[inputId]) {
-                selectedFiles[inputId].splice(fileIndex, 1);
-            }
-            updateInputFiles(inputId);
-            displayFilePreview(inputId);
-        }
+    /**
+     * ページ読み込み完了時に、各種フィールドの初期状態をセットアップする
+     */
+    document.addEventListener('DOMContentLoaded', () => {
+        // [画像選択] フィールドの初期状態を反映
+        const imageContainers = document.querySelectorAll('.image-selector-container');
+        imageContainers.forEach(container => {
+            updateImageSelectionStates(container);
+        });
 
-        // ファイルプレビューを表示
-        function displayFilePreview(inputId) {
-            const previewId = 'preview_' + inputId;
-            const preview = document.getElementById(previewId);
-            preview.innerHTML = '';
+        // [ファイル] フィールドで、サーバーから渡された既存ファイルを復元
+        const hiddenFileInputs = document.querySelectorAll('input[type="hidden"][name^="existing_temp_files"]');
+        hiddenFileInputs.forEach(input => {
+            try {
+                const fieldName = input.name.match(/\[(.*?)\]/)[1];
+                const inputId = `custom_${fieldName}`;
+                const existingFilesData = JSON.parse(input.value);
 
-            const files = selectedFiles[inputId];
-            if (!files || files.length === 0) return;
-
-            let hasError = false;
-
-            files.forEach((file, index) => {
-                const sizeMB = (file.size / 1024 / 1024).toFixed(2);
-
-            if (file.size > 10 * 1024 * 1024) {
-                    preview.innerHTML += `
-                        <div class='p-4 mb-3 bg-red-50 border border-red-200 rounded-xl file-preview-item'>
-                            <div class='flex items-center justify-between'>
-                                <div class='flex items-center'>
-                                    <i class='fas fa-exclamation-triangle text-red-500 text-xl mr-3'></i>
-                                    <div>
-                                        <p class='text-red-600 text-sm font-medium'>ファイル「${file.name}」は5MBを超えています</p>
-                                        <p class='text-red-500 text-xs'>${sizeMB}MB</p>
-                                    </div>
-                                </div>
-                                <button type='button' onclick='removeFile("${inputId}", ${index})'
-                                        class='text-red-500 hover:text-red-700 p-1 rounded transition-colors text-xl font-bold'>
-                                    ×
-                                </button>
-                            </div>
-                        </div>
-                    `;
-                    hasError = true;
-                    return;
+                if (Array.isArray(existingFilesData) && existingFilesData.length > 0) {
+                    selectedFiles[inputId] = [].concat(existingFilesData);
+                    displayFilePreview(inputId);
                 }
-
-                if (file.type.startsWith('image/')) {
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        const imagePreview = document.createElement('div');
-                        imagePreview.className = 'file-preview-item';
-                        imagePreview.innerHTML = `
-                            <div class='flex items-start p-4 mb-3 bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-all'>
-                                <img src='${e.target.result}' alt='preview' class='w-20 h-20 object-cover rounded-lg shadow mr-4'>
-                                <div class='flex-1 min-w-0'>
-                                    <div class='text-sm font-semibold text-gray-900 truncate'>${file.name}</div>
-                                    <div class='text-xs text-gray-500 mt-1'>${sizeMB}MB・${file.type}</div>
-                                    <div class='flex items-center mt-2'>
-                                        <i class='fas fa-check-circle text-green-500 mr-1'></i>
-                                        <span class='text-xs text-green-600 font-medium'>アップロード準備完了</span>
-                                    </div>
-                                </div>
-                                <button type='button' onclick='removeFile("${inputId}", ${index})'
-                                        class='delete-file-btn bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-red-600 transition-all shadow-lg ml-3 flex-shrink-0 text-xl font-bold'>
-                                    ×
-                                </button>
-                            </div>
-                        `;
-                        preview.appendChild(imagePreview);
-                    };
-                    reader.readAsDataURL(file);
-                } else {
-                    // ファイルタイプに応じたアイコンと色を設定
-                    let icon = 'fa-file-alt';
-                    let iconColor = 'text-gray-500';
-
-                    if (file.type.includes('pdf')) {
-                        icon = 'fa-file-pdf';
-                        iconColor = 'text-red-500';
-                    } else if (file.type.includes('word') || file.name.toLowerCase().includes('.doc')) {
-                        icon = 'fa-file-word';
-                        iconColor = 'text-blue-500';
-                    } else if (file.type.includes('excel') || file.name.toLowerCase().includes('.xls')) {
-                        icon = 'fa-file-excel';
-                        iconColor = 'text-green-500';
-                    } else if (file.type.includes('zip') || file.name.toLowerCase().includes('.zip')) {
-                        icon = 'fa-file-archive';
-                        iconColor = 'text-yellow-600';
-                    } else if (file.type.includes('text')) {
-                        icon = 'fa-file-alt';
-                        iconColor = 'text-gray-600';
-                    }
-
-                    preview.innerHTML += `
-                        <div class='flex items-center p-4 mb-3 bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md file-preview-item transition-all'>
-                            <div class='w-16 h-16 bg-gray-50 rounded-lg flex items-center justify-center mr-4'>
-                                <i class='fas ${icon} text-3xl ${iconColor}'></i>
-                            </div>
-                            <div class='flex-1 min-w-0'>
-                                <div class='text-sm font-semibold text-gray-900 truncate'>${file.name}</div>
-                                <div class='text-xs text-gray-500 mt-1'>${sizeMB}MB・${file.type}</div>
-                                <div class='flex items-center mt-2'>
-                                    <i class='fas fa-check-circle text-green-500 mr-1'></i>
-                                    <span class='text-xs text-green-600 font-medium'>アップロード準備完了</span>
-                                </div>
-                            </div>
-                            <button type='button' onclick='removeFile("${inputId}", ${index})'
-                                    class='delete-file-btn bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-red-600 transition-all shadow-lg ml-3 flex-shrink-0 text-xl font-bold'>
-                                ×
-                            </button>
-                        </div>
-                    `;
-                }
-            });
-
-            if (hasError) {
-                // エラーファイルを配列から除去
-                selectedFiles[inputId] = selectedFiles[inputId].filter(file => file.size <= 10 * 1024 * 1024);
-                updateInputFiles(inputId);
+            } catch (e) {
+                console.error("Failed to parse existing files JSON:", e);
             }
-        }
-    </script>
+        });
+    });
+</script>
 </body>
 </html>

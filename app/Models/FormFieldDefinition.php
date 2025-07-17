@@ -21,6 +21,8 @@ class FormFieldDefinition extends Model
         'is_required',
         'order',
         'max_length',
+        'min_selections',
+        'max_selections',
         'is_enabled',
     ];
 
@@ -66,6 +68,7 @@ class FormFieldDefinition extends Model
         'tel' => '電話番号',
         'email' => 'メールアドレス',
         'url' => 'URL',
+        'image_select' => '画像選択',
         'file' => 'ファイル (単一)',
         'file_multiple' => 'ファイル (複数可)',
     ];

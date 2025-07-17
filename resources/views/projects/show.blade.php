@@ -71,10 +71,61 @@
 @endpush
 @section('content')
 <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8"
-        id="project-show-main-container"
-        data-project-id="{{ $project->id }}"
-        data-project='@json($project->only(['id']))'
-        data-assignee-options='{{ isset($assigneeOptions) ? json_encode($assigneeOptions) : '[]' }}'>
+     id="project-show-main-container"
+     @keydown.escape.window="closeModal"
+     @keydown.arrow-left.window="prevImage"
+     @keydown.arrow-right.window="nextImage"
+     x-data="{
+        isOpen: false,
+        images: [],
+        currentIndex: 0,
+
+        get currentImage() {
+            return this.images[this.currentIndex] || { src: '', alt: '' };
+        },
+
+        openModalFromClick(event) {
+            const button = event.currentTarget;
+            const galleryContainer = button.closest('[data-gallery]');
+            if (!galleryContainer) return;
+
+            try {
+                const galleryData = JSON.parse(galleryContainer.dataset.gallery);
+                const index = parseInt(button.dataset.index, 10);
+                this.openModal(index, galleryData);
+            } catch (e) {
+                console.error('Failed to parse gallery data:', e);
+            }
+        },
+
+        openModal(index, gallery) {
+            if (!gallery || gallery.length === 0) return;
+
+            const cleanedGallery = gallery.map(image => {
+                const cleanedSrc = image.src.replace(/\\/g, '/').replace(/¥/g, '/');
+                return { src: cleanedSrc, alt: image.alt };
+            });
+
+            this.currentIndex = index;
+            this.images = cleanedGallery;
+            this.isOpen = true;
+        },
+
+        closeModal() {
+            this.isOpen = false;
+        },
+
+        nextImage() {
+            if (!this.isOpen || this.images.length < 2) return;
+            this.currentIndex = (this.currentIndex + 1) % this.images.length;
+        },
+
+        prevImage() {
+            if (!this.isOpen || this.images.length < 2) return;
+            this.currentIndex = (this.currentIndex - 1 + this.images.length) % this.images.length;
+        }
+     }"
+>
 
     {{-- ヘッダーセクション --}}
     <div class="mb-6 p-4 sm:p-6 rounded-lg shadow-lg text-white" style="background: linear-gradient(135deg, {{ $project->color ?? '#6c757d' }}DD, {{ $project->color ?? '#6c757d' }}FF); border-left: 4px solid {{ $project->color ?? '#6c757d' }};">
@@ -378,29 +429,48 @@
                     <i class="fas fa-info-circle mr-2" style="color: {{ $project->color ?? '#6c757d' }};"></i>
                     <h5 class="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-0">案件基本情報</h5>
                 </div>
-                <div class="p-5 space-y-3">
-                    {{-- 専用カラムの情報を直接表示 --}}
-                    <div class="flex justify-between items-start"><span class="text-sm font-semibold text-gray-500 dark:text-gray-400 w-28 flex-shrink-0">案件名</span><span class="text-sm text-gray-700 dark:text-gray-300 text-right flex-1 whitespace-pre-wrap break-words">{{ $project->title }}</span></div>
+                <div class="p-5 space-y-4">
+                    {{-- 各項目をレスポンシブ対応 --}}
+                    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start">
+                        <span class="text-sm font-semibold text-gray-500 dark:text-gray-400 w-28 flex-shrink-0 mb-1 sm:mb-0">案件名</span>
+                        <span class="text-sm text-gray-700 dark:text-gray-300 text-left sm:text-right flex-1 whitespace-pre-wrap break-words">{{ $project->title }}</span>
+                    </div>
                     @if($project->projectCategory)
-                    <div class="flex justify-between items-start">
-                        <span class="text-sm font-semibold text-gray-500 dark:text-gray-400 w-28 flex-shrink-0">カテゴリ</span>
-                        <span class="text-sm text-gray-700 dark:text-gray-300 text-right flex-1">
+                    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start">
+                        <span class="text-sm font-semibold text-gray-500 dark:text-gray-400 w-28 flex-shrink-0 mb-1 sm:mb-0">カテゴリ</span>
+                        <span class="text-sm text-gray-700 dark:text-gray-300 text-left sm:text-right flex-1">
                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-200">
                                 {{ $project->projectCategory->display_name ?? $project->projectCategory->name }}
                             </span>
                         </span>
                     </div>
                     @endif
-                    @if($project->series_title)<div class="flex justify-between items-start"><span class="text-sm font-semibold text-gray-500 dark:text-gray-400 w-28 flex-shrink-0">作品名</span><span class="text-sm text-gray-700 dark:text-gray-300 text-right flex-1 whitespace-pre-wrap break-words">{{ $project->series_title }}</span></div>@endif
-                    @if($project->client_name)<div class="flex justify-between items-start"><span class="text-sm font-semibold text-gray-500 dark:text-gray-400 w-28 flex-shrink-0">依頼主名</span><span class="text-sm text-gray-700 dark:text-gray-300 text-right flex-1 whitespace-pre-wrap break-words">{{ $project->client_name }}</span></div>@endif
-                    <div class="flex justify-between items-start"><span class="text-sm font-semibold text-gray-500 dark:text-gray-400 w-28 flex-shrink-0">期間</span><span class="text-sm text-gray-700 dark:text-gray-300 text-right">{{ $project->start_date ? $project->start_date->format('Y/m/d') : '-' }} 〜 {{ $project->end_date ? $project->end_date->format('Y/m/d') : '-' }}</span></div>
+                    @if($project->series_title)
+                    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start">
+                        <span class="text-sm font-semibold text-gray-500 dark:text-gray-400 w-28 flex-shrink-0 mb-1 sm:mb-0">作品名</span>
+                        <span class="text-sm text-gray-700 dark:text-gray-300 text-left sm:text-right flex-1 whitespace-pre-wrap break-words">{{ $project->series_title }}</span>
+                    </div>
+                    @endif
+                    @if($project->client_name)
+                    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start">
+                        <span class="text-sm font-semibold text-gray-500 dark:text-gray-400 w-28 flex-shrink-0 mb-1 sm:mb-0">依頼主名</span>
+                        <span class="text-sm text-gray-700 dark:text-gray-300 text-left sm:text-right flex-1 whitespace-pre-wrap break-words">{{ $project->client_name }}</span>
+                    </div>
+                    @endif
+                    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start">
+                        <span class="text-sm font-semibold text-gray-500 dark:text-gray-400 w-28 flex-shrink-0 mb-1 sm:mb-0">期間</span>
+                        <span class="text-sm text-gray-700 dark:text-gray-300 text-left sm:text-right">{{ $project->start_date ? $project->start_date->format('Y/m/d') : '-' }} 〜 {{ $project->end_date ? $project->end_date->format('Y/m/d') : '-' }}</span>
+                    </div>
                     @if($project->description)
-                        <div class="flex justify-between items-start"><span class="text-sm font-semibold text-gray-500 dark:text-gray-400 w-28 flex-shrink-0">備考</span><p class="text-sm text-gray-700 dark:text-gray-300 text-left whitespace-pre-wrap break-words flex-1">{{ $project->description }}</p></div>
+                        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start">
+                            <span class="text-sm font-semibold text-gray-500 dark:text-gray-400 w-28 flex-shrink-0 mb-1 sm:mb-0">備考</span>
+                            <p class="text-sm text-gray-700 dark:text-gray-300 text-left whitespace-pre-wrap break-words flex-1">{{ $project->description }}</p>
+                        </div>
                     @endif
 
                     {{-- 納品フラグ --}}
-                    <div class="flex justify-between items-center min-h-[2.5rem]"> {{-- 高さを確保 --}}
-                        <div class="flex items-center space-x-2"> {{-- ラベルとアイコンの間隔調整 --}}
+                    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start pt-2">
+                        <div class="flex items-center space-x-2 mb-2 sm:mb-0">
                             <span class="text-sm font-semibold text-gray-500 dark:text-gray-400 w-28 flex-shrink-0">納品状況</span>
                             @php
                                 $deliveryFlagValue = $project->delivery_flag ?? '0';
@@ -408,13 +478,13 @@
                                 $deliveryIconColor = $deliveryFlagValue == '1' ? 'text-green-500 dark:text-green-400' : 'text-yellow-500 dark:text-yellow-400';
                                 $deliveryTooltip = $deliveryFlagValue == '1' ? '納品済み' : '未納品';
                             @endphp
-                            <span id="project_delivery_flag_icon_{{ $project->id }}" title="{{ $deliveryTooltip }}" class="text-base"> {{-- アイコンサイズ調整 --}}
-                                <i class="fas {{ $deliveryIcon }} {{ $deliveryIconColor }}" style="margin-right: 4px;"></i>
+                            <span id="project_delivery_flag_icon_{{ $project->id }}" title="{{ $deliveryTooltip }}" class="text-base">
+                                <i class="fas {{ $deliveryIcon }} {{ $deliveryIconColor }}"></i>
                             </span>
                         </div>
                         @can('update', $project)
                             <select name="delivery_flag" id="project_delivery_flag_select_{{ $project->id }}"
-                                    class="project-flag-select form-select form-select-sm text-xs dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 rounded-md shadow-sm ml-auto w-32 sm:w-36" {{-- 幅調整 --}}
+                                    class="project-flag-select form-select form-select-sm text-xs dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 rounded-md shadow-sm w-full sm:w-36"
                                     data-project-id="{{ $project->id }}" data-url="{{ route('projects.updateDeliveryFlag', $project) }}"
                                     data-icon-target="project_delivery_flag_icon_{{ $project->id }}"
                                     data-status-target-icon="project_status_icon_{{ $project->id }}"
@@ -424,13 +494,13 @@
                             </select>
                         @endcan
                         @cannot('update', $project)
-                            <span class="ml-auto text-sm text-gray-700 dark:text-gray-300">{{ $deliveryTooltip }}</span>
+                            <span class="sm:ml-auto text-sm text-gray-700 dark:text-gray-300">{{ $deliveryTooltip }}</span>
                         @endcannot
                     </div>
 
                     {{-- 支払いフラグ --}}
-                    <div class="flex justify-between items-center min-h-[2.5rem]">
-                         @php
+                    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start">
+                        @php
                             $paymentFlagOptions = ['' => '未設定'] + (\App\Models\Project::PAYMENT_FLAG_OPTIONS ?? []);
                             $paymentFlagIcons = [
                                 'Pending'        => 'fa-clock text-yellow-500 dark:text-yellow-400', 'Processing'     => 'fa-hourglass-half text-blue-500 dark:text-blue-400',
@@ -443,15 +513,15 @@
                             $paymentFlagTooltip = $paymentFlagOptions[$currentPaymentFlag] ?? $currentPaymentFlag;
                             $paymentFlagIconClass = $paymentFlagIcons[$currentPaymentFlag] ?? $paymentFlagIcons[''];
                         @endphp
-                        <div class="flex items-center space-x-2">
+                        <div class="flex items-center space-x-2 mb-2 sm:mb-0">
                             <span class="text-sm font-semibold text-gray-500 dark:text-gray-400 w-28 flex-shrink-0">支払状況</span>
                             <span id="project_payment_flag_icon_{{ $project->id }}" title="{{ $paymentFlagTooltip }}" class="text-base">
-                                <i class="fas {{ $paymentFlagIconClass }}" style="margin-right: 4px;"></i>
+                                <i class="fas {{ $paymentFlagIconClass }}"></i>
                             </span>
                         </div>
                         @can('update', $project)
                             <select name="payment_flag" id="project_payment_flag_select_{{ $project->id }}"
-                                    class="project-flag-select form-select form-select-sm text-xs dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 rounded-md shadow-sm ml-auto w-32 sm:w-36"
+                                    class="project-flag-select form-select form-select-sm text-xs dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 rounded-md shadow-sm w-full sm:w-36"
                                     data-project-id="{{ $project->id }}" data-url="{{ route('projects.updatePaymentFlag', $project) }}"
                                     data-icon-target="project_payment_flag_icon_{{ $project->id }}"
                                     data-status-target-icon="project_status_icon_{{ $project->id }}"
@@ -462,14 +532,19 @@
                             </select>
                         @endcan
                         @cannot('update', $project)
-                            <span class="ml-auto text-sm text-gray-700 dark:text-gray-300">{{ $paymentFlagTooltip }}</span>
+                            <span class="sm:ml-auto text-sm text-gray-700 dark:text-gray-300">{{ $paymentFlagTooltip }}</span>
                         @endcannot
                     </div>
 
-                    @if($project->payment)<div class="flex justify-between items-start"><span class="text-sm font-semibold text-gray-500 dark:text-gray-400 w-28 flex-shrink-0">支払条件</span><p class="text-sm text-gray-700 dark:text-gray-300 text-right whitespace-pre-wrap break-words flex-1">{{ $project->payment }}</p></div>@endif
+                    @if($project->payment)
+                    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start">
+                        <span class="text-sm font-semibold text-gray-500 dark:text-gray-400 w-28 flex-shrink-0 mb-1 sm:mb-0">支払条件</span>
+                        <p class="text-sm text-gray-700 dark:text-gray-300 text-left sm:text-right whitespace-pre-wrap break-words flex-1">{{ $project->payment }}</p>
+                    </div>
+                    @endif
 
-                    {{-- プロジェクトステータス --}}
-                    <div class="flex justify-between items-center min-h-[2.5rem]">
+                    {{-- 案件ステータス --}}
+                    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start">
                         @php
                             $projectStatusOptions = ['' => '未設定'] + (\App\Models\Project::PROJECT_STATUS_OPTIONS ?? []);
                             $projectStatusIcons = [
@@ -481,17 +556,15 @@
                             $projectStatusTooltip = $projectStatusOptions[$currentProjectStatus] ?? $currentProjectStatus;
                             $projectStatusIconClass = $projectStatusIcons[$currentProjectStatus] ?? $projectStatusIcons[''];
                         @endphp
-                        <div class="flex items-center space-x-2">
+                        <div class="flex items-center space-x-2 mb-2 sm:mb-0">
                             <span class="text-sm font-semibold text-gray-500 dark:text-gray-400 w-28 flex-shrink-0">案件ステータス</span>
                             <span id="project_status_icon_{{ $project->id }}" title="{{ $projectStatusTooltip }}" class="text-base">
-                                <i class="fas {{ $projectStatusIconClass }}" style="margin-right: 4px;"></i>
+                                <i class="fas {{ $projectStatusIconClass }}"></i>
                             </span>
                         </div>
-
-                        {{-- ▲▲▲ 追加ここまで ▲▲▲ --}}
                         @can('update', $project)
                             <select name="status" id="project_status_select_{{ $project->id }}"
-                                    class="project-status-select form-select form-select-sm text-xs dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 rounded-md shadow-sm ml-auto w-32 sm:w-36"
+                                    class="project-status-select form-select form-select-sm text-xs dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 rounded-md shadow-sm w-full sm:w-36"
                                     data-project-id="{{ $project->id }}" data-url="{{ route('projects.updateStatus', $project) }}"
                                     data-icon-target="project_status_icon_{{ $project->id }}">
                                 @foreach($projectStatusOptions as $value => $label)
@@ -500,19 +573,18 @@
                             </select>
                         @endcan
                         @cannot('update', $project)
-                            <span class="ml-auto text-sm text-gray-700 dark:text-gray-300">{{ $projectStatusTooltip }}</span>
+                            <span class="sm:ml-auto text-sm text-gray-700 dark:text-gray-300">{{ $projectStatusTooltip }}</span>
                         @endcannot
                     </div>
-                    <div
-                        class="p-2 text-xs bg-yellow-50 text-yellow-700 border border-yellow-200 rounded-md dark:bg-yellow-700/30 dark:text-yellow-200 dark:border-yellow-500">
+                    <div class="p-2 text-xs bg-yellow-50 text-yellow-700 border border-yellow-200 rounded-md dark:bg-yellow-700/30 dark:text-yellow-200 dark:border-yellow-500">
                         <i class="fas fa-info-circle mr-1"></i>
                         案件ステータスは「納品済み」、かつ「支払完了」とならないと完了になりません。
                     </div>
 
                     @if(!empty($project->tracking_info))
-                        <hr class="dark:border-gray-700 my-3">
+                        <hr class="dark:border-gray-700">
                         <div class="space-y-3">
-                            <span class="text-sm font-semibold text-gray-500 dark:text-gray-400 w-28 flex-shrink-0">送り状情報</span>
+                            <span class="text-sm font-semibold text-gray-500 dark:text-gray-400 w-full block">送り状情報</span>
                             @foreach($project->tracking_info as $info)
                                 @php
                                     $carrierConfig = config('shipping.carriers.' . ($info['carrier'] ?? 'other'));
@@ -536,105 +608,177 @@
                             @endforeach
                         </div>
                     @endif
-
                     {{-- プロジェクト固有の form_definitions に基づく追加情報 (案件依頼項目) --}}
                     @can('viewAny', App\Models\FormFieldDefinition::class)
-                    @if(!empty($customFormFields) && count($customFormFields) > 0)
-                        @if(collect($customFormFields)->isNotEmpty())
-                            <hr class="dark:border-gray-600 my-3">
-                            <h6 class="text-sm font-semibold text-gray-600 dark:text-gray-400 pt-1 -mb-1">詳細情報</h6>
-                            @foreach($customFormFields as $field)
-                                @php
-                                    $fieldName = $field['name'];
-                                    $fieldLabel = $field['label'];
-                                    $fieldType = $field['type'];
-                                    $value = $project->getCustomAttributeValue($fieldName);
-                                @endphp
-                                <div class="flex justify-between items-start">
-                                    <span class="text-sm font-semibold text-gray-500 dark:text-gray-400 w-28 flex-shrink-0">{{ $fieldLabel }}</span>
-                                    @switch($fieldType)
-                                        @case('checkbox')
-                                            <span class="text-sm text-gray-700 dark:text-gray-300 text-right">
-                                                {{ filter_var($value, FILTER_VALIDATE_BOOLEAN) ? 'はい' : 'いいえ' }}
-                                            </span>
-                                            @break
-                                        @case('color')
-                                            <div class="flex items-center justify-end flex-1">
-                                                <span class="w-5 h-5 rounded-full inline-block border dark:border-gray-600 shadow-sm mr-2" style="background-color: {{ $value ?? '#ffffff' }};"></span>
-                                                <span class="text-sm text-gray-700 dark:text-gray-300 text-right">{{ $value ?? '-' }}</span>
-                                            </div>
-                                            @break
-                                        @case('date')
-                                            <span class="text-sm text-gray-700 dark:text-gray-300 text-right">
-                                                {{ $value ? \Carbon\Carbon::parse($value)->format('Y/m/d') : '-' }}
-                                            </span>
-                                            @break
-                                        @case('textarea')
-                                            <p class="text-sm text-gray-700 dark:text-gray-300 text-right whitespace-pre-wrap break-words flex-1 max-h-40 overflow-y-auto">{{ $value ?? '-' }}</p>
-                                            @break
-                                        @case('file'):
-                                        @case('file_multiple'):
-                                            @if(is_array($value) && !empty($value)) {{-- 配列であれば、複数ファイルまたは配列形式の単一ファイルとして処理 --}}
-                                                <div class="text-sm text-gray-700 dark:text-gray-300 text-right flex-1 max-h-40 overflow-y-auto">
-                                                    <ul class="list-none space-y-1">
-                                                        @foreach($value as $fileInfo)
-                                                            @if(is_array($fileInfo) && isset($fileInfo['path']) && isset($fileInfo['original_name']))
-                                                                {{-- 標準的な file_multiple の各ファイル情報 --}}
-                                                                <li>
-                                                                    <a href="{{ Storage::url($fileInfo['path']) }}" target="_blank" class="text-blue-600 hover:underline dark:text-blue-400 dark:hover:text-blue-300" title="ダウンロード: {{ $fileInfo['original_name'] }}">
-                                                                        <i class="fas fa-file-download mr-1"></i>{{ Str::limit($fileInfo['original_name'], 25) }}
-                                                                    </a>
-                                                                    <span class="text-gray-400 text-xs">({{ \Illuminate\Support\Number::fileSize($fileInfo['size'] ?? 0) }})</span>
-                                                                </li>
-                                                            @elseif(is_string($fileInfo))
-                                                                {{-- 古い形式などで、ファイルパス文字列が直接配列に含まれる場合 --}}
-                                                                <li>
-                                                                    <a href="{{ Storage::url($fileInfo) }}" target="_blank" class="text-blue-600 hover:underline dark:text-blue-400 dark:hover:text-blue-300">{{ Str::limit(basename($fileInfo), 25) }}</a>
-                                                                </li>
+                        @if(!empty($customFormFields) && count($customFormFields) > 0)
+                            @if(collect($customFormFields)->isNotEmpty())
+                                <hr class="dark:border-gray-600">
+                                <h6 class="text-sm font-semibold text-gray-600 dark:text-gray-400 pt-1">詳細情報</h6>
+                                <div class="space-y-4">
+                                    @foreach($customFormFields as $field)
+                                        @php
+                                            $fieldName = $field['name'];
+                                            $fieldLabel = $field['label'];
+                                            $fieldType = $field['type'];
+                                            $value = $project->getCustomAttributeValue($fieldName);
+                                            $options = is_array($field['options']) ? $field['options'] : (json_decode($field['options'], true) ?? []);
+                                        @endphp
+                                        <div class="flex flex-col sm:flex-row sm:items-start">
+                                            <span class="text-sm font-semibold text-gray-500 dark:text-gray-400 w-28 flex-shrink-0 mb-1 sm:mb-0">{{ $fieldLabel }}</span>
+
+                                            <div class="flex-1 text-left">
+                                                @switch($fieldType)
+                                                    @case('checkbox')
+                                                        <span class="text-sm text-gray-700 dark:text-gray-300">
+                                                            @if(empty($options))
+                                                                {{ filter_var($value, FILTER_VALIDATE_BOOLEAN) ? 'はい' : 'いいえ' }}
+                                                            @else
+                                                                @if(!empty($value) && is_array($value))
+                                                                    {{ collect($value)->map(fn($val) => $options[$val] ?? $val)->implode(', ') }}
+                                                                @else
+                                                                    <span class="text-gray-400">-</span>
+                                                                @endif
                                                             @endif
-                                                        @endforeach
-                                                    </ul>
-                                                </div>
-                                            @elseif(is_string($value) && !empty($value)) {{-- 文字列であれば、単一ファイル（パス文字列）として処理 --}}
-                                                <span class="text-sm text-gray-700 dark:text-gray-300 text-right truncate hover:whitespace-normal" title="{{ basename($value) }}">{{ Str::limit(basename($value), 20) }}</span>
-                                            @else {{-- $valueが空、null、またはその他の予期しない型の場合 --}}
-                                                <span class="text-sm text-gray-700 dark:text-gray-300 text-right">-</span>
-                                            @endif
-                                            @break
-                                        @case('url')
-                                            <div class="text-sm text-gray-700 dark:text-gray-300 text-right flex-1">
-                                                @if($value && filter_var($value, FILTER_VALIDATE_URL))
-                                                    <a href="{{ $value }}" target="_blank" rel="noopener noreferrer"
-                                                       class="text-blue-600 hover:underline dark:text-blue-400 dark:hover:text-blue-300 break-all whitespace-normal">
-                                                        {{ $value }}
-                                                    </a>
-                                                @elseif($value)
-                                                    <p class="break-words whitespace-normal">{{ $value }}</p>
-                                                @else
-                                                    <span>-</span>
-                                                @endif
+                                                        </span>
+                                                        @break
+
+                                                    @case('select')
+                                                    @case('radio')
+                                                        <p class="text-sm text-gray-700 dark:text-gray-300 break-words">
+                                                            {{ $options[$value] ?? $value ?? '-' }}
+                                                        </p>
+                                                        @break
+
+                                                    @case('image_select')
+                                                        @if(!empty($value) && is_array($value))
+                                                            @php
+                                                                $galleryData = collect($value)->map(function($selectedValue) use ($options) {
+                                                                    if (isset($options[$selectedValue])) {
+                                                                        return ['src' => $options[$selectedValue], 'alt' => $selectedValue];
+                                                                    }
+                                                                    return null;
+                                                                })->filter()->values();
+                                                            @endphp
+                                                            {{-- データをdata-gallery属性に格納 --}}
+                                                            <div class="grid grid-cols-3 sm:grid-cols-4 gap-2" data-gallery='{!! json_encode($galleryData) !!}'>
+                                                                @foreach($galleryData as $index => $image)
+                                                                    <div class="text-center">
+                                                                        {{-- クリックイベントを簡素化 --}}
+                                                                        <button type="button" @click="openModalFromClick($event)" data-index="{{ $index }}">
+                                                                            <img src="{{ str_replace('\\', '/', $image['src']) }}" alt="{{ $image['alt'] }}" class="w-full h-20 object-cover rounded-md border dark:border-gray-600 hover:opacity-80 transition-opacity">
+                                                                        </button>
+                                                                        <span class="text-xs text-gray-600 dark:text-gray-400 mt-1 block ">{{ $image['alt'] }}</span>
+                                                                    </div>
+                                                                @endforeach
+                                                            </div>
+                                                        @else
+                                                            <span class="text-sm text-gray-400">-</span>
+                                                        @endif
+                                                        @break
+
+                                                    @case('color')
+                                                        <div class="flex items-center">
+                                                            <span class="w-5 h-5 rounded-full inline-block border dark:border-gray-600 shadow-sm mr-2" style="background-color: {{ $value ?? '#ffffff' }};"></span>
+                                                            <span class="text-sm text-gray-700 dark:text-gray-300">{{ $value ?? '-' }}</span>
+                                                        </div>
+                                                        @break
+
+                                                    @case('date')
+                                                        <span class="text-sm text-gray-700 dark:text-gray-300">
+                                                            {{ $value ? \Carbon\Carbon::parse($value)->format('Y/m/d') : '-' }}
+                                                        </span>
+                                                        @break
+
+                                                    @case('textarea')
+                                                        <p class="text-sm text-gray-700 dark:text-gray-300 break-words">{{ $value ?? '-' }}</p>
+                                                        @break
+
+                                                    @case('file')
+                                                    @case('file_multiple')
+                                                        @php
+                                                            $filesToDisplay = [];
+                                                            if (is_array($value) && !empty($value)) {
+                                                                if (isset($value['path'])) { $filesToDisplay = [$value]; } else { $filesToDisplay = $value; }
+                                                            }
+                                                            $imageGalleryData = collect($filesToDisplay)->filter(fn($f) => is_array($f) && isset($f['mime_type']) && str_starts_with($f['mime_type'], 'image/'))
+                                                                ->map(function($fileInfo) {
+                                                                    return ['src' => Storage::url($fileInfo['path']), 'alt' => $fileInfo['original_name'] ?? ''];
+                                                                })->values();
+                                                        @endphp
+
+                                                        @if(!empty($filesToDisplay))
+                                                            <div class="w-full">
+                                                                @if($imageGalleryData->isNotEmpty())
+                                                                {{-- データをdata-gallery属性に格納 --}}
+                                                                <div class="grid grid-cols-3 sm:grid-cols-4 gap-2" data-gallery='{!! json_encode($imageGalleryData) !!}'>
+                                                                    @foreach($imageGalleryData as $index => $image)
+                                                                        <div class="text-center">
+                                                                            {{-- クリックイベントを簡素化 --}}
+                                                                            <button type="button" @click="openModalFromClick($event)" data-index="{{ $index }}">
+                                                                                <img src="{{ str_replace('\\', '/', $image['src']) }}" alt="{{ $image['alt'] }}" class="w-full h-20 object-cover rounded-md border dark:border-gray-600 hover:opacity-80 transition-opacity">
+                                                                            </button>
+                                                                            <span class="text-xs text-gray-600 dark:text-gray-400 mt-1 block " title="{{ $image['alt'] }}">{{ Str::limit($image['alt'], 15) }}</span>
+                                                                        </div>
+                                                                    @endforeach
+                                                                </div>
+                                                                @endif
+                                                                <ul class="list-none space-y-1 @if($imageGalleryData->isNotEmpty()) mt-2 @endif">
+                                                                    @foreach($filesToDisplay as $fileInfo)
+                                                                        @if(is_array($fileInfo) && isset($fileInfo['path']) && !str_starts_with($fileInfo['mime_type'] ?? '', 'image/'))
+                                                                            <li class="text-sm">
+                                                                                <a href="{{ str_replace('\\', '/', Storage::url($fileInfo['path'])) }}" target="_blank" class="text-blue-600 hover:underline dark:text-blue-400 dark:hover:text-blue-300" title="ダウンロード: {{ $fileInfo['original_name'] }}">
+                                                                                    <i class="fas fa-file-download mr-1"></i>{{ Str::limit($fileInfo['original_name'], 30) }}
+                                                                                </a>
+                                                                                @if(isset($fileInfo['size'])) <span class="text-gray-400 text-xs">({{ \Illuminate\Support\Number::fileSize($fileInfo['size']) }})</span> @endif
+                                                                            </li>
+                                                                        @endif
+                                                                    @endforeach
+                                                                </ul>
+                                                            </div>
+                                                        @else
+                                                            <span class="text-sm text-gray-400">-</span>
+                                                        @endif
+                                                        @break
+                                                    @case('url')
+                                                        <div class="text-sm text-gray-700 dark:text-gray-300">
+                                                            @if($value && filter_var($value, FILTER_VALIDATE_URL))
+                                                                <a href="{{ $value }}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline dark:text-blue-400 dark:hover:text-blue-300 break-all whitespace-normal">
+                                                                    {{ $value }}
+                                                                </a>
+                                                            @else
+                                                                <p class="break-words whitespace-normal">{{ $value ?? '-' }}</p>
+                                                            @endif
+                                                        </div>
+                                                        @break
+
+                                                    @default
+                                                        <p class="text-sm text-gray-700 dark:text-gray-300 break-words">
+                                                            @if(is_array($value))
+                                                                {{ implode(', ', $value) }}
+                                                            @else
+                                                                {{ $value ?? '-' }}
+                                                            @endif
+                                                        </p>
+                                                @endswitch
                                             </div>
-                                            @break
-                                        @default
-                                            <p class="text-sm text-gray-700 dark:text-gray-300 text-right whitespace-pre-wrap break-words flex-1 max-h-40 overflow-y-auto">{{ $value ?? '-' }}</p>
-                                    @endswitch
+                                        </div>
+                                    @endforeach
                                 </div>
-                            @endforeach
+                            @endif
                         @endif
-                    @endif
                     @endcan
 
-                    <hr class="dark:border-gray-700 my-3">
+                    <hr class="dark:border-gray-700">
                     {{-- 進捗バー --}}
-                    <div class="flex justify-between items-center">
-                        <span class="text-sm font-semibold text-gray-500 dark:text-gray-400">進捗状況</span>
+                    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center">
+                        <span class="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2 sm:mb-0">進捗状況</span>
                         @php
                             $progressTasks = $project->tasks()->where('is_folder', false)->where('is_milestone', false)->get();
                             $totalProgressTasks = $progressTasks->count();
                             $completedProgressTasks = $progressTasks->where('status', 'completed')->count();
                             $progress = $totalProgressTasks > 0 ? round(($completedProgressTasks / $totalProgressTasks) * 100) : 0;
                         @endphp
-                        <div class="text-right">
+                        <div class="w-full sm:w-auto sm:text-right">
                             <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-1">
                                 <div class="h-2 rounded-full" style="width: {{ $progress }}%; background-color: {{ $project->color ?? '#6c757d' }};"></div>
                             </div>
@@ -1142,8 +1286,27 @@
         </div>
     </x-modal>
     @endcan
+    <div x-show="isOpen"
+        x-transition:enter="transition ease-out duration-300"
+        x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100"
+        x-transition:leave="transition ease-in duration-200"
+        x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0"
+        class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+        style="display: none;">
+
+        <div @click="closeModal" class="absolute inset-0"></div>
+        <div @click.stop class="relative z-10 w-full max-w-5xl max-h-full flex items-center justify-center">
+            <img :src="currentImage.src" :alt="currentImage.alt" class="max-w-full max-h-[90vh] object-contain rounded-lg shadow-xl">
+        </div>
+        <button @click="closeModal" class="absolute top-4 right-4 text-white/80 hover:text-white text-4xl font-bold z-20">&times;</button>
+        <button x-show="images.length > 1" @click="prevImage" class="absolute left-4 top-1/2 -translate-y-1/2 text-white/80 hover:text-white text-4xl z-20 bg-black/20 rounded-full w-12 h-12 flex items-center justify-center">&#8249;</button>
+        <button x-show="images.length > 1" @click="nextImage" class="absolute right-4 top-1/2 -translate-y-1/2 text-white/80 hover:text-white text-4xl z-20 bg-black/20 rounded-full w-12 h-12 flex items-center justify-center">&#8250;</button>
+    </div>
 </div>
 @include('projects.partials.image-measurement-batch-modal')
+
 @endsection
 
 @push('scripts')
@@ -1525,4 +1688,5 @@
         }
     });
 </script>
+
 @endpush

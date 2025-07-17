@@ -121,7 +121,7 @@
 
                         {{-- 送り状情報 --}}
                         <div class="mt-4 border-t pt-6 dark:border-gray-700" x-data='{
-                            trackings: {{ old('tracking_info') ? json_encode(old('tracking_info')) : json_encode($project->tracking_info ?? [['carrier' => '', 'number' => '', 'memo' => '']]) }},
+                            trackings: {{ old('tracking_info') ? json_encode(old('tracking_info')) : json_encode($prefillStandardData['tracking_info'] ?? [['carrier' => '', 'number' => '', 'memo' => '']]) }},
                             carriers: {{ json_encode(config('shipping.carriers')) }},
                             addRow() { this.trackings.push({ carrier: "", number: "", memo: "" }); },
                             removeRow(index) { this.trackings.splice(index, 1); }
@@ -179,14 +179,14 @@
                         {{-- 目標材料費 --}}
                         <div>
                             <x-input-label for="target_material_cost" value="目標材料費" />
-                            <x-text-input id="target_material_cost" class="block mt-1 w-full" type="number" name="target_material_cost" :value="old('target_material_cost', $project->target_material_cost ?? '')" placeholder="例: 50000" />
+                            <x-text-input id="target_material_cost" class="block mt-1 w-full" type="number" name="target_material_cost" :value="old('target_material_cost', $prefillStandardData['target_material_cost'] ?? '')" placeholder="例: 50000" />
                             <x-input-error :messages="$errors->get('target_material_cost')" class="mt-2" />
                         </div>
 
                         {{-- 目標人件費 固定時給 --}}
                         <div style="display:none">
                             <x-input-label for="target_labor_cost_rate" value="目標人件費 計算用固定時給" />
-                            <x-text-input id="target_labor_cost_rate" class="block mt-1 w-full" type="number" name="target_labor_cost_rate" :value="old('target_labor_cost_rate', $project->target_labor_cost_rate ?? '1200')" placeholder="例: 1200" />
+                            <x-text-input id="target_labor_cost_rate" class="block mt-1 w-full" type="number" name="target_labor_cost_rate" :value="old('target_labor_cost_rate', $prefillStandardData['target_labor_cost_rate'] ?? '1200')" placeholder="例: 1200" />
                             <p class="text-xs text-gray-500 mt-1">目標人件費を計算するための固定時給です。全工程の予定工数にこの時給を掛けて目標額を算出します。</p>
                             <x-input-error :messages="$errors->get('target_labor_cost_rate')" class="mt-2" />
                         </div>

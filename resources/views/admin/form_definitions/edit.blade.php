@@ -16,8 +16,8 @@
             <div class="p-6 sm:p-8">
                 {{-- $formFieldDefinition がnullでないこと、idプロパティが存在することが前提です --}}
                 @if($formFieldDefinition && $formFieldDefinition->exists) {{-- idの存在確認よりもexistsでモデルがDBに存在するかを確認する方が堅牢 --}}
-                    <form action="{{ route('admin.form-definitions.update', $formFieldDefinition) }}" {{-- ★
-                        パラメータ名を修正し、モデルインスタンスを直接渡す形に変更 --}} method="POST">
+                    <form action="{{ route('admin.form-definitions.update', $formFieldDefinition) }}" method="POST"
+                        enctype="multipart/form-data">
                         @method('PUT')
                         {{-- _form.blade.php をインクルードしてフォームの本体を表示 --}}
                         {{-- $fieldTypes と $optionsText はコントローラーから渡される想定 --}}

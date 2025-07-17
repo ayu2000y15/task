@@ -39,11 +39,13 @@
                                 {{ $validatedData['submitter_email'] }}
                             </dd>
                         </div>
-                        <div class="py-4 sm:grid sm:grid-cols-3 sm:gap-4">
-                            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">備考・ご要望など</dt>
-                            <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100 sm:col-span-2 sm:mt-0 ">
-                                {!! nl2br($validatedData['submitter_notes']) ?: '入力なし' !!}
-                            </dd>
+                        <div class="hidden">
+                            <div class=" py-4 sm:grid sm:grid-cols-3 sm:gap-4">
+                                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">備考・ご要望など</dt>
+                                <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100 sm:col-span-2 sm:mt-0 ">
+                                    {!! nl2br($validatedData['submitter_notes']) ?: '入力なし' !!}
+                                </dd>
+                            </div>
                         </div>
                     </dl>
                 </div>
@@ -79,6 +81,16 @@
                                                                 {{ round($file['size'] / 1024, 2) }} KB
                                                             </p>
                                                         </div>
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        @elseif($field->type === 'image_select' && !empty($value) && is_array($value))
+                                            <div class="flex flex-wrap gap-4">
+                                                @foreach($value as $image)
+                                                    <div class="text-center">
+                                                        {{-- ★ asset()ヘルパーを削除し、直接URLを使用 --}}
+                                                        <img src="{{ $image['url'] }}" alt="{{ $image['label'] }}" class="w-24 h-24 object-cover rounded-lg border border-gray-200 dark:border-gray-600">
+                                                        <p class="text-xs mt-1 text-gray-600 dark:text-gray-400">{{ $image['label'] }}</p>
                                                     </div>
                                                 @endforeach
                                             </div>

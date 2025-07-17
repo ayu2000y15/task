@@ -65,188 +65,6 @@ class ExternalFormController extends Controller
         return view('external_form.form', compact('customFormFields'));
     }
 
-    public function store(Request $request)
-    {
-        $customFieldDefinitions = FormFieldDefinition::where('is_enabled', true)->where('category', 'project')->get();
-        $validationRules = [
-            'submitter_name' => 'required|string|max:255',
-            'submitter_email' => 'required|email|max:255',
-            'submitter_notes' => 'nullable|string|max:5000',
-        ];
-        $validationAttributes = [
-            'submitter_name' => 'お名前',
-            'submitter_email' => 'メールアドレス',
-            'submitter_notes' => '備考・ご要望など',
-        ];
-        $customMessages = [];
-
-        // 許可するMIMEタイプと言語ファイル用の案件依頼メッセージ
-        $allowedMimes = 'jpg,jpeg,png,gif,txt,pdf';
-        $allowedMimesMessage = 'アップロードできるファイル形式は画像 (JPG, JPEG, PNG, GIF), テキスト (.txt), PDF (.pdf) のみです。';
-
-
-        foreach ($customFieldDefinitions as $field) {
-            $fieldName = 'custom_fields.' . $field->name;
-            $fieldRules = [];
-
-            if ($field->is_required) {
-                if ($field->type === 'file_multiple') {
-                    $fieldRules[] = 'required';
-                    $fieldRules[] = 'array';
-                    $fieldRules[] = 'min:1';
-                    // 各ファイルへのバリデーション (MIMEタイプと言語ファイルメッセージを適用)
-                    $validationRules[$fieldName . '.*'] = 'file|mimes:' . $allowedMimes . '|max:10240'; // 10MB per file
-                    $validationAttributes[$fieldName . '.*'] = $field->label . 'の各ファイル';
-                    $customMessages[$fieldName . '.*.mimes'] = $field->label . ': ' . $allowedMimesMessage;
-                } elseif ($field->type === 'checkbox') {
-                    $fieldRules[] = 'accepted';
-                } else {
-                    $fieldRules[] = 'required';
-                }
-            } else {
-                $fieldRules[] = 'nullable';
-                if ($field->type === 'file_multiple') {
-                    $fieldRules[] = 'array';
-                    // 各ファイルへのバリデーション (MIMEタイプと言語ファイルメッセージを適用)
-                    $validationRules[$fieldName . '.*'] = 'nullable|file|mimes:' . $allowedMimes . '|max:10240';
-                    $validationAttributes[$fieldName . '.*'] = $field->label . 'の各ファイル';
-                    $customMessages[$fieldName . '.*.mimes'] = $field->label . ': ' . $allowedMimesMessage;
-                }
-            }
-
-            switch ($field->type) {
-                case 'text':
-                case 'textarea':
-                case 'color':
-                    $fieldRules[] = 'string';
-                    if ($field->max_length) {
-                        $fieldRules[] = 'max:' . $field->max_length;
-                    }
-                    break;
-                case 'number':
-                    $fieldRules[] = 'numeric';
-                    break;
-                case 'date':
-                    $fieldRules[] = 'date';
-                    break;
-                case 'email':
-                    $fieldRules[] = 'email';
-                    if ($field->max_length) {
-                        $fieldRules[] = 'max:' . $field->max_length;
-                    }
-                    break;
-                case 'tel':
-                    $fieldRules[] = 'string';
-                    if ($field->max_length) {
-                        $fieldRules[] = 'max:' . $field->max_length;
-                    }
-                    break;
-                case 'url':
-                    $fieldRules[] = 'url';
-                    if ($field->max_length) {
-                        $fieldRules[] = 'max:' . $field->max_length;
-                    }
-                    break;
-                case 'select':
-                case 'radio':
-                    if ($field->options) {
-                        $optionsArray = is_array($field->options) ? $field->options : json_decode($field->options, true);
-                        if (is_array($optionsArray)) {
-                            $validValues = array_keys($optionsArray);
-                            $fieldRules[] = Rule::in($validValues);
-                        }
-                    }
-                    break;
-            }
-            if (!empty($fieldRules)) {
-                $validationRules[$fieldName] = implode('|', $fieldRules);
-            }
-            $validationAttributes[$fieldName] = $field->label;
-        }
-
-        $validator = Validator::make($request->all(), $validationRules, $customMessages, $validationAttributes);
-
-        if ($validator->fails()) {
-            return redirect()->route('external-form.create')
-                ->withErrors($validator)
-                ->withInput();
-        }
-
-        $validatedData = $validator->validated();
-        $submittedCustomFields = $request->input('custom_fields', []);
-        $processedCustomData = [];
-
-        foreach ($customFieldDefinitions as $field) {
-            $fieldNameInRequest = $field->name;
-
-            if ($field->type === 'file_multiple') {
-                if ($request->hasFile('custom_fields.' . $fieldNameInRequest)) {
-                    $uploadedFiles = $request->file('custom_fields.' . $fieldNameInRequest);
-                    $storedFilePaths = [];
-                    foreach ($uploadedFiles as $file) {
-                        $directory = 'external_submissions/' . date('Y-m');
-                        $path = $file->store($directory, 'public');
-                        $storedFilePaths[] = [
-                            'path' => $path,
-                            'original_name' => $file->getClientOriginalName(),
-                            'mime_type' => $file->getClientMimeType(),
-                            'size' => $file->getSize(),
-                        ];
-                    }
-                    $processedCustomData[$fieldNameInRequest] = $storedFilePaths;
-                } else {
-                    $processedCustomData[$fieldNameInRequest] = [];
-                }
-            } elseif ($field->type === 'checkbox') {
-                $processedCustomData[$fieldNameInRequest] = isset($submittedCustomFields[$fieldNameInRequest]);
-            } elseif (isset($submittedCustomFields[$fieldNameInRequest])) {
-                $processedCustomData[$fieldNameInRequest] = $submittedCustomFields[$fieldNameInRequest];
-            } else {
-                $processedCustomData[$fieldNameInRequest] = null;
-            }
-        }
-
-        $submission = ExternalProjectSubmission::create([
-            'submitter_name' => $validatedData['submitter_name'],
-            'submitter_email' => $validatedData['submitter_email'],
-            'submitted_data' => $processedCustomData,
-            'submitter_notes' => $validatedData['submitter_notes'] ?? null,
-            'status' => 'new',
-        ]);
-
-        // 送信完了メールを送信
-        $formCategory = FormFieldCategory::where('name', 'project')
-            ->where('type', 'form')
-            ->first();
-
-        if ($formCategory && $formCategory->send_completion_email) {
-            try {
-                $emailData = [
-                    'name' => $validatedData['submitter_name'],
-                    'email' => $validatedData['submitter_email'],
-                    'notes' => $validatedData['submitter_notes'] ?? '',
-                    'custom_fields' => $processedCustomData
-                ];
-
-                Mail::to($validatedData['submitter_email'])
-                    ->send(new ExternalFormCompletionMail(
-                        $formCategory,
-                        $emailData,
-                        $validatedData['submitter_email'],
-                        $validatedData['submitter_name']
-                    ));
-            } catch (\Exception $e) {
-                // メール送信エラーをログに記録するが、フォーム送信は成功として扱う
-                \Log::error('外部フォーム送信完了メールの送信に失敗しました: ' . $e->getMessage(), [
-                    'submitter_email' => $validatedData['submitter_email'],
-                    'form_category' => $formCategory->name
-                ]);
-            }
-        }
-
-        return redirect()->route('external-form.thanks');
-    }
-
     public function thanks()
     {
         return view('external_form.thanks');
@@ -292,7 +110,7 @@ class ExternalFormController extends Controller
         $submission->load('processedBy');
 
         // フォームカテゴリを取得
-        $formCategory = $submission->getFormCategory();
+        $formCategory = $submission->form_category;
 
         $displayData = [];
         $fileFields = []; // ファイルタイプのフィールドを別途格納
@@ -340,7 +158,7 @@ class ExternalFormController extends Controller
                     $fieldName = $definition->name;
                     $fieldValue = $submission->submitted_data[$fieldName] ?? null;
 
-                    if ($definition->type === 'file_multiple') {
+                    if (in_array($definition->type, ['file', 'file_multiple'])) { // ★ 'file'タイプも追加
                         $fileFields[] = [
                             'label' => $definition->label,
                             'name' => $fieldName,
@@ -511,26 +329,6 @@ class ExternalFormController extends Controller
             ->orderBy('label')
             ->get()
             ->map(function ($field) {
-                $optionsString = '';
-                if (is_array($field->options)) {
-                    $optionsParts = [];
-                    foreach ($field->options as $value => $label) {
-                        $optionsParts[] = $value . ':' . $label;
-                    }
-                    $optionsString = implode(',', $optionsParts);
-                } elseif (is_string($field->options)) {
-                    $decoded = json_decode($field->options, true);
-                    if (is_array($decoded)) {
-                        $optionsParts = [];
-                        foreach ($decoded as $value => $label) {
-                            $optionsParts[] = $value . ':' . $label;
-                        }
-                        $optionsString = implode(',', $optionsParts);
-                    } else {
-                        $optionsString = $field->options;
-                    }
-                }
-
                 return [
                     'name' => $field->name,
                     'label' => $field->label,
@@ -538,7 +336,9 @@ class ExternalFormController extends Controller
                     'is_required' => $field->is_required,
                     'placeholder' => $field->placeholder,
                     'help_text' => $field->help_text,
-                    'options' => $optionsString,
+                    'options' => $field->options, // ★ optionsをそのまま渡す
+                    'min_selections' => $field->min_selections, // ★ min_selections を追加
+                    'max_selections' => $field->max_selections, // ★ max_selections を追加
                 ];
             });
 
@@ -552,7 +352,11 @@ class ExternalFormController extends Controller
     {
         // 「修正する」ボタンが押された場合、入力画面に戻る
         if ($request->input('action') === 'back') {
-            return redirect()->route('external-form.show', $slug)->withInput($request->session()->get('form_input.validated_data'));
+            // ★ 修正点: セッションから入力データを取得し、ファイル情報も一緒にリダイレクト先に渡す
+            $formInput = $request->session()->get('form_input');
+            return redirect()->route('external-form.show', $slug)
+                ->withInput($formInput['validated_data'] ?? [])
+                ->with('existing_temp_files', $formInput['temp_file_paths'] ?? []);
         }
 
         // セッションからフォーム入力データを取得
@@ -614,6 +418,8 @@ class ExternalFormController extends Controller
             'submitter_notes' => $validatedData['submitter_notes'],
             'submitted_data' => $customFieldData,
             'status' => 'new',
+            'form_category_id' => $formCategory->id,      // ★ フォームカテゴリIDを追加
+            'form_category_name' => $formCategory->name,  // ★ フォームカテゴリ名を追加
         ]);
 
         // 処理が完了したので、セッションデータを削除
@@ -692,7 +498,7 @@ class ExternalFormController extends Controller
     }
 
     /**
-     * 【新規】動的外部フォームの確認ページ表示
+     * 動的外部フォームの確認ページ表示
      */
     public function confirmDynamicForm(Request $request, $slug)
     {
@@ -706,15 +512,23 @@ class ExternalFormController extends Controller
             ->orderBy('order')
             ->get();
 
-        list($rules, $customFieldNames) = $this->buildValidationRules($customFormFields);
-        $validator = Validator::make($request->all(), $rules);
+        list($rules, $customFieldNames, $customAttributes) = $this->buildValidationRules($customFormFields);
+        $validator = Validator::make($request->all(), $rules, [], $customAttributes);
 
         if ($validator->fails()) {
             return back()->withErrors($validator)->withInput();
         }
 
         $validatedData = $validator->validated();
-        $existingTempFiles = json_decode($request->input('existing_temp_files', '[]'), true);
+        $existingTempFiles = [];
+        if ($request->has('existing_temp_files')) {
+            foreach ($request->input('existing_temp_files', []) as $fieldName => $jsonString) {
+                $decoded = json_decode($jsonString, true);
+                if (is_array($decoded)) {
+                    $existingTempFiles[$fieldName] = $decoded;
+                }
+            }
+        }
 
         $displayData = [];
         $tempFilePaths = $existingTempFiles;
@@ -732,14 +546,12 @@ class ExternalFormController extends Controller
                     foreach ($files as $file) {
                         $tempPath = $file->store('temp_uploads', 'local');
 
-                        // ▼▼▼【重要】ここでmime_typeを追加します ▼▼▼
                         $fileInfo = [
                             'path' => $tempPath,
                             'original_name' => $file->getClientOriginalName(),
                             'size' => $file->getSize(),
                             'mime_type' => $file->getClientMimeType(), // ★ mime_typeを追加
                         ];
-                        // ▲▲▲【ここまで修正】▲▲▲
 
                         if (str_starts_with($fileInfo['mime_type'], 'image/')) {
                             try {
@@ -753,6 +565,24 @@ class ExternalFormController extends Controller
                     }
                 }
                 $displayData[$dbFieldName] = $tempFilePaths[$dbFieldName];
+            } elseif ($field->type === 'image_select') {
+                $selectedValues = Arr::get($validatedData, $fieldName, []);
+                // $field->optionsはモデルの$castsにより既に配列になっているはず
+                $options = $field->options ?? [];
+
+                $displayImages = [];
+                if (is_array($selectedValues)) {
+                    foreach ($selectedValues as $selectedValue) {
+                        // $options配列からキー（選択値）に一致するURLを取得
+                        if (isset($options[$selectedValue])) {
+                            $displayImages[] = [
+                                'url' => $options[$selectedValue],
+                                'label' => $selectedValue
+                            ];
+                        }
+                    }
+                }
+                $displayData[$dbFieldName] = $displayImages;
             } else {
                 $displayData[$dbFieldName] = $request->input($fieldName);
             }
@@ -785,10 +615,16 @@ class ExternalFormController extends Controller
             'submitter_notes' => 'nullable|string|max:2000',
         ];
         $customFieldNames = [];
-
+        $customAttributes = [
+            'submitter_name' => 'お名前',
+            'submitter_email' => 'メールアドレス',
+            'submitter_notes' => '備考・ご要望など',
+        ];
         foreach ($customFormFields as $field) {
             $fieldName = 'custom_' . $field->name;
             $fieldRules = [];
+
+            $customAttributes[$fieldName] = $field->label;
 
             if ($field->is_required) {
                 $fieldRules[] = 'required';
@@ -817,14 +653,43 @@ class ExternalFormController extends Controller
                     break;
                 case 'select':
                 case 'radio':
-                    // ... (既存のロジック)
+                    if (!empty($field->options)) {
+                        // オプションがJSON文字列で保存されていることを想定してデコードを試みる
+                        // (is_arrayの場合はそのまま使用)
+                        $optionsArray = is_array($field->options) ? $field->options : json_decode($field->options, true);
+
+                        // 正しく配列に変換でき、その配列が空でないことを確認
+                        if (is_array($optionsArray) && !empty($optionsArray)) {
+                            // 配列のキーが、バリデーションで許可される値（value）となる
+                            // 例: {"plan_a": "プランA"} -> 'plan_a' が許可値
+                            $validValues = array_keys($optionsArray);
+
+                            // 許可される値のいずれかであることを検証するルールを追加
+                            $fieldRules[] = \Illuminate\Validation\Rule::in($validValues);
+                        }
+                    }
                     break;
                 case 'checkbox':
                     if ($field->is_required) $fieldRules[] = 'array|min:1';
                     else $fieldRules[] = 'array';
                     break;
+                case 'image_select':
+                    $fieldRules[] = 'array';
+                    if ($field->is_required) {
+                        $fieldRules[] = 'required';
+                        $fieldRules[] = 'min:1';
+                        $customAttributes[$fieldName] = $field->label . 'は最低1つ選択してください。';
+                    }
+                    if (isset($field->min_selections) && $field->min_selections > 0) {
+                        $fieldRules[] = 'min:' . $field->min_selections;
+                    }
+                    if (isset($field->max_selections) && $field->max_selections > 0) {
+                        $fieldRules[] = 'max:' . $field->max_selections;
+                    }
+                    break;
                 case 'file':
-                    $fieldRules[] = 'file|max:10240'; // 10MB
+                    $fieldRules[] = 'file';
+                    $fieldRules[] = 'max:10240'; // 10MB
                     break;
                 case 'file_multiple':
                     if ($field->is_required) $fieldRules[] = 'array|min:1';
@@ -837,6 +702,6 @@ class ExternalFormController extends Controller
             $customFieldNames[] = $fieldName;
         }
 
-        return [$rules, $customFieldNames];
+        return [$rules, $customFieldNames, $customAttributes];
     }
 }

@@ -135,15 +135,12 @@
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                                     {{ $submission->id }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                                    @php
-                                        $formCategory = $submission->getFormCategory();
-                                    @endphp
-                                    @if($formCategory)
+                                    @if($submission->form_category)
                                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                                            {{ $formCategory->display_name }}
+                                            {{ $submission->form_category->display_name }}
                                         </span>
                                     @else
-                                        <span class="text-gray-400">不明</span>
+                                        <span class="text-gray-400 dark:text-gray-500">不明</span>
                                     @endif
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
