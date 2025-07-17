@@ -433,12 +433,12 @@
                     {{-- 各項目をレスポンシブ対応 --}}
                     <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start">
                         <span class="text-sm font-semibold text-gray-500 dark:text-gray-400 w-28 flex-shrink-0 mb-1 sm:mb-0">案件名</span>
-                        <span class="text-sm text-gray-700 dark:text-gray-300 text-left sm:text-right flex-1 whitespace-pre-wrap break-words">{{ $project->title }}</span>
+                        <span class="text-sm text-gray-700 dark:text-gray-300 text-left flex-1 whitespace-pre-wrap break-words">{{ $project->title }}</span>
                     </div>
                     @if($project->projectCategory)
                     <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start">
                         <span class="text-sm font-semibold text-gray-500 dark:text-gray-400 w-28 flex-shrink-0 mb-1 sm:mb-0">カテゴリ</span>
-                        <span class="text-sm text-gray-700 dark:text-gray-300 text-left sm:text-right flex-1">
+                        <span class="text-sm text-gray-700 dark:text-gray-300 text-left flex-1">
                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-200">
                                 {{ $project->projectCategory->display_name ?? $project->projectCategory->name }}
                             </span>
@@ -448,18 +448,18 @@
                     @if($project->series_title)
                     <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start">
                         <span class="text-sm font-semibold text-gray-500 dark:text-gray-400 w-28 flex-shrink-0 mb-1 sm:mb-0">作品名</span>
-                        <span class="text-sm text-gray-700 dark:text-gray-300 text-left sm:text-right flex-1 whitespace-pre-wrap break-words">{{ $project->series_title }}</span>
+                        <span class="text-sm text-gray-700 dark:text-gray-300 text-left flex-1 whitespace-pre-wrap break-words">{{ $project->series_title }}</span>
                     </div>
                     @endif
                     @if($project->client_name)
                     <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start">
                         <span class="text-sm font-semibold text-gray-500 dark:text-gray-400 w-28 flex-shrink-0 mb-1 sm:mb-0">依頼主名</span>
-                        <span class="text-sm text-gray-700 dark:text-gray-300 text-left sm:text-right flex-1 whitespace-pre-wrap break-words">{{ $project->client_name }}</span>
+                        <span class="text-sm text-gray-700 dark:text-gray-300 text-left flex-1 whitespace-pre-wrap break-words">{{ $project->client_name }}</span>
                     </div>
                     @endif
                     <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start">
                         <span class="text-sm font-semibold text-gray-500 dark:text-gray-400 w-28 flex-shrink-0 mb-1 sm:mb-0">期間</span>
-                        <span class="text-sm text-gray-700 dark:text-gray-300 text-left sm:text-right">{{ $project->start_date ? $project->start_date->format('Y/m/d') : '-' }} 〜 {{ $project->end_date ? $project->end_date->format('Y/m/d') : '-' }}</span>
+                        <span class="text-sm text-gray-700 dark:text-gray-300 text-left">{{ $project->start_date ? $project->start_date->format('Y/m/d') : '-' }} 〜 {{ $project->end_date ? $project->end_date->format('Y/m/d') : '-' }}</span>
                     </div>
                     @if($project->description)
                         <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start">
@@ -613,7 +613,7 @@
                         @if(!empty($customFormFields) && count($customFormFields) > 0)
                             @if(collect($customFormFields)->isNotEmpty())
                                 <hr class="dark:border-gray-600">
-                                <h6 class="text-sm font-semibold text-gray-600 dark:text-gray-400 pt-1">詳細情報</h6>
+                                <h6 class="text-base font-semibold text-gray-600 dark:text-gray-400 pt-1">- 詳細情報 -</h6>
                                 <div class="space-y-4">
                                     @foreach($customFormFields as $field)
                                         @php
