@@ -42,6 +42,7 @@ class ExternalFormSubmissionMail extends Mailable
     {
         return new Content(
             view: 'emails.external_form_submission',
+            text: 'emails.external_form_submission_text'
         );
     }
 
