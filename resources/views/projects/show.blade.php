@@ -690,7 +690,7 @@
                                                         @break
 
                                                     @case('textarea')
-                                                        <p class="text-sm text-gray-700 dark:text-gray-300 break-words">{{ $value ?? '-' }}</p>
+                                                        <p class="text-sm text-gray-700 dark:text-gray-300 break-words">{!! nl2br($value) ?? '-' !!}</p>
                                                         @break
 
                                                     @case('file')
