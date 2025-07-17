@@ -717,7 +717,7 @@
                                                                             <button type="button" @click="openModalFromClick($event)" data-index="{{ $index }}">
                                                                                 <img src="{{ str_replace('\\', '/', $image['src']) }}" alt="{{ $image['alt'] }}" class="w-full h-20 object-cover rounded-md border dark:border-gray-600 hover:opacity-80 transition-opacity">
                                                                             </button>
-                                                                            <span class="text-xs text-gray-600 dark:text-gray-400 mt-1 block " title="{{ $image['alt'] }}">{{ Str::limit($image['alt'], 15) }}</span>
+                                                                            {{-- <span class="text-xs text-gray-600 dark:text-gray-400 mt-1 block " title="{{ $image['alt'] }}">{{ Str::limit($image['alt'], 15) }}</span> --}}
                                                                         </div>
                                                                     @endforeach
                                                                 </div>
