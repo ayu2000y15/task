@@ -32,7 +32,7 @@
                                 @endif
                             </p>
                             <p style="margin-bottom: 15px;">
-                                この度は、{{ $formCategory->display_name }}をご利用いただき、ありがとうございます。<br>お送りいただいた内容を正常に受信いたしました。
+                                この度は{{ $formCategory->display_name }}をご利用いただき、<br>ありがとうございます。<br>お送りいただいた内容を正常に受信いたしました。
                             </p>
                             @if($formCategory->thank_you_message)
                                 <p style="margin-bottom: 20px;">
@@ -110,13 +110,13 @@
                                 </tr>
                             </table>
 
-                            <p style="margin-top: 30px;">ご不明な点がございましたら、お気軽にお問い合わせください。<br>今後ともよろしくお願いいたします。</p>
+                            <p style="margin-top: 30px;">ご不明な点がございましたら、<br>お気軽にお問い合わせください。<br>今後ともよろしくお願いいたします。</p>
                         </td>
                     </tr>
                     <tr>
                         <td
                             style="background-color: #f9fafb; border-top: 1px solid #e5e7eb; padding: 20px; text-align: center; font-size: 14px; color: #6b7280; border-radius: 0 0 8px 8px;">
-                            <p style="margin: 0;">このメールは自動送信されています。返信の必要はございません。</p>
+                            <p style="margin: 0;">このメールは送信専用のメールアドレスから送信されているため、返信できません</p>
                         </td>
                     </tr>
                 </table>
