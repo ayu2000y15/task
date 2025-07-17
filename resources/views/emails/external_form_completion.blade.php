@@ -12,8 +12,8 @@
     <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
         <tr>
             <td style="padding: 20px 10px;">
-                <table role="presentation" align="center" border="0" cellpadding="0" cellspacing="0" width="600"
-                    style="max-width: 600px; margin: 0 auto; background-color: #fff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+                <table role="presentation" align="center" border="0" cellpadding="0" cellspacing="0"
+                    style="max-width: 100%; margin: 0 auto; background-color: #fff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
                     <tr>
                         <td
                             style="background-color: #4f46e5; color: white; padding: 30px 20px; text-align: center; border-radius: 8px 8px 0 0;">
@@ -23,7 +23,7 @@
                         </td>
                     </tr>
                     <tr>
-                        <td style="padding: 30px 20px;">
+                        <td style="padding: 30px 0;">
                             <p style="margin-bottom: 15px;">
                                 @if($userName)
                                     {{ $userName }} 様
@@ -36,7 +36,7 @@
                             </p>
                             @if($formCategory->thank_you_message)
                                 <p style="margin-bottom: 20px;">
-                                    {{ $formCategory->thank_you_message }}</p>
+                                    {!! nl2br($formCategory->thank_you_message) !!}</p>
                             @endif
 
                             <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%"
@@ -73,7 +73,7 @@
                                                         </div>
                                                         <div
                                                             style="color: #111827; margin-top: 5px;">
-                                                            {{ $submissionData['notes'] }}</div>
+                                                            {!! nl2br($submissionData['notes']) !!}</div>
                                                     </td>
                                                 </tr>
                                             @endif
@@ -98,7 +98,7 @@
                                                                 @elseif(is_array($fieldValue))
                                                                     {{ implode('、', $fieldValue) }}
                                                                 @else
-                                                                    {{ $fieldValue }}
+                                                                    {!! nl2br($fieldValue) !!}
                                                                 @endif
                                                             </div>
                                                         </td>
