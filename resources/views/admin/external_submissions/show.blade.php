@@ -76,6 +76,36 @@
                                         @endif
                                     @elseif (($data['type'] === 'select' || $data['type'] === 'radio') && isset($data['options']) && is_array($data['options']))
                                         <span>{{ $data['options'][$data['value']] ?? $data['value'] ?: '-' }}</span>
+                                    @elseif ($data['type'] === 'image_select' && isset($data['options']) && is_array($data['options']))
+                                        @php
+                                            // 値が配列でなくても、処理を共通化するために配列に変換する
+                                            $selectedValues = is_array($data['value']) ? array_filter($data['value']) : ( $data['value'] ? [$data['value']] : [] );
+                                        @endphp
+
+                                        @if(!empty($selectedValues))
+                                            {{-- 複数の選択肢をきれいに表示するために flex と wrap を使う --}}
+                                            <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+                                                {{-- 選択された値をループで処理 --}}
+                                                @foreach($selectedValues as $selectedValue)
+                                                    @if(isset($data['options'][$selectedValue]))
+                                                        @php
+                                                            $imageUrl = $data['options'][$selectedValue]; // 画像のURL
+                                                        @endphp
+                                                        <div class="flex flex-col items-center w-12">
+                                                            <a href="{{ $imageUrl }}" class="image-preview-trigger flex-shrink-0 mb-1" title="プレビュー: {{ $selectedValue }}">
+                                                                <img src="{{ $imageUrl }}" alt="{{ $selectedValue }}" class="w-12 h-12 object-cover rounded-md border dark:border-gray-600 hover:opacity-80 transition-opacity">
+                                                            </a>
+                                                            <span class="text-xs text-gray-500 text-center w-full block">{{ $selectedValue }}</span>
+                                                        </div>
+                                                    @else
+                                                        {{-- optionsにキーが存在しない場合（データ不整合など） --}}
+                                                        <span class="text-sm text-gray-500">{{ $selectedValue }} (画像なし)</span>
+                                                    @endif
+                                                @endforeach
+                                            </div>
+                                        @else
+                                            <span>-</span>
+                                        @endif
                                     @elseif ($data['type'] === 'color')
                                         @if($data['value'])
                                         <span class="inline-flex items-center">
@@ -139,9 +169,9 @@
                                                         <div class="flex flex-col items-center">
                                                             {{-- 画像プレビューカード --}}
                                                             <a href="{{ Storage::url($fileInfo['path']) }}"
-                                                            class="block relative group rounded-md overflow-hidden border dark:border-gray-600 aspect-square w-full hover:shadow-lg transition-shadow image-preview-trigger"
+                                                            class="block relative group rounded-md overflow-hidden border dark:border-gray-600 aspect-square hover:shadow-lg transition-shadow image-preview-trigger"
                                                             title="プレビュー: {{ $fileInfo['original_name'] }} @if(isset($fileInfo['size'])) ({{ \Illuminate\Support\Number::fileSize($fileInfo['size']) }}) @endif">
-                                                                <img src="{{ Storage::url($fileInfo['path']) }}" alt="{{ $fileInfo['original_name'] }}" class="w-full h-full object-cover">
+                                                                <img src="{{ Storage::url($fileInfo['path']) }}" alt="{{ $fileInfo['original_name'] }}" class="w-20 h-20 object-cover">
                                                                 <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 flex items-center justify-center transition-opacity">
                                                                     <i class="fas fa-search-plus text-white text-2xl opacity-0 group-hover:opacity-100 transition-opacity"></i>
                                                                 </div>
