@@ -98,7 +98,7 @@ class SalesCampaignMail extends Mailable implements ShouldQueue
         $personalizedHtmlContent = $this->personalizeContent($this->baseBodyHtml);
 
         // --- クリックトラッキング用リンク書き換え処理 ---
-        $pattern = '/(?<!href="|">)(https?:\/\/[^\s<]+)/i';
+        $pattern = '/(?<!href="|src="|>)(https?:\/\/[^\s<]+)/i';
         $replacement = '<a href="$1">$1</a>';
         $personalizedHtmlContent = preg_replace($pattern, $replacement, $personalizedHtmlContent);
 
