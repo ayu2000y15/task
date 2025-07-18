@@ -258,56 +258,56 @@
                                         @break
 
                                     @case('image_select')
-    @php
-        $max = $field['max_selections'] ?? null;
-        $options = is_array($field['options']) ? $field['options'] : [];
-        $oldValues = old('custom_' . $field['name'], []);
-    @endphp
+                                        @php
+                                            $max = $field['max_selections'] ?? null;
+                                            $options = is_array($field['options']) ? $field['options'] : [];
+                                            $oldValues = old('custom_' . $field['name'], []);
+                                        @endphp
 
-    @if($max)
-        <p class="text-sm text-gray-600 mb-3">
-            <i class="fas fa-info-circle mr-1 text-blue-500"></i>
-            最大{{ $max }}個まで選択できます。
-        </p>
-    @endif
+                                        @if($max)
+                                            <p class="text-sm text-gray-600 mb-3">
+                                                <i class="fas fa-info-circle mr-1 text-blue-500"></i>
+                                                最大{{ $max }}個まで選択できます。
+                                            </p>
+                                        @endif
 
-    {{-- ↓ 変更箇所 --}}
-    <div class="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-4 gap-4 image-selector-container"
-         data-max-selections="{{ $max }}">
-    {{-- ↑ 変更箇所 --}}
-        @if(!empty($options))
-            @foreach($options as $value => $imageUrl)
-                {{-- ↓ 変更箇所 (onclickイベント内でスタイルを制御) --}}
-                <label for="custom_{{ $field['name'] }}_{{ $loop->index }}"
-                    class="block border rounded-lg overflow-hidden transition-all duration-200 bg-white cursor-pointer">
+                                        {{-- ↓ 変更箇所 --}}
+                                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 image-selector-container"
+                                            data-max-selections="{{ $max }}">
+                                        {{-- ↑ 変更箇所 --}}
+                                            @if(!empty($options))
+                                                @foreach($options as $value => $imageUrl)
+                                                    {{-- ↓ 変更箇所 (onclickイベント内でスタイルを制御) --}}
+                                                    <label for="custom_{{ $field['name'] }}_{{ $loop->index }}"
+                                                        class="block border rounded-lg overflow-hidden transition-all duration-200 bg-white cursor-pointer">
 
-                    <div class="bg-gray-100 dark:bg-gray-700 flex items-center justify-center p-2">
-                        <img src="{{ $imageUrl }}" alt="{{ $value }}" class="max-w-full h-40 object-contain">
-                    </div>
+                                                        <div class="bg-gray-100 dark:bg-gray-700 flex items-center justify-center p-2">
+                                                            <img src="{{ $imageUrl }}" alt="{{ $value }}" class="max-w-full h-40 object-contain">
+                                                        </div>
 
-                    <div class="p-3 border-t dark:border-gray-700">
-                        <div class="flex items-center">
-                            <input type="checkbox"
-                                id="custom_{{ $field['name'] }}_{{ $loop->index }}"
-                                name="custom_{{ $field['name'] }}[]"
-                                value="{{ $value }}"
-                                {{-- ↓ 変更箇所 --}}
-                                onclick="handleImageSelection(this)"
-                                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                                @if(is_array($oldValues) && in_array($value, $oldValues)) checked @endif>
-                            {{-- ↑ 変更箇所 --}}
-                            <span class="ml-2 block text-sm font-medium text-gray-800 truncate" title="{{ $value }}">
-                                {{ $value }}
-                            </span>
-                        </div>
-                    </div>
-                </label>
-            @endforeach
-        @endif
-    </div>
-    {{-- エラーメッセージ表示用の要素は任意で設置してください --}}
-    <div id="error-custom_{{ $field['name'] }}" class="mt-2 text-sm text-red-600"></div>
-    @break
+                                                        <div class="p-3 border-t dark:border-gray-700">
+                                                            <div class="flex items-center">
+                                                                <input type="checkbox"
+                                                                    id="custom_{{ $field['name'] }}_{{ $loop->index }}"
+                                                                    name="custom_{{ $field['name'] }}[]"
+                                                                    value="{{ $value }}"
+                                                                    {{-- ↓ 変更箇所 --}}
+                                                                    onclick="handleImageSelection(this)"
+                                                                    class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                                                    @if(is_array($oldValues) && in_array($value, $oldValues)) checked @endif>
+                                                                {{-- ↑ 変更箇所 --}}
+                                                                <span class="ml-2 block text-sm font-medium text-gray-800 " title="{{ $value }}">
+                                                                    {{ $value }}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </label>
+                                                @endforeach
+                                            @endif
+                                        </div>
+                                        {{-- エラーメッセージ表示用の要素は任意で設置してください --}}
+                                        <div id="error-custom_{{ $field['name'] }}" class="mt-2 text-sm text-red-600"></div>
+                                        @break
 
                                     @case('file')
                                     @case('file_multiple')
