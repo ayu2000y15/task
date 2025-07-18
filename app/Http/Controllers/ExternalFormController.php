@@ -431,35 +431,49 @@ class ExternalFormController extends Controller
             try {
                 $emailCustomFields = [];
                 foreach ($customFormFields as $field) {
-                    // 保存されたデータから値を取得
                     $fieldValue = $customFieldData[$field->name] ?? null;
 
-                    // 値が空でないフィールドのみメールに記載
                     if (!empty($fieldValue)) {
+                        $emailValue = $fieldValue; // デフォルトは保存された値
+
+                        if ($field->type === 'image_select' && is_array($fieldValue)) {
+                            $options = $field->options ?? [];
+                            $imageSelectData = [];
+                            foreach ($fieldValue as $selectedValue) {
+                                // オプション定義にキーが存在する場合のみ追加
+                                if (isset($options[$selectedValue])) {
+                                    $imageSelectData[] = [
+                                        'label' => $selectedValue,      // 選択された値（キー）
+                                        'url' => $options[$selectedValue] // 対応する画像URL
+                                    ];
+                                }
+                            }
+                            $emailValue = $imageSelectData; // 構造化した配列をメールに渡す
+                        }
+
                         $emailCustomFields[] = [
-                            'label' => $field->label, // ★ 表示ラベルを取得
-                            'value' => $fieldValue,
-                            'type'  => $field->type, // ファイルなどのタイプ判別用にタイプも渡す
+                            'label' => $field->label,
+                            'value' => $emailValue,
+                            'type'  => $field->type,
                         ];
                     }
                 }
 
                 $emailData = [
                     'name' => $validatedData['submitter_name'],
-                    'email' => $validatedData['submitter_email'],
                     'notes' => $validatedData['submitter_notes'] ?? '',
-                    'custom_fields' => $emailCustomFields // ★ 新しい配列を渡す
+                    'custom_fields' => $emailCustomFields
                 ];
 
                 Mail::to($validatedData['submitter_email'])
-                    ->send(new \App\Mail\ExternalFormCompletionMail(
+                    ->send(new ExternalFormCompletionMail(
                         $formCategory,
                         $emailData,
                         $validatedData['submitter_email'],
                         $validatedData['submitter_name']
                     ));
             } catch (\Exception $e) {
-                \Log::error('外部フォーム送信完了メールの送信に失敗しました: ' . $e->getMessage(), [
+                Log::error('外部フォーム送信完了メールの送信に失敗しました: ' . $e->getMessage(), [
                     'submitter_email' => $validatedData['submitter_email'],
                     'form_category' => $formCategory->name
                 ]);

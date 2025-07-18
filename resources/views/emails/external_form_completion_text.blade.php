@@ -40,6 +40,10 @@
                     - {{ $fileInfo['original_name'] }}
                 @endif
             @endforeach
+        @elseif($field['type'] === 'image_select' && is_array($fieldValue))
+            @foreach($fieldValue as $item)
+                - 選択: {{ $item['label'] }}
+            @endforeach
         @elseif(is_array($fieldValue))
             {{ implode('、', $fieldValue) }}
         @else

@@ -18,7 +18,8 @@
                         <td
                             style="background-color: #4f46e5; color: white; padding: 30px 20px; text-align: center; border-radius: 8px 8px 0 0;">
                             <h1 style="margin: 0; font-size: 24px; font-weight: 600;">
-                                {{ $formCategory->form_title ?? $formCategory->display_name }}</h1>
+                                {{ $formCategory->form_title ?? $formCategory->display_name }}
+                            </h1>
                             <p style="margin: 10px 0 0 0; opacity: 0.9; font-size: 16px;">送信完了</p>
                         </td>
                     </tr>
@@ -36,7 +37,8 @@
                             </p>
                             @if($formCategory->thank_you_message)
                                 <p style="margin-bottom: 20px;">
-                                    {!! nl2br($formCategory->thank_you_message) !!}</p>
+                                    {!! nl2br($formCategory->thank_you_message) !!}
+                                </p>
                             @endif
 
                             <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%"
@@ -54,7 +56,8 @@
                                                     <div style="font-weight: 600; color: #6b7280; font-size: 14px;">お名前
                                                     </div>
                                                     <div style="color: #111827; margin-top: 5px;">
-                                                        {{ $submissionData['name'] ?? '未入力' }}</div>
+                                                        {{ $submissionData['name'] ?? '未入力' }}
+                                                    </div>
                                                 </td>
                                             </tr>
                                             <tr style="vertical-align: top;">
@@ -71,9 +74,9 @@
                                                         style="padding-bottom: 10px; margin-bottom: 10px; border-bottom: 1px solid #e5e7eb;">
                                                         <div style="font-weight: 600; color: #6b7280; font-size: 14px;">備考
                                                         </div>
-                                                        <div
-                                                            style="color: #111827; margin-top: 5px;">
-                                                            {!! nl2br($submissionData['notes']) !!}</div>
+                                                        <div style="color: #111827; margin-top: 5px;">
+                                                            {!! nl2br($submissionData['notes']) !!}
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             @endif
@@ -83,7 +86,8 @@
                                                         <td
                                                             style="padding-bottom: 10px; margin-bottom: 10px; {{ !$loop->last ? 'border-bottom: 1px solid #e5e7eb;' : '' }}">
                                                             <div style="font-weight: 600; color: #6b7280; font-size: 14px;">
-                                                                {{ $field['label'] }}</div>
+                                                                {{ $field['label'] }}
+                                                            </div>
                                                             <div
                                                                 style="color: #111827; margin-top: 5px; word-break: break-all;">
                                                                 @php $fieldValue = $field['value']; @endphp
@@ -94,6 +98,16 @@
                                                                             <span
                                                                                 style="display: block;">{{ $fileInfo['original_name'] }}</span>
                                                                         @endif
+                                                                    @endforeach
+                                                                @elseif($field['type'] === 'image_select' && is_array($fieldValue) && !empty($fieldValue))
+                                                                    @foreach($fieldValue as $item)
+                                                                        <div
+                                                                            style="margin-top: 5px; {{ !$loop->last ? 'padding-bottom: 10px; border-bottom: 1px dashed #dddddd; margin-bottom:10px;' : '' }}">
+                                                                            <span style="display: block; margin-bottom: 5px;">選択:
+                                                                                {{ $item['label'] }}</span>
+                                                                            <img src="{{ $item['url'] }}" alt="{{ $item['label'] }}"
+                                                                                style="max-width: 150px; height: auto; border-radius: 4px; border: 1px solid #dddddd;">
+                                                                        </div>
                                                                     @endforeach
                                                                 @elseif(is_array($fieldValue))
                                                                     {{ implode('、', $fieldValue) }}

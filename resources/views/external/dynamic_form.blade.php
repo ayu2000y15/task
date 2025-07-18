@@ -381,6 +381,9 @@
         </div>
     </div>
 <script>
+    // 選択順序をグローバルに管理するオブジェクト（idを格納）
+    const selectionOrder = {};
+
     // -------------------------------------------------------------------------
     // 画像選択フィールド（image_select）の制御ロジック
     // -------------------------------------------------------------------------
@@ -394,54 +397,56 @@
         if (!container) return;
 
         const maxSelections = parseInt(container.dataset.maxSelections, 10);
-        // maxSelectionsが未設定または0の場合は、制限なし
+        // 上限設定がない場合は、スタイル更新のみで処理を終了
         if (!maxSelections) {
             updateImageSelectionStates(container);
             return;
-        };
-
-        const allCheckboxes = container.querySelectorAll('input[type=checkbox]');
-        const checkedCount = Array.from(allCheckboxes).filter(cb => cb.checked).length;
-        const fieldName = container.querySelector('input').name.replace(/\[\]$/, '');
-        const errorContainer = document.getElementById('error-' + fieldName);
-
-        if (errorContainer) {
-            errorContainer.textContent = ''; // エラーメッセージをリセット
         }
 
-        // 選択数が上限を超えた場合、今クリックしたチェックを外して処理を中断
-        if (checkedCount > maxSelections) {
-            checkbox.checked = false;
-            if (errorContainer) {
-                 errorContainer.textContent = `選択できるのは${maxSelections}個までです。`;
+        const fieldName = checkbox.name.replace(/\[\]$/, '');
+        if (!selectionOrder[fieldName]) {
+            selectionOrder[fieldName] = [];
+        }
+        let order = selectionOrder[fieldName];
+        const currentId = checkbox.id;
+
+        // チェックボックスがチェックされた（選択が追加された）場合
+        if (checkbox.checked) {
+            // 選択された項目のidを順序リストの末尾に追加
+            order.push(currentId);
+
+            // リストの長さが上限を超えた場合
+            if (order.length > maxSelections) {
+                // 最も古い選択（リストの先頭）のidを取得してリストから削除
+                const idToUncheck = order.shift();
+
+                // idを使って対応するチェックボックスを確実に見つけ、チェックを外す
+                const checkboxToUncheck = document.getElementById(idToUncheck);
+                if (checkboxToUncheck) {
+                    checkboxToUncheck.checked = false;
+                }
             }
-            return;
+        } else {
+            // チェックが外された場合、順序リストからそのidを削除
+            selectionOrder[fieldName] = order.filter(id => id !== currentId);
         }
 
-        // 状態の更新
+        // 全てのチェックボックスの見た目を最新の状態に更新
         updateImageSelectionStates(container);
     }
 
     /**
-     * コンテナ内のすべてのチェックボックスの状態（有効/無効）とスタイルを更新する
+     * 【重要修正点】コンテナ内のすべてのチェックボックスのスタイルを更新する
+     * disabled（無効化）処理を完全に削除し、スタイル更新のみに専念させます。
      * @param {HTMLElement} container - .image-selector-container要素
      */
     function updateImageSelectionStates(container) {
-        const maxSelections = parseInt(container.dataset.maxSelections, 10);
-        if (!maxSelections) return;
-
         const allCheckboxes = container.querySelectorAll('input[type=checkbox]');
-        const checkedCount = Array.from(allCheckboxes).filter(cb => cb.checked).length;
-        const limitReached = checkedCount >= maxSelections;
 
         allCheckboxes.forEach(cb => {
             const label = cb.closest('label');
-            // 他のチェックボックスを無効化するかどうか
-            if (limitReached && !cb.checked) {
-                cb.disabled = true;
-            } else {
-                cb.disabled = false;
-            }
+
+            // ★★★ 修正点： disabled（無効化）に関するロジックを完全に削除 ★★★
 
             // 選択中のスタイルを適用
             if (cb.checked) {
@@ -613,6 +618,20 @@
         // [画像選択] フィールドの初期状態を反映
         const imageContainers = document.querySelectorAll('.image-selector-container');
         imageContainers.forEach(container => {
+            const firstInput = container.querySelector('input[type=checkbox]');
+            if (!firstInput) return;
+
+            const fieldName = firstInput.name.replace(/\[\]$/, '');
+            // 選択順序リストを初期化
+            selectionOrder[fieldName] = [];
+
+            // ページ読み込み時にチェック済みのもののidを順序リストに追加
+            const checkedInputs = container.querySelectorAll('input[type=checkbox]:checked');
+            checkedInputs.forEach(cb => {
+                selectionOrder[fieldName].push(cb.id);
+            });
+
+            // 全体のスタイルを更新
             updateImageSelectionStates(container);
         });
 
