@@ -105,7 +105,7 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {{-- お名前 --}}
                         <div class="form-group">
-                            <label for="submitter_name" class="block text-sm font-medium text-gray-700 mb-2">
+                            <label for="submitter_name" class="block text-base font-bold text-gray-700 mb-2">
                                 お名前 <span class="text-red-500">*</span>
                             </label>
                             <input type="text"
@@ -122,7 +122,7 @@
 
                         {{-- メールアドレス --}}
                         <div class="form-group">
-                            <label for="submitter_email" class="block text-sm font-medium text-gray-700 mb-2">
+                            <label for="submitter_email" class="block text-base font-bold text-gray-700 mb-2">
                                 メールアドレス <span class="text-red-500">*</span>
                             </label>
                             <input type="email"
@@ -161,7 +161,7 @@
 
                         @foreach($customFormFields as $field)
                             <div class="form-group mb-6">
-                                <label for="custom_{{ $field['name'] }}" class="block text-sm font-medium text-gray-700 mb-2">
+                                <label for="custom_{{ $field['name'] }}" class="block text-base font-bold text-gray-700 mb-2">
                                     {{ $field['label'] }}
                                     @if($field['is_required'])
                                         <span class="text-red-500">*</span>
@@ -264,10 +264,10 @@
                                             $oldValues = old('custom_' . $field['name'], []);
                                         @endphp
 
-                                        @if($max)
+                                        @if($max<> 1)
                                             <p class="text-sm text-gray-600 mb-3">
                                                 <i class="fas fa-info-circle mr-1 text-blue-500"></i>
-                                                最大{{ $max }}個まで選択できます。
+                                                {{ $max }}つまで選択できます。
                                             </p>
                                         @endif
 
