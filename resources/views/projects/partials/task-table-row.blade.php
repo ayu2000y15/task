@@ -17,6 +17,9 @@
     $hoverClass = !empty($task->description) ? 'task-row-hoverable' : '';
     $level = $task->level ?? 0;
     $hasChildren = $task->children->isNotEmpty();
+
+    // 累計作業時間をここで一度だけ取得します
+    $totalWorkSeconds = (int) $task->total_work_seconds;
 @endphp
 
 <tr id="task-row-{{ $task->id }}" class="hover:bg-gray-50 dark:hover:bg-gray-700 {{ $rowClass }} {{ $hoverClass }} @if($task->parent_id) child-row child-of-{{ $task->parent_id }} @endif"
@@ -24,13 +27,13 @@
     data-project-id="{{ $task->project_id }}"
     @if(!empty($task->description)) data-task-description="{{ htmlspecialchars($task->description) }}" @endif
     data-progress="{{ $task->progress ?? 0 }}"
-    data-duration="{{ $task->duration ?? 0 }}">
+    data-duration="{{ $task->duration ?? 0 }}"
+    data-total-work-seconds="{{ $totalWorkSeconds }}">
 
-    {{-- フォルダ以外の表示 (通常の工程または予定) --}}
+    {{-- 時間記録コントロール --}}
     <td class="px-4 py-3 align-top">
         @if(!$task->is_milestone)
             @if ($task->status === 'rework')
-                {{-- 親工程のステータスが「直し」の場合、ラベルを表示 --}}
                 <div class="inline-flex items-center px-2 py-1 bg-orange-100 text-orange-800 text-xs font-medium rounded-full dark:bg-orange-900 dark:text-orange-300" title="子工程の作業時間を記録してください">
                     <i class="fas fa-wrench mr-1"></i>
                     直し
@@ -65,24 +68,53 @@
             <span class="text-xs text-gray-400 dark:text-gray-500">-</span>
         @endif
     </td>
+
+    {{-- ▼▼▼【ここから修正】「案件別作業ログ」のロジックを適用 ▼▼▼ --}}
     <td class="px-4 py-3 align-top whitespace-nowrap text-sm font-mono">
         @if(!$task->is_milestone && !$task->is_folder)
             <div class="task-actual-time-display" data-task-id="{{ $task->id }}">
-                {{-- ▼▼▼【修正】タイマー停止中の初期表示ロジック ▼▼▼ --}}
-                @if (!($task->status === 'in_progress' && !$task->is_paused) && $task->total_work_seconds > 0)
+                {{-- タイマーが停止している場合に、PHPで残工数を計算して表示します --}}
+                @if (!($task->status === 'in_progress' && !$task->is_paused))
                     @php
-                        $remainingSeconds = ($task->duration ?? 0) * 60 - $task->total_work_seconds;
-                        $isOver = $remainingSeconds < 0;
+                        // 「案件別 作業ログ」のロジックを参考に変数を定義します
+                        $plannedSeconds = (int) (($task->duration ?? 0) * 60);
+                        $actualSeconds = $totalWorkSeconds; // ファイル先頭で定義済みの変数を使用
                     @endphp
-                    <span class="{{ $isOver ? 'text-red-500 font-bold' : '' }}">
-                        {{ ($isOver ? '+' : '') . format_seconds_to_hms( abs($remainingSeconds)) }}
-                    </span>
+
+                    @if ($plannedSeconds > 0)
+                        @php
+                            // 差異を計算します (実績 - 計画)
+                            $diff = $actualSeconds - $plannedSeconds;
+                        @endphp
+
+                        {{-- 差異がプラス（超過）の場合 --}}
+                        @if ($diff > 0)
+                            <span class="text-red-500 font-bold" title="予定工数を {{ format_seconds_to_hms(abs($diff)) }} 超過">
+                                +{{ format_seconds_to_hms(abs($diff)) }}
+                            </span>
+                        {{-- 差異がマイナスまたはゼロ（計画内）の場合 --}}
+                        @else
+                            @php
+                                // 表示するのは「残り時間」なので、差異の絶対値（計画 - 実績）を使用します
+                                $remainingSeconds = abs($diff);
+                            @endphp
+                            <span title="残りの予定工数">
+                                {{ format_seconds_to_hms($remainingSeconds) }}
+                            </span>
+                        @endif
+                    @else
+                        {{-- 予定工数が0の場合はハイフンを表示します --}}
+                        <span class="text-gray-400">-</span>
+                    @endif
                 @endif
             </div>
         @else
             -
         @endif
     </td>
+    {{-- ▲▲▲【修正ここまで】▲▲▲ --}}
+
+    {{-- 工程名 --}}
     <td class="px-4 py-3 text-sm text-gray-900 dark:text-gray-100 align-top">
         <div class="flex items-center gap-x-3">
             <div class="flex items-start flex-grow min-w-0" style="padding-left: {{ $level * 1.5 }}rem;">
@@ -168,7 +200,6 @@
     @endif
     <td class="px-3 py-3 whitespace-nowrap text-sm font-medium align-top">
         <div class="flex items-center space-x-1">
-            {{-- ★★★ 「直し」ボタンの修正 ★★★ --}}
             @if($task->status !== 'cancelled' && !$task->is_folder && !$task->is_milestone && !$task->is_rework_task)
                 <button type="button"
                     class="rework-task-btn p-1.5 text-orange-500 hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
