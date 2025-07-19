@@ -3,7 +3,6 @@
 @section('title', 'カスタム項目管理')
 
 @section('content')
-    {{-- ★ テーブル全体をAlpine.jsコンポーネントでラップ --}}
     <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8" x-data="definitionsTable">
         <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
             <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-200">カスタム項目管理</h1>
@@ -122,8 +121,8 @@
 @push('scripts')
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.14.0/Sortable.min.js"></script>
     <script>
+    // Alpine.jsコンポーネント (アコーディオン開閉のみ)
     document.addEventListener('alpine:init', () => {
-        // テーブル全体のアコーディオン開閉を管理するコンポーネント
         Alpine.data('definitionsTable', () => ({
             openAccordions: {},
             toggle(id) {
@@ -133,169 +132,165 @@
                 return this.openAccordions[id] || false;
             }
         }));
-
-        // インラインエディタ用のコンポーネント
-        Alpine.data('inlineOptionsManager', (config) => ({
-            options: [],
-            nextId: 0,
-            isInventoryLinked: config.isInventoryLinkedInitially,
-            isSaving: false,
-            statusMessage: '',
-            success: null,
-            definitionType: config.definitionType,
-
-            init() {
-                this.rebuildOptionsState(config.initialOptions, config.initialInventoryMap);
-            },
-
-            rebuildOptionsState(rawOptions, inventoryMap) {
-                let initialData = [];
-                inventoryMap = inventoryMap || {};
-
-                Object.entries(rawOptions || {}).forEach(([value, labelOrUrl]) => {
-                    const inventorySettings = inventoryMap[value] || {};
-                    initialData.push({
-                        value: value,
-                        label: this.definitionType !== 'image_select' ? labelOrUrl : '',
-                        existing_path: this.definitionType === 'image_select' ? labelOrUrl : '',
-                        previewUrl: this.definitionType === 'image_select' ? labelOrUrl : '/placeholder.svg',
-                        inventory_item_id: inventorySettings.id || null,
-                        inventory_consumption_qty: inventorySettings.qty || 1,
-                        file: null
-                    });
-                });
-
-                this.nextId = 0;
-                this.options = initialData.map(opt => {
-                    const id = this.nextId++;
-                    const inventoryId = opt.inventory_item_id;
-                    const inventoryItem = config.inventoryItemsJson.find(i => i.id == inventoryId);
-                    return {
-                        ...opt,
-                        id: id,
-                        inventory_consumption_qty: opt.inventory_consumption_qty || 1,
-                        inventory_item_display_name: inventoryItem ? inventoryItem.text : (inventoryId || null)
-                    };
-                });
-
-                this.$nextTick(() => this.initializeAllTomSelects());
-            },
-
-            addOption() {
-                this.options.push({
-                    id: this.nextId++,
-                    value: '',
-                    label: '',
-                    existing_path: '',
-                    previewUrl: '/placeholder.svg',
-                    inventory_item_id: null,
-                    inventory_consumption_qty: 1,
-                    file: null
-                });
-                this.$nextTick(() => this.initializeAllTomSelects());
-            },
-
-            removeOption(index) {
-                const optionId = this.options[index].id;
-                const selectEl = document.getElementById(`inventory_id_${optionId}`);
-                if (selectEl && selectEl.tomselect) {
-                    selectEl.tomselect.destroy();
-                }
-                this.options.splice(index, 1);
-            },
-
-            handleFileSelect(event, index) {
-                const file = event.target.files[0];
-                if (file) {
-                    this.options[index].previewUrl = URL.createObjectURL(file);
-                    this.options[index].file = file;
-                }
-            },
-
-            initializeAllTomSelects() {
-                document.querySelectorAll('.tom-select-inventory-inline').forEach(el => {
-                    if (el.tomselect) { return; }
-
-                    const index = parseInt(el.dataset.index, 10);
-                    if (isNaN(index) || !this.options[index]) return;
-
-                    const option = this.options[index];
-                    const optionId = option.id;
-
-                    const tom = new TomSelect(el, {
-                        valueField: 'id',
-                        labelField: 'text',
-                        searchField: 'text',
-                        options: config.inventoryItemsJson,
-                        onChange: (value) => {
-                            // findIndexを使用して、更新対象の選択肢の「位置」を取得
-                            const optionIndex = this.options.findIndex(o => o.id === optionId);
-                            if (optionIndex > -1) {
-                                // 新しいオブジェクトを作成して、配列内の古いオブジェクトと置き換える
-                                // これにより、Alpine.jsが変更を確実に検知する
-                                const updatedOption = {
-                                    ...this.options[optionIndex],
-                                    inventory_item_id: value
-                                };
-                                this.options[optionIndex] = updatedOption;
-                            }
-                        }
-                    });
-
-                    if (option.inventory_item_id && option.inventory_item_display_name) {
-                        tom.addOption({ id: option.inventory_item_id, text: option.inventory_item_display_name });
-                        tom.setValue(option.inventory_item_id, true);
-                    }
-                });
-            },
-
-            saveOptions() {
-                this.isSaving = true;
-                this.statusMessage = '';
-
-                const formData = new FormData();
-                this.options.forEach((option, index) => {
-                    formData.append(`options[${index}][value]`, option.value || '');
-                    formData.append(`options[${index}][label]`, option.label || '');
-                    formData.append(`options[${index}][existing_path]`, option.existing_path || '');
-                    formData.append(`options[${index}][inventory_item_id]`, option.inventory_item_id || '');
-                    formData.append(`options[${index}][inventory_consumption_qty]`, option.inventory_consumption_qty || 1);
-
-                    if (option.file) {
-                        formData.append(`options[${index}][image]`, option.file);
-                    }
-                });
-                formData.append('is_inventory_linked', this.isInventoryLinked ? '1' : '0');
-                formData.append('_token', '{{ csrf_token() }}');
-
-                axios.post(`/admin/form-definitions/${config.definitionId}/options`, formData)
-                .then(response => {
-                    this.success = true;
-                    this.statusMessage = response.data.message;
-                    if (response.data.options) {
-                        this.rebuildOptionsState(response.data.options, response.data.option_inventory_map);
-                    }
-                    setTimeout(() => this.statusMessage = '', 3000);
-                })
-                .catch(error => {
-                    this.success = false;
-                    let errorMessage = '保存に失敗しました。';
-                    if (error.response && error.response.status === 422 && error.response.data.errors) {
-                        const errorDetails = Object.values(error.response.data.errors).map(e => e.join(' ')).join('\n');
-                        errorMessage += `\n- ${errorDetails}`;
-                    } else if (error.response && error.response.data && error.response.data.message) {
-                        errorMessage = error.response.data.message;
-                    }
-                    this.statusMessage = errorMessage;
-                })
-                .finally(() => {
-                    this.isSaving = false;
-                });
-            }
-        }));
     });
 
+    // --- ここから素のJavaScriptによる制御 ---
     document.addEventListener('DOMContentLoaded', function () {
+        const inventoryItemsJson = @json($availableInventoryItems->map(fn($item) => ['id' => $item->id, 'text' => $item->display_name]));
+
+        // TomSelectを初期化する関数
+        const initializeTomSelect = (selectElement) => {
+            return new TomSelect(selectElement, {
+                valueField: 'id',
+                labelField: 'text',
+                searchField: 'text',
+                options: inventoryItemsJson,
+                create: false,
+                onChange: (value) => {
+                    const row = selectElement.closest('.option-row');
+                    const consumptionFields = row.querySelector('.consumption-fields');
+                    if (value) {
+                        consumptionFields.classList.remove('hidden');
+                    } else {
+                        consumptionFields.classList.add('hidden');
+                    }
+                }
+            });
+        };
+
+        // すべてのインラインエディタコンテナを初期化
+        document.querySelectorAll('.inline-options-container').forEach(container => {
+            const definitionId = container.dataset.definitionId;
+            const definitionType = container.dataset.definitionType;
+            const optionsList = container.querySelector('.options-list');
+            const addBtn = container.querySelector('.add-option-btn');
+            const saveBtn = container.querySelector('.save-options-btn');
+            const cancelBtn = container.querySelector('.cancel-btn');
+            const inventoryCheckbox = container.querySelector('.is-inventory-linked-checkbox');
+            const statusMessage = container.querySelector('.status-message');
+
+            // 既存のTomSelectを初期化
+            container.querySelectorAll('.tom-select-inventory-inline').forEach(initializeTomSelect);
+
+            // 在庫連携チェックボックスのイベント
+            inventoryCheckbox.addEventListener('change', (e) => {
+                const isChecked = e.target.checked;
+                container.querySelectorAll('.inventory-fields').forEach(field => {
+                    field.classList.toggle('hidden', !isChecked);
+                });
+            });
+
+            // 行のイベント（削除、画像プレビューなど）
+            optionsList.addEventListener('click', (e) => {
+                if (e.target.closest('.remove-option-btn')) {
+                    const row = e.target.closest('.option-row');
+                    const select = row.querySelector('.tom-select-inventory-inline');
+                    if (select && select.tomselect) {
+                        select.tomselect.destroy();
+                    }
+                    row.remove();
+                }
+            });
+            optionsList.addEventListener('change', (e) => {
+                if(e.target.classList.contains('option-image-input')) {
+                    const row = e.target.closest('.option-row');
+                    const preview = row.querySelector('.image-preview');
+                    const file = e.target.files[0];
+                    if (file && preview) {
+                        preview.src = URL.createObjectURL(file);
+                    }
+                }
+            });
+
+            // 新しい選択肢を追加
+            addBtn.addEventListener('click', () => {
+                const template = document.getElementById('option-row-template');
+                const newRow = template.content.cloneNode(true).firstElementChild;
+
+                // タイプに応じて表示を切り替え
+                if (definitionType === 'image_select') {
+                    newRow.querySelector('.image-preview-wrapper').style.display = 'block';
+                    newRow.querySelector('.image-field-wrapper').style.display = 'block';
+                } else {
+                    newRow.querySelector('.label-field-wrapper').style.display = 'block';
+                }
+
+                // 在庫連携の表示状態を同期
+                if(inventoryCheckbox.checked) {
+                    newRow.querySelectorAll('.inventory-fields').forEach(f => f.classList.remove('hidden'));
+                }
+
+                const select = newRow.querySelector('.tom-select-inventory-inline');
+                optionsList.appendChild(newRow);
+                initializeTomSelect(select);
+            });
+
+            // 保存処理
+            saveBtn.addEventListener('click', () => {
+                saveBtn.disabled = true;
+                saveBtn.textContent = '保存中...';
+                statusMessage.textContent = '';
+
+                const formData = new FormData();
+                formData.append('is_inventory_linked', inventoryCheckbox.checked ? '1' : '0');
+                formData.append('_token', '{{ csrf_token() }}');
+
+                container.querySelectorAll('.option-row').forEach((row, index) => {
+                    const value = row.querySelector('[name="value"]')?.value || '';
+                    const label = row.querySelector('[name="label"]')?.value || '';
+                    const existingPath = row.querySelector('[name="existing_path"]')?.value || '';
+                    const imageFile = row.querySelector('[name="image"]')?.files[0];
+                    const inventoryId = row.querySelector('[name="inventory_item_id"]')?.value || '';
+                    const consumptionQty = row.querySelector('[name="inventory_consumption_qty"]')?.value || '1';
+
+                    formData.append(`options[${index}][value]`, value);
+                    formData.append(`options[${index}][label]`, label);
+                    formData.append(`options[${index}][existing_path]`, existingPath);
+                    if(imageFile) {
+                       formData.append(`options[${index}][image]`, imageFile);
+                    }
+                    formData.append(`options[${index}][inventory_item_id]`, inventoryId);
+                    formData.append(`options[${index}][inventory_consumption_qty]`, consumptionQty);
+                });
+
+                axios.post(`/admin/form-definitions/${definitionId}/options`, formData)
+                .then(response => {
+                    statusMessage.textContent = response.data.message;
+                    statusMessage.classList.add('text-green-600');
+                    statusMessage.classList.remove('text-red-600');
+                })
+                .catch(error => {
+                    let errorMessage = '保存に失敗しました。';
+                    if (error.response && error.response.data && error.response.data.message) {
+                        errorMessage = error.response.data.message;
+                    }
+                    statusMessage.textContent = errorMessage;
+                    statusMessage.classList.add('text-red-600');
+                    statusMessage.classList.remove('text-green-600');
+                })
+                .finally(() => {
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = '保存';
+                });
+            });
+
+            // キャンセルボタン（アコーディオンを閉じる）
+            cancelBtn.addEventListener('click', () => {
+                const accordionRow = container.closest('tr[x-show]');
+                if(accordionRow) {
+                    accordionRow.style.display = 'none';
+                    // Alpineコンポーネントの状態も更新（もしあれば）
+                    const mainRow = accordionRow.previousElementSibling;
+                    const id = mainRow.dataset.id;
+                    const component = Alpine.$data(document.querySelector('[x-data="definitionsTable"]'));
+                    if(component && component.isOpen(id)) {
+                        component.toggle(id);
+                    }
+                }
+            });
+        });
+
+        // SortableJSの初期化 (変更なし)
         const el = document.getElementById('sortable-definitions');
         if (el) {
             new Sortable(el, {
