@@ -161,7 +161,7 @@
                         previewUrl: this.definitionType === 'image_select' ? labelOrUrl : '/placeholder.svg',
                         inventory_item_id: inventorySettings.id || null,
                         inventory_consumption_qty: inventorySettings.qty || 1,
-                        file: null // ★ 既存の選択肢にもfileプロパティを初期値nullで追加
+                        file: null
                     });
                 });
 
@@ -182,7 +182,6 @@
             },
 
             addOption() {
-                // ★ 新しい選択肢にfileプロパティを追加
                 this.options.push({
                     id: this.nextId++,
                     value: '',
@@ -209,31 +208,36 @@
                 const file = event.target.files[0];
                 if (file) {
                     this.options[index].previewUrl = URL.createObjectURL(file);
-                    // ★ 選択されたファイルオブジェクトをstateに直接保存
                     this.options[index].file = file;
                 }
             },
 
             initializeAllTomSelects() {
-                // この関数は変更なし
                 document.querySelectorAll('.tom-select-inventory-inline').forEach(el => {
                     if (el.tomselect) { return; }
+
                     const index = parseInt(el.dataset.index, 10);
                     if (isNaN(index) || !this.options[index]) return;
-                    const option = this.options[index];
 
-                    const optionId = option.id; // 不変のIDを取得する
+                    const option = this.options[index];
+                    const optionId = option.id;
 
                     const tom = new TomSelect(el, {
                         valueField: 'id',
                         labelField: 'text',
                         searchField: 'text',
                         options: config.inventoryItemsJson,
-                        // onChangeでは、位置(index)ではなくIDを使って更新対象の選択肢を検索する
                         onChange: (value) => {
-                            const optionToUpdate = this.options.find(o => o.id === optionId);
-                            if (optionToUpdate) {
-                                optionToUpdate.inventory_item_id = value;
+                            // findIndexを使用して、更新対象の選択肢の「位置」を取得
+                            const optionIndex = this.options.findIndex(o => o.id === optionId);
+                            if (optionIndex > -1) {
+                                // 新しいオブジェクトを作成して、配列内の古いオブジェクトと置き換える
+                                // これにより、Alpine.jsが変更を確実に検知する
+                                const updatedOption = {
+                                    ...this.options[optionIndex],
+                                    inventory_item_id: value
+                                };
+                                this.options[optionIndex] = updatedOption;
                             }
                         }
                     });
@@ -257,8 +261,6 @@
                     formData.append(`options[${index}][inventory_item_id]`, option.inventory_item_id || '');
                     formData.append(`options[${index}][inventory_consumption_qty]`, option.inventory_consumption_qty || 1);
 
-                    // ★★★★★ 修正の核心 ★★★★★
-                    // DOMからではなく、stateに保存したファイルオブジェクトを直接使う
                     if (option.file) {
                         formData.append(`options[${index}][image]`, option.file);
                     }
@@ -266,13 +268,11 @@
                 formData.append('is_inventory_linked', this.isInventoryLinked ? '1' : '0');
                 formData.append('_token', '{{ csrf_token() }}');
 
-                // axiosの第3引数でheadersを指定しない（ブラウザに自動設定させる）
                 axios.post(`/admin/form-definitions/${config.definitionId}/options`, formData)
                 .then(response => {
                     this.success = true;
                     this.statusMessage = response.data.message;
                     if (response.data.options) {
-                        // 保存が成功したら、stateをサーバーからの最新情報で再構築する
                         this.rebuildOptionsState(response.data.options, response.data.option_inventory_map);
                     }
                     setTimeout(() => this.statusMessage = '', 3000);

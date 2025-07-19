@@ -80,7 +80,7 @@
             新しい選択肢を追加</button>
 
         {{-- 保存ボタンとステータス表示 --}}
-        <div class="flex justify-end items-center space-x-4 mt-6 pt-4 border-t dark:border-gray-700">
+        <div class="flex justify-start items-center space-x-4 mt-6 pt-4 border-t dark:border-gray-700">
             <span x-text="statusMessage" :class="{ 'text-green-600': success, 'text-red-600': !success }"
                 class="text-sm font-medium"></span>
             <x-secondary-button type="button" @click="open = false">キャンセル</x-secondary-button>
