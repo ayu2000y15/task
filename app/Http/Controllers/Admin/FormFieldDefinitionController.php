@@ -417,6 +417,7 @@ class FormFieldDefinitionController extends Controller
 
         // バリデーションをシンプルにします（実際の必須チェックはprocessOptionsFromRequestで行う）
         $rules = [
+            'is_inventory_linked' => 'nullable|boolean', // 在庫連携フラグのバリデーションを追加
             'options' => 'nullable|array',
             'options.*.value' => 'required_with:options.*.label,options.*.image|nullable|string|max:255',
             'options.*.label' => 'nullable|string|max:255',
@@ -425,6 +426,7 @@ class FormFieldDefinitionController extends Controller
             'options.*.inventory_item_id' => 'nullable|integer|exists:inventory_items,id',
             'options.*.inventory_consumption_qty' => 'nullable|integer|min:1',
         ];
+
 
         $messages = [
             'options.*.image.image' => 'アップロードされたファイルは画像形式である必要があります。',
@@ -439,8 +441,11 @@ class FormFieldDefinitionController extends Controller
         try {
             list($options, $inventoryMap) = $this->processOptionsFromRequest($request, $formFieldDefinition);
 
+            $isInventoryLinked = $request->boolean('is_inventory_linked');
+            $formFieldDefinition->is_inventory_linked = $isInventoryLinked;
             $formFieldDefinition->options = $options;
-            $formFieldDefinition->option_inventory_map = $inventoryMap;
+            // 在庫連携がOFFの場合は、在庫マップをnullにする
+            $formFieldDefinition->option_inventory_map = $isInventoryLinked ? $inventoryMap : null;
             $formFieldDefinition->save();
 
             DB::commit();
