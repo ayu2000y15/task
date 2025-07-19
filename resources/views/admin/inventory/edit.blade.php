@@ -26,6 +26,7 @@
         </div>
 
         {{-- 在庫操作セクション --}}
+        @canany(['stockIn', 'adjustStock'], $inventoryItem)
         <div class="max-w-2xl mx-auto bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden mb-6">
             <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
                 <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100">在庫操作</h2>
@@ -142,7 +143,9 @@
                 @endcan
             </div>
         </div>
+        @endcanany
 
+        {{-- 品目情報編集フォーム --}}
         <div class="max-w-2xl mx-auto bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
             <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
                 <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100">品目情報編集</h2>
