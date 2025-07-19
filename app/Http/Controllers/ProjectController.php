@@ -352,7 +352,7 @@ class ProjectController extends Controller
                         $title = '【' . $externalSubmission->formCategory->delivery_estimate_text . '】';
                     }
                     $title .= $externalSubmission->submitter_name ?? '外部申請';
-                    $prefillStandardData['title'] = $title;
+                    $prefillStandardData['title'] = $title . '★';
 
                     $prefillStandardData['client_name'] = $externalSubmission->submitter_name;
                     $prefillStandardData['description'] = $externalSubmission->submitter_notes;
