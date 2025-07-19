@@ -348,8 +348,8 @@ class ProjectController extends Controller
                     $title = '';
                     // フォームカテゴリと納期目安テキストが存在する場合
                     if ($externalSubmission->formCategory && $externalSubmission->formCategory->delivery_estimate_text) {
-                        // タイトルに【7月上旬】の形式で追加
-                        $title = '【' . $externalSubmission->formCategory->delivery_estimate_text . '】';
+                        // タイトルに 7月上旬 の形式で追加
+                        $title = $externalSubmission->formCategory->delivery_estimate_text . '　';
                     }
                     $title .= $externalSubmission->submitter_name ?? '外部申請';
                     $prefillStandardData['title'] = $title . '★';
