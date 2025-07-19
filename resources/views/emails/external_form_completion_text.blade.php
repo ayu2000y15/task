@@ -1,5 +1,3 @@
-件名: {{ $formCategory->form_title ?? $formCategory->display_name }} - 送信完了
-
 @if($userName)
     {{ $userName }} 様
 @else
@@ -11,6 +9,14 @@
 
 @if($formCategory->thank_you_message)
     {{ $formCategory->thank_you_message }}
+@endif
+
+@if($formCategory->delivery_estimate_text)
+    ----------------------------------------
+    ■ 納品予定のお知らせ
+    ----------------------------------------
+
+    本日のお申込みいただいた製品は、【{{ $formCategory->delivery_estimate_text }}】ごろの到着を予定しております。
 @endif
 
 ----------------------------------------
@@ -57,4 +63,4 @@
 ご不明な点がございましたら、お気軽にお問い合わせください。
 今後ともよろしくお願いいたします。
 
-※このメールは送信専用のメールアドレスから送信されているため、返信できません
+※このメールは、送信専用のメールアドレスから送信されているため返信できません。

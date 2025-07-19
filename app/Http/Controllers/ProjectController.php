@@ -344,7 +344,16 @@ class ProjectController extends Controller
             if ($externalSubmission) {
                 logger()->info('External Submission found:', $externalSubmission->toArray());
                 if ($externalSubmission->status === 'new' || $externalSubmission->status === 'in_progress') {
-                    $prefillStandardData['title'] = ($externalSubmission->submitter_name ?? '外部申請') . '★';
+
+                    $title = '';
+                    // フォームカテゴリと納期目安テキストが存在する場合
+                    if ($externalSubmission->formCategory && $externalSubmission->formCategory->delivery_estimate_text) {
+                        // タイトルに【7月上旬】の形式で追加
+                        $title = '【' . $externalSubmission->formCategory->delivery_estimate_text . '】';
+                    }
+                    $title .= $externalSubmission->submitter_name ?? '外部申請';
+                    $prefillStandardData['title'] = $title;
+
                     $prefillStandardData['client_name'] = $externalSubmission->submitter_name;
                     $prefillStandardData['description'] = $externalSubmission->submitter_notes;
                     // budgetとtarget_costもプリフィル対象に含める（もし外部申請にあれば）

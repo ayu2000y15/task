@@ -393,6 +393,11 @@ class ExternalFormController extends Controller
                         $options = $availableOptions;
                     }
                 }
+                // 在庫連携が有効で、かつ利用可能な選択肢が一つもなくなった場合、
+                // このフィールド自体をフォームに表示しないように null を返す
+                if ($field->is_inventory_linked && empty($options)) {
+                    return null;
+                }
                 return [
                     'name' => $field->name,
                     'label' => $field->label,
@@ -404,7 +409,8 @@ class ExternalFormController extends Controller
                     'min_selections' => $field->min_selections,
                     'max_selections' => $field->max_selections,
                 ];
-            });
+            })
+            ->filter();
 
         return view('external.dynamic_form', compact('customFormFields', 'formCategory'));
     }

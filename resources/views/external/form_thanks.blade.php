@@ -57,6 +57,15 @@
                 @endif
             </div>
 
+            @if($formCategory->delivery_estimate_text)
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-8 text-center">
+                    <p class="text-blue-800 font-semibold">
+                        <i class="fas fa-shipping-fast mr-2"></i>
+                        お申込みいただいた製品は、<strong>{{ $formCategory->delivery_estimate_text }}</strong>ごろの到着を予定しております。
+                    </p>
+                </div>
+            @endif
+
             {{-- 注意事項 --}}
             <div class="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-8">
                 <h2 class="text-lg font-semibold text-blue-900 mb-3">

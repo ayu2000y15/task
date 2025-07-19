@@ -84,6 +84,17 @@
                     <x-input-error :messages="$errors->get('form_description')" class="mt-2" />
                 </div>
 
+                <div class="md:col-span-2">
+                    <x-input-label for="delivery_estimate_text" value="納期目安テキスト" />
+                    <x-text-input id="delivery_estimate_text" name="delivery_estimate_text" type="text" class="mt-1 block w-full"
+                        :value="old('delivery_estimate_text', $formCategory->delivery_estimate_text ?? '')"
+                        placeholder="例: 7月上旬" />
+                    <x-input-error :messages="$errors->get('delivery_estimate_text')" class="mt-2" />
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        外部フォームに表示する納期の目安です。例：[8月末]、[9月頭]など。
+                    </p>
+                </div>
+
                 <div>
                     <x-checkbox-input id="send_completion_email" name="send_completion_email" value="1"
                         :label="'送信完了メールを送信'"

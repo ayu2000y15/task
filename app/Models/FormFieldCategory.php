@@ -21,6 +21,7 @@ class FormFieldCategory extends Model
         'form_description',
         'thank_you_title',
         'thank_you_message',
+        'delivery_estimate_text',
         'is_external_form',
         'requires_approval',
         'send_completion_email',

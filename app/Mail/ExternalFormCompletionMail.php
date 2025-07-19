@@ -45,7 +45,7 @@ class ExternalFormCompletionMail extends Mailable
     {
         return new Content(
             view: 'emails.external_form_completion',
-            text: 'emails.external_form_completion_text',
+            // text: 'emails.external_form_completion_text',
             with: [
                 'formCategory' => $this->formCategory,
                 'submissionData' => $this->submissionData,

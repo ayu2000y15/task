@@ -16,6 +16,16 @@
             <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-4">
                 入力内容の確認
             </h1>
+
+            @if($formCategory->delivery_estimate_text)
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-8 text-center">
+                    <p class="text-blue-800 font-semibold">
+                        <i class="fas fa-shipping-fast mr-2"></i>
+                        本日のお申込みで<span class="text-lg mx-1">{{ $formCategory->delivery_estimate_text }}</span>ごろ到着予定です
+                    </p>
+                </div>
+            @endif
+
             <p class="text-lg text-gray-600 dark:text-gray-300">
                 以下の内容でお間違いありませんか？
             </p>

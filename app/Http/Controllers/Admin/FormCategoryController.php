@@ -45,6 +45,7 @@ class FormCategoryController extends Controller
             'form_description' => 'nullable|string',
             'thank_you_title' => 'nullable|string|max:200',
             'thank_you_message' => 'nullable|string',
+            'delivery_estimate_text' => 'nullable|string|max:100',
             'is_external_form' => 'boolean',
             'requires_approval' => 'boolean',
             'send_completion_email' => 'boolean',
@@ -68,6 +69,7 @@ class FormCategoryController extends Controller
         $category->form_description = $validated['form_description'] ?? null;
         $category->thank_you_title = $validated['thank_you_title'] ?? null;
         $category->thank_you_message = $validated['thank_you_message'] ?? null;
+        $category->delivery_estimate_text = $validated['delivery_estimate_text'] ?? null;
         $category->order = $validated['order'] ?? 0;
         $category->project_category_id = $validated['project_category_id'] ?? null;
 
@@ -139,6 +141,7 @@ class FormCategoryController extends Controller
             'form_description' => 'nullable|string',
             'thank_you_title' => 'nullable|string|max:200',
             'thank_you_message' => 'nullable|string',
+            'delivery_estimate_text' => 'nullable|string|max:100',
             'is_external_form' => 'boolean',
             'requires_approval' => 'boolean',
             'send_completion_email' => 'boolean',
@@ -160,6 +163,7 @@ class FormCategoryController extends Controller
         $formCategory->form_description = $validated['form_description'] ?? null;
         $formCategory->thank_you_title = $validated['thank_you_title'] ?? null;
         $formCategory->thank_you_message = $validated['thank_you_message'] ?? null;
+        $formCategory->delivery_estimate_text = $validated['delivery_estimate_text'] ?? null;
         $formCategory->order = $validated['order'] ?? 0;
         $formCategory->project_category_id = $validated['project_category_id'] ?? null;
 

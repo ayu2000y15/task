@@ -71,6 +71,15 @@
             @endif
         </div>
 
+        @if($formCategory->delivery_estimate_text)
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-8 text-center">
+                <p class="text-blue-800 font-semibold">
+                    <i class="fas fa-shipping-fast mr-2"></i>
+                    本日のお申込みで<span class="text-lg mx-1">{{ $formCategory->delivery_estimate_text }}</span>ごろ到着予定です
+                </p>
+            </div>
+        @endif
+
         {{-- エラー表示 --}}
         @if ($errors->any())
             <div class="bg-red-50 border border-red-200 rounded-lg p-6 mb-8">
@@ -96,7 +105,7 @@
 
         {{-- フォーム --}}
         <div class="bg-white shadow-lg rounded-lg overflow-hidden">
-<form method="POST" action="{{ route('external-form.confirm', $formCategory->slug) }}" enctype="multipart/form-data" class="p-8 space-y-6">                @csrf
+            <form method="POST" action="{{ route('external-form.confirm', $formCategory->slug) }}" enctype="multipart/form-data" class="p-8 space-y-6">                @csrf
 
                 {{-- 依頼基本情報 --}}
                 <div class="border-b border-gray-200 pb-8 mb-8">
