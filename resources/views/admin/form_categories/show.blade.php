@@ -25,7 +25,6 @@
                     <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
                         <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100">基本情報</h2>
                     </div>
-                    {{-- ▼▼▼ 基本情報セクションのデザインを修正 ▼▼▼ --}}
                     <div class="border-t border-gray-200 dark:border-gray-700">
                         <dl class="divide-y divide-gray-200 dark:divide-gray-700">
                             <div class="px-6 py-4 grid grid-cols-1 sm:grid-cols-3 sm:gap-4">
@@ -45,8 +44,18 @@
                                 </div>
                             @endif
                             <div class="px-6 py-4 grid grid-cols-1 sm:grid-cols-3 sm:gap-4">
-                                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">表示順序</dt>
-                                <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100 sm:col-span-2 sm:mt-0">{{ $formCategory->order }}</dd>
+                                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">納期目安</dt>
+                                <dd class="mt-1 text-sm sm:col-span-2 sm:mt-0">
+                                    @if($formCategory->delivery_estimate_text)
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                                            {{ $formCategory->delivery_estimate_text }}
+                                        </span>
+                                    @else
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">
+                                            なし
+                                        </span>
+                                    @endif
+                                </dd>
                             </div>
                             <div class="px-6 py-4 grid grid-cols-1 sm:grid-cols-3 sm:gap-4">
                                 <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">状態</dt>
@@ -68,7 +77,6 @@
                             </div>
                         </dl>
                     </div>
-                    {{-- ▲▲▲ ここまで修正 ▲▲▲ --}}
                 </div>
 
                 {{-- フィールド一覧 --}}

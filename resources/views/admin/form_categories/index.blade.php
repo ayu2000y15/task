@@ -1,14 +1,14 @@
 @extends('layouts.app')
 
-@section('title', 'フォームカテゴリ管理')
+@section('title', 'フォーム管理')
 
 @section('content')
     <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-            <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-200">フォームカテゴリ管理</h1>
+            <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-200">フォーム管理</h1>
             <x-primary-button
                 onclick="location.href='{{ route('admin.form-categories.create') }}'">
-                <i class="fas fa-plus mr-2"></i>新規カテゴリを作成
+                <i class="fas fa-plus mr-2"></i>新規フォームを作成
             </x-primary-button>
         </div>
 
@@ -30,7 +30,7 @@
                             </th>
                             <th scope="col"
                                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                カテゴリ名
+                                納期目安
                             </th>
                             <th scope="col"
                                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
@@ -73,10 +73,16 @@
                                         </div>
                                     @endif
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                    <code class="text-sm bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded">
-                                        {{ $category->name }}
-                                    </code>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                    @if($category->delivery_estimate_text)
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                                            {{ $category->delivery_estimate_text }}
+                                        </span>
+                                    @else
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">
+                                            なし
+                                        </span>
+                                    @endif
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                                     {{ $category->form_field_definitions_count }}
@@ -135,7 +141,7 @@
                         @empty
                             <tr>
                                 <td colspan="8" class="px-6 py-12 text-center text-sm text-gray-500 dark:text-gray-400">
-                                    フォームカテゴリがありません。
+                                    フォームがありません。
                                 </td>
                             </tr>
                         @endforelse
