@@ -24,12 +24,16 @@ class FormFieldDefinition extends Model
         'min_selections',
         'max_selections',
         'is_enabled',
+        'is_inventory_linked',
+        'option_inventory_map',
     ];
 
     protected $casts = [
         'is_required' => 'boolean',
         'is_enabled' => 'boolean',
         'options' => 'array',
+        'is_inventory_linked' => 'boolean',
+        'option_inventory_map' => 'array',
     ];
 
     // ★ アクティビティログのオプション設定

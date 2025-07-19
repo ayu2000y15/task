@@ -18,6 +18,10 @@ use Illuminate\Database\Eloquent\Collection;
 use App\Models\WorkLog;
 use App\Models\Cost;
 use App\Models\ProjectCategory;
+use App\Models\Material;
+use Illuminate\Support\Facades\DB;
+use App\Models\Character;
+use Illuminate\Support\Facades\Log;
 
 class ProjectController extends Controller
 {
@@ -70,8 +74,10 @@ class ProjectController extends Controller
                 'is_required' => $def->is_required,
                 'order' => $def->order,
                 'maxlength' => $def->max_length,
-                'min_selections' => $def->min_selections, // 追加
-                'max_selections' => $def->max_selections, // 追加
+                'min_selections' => $def->min_selections,
+                'max_selections' => $def->max_selections,
+                'is_inventory_linked' => $def->is_inventory_linked,
+                'option_inventory_map' => $def->option_inventory_map,
             ];
         })->sortBy('order')->values()->all();
     }
@@ -379,11 +385,11 @@ class ProjectController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(Request $request, MaterialController $materialController)
     {
         $this->authorize('create', Project::class);
 
-        // --- フォーム定義の取得（変更なし） ---
+        // --- フォーム定義の取得 ---
         $externalSubmission = null;
         if ($request->filled('external_submission_id_on_creation')) {
             $externalSubmission = ExternalProjectSubmission::find($request->input('external_submission_id_on_creation'));
@@ -392,148 +398,156 @@ class ProjectController extends Controller
             ? $this->getCustomFieldsForFormCategory($externalSubmission->formCategory)
             : $this->getProjectCustomFieldDefinitions(null);
 
-        // --- バリデーション（変更なし） ---
+        // --- バリデーション ---
         $validationConfig = $this->buildValidationRulesAndNames($activeGlobalFieldDefinitions, $request, false);
         $validatedData = Validator::make($request->all(), $validationConfig['rules'], $validationConfig['messages'], $validationConfig['names'])->validate();
 
-        // --- 専用カラムのデータ処理（変更なし） ---
-        $dedicatedData = Arr::only($validatedData, [
-            'title',
-            'series_title',
-            'client_name',
-            'description',
-            'start_date',
-            'end_date',
-            'color',
-            'delivery_flag',
-            'payment_flag',
-            'payment',
-            'status',
-            'tracking_info',
-            'budget',
-            'target_cost',
-            'target_material_cost',
-            'target_labor_cost_rate',
-            'project_category_id',
-        ]);
-        if (empty($dedicatedData['title'])) {
-            $dedicatedData['title'] = '名称未設定案件 - ' . now()->format('YmdHis');
-        }
-        $dedicatedData['is_favorite'] = $request->boolean('is_favorite');
-        if (!empty($dedicatedData['start_date'])) $dedicatedData['start_date'] = Carbon::parse($dedicatedData['start_date'])->format('Y-m-d');
-        if (!empty($dedicatedData['end_date'])) $dedicatedData['end_date'] = Carbon::parse($dedicatedData['end_date'])->format('Y-m-d');
-        if (empty($dedicatedData['color'])) $dedicatedData['color'] = '#0d6efd';
-        if (isset($dedicatedData['tracking_info'])) {
-            $dedicatedData['tracking_info'] = array_values(array_filter($dedicatedData['tracking_info'], fn($item) => !empty($item['carrier']) && !empty($item['number'])));
-        }
-        foreach (['budget', 'target_cost', 'target_material_cost', 'target_labor_cost_rate', 'project_category_id'] as $key) {
-            if (array_key_exists($key, $dedicatedData) && ($dedicatedData[$key] === '' || is_null($dedicatedData[$key]))) {
-                $dedicatedData[$key] = null;
+        // --- Projectモデルの作成と保存 (トランザクション開始) ---
+        DB::beginTransaction();
+        try {
+            // --- 専用カラムのデータ処理（変更なし） ---
+            $dedicatedData = Arr::only($validatedData, [
+                'title',
+                'series_title',
+                'client_name',
+                'description',
+                'start_date',
+                'end_date',
+                'color',
+                'delivery_flag',
+                'payment_flag',
+                'payment',
+                'status',
+                'tracking_info',
+                'budget',
+                'target_cost',
+                'target_material_cost',
+                'target_labor_cost_rate',
+                'project_category_id',
+            ]);
+            if (empty($dedicatedData['title'])) {
+                $dedicatedData['title'] = '名称未設定案件 - ' . now()->format('YmdHis');
             }
-        }
+            $dedicatedData['is_favorite'] = $request->boolean('is_favorite');
+            if (!empty($dedicatedData['start_date'])) $dedicatedData['start_date'] = Carbon::parse($dedicatedData['start_date'])->format('Y-m-d');
+            if (!empty($dedicatedData['end_date'])) $dedicatedData['end_date'] = Carbon::parse($dedicatedData['end_date'])->format('Y-m-d');
+            if (empty($dedicatedData['color'])) $dedicatedData['color'] = '#0d6efd';
+            if (isset($dedicatedData['tracking_info'])) {
+                $dedicatedData['tracking_info'] = array_values(array_filter($dedicatedData['tracking_info'], fn($item) => !empty($item['carrier']) && !empty($item['number'])));
+            }
+            foreach (['budget', 'target_cost', 'target_material_cost', 'target_labor_cost_rate', 'project_category_id'] as $key) {
+                if (array_key_exists($key, $dedicatedData) && ($dedicatedData[$key] === '' || is_null($dedicatedData[$key]))) {
+                    $dedicatedData[$key] = null;
+                }
+            }
 
-        // --- Projectモデルの作成と保存（変更なし） ---
-        $project = new Project();
-        $project->fill($dedicatedData);
-        $project->form_definitions = $activeGlobalFieldDefinitions;
-        $project->save();
+            $project = new Project();
+            $project->fill($dedicatedData);
+            $project->form_definitions = $activeGlobalFieldDefinitions;
+            $project->save();
 
-        $customAttributesValues = [];
-        $submittedAttributes = $request->input('attributes', []);
-        $uploadedFileLogDetails = [];
+            $customAttributesValues = [];
+            $submittedAttributes = $request->input('attributes', []);
+            $uploadedFileLogDetails = [];
 
-        $prefilledFilesData = $request->input('attributes._prefilled_files', []);
-        $prefilledFilesToDelete = $request->input('attributes._delete_prefilled_files', []);
+            $prefilledFilesData = $request->input('attributes._prefilled_files', []);
+            $prefilledFilesToDelete = $request->input('attributes._delete_prefilled_files', []);
 
-        foreach ($activeGlobalFieldDefinitions as $field) {
-            $fieldName = $field['name'];
-            $fileInputKey = 'attributes.' . $fieldName;
+            foreach ($activeGlobalFieldDefinitions as $field) {
+                $fieldName = $field['name'];
+                $fileInputKey = 'attributes.' . $fieldName;
 
-            switch ($field['type']) {
-                case 'checkbox':
-                    $customAttributesValues[$fieldName] = isset($submittedAttributes[$fieldName]) && filter_var($submittedAttributes[$fieldName], FILTER_VALIDATE_BOOLEAN);
-                    break;
+                switch ($field['type']) {
+                    case 'checkbox':
+                        $customAttributesValues[$fieldName] = isset($submittedAttributes[$fieldName]) && filter_var($submittedAttributes[$fieldName], FILTER_VALIDATE_BOOLEAN);
+                        break;
 
-                case 'file':
-                case 'file_multiple':
-                    $finalFilesForField = [];
+                    case 'file':
+                    case 'file_multiple':
+                        $finalFilesForField = [];
 
-                    // 1. プリフィルされたファイルのコピー処理
-                    if (isset($prefilledFilesData[$fieldName]) && is_array($prefilledFilesData[$fieldName])) {
-                        foreach ($prefilledFilesData[$fieldName] as $fileToCopy) {
-                            $sourcePath = $fileToCopy['path'];
-                            if (in_array($sourcePath, $prefilledFilesToDelete)) {
-                                continue;
+                        // 1. プリフィルされたファイルのコピー処理
+                        if (isset($prefilledFilesData[$fieldName]) && is_array($prefilledFilesData[$fieldName])) {
+                            foreach ($prefilledFilesData[$fieldName] as $fileToCopy) {
+                                $sourcePath = $fileToCopy['path'];
+                                if (in_array($sourcePath, $prefilledFilesToDelete)) {
+                                    continue;
+                                }
+                                if ($sourcePath && Storage::disk('public')->exists($sourcePath)) {
+                                    $destinationDirectory = "project_files/{$project->id}/{$fieldName}";
+                                    $newFileName = basename($sourcePath);
+                                    $destinationPath = $destinationDirectory . '/' . $newFileName;
+
+                                    Storage::disk('public')->copy($sourcePath, $destinationPath);
+
+                                    $fileMetaData = [
+                                        'path' => $destinationPath,
+                                        'original_name' => $fileToCopy['original_name'],
+                                        'mime_type' => $fileToCopy['mime_type'],
+                                        'size' => $fileToCopy['size'],
+                                    ];
+                                    $finalFilesForField[] = $fileMetaData;
+                                    $uploadedFileLogDetails[] = array_merge($fileMetaData, ['field_label' => $field['label'], 'field_name' => $fieldName]);
+                                }
                             }
-                            if ($sourcePath && Storage::disk('public')->exists($sourcePath)) {
-                                $destinationDirectory = "project_files/{$project->id}/{$fieldName}";
-                                $newFileName = basename($sourcePath);
-                                $destinationPath = $destinationDirectory . '/' . $newFileName;
+                        }
 
-                                Storage::disk('public')->copy($sourcePath, $destinationPath);
-
+                        // 2. 新規アップロードされたファイルの処理
+                        if ($request->hasFile($fileInputKey)) {
+                            $uploadedFiles = is_array($request->file($fileInputKey)) ? $request->file($fileInputKey) : [$request->file($fileInputKey)];
+                            foreach ($uploadedFiles as $file) {
+                                $directory = "project_files/{$project->id}/{$fieldName}";
+                                $path = $file->store($directory, 'public');
                                 $fileMetaData = [
-                                    'path' => $destinationPath,
-                                    'original_name' => $fileToCopy['original_name'],
-                                    'mime_type' => $fileToCopy['mime_type'],
-                                    'size' => $fileToCopy['size'],
+                                    'path' => $path,
+                                    'original_name' => $file->getClientOriginalName(),
+                                    'mime_type' => $file->getClientMimeType(),
+                                    'size' => $file->getSize(),
                                 ];
                                 $finalFilesForField[] = $fileMetaData;
                                 $uploadedFileLogDetails[] = array_merge($fileMetaData, ['field_label' => $field['label'], 'field_name' => $fieldName]);
                             }
                         }
-                    }
 
-                    // 2. 新規アップロードされたファイルの処理
-                    if ($request->hasFile($fileInputKey)) {
-                        $uploadedFiles = is_array($request->file($fileInputKey)) ? $request->file($fileInputKey) : [$request->file($fileInputKey)];
-                        foreach ($uploadedFiles as $file) {
-                            $directory = "project_files/{$project->id}/{$fieldName}";
-                            $path = $file->store($directory, 'public');
-                            $fileMetaData = [
-                                'path' => $path,
-                                'original_name' => $file->getClientOriginalName(),
-                                'mime_type' => $file->getClientMimeType(),
-                                'size' => $file->getSize(),
-                            ];
-                            $finalFilesForField[] = $fileMetaData;
-                            $uploadedFileLogDetails[] = array_merge($fileMetaData, ['field_label' => $field['label'], 'field_name' => $fieldName]);
+                        // 3. 最終的な値をセット
+                        if ($field['type'] === 'file') {
+                            $customAttributesValues[$fieldName] = $finalFilesForField[0] ?? null;
+                        } else {
+                            $customAttributesValues[$fieldName] = $finalFilesForField;
                         }
-                    }
+                        break;
 
-                    // 3. 最終的な値をセット
-                    if ($field['type'] === 'file') {
-                        $customAttributesValues[$fieldName] = $finalFilesForField[0] ?? null;
-                    } else {
-                        $customAttributesValues[$fieldName] = $finalFilesForField;
-                    }
-                    break;
-
-                default:
-                    $customAttributesValues[$fieldName] = $submittedAttributes[$fieldName] ?? null;
-                    break;
+                    default:
+                        $customAttributesValues[$fieldName] = $submittedAttributes[$fieldName] ?? null;
+                        break;
+                }
             }
-        }
 
-        $project->attributes = $customAttributesValues;
-        $project->save();
+            $project->attributes = $customAttributesValues;
+            $project->save();
 
-        // --- ログ記録と外部申請ステータス更新（変更なし） ---
-        if (!empty($uploadedFileLogDetails)) {
-            foreach ($uploadedFileLogDetails as $logDetail) {
-                activity()->causedBy(auth()->user())->performedOn($project)->withProperties($logDetail)->log("プロジェクト「{$project->title}」の案件依頼項目「{$logDetail['field_label']}」にファイル「{$logDetail['original_name']}」がアップロードされました。");
+            // 外部申請からの案件化の場合、材料とコストを自動作成
+            if ($externalSubmission) {
+                $this->createMaterialsFromSubmission($project, $externalSubmission, $activeGlobalFieldDefinitions, $materialController);
+
+                // 外部申請のステータスを更新
+                if ($externalSubmission->status === 'new' || $externalSubmission->status === 'in_progress') {
+                    $externalSubmission->status = 'processed';
+                    $externalSubmission->processed_by_user_id = auth()->id();
+                    $externalSubmission->processed_at = now();
+                    $externalSubmission->save();
+                    activity()->causedBy(auth()->user())->performedOn($externalSubmission)->withProperties(['project_id' => $project->id])->log("外部申請 ID:{$externalSubmission->id} が案件化され、ステータスが 'processed' に更新されました。");
+                }
             }
-        }
 
-        if ($externalSubmission && ($externalSubmission->status === 'new' || $externalSubmission->status === 'in_progress')) {
-            $externalSubmission->status = 'processed';
-            $externalSubmission->processed_by_user_id = auth()->id();
-            $externalSubmission->processed_at = now();
-            $externalSubmission->save();
-            activity()->causedBy(auth()->user())->performedOn($externalSubmission)->withProperties(['project_id' => $project->id])->log("外部申請 ID:{$externalSubmission->id} が案件化され、ステータスが 'processed' に更新されました。");
-        }
+            DB::commit();
 
-        return redirect()->route('projects.show', $project)->with('success', '案件が作成されました。');
+            return redirect()->route('projects.show', $project)->with('success', '案件が作成されました。');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Project creation failed: ' . $e->getMessage(), ['request' => $request->all()]);
+            return redirect()->back()->with('error', '案件の作成中にエラーが発生しました。')->withInput();
+        }
     }
 
     /**
@@ -607,6 +621,14 @@ class ProjectController extends Controller
                     $viewData['tasksToList'] = $tasksToList;
                     $viewData['tableId'] = 'character-tasks-table-' . $character->id;
                     $viewData['showCharacterColumn'] = false; // キャラクタービューではキャラクター列は不要
+                }
+            } elseif ($context === 'costs' && $request->has('character_id')) {
+                // 【キャラクターのコストタブを更新する場合】
+                $character = $project->characters()->find($request->input('character_id'));
+                if ($character) {
+                    $viewPath = 'projects.partials.character-costs-tailwind';
+                    $viewData['character'] = $character;
+                    // このPartial Viewは $availableInventoryItems を期待していないため、渡す必要はありません
                 }
             } else {
                 // 【案件全体の工程表を更新する場合】
@@ -1182,7 +1204,73 @@ class ProjectController extends Controller
                 'maxlength' => $def->max_length,
                 'min_selections' => $def->min_selections,
                 'max_selections' => $def->max_selections,
+                'is_inventory_linked' => $def->is_inventory_linked,
+                'option_inventory_map' => $def->option_inventory_map,
             ];
         })->sortBy('order')->values()->all();
+    }
+
+    /**
+     * ★★★ 新しいヘルパーメソッドを追加 ★★★
+     * 外部申請データから材料とコストを自動作成する
+     */
+    private function createMaterialsFromSubmission(Project $project, ExternalProjectSubmission $submission, array $fieldDefinitions, MaterialController $materialController)
+    {
+        $character = Character::create([
+            'project_id' => $project->id,
+            'name' => '共通材料',
+            'description' => '外部フォームからの申請により自動作成された材料',
+        ]);
+
+        $submittedData = $submission->submitted_data ?? [];
+
+        foreach ($fieldDefinitions as $field) {
+            if (!($field['is_inventory_linked'] ?? false) || empty($submittedData[$field['name']])) {
+                continue;
+            }
+
+            $selectedValues = (array) $submittedData[$field['name']];
+            $inventoryMap = $field['option_inventory_map'] ?? [];
+
+            foreach ($selectedValues as $value) {
+                if (isset($inventoryMap[$value]) && is_array($inventoryMap[$value])) {
+                    $settings = $inventoryMap[$value];
+                    $inventoryId = $settings['id'] ?? null;
+                    $quantityNeeded = $settings['qty'] ?? 1;
+
+                    if (!$inventoryId) continue;
+
+                    $inventoryItem = InventoryItem::find($inventoryId);
+                    if (!$inventoryItem) continue;
+
+                    $unitPrice = $inventoryItem->average_unit_price;
+                    $totalPrice = round($unitPrice * $quantityNeeded, 2);
+
+                    // MaterialControllerの共通メソッドに渡すための属性配列を作成
+                    $materialAttributes = [
+                        'inventory_item_id' => $inventoryId,
+                        'name' => $inventoryItem->name,
+                        'unit' => $inventoryItem->unit,
+                        'quantity_needed' => $quantityNeeded,
+                        'price' => $totalPrice,
+                        'unit_price_at_creation' => $unitPrice,
+                        'status' => '購入済',
+                        'notes' => "外部申請 (ID: {$submission->id}) から自動作成",
+                    ];
+
+                    try {
+                        // MaterialControllerの共通メソッドを呼び出す
+                        $materialController->createMaterialAndProcess($project, $character, $materialAttributes, true);
+                    } catch (\Exception $e) {
+                        // 案件作成全体を失敗させず、エラーをログに記録して続行する
+                        Log::error("Failed to auto-create material from submission ID {$submission->id} for project ID {$project->id}. Error: " . $e->getMessage(), [
+                            'inventory_item_id' => $inventoryId,
+                            'quantity_needed' => $quantityNeeded
+                        ]);
+                        // オプション: ここで管理者に通知するなどの処理も可能
+                    }
+                }
+            }
+        }
     }
 }

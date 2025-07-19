@@ -11,7 +11,7 @@ use App\Models\InventoryLog;      // InventoryLogモデルを追加
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-
+use Illuminate\Http\JsonResponse;
 
 class InventoryController extends Controller
 {
@@ -470,5 +470,39 @@ class InventoryController extends Controller
             ->log("在庫品目「{$inventoryItem->name}」(ID:{$inventoryItem->id}) の在庫数が調整されました。方法: {$adjustmentType}, 入力値: {$adjustmentValue}, 結果: {$oldQuantity}{$inventoryItem->unit} → {$newQuantity}{$inventoryItem->unit}。理由: {$validated['notes']}");
 
         return redirect()->route('admin.inventory.edit', $inventoryItem)->with('success', '在庫数の調整が完了しました。');
+    }
+
+    /**
+     * ★【API】在庫品目を検索してJSONで返す
+     */
+    public function searchApi(Request $request): JsonResponse
+    {
+        $query = $request->input('q', ''); // Tom Selectからの検索クエリ
+        $limit = 20; // 最大20件まで返す
+
+        if (empty($query)) {
+            // クエリが空の場合は、最近更新されたものを返すなどの仕様も可能
+            $items = InventoryItem::orderBy('updated_at', 'desc')->limit($limit)->get();
+        } else {
+            // 品名、品番、色番で部分一致検索
+            $items = InventoryItem::where(function ($q) use ($query) {
+                $q->where('name', 'like', '%' . $query . '%')
+                    ->orWhere('product_number', 'like', '%' . $query . '%')
+                    ->orWhere('color_number', 'like', '%' . $query . '%');
+            })
+                ->orderBy('name')
+                ->limit($limit)
+                ->get();
+        }
+
+        // Tom Selectが要求する形式（idとtext）に整形して返す
+        $results = $items->map(function ($item) {
+            return [
+                'id' => $item->id,
+                'text' => $item->display_name, // 以前追加したアクセサを利用
+            ];
+        });
+
+        return response()->json($results);
     }
 }

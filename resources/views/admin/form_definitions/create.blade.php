@@ -15,7 +15,7 @@
             <div class="p-6 sm:p-8">
                 <form action="{{ route('admin.form-definitions.store') }}" method="POST" enctype="multipart/form-data">
                     <input type="hidden" name="category" value="{{ $category }}">
-                    @include('admin.form_definitions._form', ['formFieldDefinition' => new \App\Models\FormFieldDefinition(), 'optionsText' => ''])
+                    @include('admin.form_definitions._form')
                 </form>
             </div>
         </div>

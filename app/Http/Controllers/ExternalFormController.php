@@ -18,10 +18,13 @@ use Illuminate\Support\Facades\Mail;
 use App\Mail\ExternalFormCompletionMail;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
+use App\Models\InventoryItem;
+use App\Models\InventoryLog;
+
 
 class ExternalFormController extends Controller
 {
-    // create, store, thanks, index, updateStatus メソッドは変更なし (前回の回答を参照)
     public function create()
     {
         $customFormFields = FormFieldDefinition::where('is_enabled', true)
@@ -215,6 +218,11 @@ class ExternalFormController extends Controller
     {
         $this->authorize('update', $submission); // 既存の権限チェック
 
+        if ($submission->status === 'processed') {
+            return redirect()->route('admin.external-submissions.show', $submission)
+                ->with('error', 'この依頼は既に案件化されているため、ステータスを変更できません。');
+        }
+
         $statusOptions = ExternalProjectSubmission::STATUS_OPTIONS; // ログメッセージ用に取得
 
         $validated = $request->validate([
@@ -226,36 +234,59 @@ class ExternalFormController extends Controller
         $oldStatus = $submission->status;
         $newStatus = $validated['status'];
 
-        $submission->status = $newStatus;
-
-        // ステータスに応じて処理者情報と日時を更新
-        if (in_array($newStatus, ['processed', 'rejected', 'on_hold'])) {
-            // 既に同じ担当者で同じステータスにしようとしている場合などは、日時や担当者を更新しない条件も考慮できます。
-            // ここではシンプルに、これらのステータスになったら担当者と日時を記録します。
-            $submission->processed_by_user_id = Auth::id();
-            $submission->processed_at = now();
-        } elseif ($newStatus === 'new' || $newStatus === 'in_progress') {
-            // 「新規」や「対応中」に戻す場合は、処理者情報をクリア
-            $submission->processed_by_user_id = null;
-            $submission->processed_at = null;
+        if ($oldStatus === $newStatus) {
+            return redirect()->route('admin.external-submissions.show', $submission);
         }
 
-        // 管理者メモを更新する場合 (フォームに追加した場合)
-        // if ($request->filled('manager_notes')) {
-        //     $submission->manager_notes = $request->input('manager_notes');
-        // }
+        DB::beginTransaction();
+        try {
+            // ステータスが「却下」に変更された場合、在庫を戻す
+            if ($newStatus === 'rejected' && $oldStatus !== 'rejected') {
+                $this->returnInventoryForRejectedSubmission($submission);
+            }
 
-        $submission->save();
+            // ステータスが「却下」から別のものに変更された場合、在庫を再度消費する
+            if ($oldStatus === 'rejected' && $newStatus !== 'rejected') {
+                $this->consumeInventoryForReactivatedSubmission($submission);
+            }
 
-        // 操作ログの記録 (在庫申請の例を参考に)
-        activity()
-            ->causedBy(Auth::user())
-            ->performedOn($submission)
-            ->withProperties(['old_status' => $oldStatus, 'new_status' => $newStatus])
-            ->log("外部案件依頼 (ID: {$submission->id}) のステータスが「" . ($statusOptions[$oldStatus] ?? $oldStatus) . "」から「" . ($statusOptions[$newStatus] ?? $newStatus) . "」に変更されました。");
+            $submission->status = $newStatus;
 
-        return redirect()->route('admin.external-submissions.show', $submission)
-            ->with('success', '依頼ステータスを更新しました。');
+            // ステータスに応じて処理者情報と日時を更新
+            if (in_array($newStatus, ['processed', 'rejected', 'on_hold'])) {
+                // 既に同じ担当者で同じステータスにしようとしている場合などは、日時や担当者を更新しない条件も考慮できます。
+                // ここではシンプルに、これらのステータスになったら担当者と日時を記録します。
+                $submission->processed_by_user_id = Auth::id();
+                $submission->processed_at = now();
+            } elseif ($newStatus === 'new' || $newStatus === 'in_progress') {
+                // 「新規」や「対応中」に戻す場合は、処理者情報をクリア
+                $submission->processed_by_user_id = null;
+                $submission->processed_at = null;
+            }
+
+            // 管理者メモを更新する場合 (フォームに追加した場合)
+            // if ($request->filled('manager_notes')) {
+            //     $submission->manager_notes = $request->input('manager_notes');
+            // }
+
+            $submission->save();
+
+            // 操作ログの記録 (在庫申請の例を参考に)
+            activity()
+                ->causedBy(Auth::user())
+                ->performedOn($submission)
+                ->withProperties(['old_status' => $oldStatus, 'new_status' => $newStatus])
+                ->log("外部案件依頼 (ID: {$submission->id}) のステータスが「" . ($statusOptions[$oldStatus] ?? $oldStatus) . "」から「" . ($statusOptions[$newStatus] ?? $newStatus) . "」に変更されました。");
+
+            DB::commit();
+
+            return redirect()->route('admin.external-submissions.show', $submission)
+                ->with('success', '依頼ステータスを更新しました。');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error("External submission status update failed for ID: {$submission->id}. " . $e->getMessage());
+            return redirect()->back()->with('error', 'ステータスの更新中にエラーが発生しました。');
+        }
     }
 
     /**
@@ -329,6 +360,39 @@ class ExternalFormController extends Controller
             ->orderBy('label')
             ->get()
             ->map(function ($field) {
+                $options = $field->options;
+
+                // 在庫連携が有効なら、在庫切れの選択肢を除外する
+                if ($field->is_inventory_linked && is_array($options) && is_array($field->option_inventory_map)) {
+                    $inventoryMap = $field->option_inventory_map;
+
+                    // 在庫設定の配列から 'id' の値だけを正しく抜き出す
+                    $inventoryIds = array_filter(array_column($inventoryMap, 'id'));
+
+                    if (!empty($inventoryIds)) {
+                        $stocks = InventoryItem::whereIn('id', $inventoryIds)->pluck('quantity', 'id');
+                        $availableOptions = [];
+
+                        foreach ($options as $value => $labelOrUrl) {
+                            // 新しいデータ構造に合わせて在庫チェックのロジックを修正
+                            $settings = $inventoryMap[$value] ?? null;
+
+                            if ($settings && is_array($settings)) {
+                                $inventoryId = $settings['id'] ?? null;
+                                $qtyNeeded = $settings['qty'] ?? 1; // 必要な数量を取得
+
+                                // 在庫IDが未設定か、または「現在の在庫が必要数以上ある」場合のみ選択肢として追加
+                                if (!$inventoryId || (isset($stocks[$inventoryId]) && $stocks[$inventoryId] >= $qtyNeeded)) {
+                                    $availableOptions[$value] = $labelOrUrl;
+                                }
+                            } else {
+                                // 在庫連携していない選択肢は常に表示
+                                $availableOptions[$value] = $labelOrUrl;
+                            }
+                        }
+                        $options = $availableOptions;
+                    }
+                }
                 return [
                     'name' => $field->name,
                     'label' => $field->label,
@@ -336,9 +400,9 @@ class ExternalFormController extends Controller
                     'is_required' => $field->is_required,
                     'placeholder' => $field->placeholder,
                     'help_text' => $field->help_text,
-                    'options' => $field->options, // ★ optionsをそのまま渡す
-                    'min_selections' => $field->min_selections, // ★ min_selections を追加
-                    'max_selections' => $field->max_selections, // ★ max_selections を追加
+                    'options' => $options,
+                    'min_selections' => $field->min_selections,
+                    'max_selections' => $field->max_selections,
                 ];
             });
 
@@ -379,123 +443,196 @@ class ExternalFormController extends Controller
         $validatedData = $formInput['validated_data'];
         $tempFilePaths = $formInput['temp_file_paths'];
 
-        // データベースに保存するカスタムフィールドのデータを準備
-        $customFieldData = [];
-        foreach ($customFormFields as $field) {
-            $dbFieldName = $field->name;
-            $formFieldName = 'custom_' . $field->name;
+        // ★ DBトランザクションを開始
+        DB::beginTransaction();
+        try {
+            // データベースに保存するカスタムフィールドのデータを準備
+            $customFieldData = [];
+            foreach ($customFormFields as $field) {
+                $dbFieldName = $field->name;
+                $formFieldName = 'custom_' . $field->name;
 
-            // ファイルフィールドの処理
-            if (isset($tempFilePaths[$dbFieldName])) {
-                $permanentFilePaths = [];
-                foreach ($tempFilePaths[$dbFieldName] as $fileInfo) {
-                    $tempPath = $fileInfo['path'];
-                    if (Storage::disk('local')->exists($tempPath)) {
-                        $permanentPath = 'external_submissions/' . basename($tempPath);
-                        Storage::disk('public')->put($permanentPath, Storage::disk('local')->get($tempPath));
-                        Storage::disk('local')->delete($tempPath);
+                // ファイルフィールドの処理
+                if (isset($tempFilePaths[$dbFieldName])) {
+                    $permanentFilePaths = [];
+                    foreach ($tempFilePaths[$dbFieldName] as $fileInfo) {
+                        $tempPath = $fileInfo['path'];
+                        if (Storage::disk('local')->exists($tempPath)) {
+                            $permanentPath = 'external_submissions/' . basename($tempPath);
+                            Storage::disk('public')->put($permanentPath, Storage::disk('local')->get($tempPath));
+                            Storage::disk('local')->delete($tempPath);
 
-                        $permanentFilePaths[] = [
-                            'path' => $permanentPath,
-                            'original_name' => $fileInfo['original_name'],
-                            'size' => $fileInfo['size'],
-                            'mime_type' => $fileInfo['mime_type'] ?? null,
-                        ];
+                            $permanentFilePaths[] = [
+                                'path' => $permanentPath,
+                                'original_name' => $fileInfo['original_name'],
+                                'size' => $fileInfo['size'],
+                                'mime_type' => $fileInfo['mime_type'] ?? null,
+                            ];
+                        }
                     }
+                    $customFieldData[$dbFieldName] = $field->type === 'file' ? ($permanentFilePaths[0] ?? null) : $permanentFilePaths;
                 }
-                $customFieldData[$dbFieldName] = $field->type === 'file' ? ($permanentFilePaths[0] ?? null) : $permanentFilePaths;
+                // ファイル以外のフィールドの処理
+                else {
+                    $customFieldData[$dbFieldName] = $validatedData[$formFieldName] ?? null;
+                }
             }
-            // ファイル以外のフィールドの処理
-            else {
-                $customFieldData[$dbFieldName] = $validatedData[$formFieldName] ?? null;
-            }
-        }
 
-        // 申請データをデータベースに保存
-        $submission = \App\Models\ExternalProjectSubmission::create([
-            'submitter_name' => $validatedData['submitter_name'],
-            'submitter_email' => $validatedData['submitter_email'],
-            'submitter_notes' => $validatedData['submitter_notes'],
-            'submitted_data' => $customFieldData,
-            'status' => 'new',
-            'form_category_id' => $formCategory->id,      // ★ フォームカテゴリIDを追加
-            'form_category_name' => $formCategory->name,  // ★ フォームカテゴリ名を追加
-        ]);
+            // 申請データをデータベースに保存
+            $submission = \App\Models\ExternalProjectSubmission::create([
+                'submitter_name' => $validatedData['submitter_name'],
+                'submitter_email' => $validatedData['submitter_email'],
+                'submitter_notes' => $validatedData['submitter_notes'],
+                'submitted_data' => $customFieldData,
+                'status' => 'new',
+                'form_category_id' => $formCategory->id,      // ★ フォームカテゴリIDを追加
+                'form_category_name' => $formCategory->name,  // ★ フォームカテゴリ名を追加
+            ]);
 
-        // 処理が完了したので、セッションデータを削除
-        $request->session()->forget('form_input');
+            // ★ 在庫更新処理を追加
+            foreach ($customFormFields as $field) {
+                if (!$field->is_inventory_linked || empty($field->option_inventory_map)) {
+                    continue;
+                }
 
-        // --- メール送信処理 ---
-        // 送信完了メールを送信
-        if ($formCategory->send_completion_email) {
-            try {
-                $emailCustomFields = [];
-                foreach ($customFormFields as $field) {
-                    $fieldValue = $customFieldData[$field->name] ?? null;
+                $submittedValue = $customFieldData[$field->name] ?? null;
+                if (empty($submittedValue)) {
+                    continue;
+                }
 
-                    if (!empty($fieldValue)) {
-                        $emailValue = $fieldValue; // デフォルトは保存された値
+                $inventoryMap = $field->option_inventory_map;
+                $selectedValues = is_array($submittedValue) ? $submittedValue : [$submittedValue];
 
-                        if ($field->type === 'image_select' && is_array($fieldValue)) {
-                            $options = $field->options ?? [];
-                            $imageSelectData = [];
-                            foreach ($fieldValue as $selectedValue) {
-                                // オプション定義にキーが存在する場合のみ追加
-                                if (isset($options[$selectedValue])) {
-                                    $imageSelectData[] = [
-                                        'label' => $selectedValue,      // 選択された値（キー）
-                                        'url' => $options[$selectedValue] // 対応する画像URL
-                                    ];
-                                }
-                            }
-                            $emailValue = $imageSelectData; // 構造化した配列をメールに渡す
+                foreach ($selectedValues as $value) {
+                    if (isset($inventoryMap[$value]) && is_array($inventoryMap[$value])) {
+                        $settings = $inventoryMap[$value];
+                        $inventoryId = $settings['id'] ?? null;
+                        $qtyToDecrement = $settings['qty'] ?? 1;
+
+                        if (!$inventoryId) continue;
+
+                        $item = InventoryItem::where('id', $inventoryId)->lockForUpdate()->first();
+
+                        if (!$item || $item->quantity < $qtyToDecrement) {
+                            throw new \Exception("申し訳ありません。選択された項目「{$field->label}」は在庫が不足しています。");
                         }
 
-                        $emailCustomFields[] = [
-                            'label' => $field->label,
-                            'value' => $emailValue,
-                            'type'  => $field->type,
-                        ];
+                        $oldQuantity = $item->quantity;
+
+                        // ★ 1. 消費されるコストを計算
+                        $unitPriceForDecrement = $item->average_unit_price;
+                        $costToDecrement = $unitPriceForDecrement * $qtyToDecrement;
+
+                        // ★ 2. 在庫数と総コストの両方を減らす
+                        $item->decrement('quantity', $qtyToDecrement);
+                        $item->decrement('total_cost', $costToDecrement);
+
+                        // ★ 3. 在庫ログを正しく記録する
+                        InventoryLog::create([
+                            'inventory_item_id' => $item->id,
+                            'user_id' => null, // 外部フォームからの申請なのでユーザーはnull
+                            'change_type' => 'sold_via_form',
+                            'quantity_change' => -$qtyToDecrement,
+                            'quantity_before_change' => $oldQuantity,
+                            'quantity_after_change' => $item->quantity,
+                            'notes' => "外部フォーム申請 (ID: {$submission->id}) による引当",
+                            'unit_price_at_change' => $unitPriceForDecrement, // ★ 消費時点の単価を記録
+                            'total_price_at_change' => -$costToDecrement,   // ★ 消費された総コストを記録
+                        ]);
+
+                        // ★★★ 修正箇所ここまで ★★★
                     }
                 }
-
-                $emailData = [
-                    'name' => $validatedData['submitter_name'],
-                    'notes' => $validatedData['submitter_notes'] ?? '',
-                    'custom_fields' => $emailCustomFields
-                ];
-
-                Mail::to($validatedData['submitter_email'])
-                    ->send(new ExternalFormCompletionMail(
-                        $formCategory,
-                        $emailData,
-                        $validatedData['submitter_email'],
-                        $validatedData['submitter_name']
-                    ));
-            } catch (\Exception $e) {
-                Log::error('外部フォーム送信完了メールの送信に失敗しました: ' . $e->getMessage(), [
-                    'submitter_email' => $validatedData['submitter_email'],
-                    'form_category' => $formCategory->name
-                ]);
             }
-        }
 
-        // 管理者への通知メール送信
-        if ($formCategory->notification_emails) {
-            try {
-                \Mail::to($formCategory->notification_emails)->send(
-                    new \App\Mail\ExternalFormSubmissionMail($submission, $formCategory)
-                );
-            } catch (\Exception $e) {
-                \Log::error('外部フォーム通知メール送信エラー: ' . $e->getMessage());
+            // ★ トランザクションをコミット
+            DB::commit();
+
+            // 処理が完了したので、セッションデータを削除
+            $request->session()->forget('form_input');
+
+            // --- メール送信処理 ---
+            // 送信完了メールを送信
+            if ($formCategory->send_completion_email) {
+                try {
+                    $emailCustomFields = [];
+                    foreach ($customFormFields as $field) {
+                        $fieldValue = $customFieldData[$field->name] ?? null;
+
+                        if (!empty($fieldValue)) {
+                            $emailValue = $fieldValue; // デフォルトは保存された値
+
+                            if ($field->type === 'image_select' && is_array($fieldValue)) {
+                                $options = $field->options ?? [];
+                                $imageSelectData = [];
+                                foreach ($fieldValue as $selectedValue) {
+                                    // オプション定義にキーが存在する場合のみ追加
+                                    if (isset($options[$selectedValue])) {
+                                        $imageSelectData[] = [
+                                            'label' => $selectedValue,      // 選択された値（キー）
+                                            'url' => $options[$selectedValue] // 対応する画像URL
+                                        ];
+                                    }
+                                }
+                                $emailValue = $imageSelectData; // 構造化した配列をメールに渡す
+                            }
+
+                            $emailCustomFields[] = [
+                                'label' => $field->label,
+                                'value' => $emailValue,
+                                'type'  => $field->type,
+                            ];
+                        }
+                    }
+
+                    $emailData = [
+                        'name' => $validatedData['submitter_name'],
+                        'notes' => $validatedData['submitter_notes'] ?? '',
+                        'custom_fields' => $emailCustomFields
+                    ];
+
+                    Mail::to($validatedData['submitter_email'])
+                        ->send(new ExternalFormCompletionMail(
+                            $formCategory,
+                            $emailData,
+                            $validatedData['submitter_email'],
+                            $validatedData['submitter_name']
+                        ));
+                } catch (\Exception $e) {
+                    Log::error('外部フォーム送信完了メールの送信に失敗しました: ' . $e->getMessage(), [
+                        'submitter_email' => $validatedData['submitter_email'],
+                        'form_category' => $formCategory->name
+                    ]);
+                }
             }
+
+            // 管理者への通知メール送信
+            if ($formCategory->notification_emails) {
+                try {
+                    \Mail::to($formCategory->notification_emails)->send(
+                        new \App\Mail\ExternalFormSubmissionMail($submission, $formCategory)
+                    );
+                } catch (\Exception $e) {
+                    \Log::error('外部フォーム通知メール送信エラー: ' . $e->getMessage());
+                }
+            }
+            // --- メール送信処理ここまで ---
+
+
+            // 完了ページへリダイレクト
+            return redirect()->route('external-form.thanks', $slug)
+                ->with('success', 'フォームを送信しました。');
+        } catch (\Exception $e) {
+            // ★ エラーが発生したらロールバック
+            DB::rollBack();
+            Log::error('外部フォーム送信時の在庫更新エラー: ' . $e->getMessage());
+            // ユーザーにエラーメッセージを返してフォーム入力画面に戻す
+            $formInput = $request->session()->get('form_input');
+            return redirect()->route('external-form.show', $slug)
+                ->withInput($formInput['validated_data'] ?? [])
+                ->with('existing_temp_files', $formInput['temp_file_paths'] ?? [])
+                ->withErrors(['inventory' => $e->getMessage()]);
         }
-        // --- メール送信処理ここまで ---
-
-
-        // 完了ページへリダイレクト
-        return redirect()->route('external-form.thanks', $slug)
-            ->with('success', 'フォームを送信しました。');
     }
 
     /**
@@ -524,6 +661,7 @@ class ExternalFormController extends Controller
         $customFormFields = FormFieldDefinition::where('is_enabled', true)
             ->where('category', $formCategory->name)
             ->orderBy('order')
+            ->orderBy('label')
             ->get();
 
         list($rules, $customFieldNames, $customAttributes) = $this->buildValidationRules($customFormFields);
@@ -661,8 +799,13 @@ class ExternalFormController extends Controller
                     break;
                 case 'text':
                 case 'textarea':
+                    $fieldRules[] = 'string';
+                    if ($field->max_length) $fieldRules[] = 'max:' . $field->max_length;
+                    break;
                 case 'tel':
                     $fieldRules[] = 'string';
+                    // 電話番号の形式チェック（ハイフンあり・なし、数字のみ、国番号対応）
+                    $fieldRules[] = 'regex:/^0\d{1,4}-?\d{1,4}-?\d{3,4}$|^\+?\d{1,4}-?\d{1,4}-?\d{3,4}$/';
                     if ($field->max_length) $fieldRules[] = 'max:' . $field->max_length;
                     break;
                 case 'select':
@@ -717,5 +860,133 @@ class ExternalFormController extends Controller
         }
 
         return [$rules, $customFieldNames, $customAttributes];
+    }
+
+    /**
+     * ★★★ 新しいヘルパーメソッドを追加 ★★★
+     * 却下された申請の在庫を元に戻す
+     */
+    private function returnInventoryForRejectedSubmission(ExternalProjectSubmission $submission)
+    {
+        if (!$submission->formCategory) {
+            Log::warning("Cannot return inventory: Form category not found for submission ID {$submission->id}.");
+            return;
+        }
+
+        $fieldDefinitions = FormFieldDefinition::where('category', $submission->formCategory->name)
+            ->where('is_inventory_linked', true)
+            ->get();
+
+        $submittedData = $submission->submitted_data ?? [];
+
+        foreach ($fieldDefinitions as $field) {
+            if (empty($submittedData[$field->name])) {
+                continue;
+            }
+
+            $selectedValues = (array) $submittedData[$field->name];
+            $inventoryMap = $field->option_inventory_map ?? [];
+
+            foreach ($selectedValues as $value) {
+                if (isset($inventoryMap[$value]) && is_array($inventoryMap[$value])) {
+                    $settings = $inventoryMap[$value];
+                    $inventoryId = $settings['id'] ?? null;
+                    $qtyToReturn = $settings['qty'] ?? 1;
+
+                    if (!$inventoryId) continue;
+
+                    $inventoryItem = InventoryItem::find($inventoryId);
+                    if ($inventoryItem) {
+                        $oldInventoryQty = $inventoryItem->quantity;
+                        // 在庫を戻す際のコスト計算
+                        $unitPriceForReturn = $inventoryItem->average_unit_price;
+                        $costToReturn = $unitPriceForReturn * $qtyToReturn;
+
+                        // 在庫数と総コストを増やす
+                        $inventoryItem->increment('quantity', $qtyToReturn);
+                        $inventoryItem->increment('total_cost', $costToReturn);
+
+                        // 在庫ログを記録
+                        InventoryLog::create([
+                            'inventory_item_id' => $inventoryItem->id,
+                            'user_id' => auth()->id(),
+                            'change_type' => 'submission_rejected',
+                            'quantity_change' => $qtyToReturn,
+                            'quantity_before_change' => $oldInventoryQty,
+                            'quantity_after_change' => $inventoryItem->quantity,
+                            'unit_price_at_change' => $unitPriceForReturn,
+                            'total_price_at_change' => $costToReturn,
+                            'notes' => "外部申請却下 (ID: {$submission->id}) により在庫に戻されました。",
+                        ]);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * 再有効化された申請の在庫を消費する
+     */
+    private function consumeInventoryForReactivatedSubmission(ExternalProjectSubmission $submission)
+    {
+        if (!$submission->formCategory) {
+            Log::warning("Cannot consume inventory: Form category not found for submission ID {$submission->id}.");
+            return;
+        }
+
+        $fieldDefinitions = FormFieldDefinition::where('category', $submission->formCategory->name)
+            ->where('is_inventory_linked', true)
+            ->get();
+
+        $submittedData = $submission->submitted_data ?? [];
+
+        foreach ($fieldDefinitions as $field) {
+            if (empty($submittedData[$field->name])) {
+                continue;
+            }
+
+            $selectedValues = (array) $submittedData[$field->name];
+            $inventoryMap = $field->option_inventory_map ?? [];
+
+            foreach ($selectedValues as $value) {
+                if (isset($inventoryMap[$value]) && is_array($inventoryMap[$value])) {
+                    $settings = $inventoryMap[$value];
+                    $inventoryId = $settings['id'] ?? null;
+                    $qtyToDecrement = $settings['qty'] ?? 1;
+
+                    if (!$inventoryId) continue;
+
+                    $inventoryItem = InventoryItem::find($inventoryId);
+                    if ($inventoryItem) {
+                        // 在庫が足りるかチェック
+                        if ($inventoryItem->quantity < $qtyToDecrement) {
+                            // 例外をスローしてトランザクションをロールバックさせる
+                            throw new \Exception("在庫不足のためステータスを変更できません。品目: {$inventoryItem->name} (必要数: {$qtyToDecrement}, 現在庫: {$inventoryItem->quantity})");
+                        }
+
+                        $oldInventoryQty = $inventoryItem->quantity;
+                        $unitPriceForDecrement = $inventoryItem->average_unit_price;
+                        $costToDecrement = $unitPriceForDecrement * $qtyToDecrement;
+
+                        // 在庫数と総コストを減らす
+                        $inventoryItem->decrement('quantity', $qtyToDecrement);
+                        $inventoryItem->decrement('total_cost', $costToDecrement);
+
+                        // 在庫ログを記録
+                        InventoryLog::create([
+                            'inventory_item_id' => $inventoryItem->id,
+                            'user_id' => auth()->id(),
+                            'change_type' => 'submission_reactivated', // 新しいログタイプ
+                            'quantity_change' => -$qtyToDecrement,
+                            'quantity_before_change' => $oldInventoryQty,
+                            'quantity_after_change' => $inventoryItem->quantity,
+                            'unit_price_at_change' => $unitPriceForDecrement,
+                            'total_price_at_change' => -$costToDecrement,
+                            'notes' => "外部申請の再有効化 (ID: {$submission->id}) により在庫を引当",
+                        ]);
+                    }
+                }
+            }
+        }
     }
 }

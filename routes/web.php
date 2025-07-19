@@ -277,6 +277,8 @@ Route::middleware('auth')->group(function () {
         // --- ここまで管理者向けフィードバック機能 ---
 
         // 在庫管理
+        Route::get('/inventory/search', [\App\Http\Controllers\Admin\InventoryController::class, 'searchApi'])->name('inventory.search_api');
+
         Route::get('inventory/bulk-create', [InventoryController::class, 'bulkCreate'])->name('inventory.bulk-create');
         Route::post('inventory/bulk-store', [InventoryController::class, 'bulkStore'])->name('inventory.bulk-store');
 
@@ -290,6 +292,7 @@ Route::middleware('auth')->group(function () {
         Route::patch('stock-orders/{stockOrder}/status', [StockOrderController::class, 'updateStatus'])->name('stock-orders.updateStatus');
 
         Route::get('inventory-logs', [InventoryLogController::class, 'index'])->name('inventory-logs.index');
+
 
         // ★ 操作ログ閲覧ルートを追加
         Route::get('/logs', [AdminLogController::class, 'index'])->name('logs.index');
@@ -421,8 +424,8 @@ Route::post('/unsubscribe/process', [TrackingController::class, 'processUnsubscr
 
 
 // 外部向け申請フォーム (認証外)
-Route::get('/costume-request', [ExternalFormController::class, 'create'])->name('external-form.create');
-Route::post('/costume-request', [ExternalFormController::class, 'store'])->name('external-form.store');
+// Route::get('/costume-request', [ExternalFormController::class, 'create'])->name('external-form.create');
+// Route::post('/costume-request', [ExternalFormController::class, 'store'])->name('external-form.store');
 Route::get('/contact-register/thanks', [ExternalFormController::class, 'thanks'])->name('external-form.thanks');
 
 // 動的外部フォーム (認証外)

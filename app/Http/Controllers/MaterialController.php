@@ -60,100 +60,39 @@ class MaterialController extends Controller
 
         DB::beginTransaction();
         try {
-            // ★ 新規作成時にdisplay_orderを設定
-            $maxOrder = $character->materials()->max('display_order');
-
-            $baseMaterialData = [
-                'name' => $validated['name'],
-                'unit' => $validated['unit'],
-                'price' => $validated['price'],
-                'unit_price_at_creation' => $validated['unit_price_at_creation'],
-                'quantity_needed' => $quantityNeeded,
-                'notes' => $validated['notes'],
-                'status' => $statusToSet,
-                'inventory_item_id' => $inventoryItemId,
-                'display_order' => $maxOrder + 1, // ★ display_orderを追加
-            ];
-
-            if ($isManualInput && isset($validated['price']) && $quantityNeeded > 0) {
-                $baseMaterialData['unit_price_at_creation'] = round(floatval($validated['price']) / $quantityNeeded, 2);
-            }
-
             // 1. 主キャラクターへの材料作成
-            $mainMaterialData = $baseMaterialData;
-            $mainMaterialData['character_id'] = $character->id;
-            $mainMaterial = Material::create($mainMaterialData);
-            $createdOrUpdatedMaterialsForResponse[] = $mainMaterial->load('inventoryItem')->toArray();
-
-            if ($mainMaterial->status === '購入済') {
-                if ($mainMaterial->inventory_item_id) {
-                    $this->handleInventoryDecrement($mainMaterial, $project, $character);
-                }
-                if ($mainMaterial->price > 0) {
-                    $this->createCostEntry($character, $mainMaterial);
-                    if (!in_array($character->id, $costsUpdatedForCharacters)) {
-                        $costsUpdatedForCharacters[] = $character->id;
-                    }
-                }
+            $mainMaterial = $this->createMaterialAndProcess($project, $character, $validated);
+            $createdMaterialsForResponse[] = $mainMaterial->toArray();
+            if ($mainMaterial->price > 0) {
+                $costsUpdatedForCharacters[] = $character->id;
             }
 
-            // 2. 他のキャラクターへの適用 (新規追加時のみ)
+            // 2. 他のキャラクターへの適用
             if ($applyToOthers) {
                 $otherCharacters = $project->characters()->where('id', '!=', $character->id)->get();
                 foreach ($otherCharacters as $otherChar) {
-                    $dataForOtherChar = $baseMaterialData; // 基本データをコピー
-                    $dataForOtherChar['character_id'] = $otherChar->id;
-
-                    // ★他のキャラクターへの材料作成時の在庫チェック
-                    if ($dataForOtherChar['status'] === '購入済' && $dataForOtherChar['inventory_item_id']) {
-                        $inventoryItem = InventoryItem::find($dataForOtherChar['inventory_item_id']);
-                        // 在庫チェックの前に、このトランザクション内で既に引かれた分を考慮する必要がある場合があるが、
-                        // 今回は各キャラクターへの適用は独立した在庫チェックとする。
-                        // より厳密には、ループ開始前に全キャラクターの合計必要量をチェックする方法もある。
-                        if ($inventoryItem && $inventoryItem->quantity < $dataForOtherChar['quantity_needed']) {
-                            DB::rollBack(); // ★トランザクションをロールバック
-                            return response()->json([
-                                'success' => false,
-                                'message' => "キャラクター「{$otherChar->name}」への材料「{$inventoryItem->name}」適用時に在庫不足が発生しました。現在の在庫: {$inventoryItem->quantity}{$inventoryItem->unit}",
-                                'errors' => ['apply_to_other_characters' => ["キャラクター「{$otherChar->name}」の材料「{$inventoryItem->name}」で在庫が不足しています。必要量: {$dataForOtherChar['quantity_needed']}{$inventoryItem->unit}、現在庫: {$inventoryItem->quantity}{$inventoryItem->unit}"]],
-                            ], 422);
-                        }
-                    }
-
-                    $newMaterialForOther = Material::create($dataForOtherChar);
-                    $createdOrUpdatedMaterialsForResponse[] = $newMaterialForOther->load('inventoryItem')->toArray();
-
-                    if ($newMaterialForOther->status === '購入済') {
-                        if ($newMaterialForOther->inventory_item_id) {
-                            $this->handleInventoryDecrement($newMaterialForOther, $project, $otherChar);
-                        }
-                        if ($newMaterialForOther->price > 0) {
-                            $this->createCostEntry($otherChar, $newMaterialForOther);
-                            if (!in_array($otherChar->id, $costsUpdatedForCharacters)) {
-                                $costsUpdatedForCharacters[] = $otherChar->id;
-                            }
-                        }
+                    // createMaterialは在庫チェックを含むため、ここでの個別チェックは不要
+                    $otherMaterial = $this->createMaterialAndProcess($project, $otherChar, $validated);
+                    $createdMaterialsForResponse[] = $otherMaterial->toArray();
+                    if ($otherMaterial->price > 0) {
+                        $costsUpdatedForCharacters[] = $otherChar->id;
                     }
                 }
             }
 
             DB::commit();
+
             return response()->json([
                 'success' => true,
                 'message' => $applyToOthers ? '材料が現在のキャラクターに追加され、他のキャラクターにも新規追加されました。' : '材料を追加しました。',
-                'materials_data' => $createdOrUpdatedMaterialsForResponse,
+                'materials_data' => $createdMaterialsForResponse, // 以前は materials_data で返していたので合わせる
                 'costs_updated_for_characters' => array_unique($costsUpdatedForCharacters),
                 'costs_updated' => !empty($costsUpdatedForCharacters)
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Material store failed: ' . $e->getMessage(), ['request_data' => $request->all(), 'exception' => $e]);
-            // handleInventoryDecrement からスローされた例外もここでキャッチする
-            $errorMessage = '材料の追加中にエラーが発生しました。詳細はサーバーログを確認してください。';
-            if (str_contains($e->getMessage(), '在庫不足です')) { // 在庫不足の例外メッセージを判別
-                $errorMessage = $e->getMessage();
-            }
-            return response()->json(['success' => false, 'message' => $errorMessage], 500);
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
         }
     }
 
@@ -620,5 +559,49 @@ class MaterialController extends Controller
         if ($material->status === '購入済' && $material->price > 0) {
             $this->createCostEntry($character, $material);
         }
+    }
+
+    /**
+     * 材料とそれに関連するコストを作成する
+     * ★★★ 引数に $skipInventoryDecrement を追加 ★★★
+     * @param bool $skipInventoryDecrement 在庫消費処理をスキップする場合は true
+     * @return Material 作成されたMaterialモデル
+     * @throws \Exception 在庫不足などの場合に例外をスロー
+     */
+    public function createMaterialAndProcess(Project $project, Character $character, array $attributes, bool $skipInventoryDecrement = false): Material
+    {
+        // display_orderを設定
+        $maxOrder = $character->materials()->max('display_order');
+        $attributes['display_order'] = $maxOrder + 1;
+        $attributes['character_id'] = $character->id;
+
+        $statusToSet = $attributes['status'] ?? '未購入';
+        $inventoryItemId = $attributes['inventory_item_id'] ?? null;
+        $quantityNeeded = $attributes['quantity_needed'] ?? 0;
+
+        // ★★★ 在庫チェックを、スキップフラグがfalseの場合のみ実行するように変更 ★★★
+        if ($statusToSet === '購入済' && $inventoryItemId && !$skipInventoryDecrement) {
+            $inventoryItem = InventoryItem::find($inventoryItemId);
+            if (!$inventoryItem || $inventoryItem->quantity < $quantityNeeded) {
+                throw new \Exception("在庫不足です。「{$inventoryItem->name}」の現在の在庫は {$inventoryItem->quantity}{$inventoryItem->unit} です。");
+            }
+        }
+
+        // 材料作成
+        $material = Material::create($attributes);
+
+        // 購入済の場合、在庫とコストを処理
+        if ($material->status === '購入済') {
+            // ★★★ 在庫消費を、スキップフラグがfalseの場合のみ実行するように変更 ★★★
+            if ($material->inventory_item_id && !$skipInventoryDecrement) {
+                $this->handleInventoryDecrement($material, $project, $character);
+            }
+            // コスト計上は常に行う
+            if ($material->price > 0) {
+                $this->createCostEntry($character, $material);
+            }
+        }
+
+        return $material->load('inventoryItem');
     }
 }

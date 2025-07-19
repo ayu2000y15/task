@@ -37,4 +37,17 @@ class InventoryItem extends Model
         }
         return 0;
     }
+
+    // 在庫品目を一意に識別するための表示名アクセサ
+    public function getDisplayNameAttribute(): string
+    {
+        $parts = [$this->name];
+        if ($this->product_number) {
+            $parts[] = '品番:' . $this->product_number;
+        }
+        if ($this->color_number) {
+            $parts[] = '色番:' . $this->color_number;
+        }
+        return implode(' / ', $parts);
+    }
 }

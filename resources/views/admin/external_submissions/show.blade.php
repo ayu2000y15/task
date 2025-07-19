@@ -255,35 +255,51 @@
             <div class="p-6">
                 <h3 class="text-lg font-semibold mb-4 border-b border-gray-300 dark:border-gray-600 pb-2">ステータス更新</h3>
                 @can('update', $submission)
-                {{-- フォームのidはJavaScriptで参照しなくなるため、必須ではなくなります --}}
-                <form action="{{ route('admin.external-submissions.updateStatus', $submission) }}" method="POST">
-                    @csrf
-                    @method('PATCH')
-                    <div class="space-y-4">
-                        <div>
-                            <x-input-label for="status" value="新しいステータス" :required="true"/>
-                            <select name="status" id="status" class="form-select mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 @error('status') border-red-500 @enderror" required>
-                                @foreach($statusOptions as $value => $label)
-                                    <option value="{{ $value }}" {{ old('status', $submission->status) == $value ? 'selected' : '' }}>{{ $label }}</option>
-                                @endforeach
-                            </select>
-                            <x-input-error :messages="$errors->get('status')" class="mt-2" />
+                @if($submission->status === 'processed')
+                    {{-- 案件化済みの場合、操作不可のメッセージを表示 --}}
+                    <div class="bg-blue-50 dark:bg-gray-700/50 border-l-4 border-blue-400 dark:border-blue-500 p-4 rounded-r-lg" role="alert">
+                        <div class="flex">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-info-circle text-blue-500 dark:text-blue-400 mt-0.5"></i>
+                            </div>
+                            <div class="ml-3">
+                                <p class="text-sm text-blue-800 dark:text-blue-200">
+                                    この依頼は案件化済みのため、ステータスは変更できません。
+                                </p>
+                            </div>
                         </div>
-                        {{-- 必要であれば、管理者メモなどの入力フィールドをここに追加できます --}}
-                        {{--
-                        <div>
-                            <x-input-label for="manager_notes" value="管理者備考（任意）" />
-                            <x-textarea-input id="manager_notes" name="manager_notes" class="mt-1 block w-full" rows="3">{{ old('manager_notes', $submission->manager_notes ?? '') }}</x-textarea-input>
-                            <x-input-error :messages="$errors->get('manager_notes')" class="mt-2" />
-                        </div>
-                        --}}
-                        <x-primary-button type="submit" class="w-full justify-center">
-                            <i class="fas fa-sync-alt mr-2"></i>ステータスを更新
-                        </x-primary-button>
                     </div>
-                </form>
                 @else
-                <p class="text-sm text-gray-500 dark:text-gray-400">この依頼のステータスを更新する権限がありません。</p>
+                    {{-- フォームのidはJavaScriptで参照しなくなるため、必須ではなくなります --}}
+                    <form action="{{ route('admin.external-submissions.updateStatus', $submission) }}" method="POST">
+                        @csrf
+                        @method('PATCH')
+                        <div class="space-y-4">
+                            <div>
+                                <x-input-label for="status" value="新しいステータス" :required="true"/>
+                                <select name="status" id="status" class="form-select mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 @error('status') border-red-500 @enderror" required>
+                                    @foreach($statusOptions as $value => $label)
+                                        <option value="{{ $value }}" {{ old('status', $submission->status) == $value ? 'selected' : '' }}>{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                                <x-input-error :messages="$errors->get('status')" class="mt-2" />
+                            </div>
+                            {{-- 必要であれば、管理者メモなどの入力フィールドをここに追加できます --}}
+                            {{--
+                            <div>
+                                <x-input-label for="manager_notes" value="管理者備考（任意）" />
+                                <x-textarea-input id="manager_notes" name="manager_notes" class="mt-1 block w-full" rows="3">{{ old('manager_notes', $submission->manager_notes ?? '') }}</x-textarea-input>
+                                <x-input-error :messages="$errors->get('manager_notes')" class="mt-2" />
+                            </div>
+                            --}}
+                            <x-primary-button type="submit" class="w-full justify-center">
+                                <i class="fas fa-sync-alt mr-2"></i>ステータスを更新
+                            </x-primary-button>
+                        </div>
+                    </form>
+                    @endif
+                @else
+                    <p class="text-sm text-gray-500 dark:text-gray-400">この依頼のステータスを更新する権限がありません。</p>
                 @endcan
             </div>
         </div>

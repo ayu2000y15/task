@@ -21,7 +21,7 @@
                         @method('PUT')
                         {{-- _form.blade.php をインクルードしてフォームの本体を表示 --}}
                         {{-- $fieldTypes と $optionsText はコントローラーから渡される想定 --}}
-                        @include('admin.form_definitions._form', compact('formFieldDefinition', 'fieldTypes', 'categories', 'optionsText'))
+                        @include('admin.form_definitions._form', compact('formFieldDefinition', 'fieldTypes', 'categories', 'inventoryDisplayMap'))
                     </form>
                 @else
                     {{-- $formFieldDefinition またはそのIDが利用できない場合のエラー表示や代替処理 --}}

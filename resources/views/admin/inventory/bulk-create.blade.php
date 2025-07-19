@@ -88,15 +88,7 @@
 
                     {{-- バリエーション --}}
                     <div>
-                        <div class="flex justify-between items-center mb-4">
-                            <h3 class="text-md font-semibold text-gray-800 dark:text-gray-100">バリエーション</h3>
-                            <div class="space-x-2">
-                                <x-secondary-button type="button" @click="addVariant()" x-show="variants.length < 20">
-                                    <i class="fas fa-plus mr-2"></i>追加
-                                </x-secondary-button>
-                                <span class="text-xs text-gray-500" x-text="`${variants.length}/20件`"></span>
-                            </div>
-                        </div>
+                        <h3 class="text-md font-semibold text-gray-800 dark:text-gray-100">バリエーション</h3>
 
                         <div class="space-y-4">
                             <template x-for="(variant, index) in variants" :key="index">
@@ -142,6 +134,13 @@
                                     </div>
                                 </div>
                             </template>
+                        </div>
+
+                        <div class="mt-4 flex justify-between items-right mb-4">
+                            <x-secondary-button type="button" @click="addVariant()" x-show="variants.length < 20">
+                                <i class="fas fa-plus mr-2"></i>追加
+                            </x-secondary-button>
+                            <span class="text-xs text-gray-500" x-text="`${variants.length}/20件`"></span>
                         </div>
 
                         {{-- バリデーションエラー表示 --}}

@@ -8,6 +8,8 @@ use App\Models\FormFieldCategory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage; // ★ 追加
+use App\Models\InventoryItem;
+use Illuminate\Validation\Rule;
 
 class FormFieldDefinitionController extends Controller
 {
@@ -56,69 +58,31 @@ class FormFieldDefinitionController extends Controller
         }
 
         $fieldTypes = FormFieldDefinition::FIELD_TYPES;
+        $formFieldDefinition = new FormFieldDefinition(['is_enabled' => true]);
+        $inventoryDisplayMap = collect();
 
-        return view('admin.form_definitions.create', compact('fieldTypes', 'categories', 'category'));
+        return view('admin.form_definitions.create', compact('fieldTypes', 'categories', 'category',  'inventoryDisplayMap'));
     }
 
     public function store(Request $request)
     {
         //$this->authorize('create', FormFieldDefinition::class);
 
-        $validCategories = FormFieldCategory::enabled()->pluck('name')->toArray();
+        list($validationRules, $validationMessages) = $this->getValidationRulesAndMessages($request);
+        $request->validate($validationRules, $validationMessages);
 
-        $validatedData = $request->validate([
-            'name' => 'required|string|max:100|regex:/^[a-z0-9_]+$/u',
-            'category' => 'required|string|in:' . implode(',', $validCategories),
-            'label' => 'required|string|max:255',
-            'type' => 'required|string|in:' . implode(',', array_keys(FormFieldDefinition::FIELD_TYPES)),
-            'options_text' => 'nullable|string',
-            'placeholder' => 'nullable|string|max:255',
-            'is_required' => 'boolean',
-            'order' => 'nullable|integer',
-            'max_length' => 'nullable|integer|min:1',
-            'min_selections' => 'nullable|integer|min:0',
-            'max_selections' => 'nullable|integer|min:0|gte:min_selections',
-            'is_enabled' => 'boolean',
-            'options' => 'nullable|array',
-            'options.*.value' => 'nullable|string|max:255',
-            'options.*.image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
-        ], [
-            'name.regex' => 'フィールド名は半角英数字とアンダースコアのみ使用できます。',
-            'options.*.image.image' => '選択肢のファイルは画像である必要があります。',
-            'options.*.image.mimes' => '選択肢の画像は jpeg, png, jpg, gif, svg, webp のいずれかの形式である必要があります。',
-            'options.*.image.max' => '選択肢の画像のサイズは2MB以下にしてください。',
-            'max_selections.gte' => '最大選択数は、最小選択数以上である必要があります。',
-        ]);
-
-
-        $existingField = FormFieldDefinition::where('category', $validatedData['category'])
-            ->where('name', $validatedData['name'])
-            ->first();
-
-        if ($existingField) {
-            return back()->withErrors(['name' => '同じカテゴリ内でフィールド名が重複しています。']);
+        if ($this->isDuplicateName($request->input('category'), $request->input('name'))) {
+            return back()->withErrors(['name' => '同じカテゴリ内でフィールド名が重複しています。'])->withInput();
         }
 
-        $dataToSave = $validatedData;
-        unset($dataToSave['options_text'], $dataToSave['options']);
+        list($options, $inventoryMap) = $this->processOptionsFromRequest($request);
 
-        if ($validatedData['type'] === 'image_select') {
-            $dataToSave['options'] = $this->handleImageOptions($request);
-        } elseif ($request->filled('options_text') && in_array($validatedData['type'], ['select', 'radio', 'checkbox'])) {
-            $optionsArray = [];
-            $pairs = explode(',', $request->input('options_text'));
-            foreach ($pairs as $pair) {
-                $parts = explode(':', trim($pair), 2);
-                if (count($parts) === 2) {
-                    $optionsArray[trim($parts[0])] = trim($parts[1]);
-                } elseif (!empty(trim($parts[0]))) {
-                    $optionsArray[trim($parts[0])] = trim($parts[0]);
-                }
-            }
-            $dataToSave['options'] = !empty($optionsArray) ? $optionsArray : null;
-        } else {
-            $dataToSave['options'] = null;
-        }
+        $dataToSave = $request->except(['options', 'options_text', '_token']);
+        $dataToSave['options'] = $options;
+        $dataToSave['option_inventory_map'] = $request->boolean('is_inventory_linked') ? $inventoryMap : null;
+        $dataToSave['is_required'] = $request->boolean('is_required');
+        $dataToSave['is_enabled'] = $request->boolean('is_enabled');
+
 
         FormFieldDefinition::create($dataToSave);
 
@@ -142,107 +106,48 @@ class FormFieldDefinitionController extends Controller
             ->pluck('display_name', 'name')
             ->toArray();
 
-        $optionsText = '';
-        if ($formFieldDefinition->type !== 'image_select' && !is_null($formFieldDefinition->options)) {
-            $options = is_array($formFieldDefinition->options) ? $formFieldDefinition->options : json_decode($formFieldDefinition->options, true);
-            if (is_array($options)) {
-                $tempOptions = [];
-                foreach ($options as $key => $value) {
-                    $tempOptions[] = $key . ':' . $value;
-                }
-                $optionsText = implode(', ', $tempOptions);
-            }
-        }
+        $inventoryMap = $formFieldDefinition->option_inventory_map ?? [];
+        $inventoryIds = array_filter(array_column($inventoryMap, 'id'));
+        $inventoryDisplayMap = !empty($inventoryIds)
+            ? InventoryItem::whereIn('id', $inventoryIds)->get()->mapWithKeys(function ($item) {
+                return [$item->id => $item->display_name];
+            })
+            : collect();
 
-
-        return view('admin.form_definitions.edit', compact('formFieldDefinition', 'fieldTypes', 'categories', 'optionsText'));
+        return view('admin.form_definitions.edit', compact('formFieldDefinition', 'fieldTypes', 'categories', 'inventoryDisplayMap'));
     }
 
     public function update(Request $request, FormFieldDefinition $formFieldDefinition)
     {
-        if (!$formFieldDefinition->exists) {
-            abort(404, '指定されたフォーム定義が見つかりません。');
-        }
-
         $this->authorize('update', $formFieldDefinition);
 
-        $validCategories = FormFieldCategory::enabled()->pluck('name')->toArray();
+        list($validationRules, $validationMessages) = $this->getValidationRulesAndMessages($request, $formFieldDefinition->id);
+        $request->validate($validationRules, $validationMessages);
 
-        $validatedRules = [
-            'name' => 'required|string|max:100|regex:/^[a-z0-9_]+$/u',
-            'category' => 'required|string|in:' . implode(',', $validCategories),
-            'label' => 'required|string|max:255',
-            'type' => 'required|string|in:' . implode(',', array_keys(FormFieldDefinition::FIELD_TYPES)),
-            'options_text' => 'nullable|string',
-            'placeholder' => 'nullable|string|max:255',
-            'is_required' => 'boolean',
-            'order' => 'nullable|integer',
-            'max_length' => 'nullable|integer|min:1',
-            'min_selections' => 'nullable|integer|min:0',
-            'max_selections' => 'nullable|integer|min:0|gte:min_selections',
-            'is_enabled' => 'boolean',
-            'options' => 'nullable|array',
-            'options.*.value' => 'nullable|string|max:255',
-            'options.*.image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
-            'options.*.existing_path' => 'nullable|string|max:1024',
-        ];
-
-        $validationMessages = [
-            'name.regex' => 'フィールド名は半角英数字とアンダースコアのみ使用できます。',
-            'options.*.image.image' => '選択肢のファイルは画像である必要があります。',
-            'options.*.image.mimes' => '選択肢の画像は jpeg, png, jpg, gif, svg, webp のいずれかの形式である必要があります。',
-            'options.*.image.max' => '選択肢の画像のサイズは2MB以下にしてください。',
-            'max_selections.gte' => '最大選択数は、最小選択数以上である必要があります。',
-        ];
-
-        $validatedData = $request->validate($validatedRules, $validationMessages);
-
-        $existingField = FormFieldDefinition::where('category', $validatedData['category'])
-            ->where('name', $validatedData['name'])
-            ->where('id', '!=', $formFieldDefinition->id)
-            ->first();
-
-        if ($existingField) {
-            return back()->withErrors(['name' => '同じカテゴリ内でフィールド名が重複しています。']);
+        if ($this->isDuplicateName($request->input('category'), $request->input('name'), $formFieldDefinition->id)) {
+            return back()->withErrors(['name' => '同じカテゴリ内でフィールド名が重複しています。'])->withInput();
         }
 
-        // 更新するデータを準備
-        $dataToUpdate = $validatedData;
+        list($options, $inventoryMap) = $this->processOptionsFromRequest($request, $formFieldDefinition);
 
-        // optionsを一度unsetしてから再構築する
-        unset($dataToUpdate['options']);
-
-        if ($validatedData['type'] === 'image_select') {
-            $dataToUpdate['options'] = $this->handleImageOptions($request, $formFieldDefinition);
-        } elseif ($request->filled('options_text') && in_array($validatedData['type'], ['select', 'radio', 'checkbox'])) {
-            $optionsArray = [];
-            $pairs = explode(',', $request->input('options_text'));
-            foreach ($pairs as $pair) {
-                $parts = explode(':', trim($pair), 2);
-                if (count($parts) === 2) {
-                    $optionsArray[trim($parts[0])] = trim($parts[1]);
-                } elseif (!empty(trim($parts[0]))) {
-                    $optionsArray[trim($parts[0])] = trim($parts[0]);
-                }
-            }
-            $dataToUpdate['options'] = !empty($optionsArray) ? $optionsArray : null;
-        } else {
-            // 上記以外のフィールドタイプではoptionsをnullにする
-            $dataToUpdate['options'] = null;
-        }
-
-        // チェックボックス系の値はbooleanに変換してセット
+        $dataToUpdate = $request->except(['options', 'options_text', '_token', '_method']);
+        $dataToUpdate['options'] = $options;
+        $dataToUpdate['option_inventory_map'] = $request->boolean('is_inventory_linked') ? $inventoryMap : null;
         $dataToUpdate['is_required'] = $request->boolean('is_required');
         $dataToUpdate['is_enabled'] = $request->boolean('is_enabled');
 
-        // 不要なキーを削除
-        unset($dataToUpdate['options_text']);
-
         $formFieldDefinition->update($dataToUpdate);
 
-
-        return redirect()->route('admin.form-definitions.index', ['category' => $validatedData['category']])
+        return redirect()->route('admin.form-definitions.index', ['category' => $dataToUpdate['category']])
             ->with('success', 'カスタム項目定義が更新されました。');
+    }
+
+    // ★ 追加: 在庫品目リストを取得するためのヘルパーメソッド
+    private function getInventoryItemsForSelect(): \Illuminate\Support\Collection
+    {
+        return InventoryItem::orderBy('name')->get()->mapWithKeys(function ($item) {
+            return [$item->id => $item->display_name];
+        })->prepend('在庫と紐付けない', '');
     }
 
     public function destroy(FormFieldDefinition $formFieldDefinition)
@@ -361,5 +266,138 @@ class FormFieldDefinitionController extends Controller
         }
 
         return !empty($finalOptions) ? $finalOptions : null;
+    }
+
+    /**
+     * バリデーションルールとメッセージを生成
+     */
+    private function getValidationRulesAndMessages(Request $request, $ignoreId = null): array
+    {
+        $validCategories = FormFieldCategory::enabled()->pluck('name')->toArray();
+        $rules = [
+            'name' => ['required', 'string', 'max:100', 'regex:/^[a-z0-9_]+$/u'],
+            'category' => ['required', 'string', Rule::in($validCategories)],
+            'label' => 'required|string|max:255',
+            'type' => ['required', 'string', Rule::in(array_keys(FormFieldDefinition::FIELD_TYPES))],
+            'placeholder' => 'nullable|string|max:255',
+            'is_required' => 'boolean',
+            'is_inventory_linked' => 'boolean',
+            'order' => 'nullable|integer',
+            'max_length' => 'nullable|integer|min:1',
+            'min_selections' => 'nullable|integer|min:0',
+            'max_selections' => 'nullable|integer|min:0|gte:min_selections',
+            'is_enabled' => 'boolean',
+            'options' => 'nullable|array',
+            'options.*.value' => 'required_with:options.*.label,options.*.image|nullable|string|max:255',
+            'options.*.label' => 'required_if:type,select,radio,checkbox|nullable|string|max:255',
+            'options.*.existing_path' => 'nullable|string|max:1024',
+            'options.*.inventory_item_id' => 'nullable|integer|exists:inventory_items,id',
+            'options.*.inventory_consumption_qty' => 'nullable|integer|min:1',
+
+        ];
+
+        $messages = [
+            'name.regex' => 'フィールド名は半角英数字とアンダースコアのみ使用できます。',
+            'options.*.value.required_with' => '選択肢の「値」は必須です。',
+            'options.*.label.required_if' => '選択肢の「ラベル」は必須です。',
+            'options.*.image.required_if' => '選択肢の「画像」は必須です。',
+            'options.*.image.image' => '選択肢のファイルは画像である必要があります。',
+            'max_selections.gte' => '最大選択数は、最小選択数以上である必要があります。',
+            'options.*.inventory_consumption_qty.min' => '消費数は1以上で入力してください。',
+        ];
+
+        // フィールドタイプが「画像選択」の場合にのみ、画像に関するバリデーションを適用する
+        if ($request->input('type') === 'image_select') {
+            $rules['options.*.image'] = [
+                'required_without:options.*.existing_path', // 既存パスが無い場合にのみ必須
+                'nullable',
+                'image',
+                'mimes:jpeg,png,jpg,gif,svg,webp',
+                'max:2048' // 2MB
+            ];
+            // カスタムエラーメッセージもここで追加
+            $messages['options.*.image.required_without'] = '選択肢の画像を指定してください。';
+        }
+
+        return [$rules, $messages];
+    }
+
+    /**
+     * フィールド名の重複をチェック
+     */
+    private function isDuplicateName(string $category, string $name, $ignoreId = null): bool
+    {
+        $query = FormFieldDefinition::where('category', $category)->where('name', $name);
+        if ($ignoreId) {
+            $query->where('id', '!=', $ignoreId);
+        }
+        return $query->exists();
+    }
+
+    /**
+     * リクエストから送られてきたオプション配列を処理し、
+     * optionsとoption_inventory_map のためのデータを生成する
+     */
+    private function processOptionsFromRequest(Request $request, FormFieldDefinition $existingDefinition = null): array
+    {
+        $optionsInput = $request->input('options', []);
+        $finalOptions = [];
+        $inventoryMap = [];
+        $keptImagePaths = [];
+
+        if (!is_array($optionsInput)) {
+            return [null, null];
+        }
+
+        foreach ($optionsInput as $index => $optionData) {
+            $value = $optionData['value'] ?? null;
+            if (empty($value)) continue;
+
+            $label = $optionData['label'] ?? '';
+            $inventoryItemId = $optionData['inventory_item_id'] ?? null;
+            $inventoryConsumptionQty = $optionData['inventory_consumption_qty'] ?? 1;
+
+            // inventory_map を作成
+            if (!empty($inventoryItemId)) {
+                $inventoryMap[$value] = [
+                    'id' => $inventoryItemId,
+                    'qty' => (int)$inventoryConsumptionQty,
+                ];
+            }
+
+            // options (画像選択) の処理
+            if ($request->input('type') === 'image_select') {
+                $imageUrl = $optionData['existing_path'] ?? null;
+                if ($request->hasFile("options.{$index}.image")) {
+                    $file = $request->file("options.{$index}.image");
+                    $path = $file->store('form_option_images', 'public');
+                    $imageUrl = Storage::disk('public')->url($path);
+                }
+                if ($imageUrl) {
+                    $finalOptions[$value] = $imageUrl;
+                    $keptImagePaths[] = $imageUrl; // 削除しない画像リストに追加
+                }
+            } else {
+                // options (テキスト系) の処理
+                $finalOptions[$value] = $label;
+            }
+        }
+
+        // 不要になった古い画像を削除 (更新時のみ)
+        if ($existingDefinition && $existingDefinition->type === 'image_select' && is_array($existingDefinition->options)) {
+            $oldImageUrls = array_values($existingDefinition->options);
+            $deletedImageUrls = array_diff($oldImageUrls, $keptImagePaths);
+
+            foreach ($deletedImageUrls as $url) {
+                // public URLからストレージパスに変換して削除
+                $pathToDelete = str_replace(Storage::disk('public')->url(''), '', $url);
+                if (Storage::disk('public')->exists($pathToDelete)) {
+                    Storage::disk('public')->delete($pathToDelete);
+                }
+            }
+        }
+
+
+        return [!empty($finalOptions) ? $finalOptions : null, !empty($inventoryMap) ? $inventoryMap : null];
     }
 }
