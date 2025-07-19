@@ -147,7 +147,7 @@
             <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
                 <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100">品目情報編集</h2>
             </div>
-            <form action="{{ route('admin.inventory.update', $inventoryItem) }}" method="POST">
+            <form action="{{ route('admin.inventory.update', $inventoryItem) }}" method="POST" enctype="multipart/form-data" x-data="imageEditor({ currentImageUrl: '{{ $inventoryItem->image_path ? Storage::url($inventoryItem->image_path) : '' }}' })">
                 @csrf
                 @method('PUT')
                 <div class="p-6 sm:p-8 space-y-6">
@@ -175,6 +175,24 @@
                             <x-input-error :messages="$errors->get('color_number')" class="mt-2" />
                         </div>
                     </div>
+
+                    {{-- 画像プレビューと入力欄 --}}
+                    <div>
+                        <x-input-label for="image_path" value="画像" />
+                        <input type="file" id="image_path" name="image_path" @change="handleFileSelect" class="mt-2 block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 dark:text-gray-400 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-l-lg file:border-0 file:text-sm file:font-semibold file:bg-gray-200 dark:file:bg-gray-600 file:text-gray-700 dark:file:text-gray-200 hover:file:bg-gray-300 dark:hover:file:bg-gray-500">
+                        <div class="mt-2" x-show="previewUrl">
+                            <img :src="previewUrl" alt="画像プレビュー" class="h-32 w-32 object-cover rounded-md border border-gray-200 dark:border-gray-600">
+                        </div>
+                        @if($inventoryItem->image_path)
+                            <div class="mt-2 flex items-center">
+                                <input type="checkbox" name="remove_image" id="remove_image" @change="previewUrl = $event.target.checked ? '' : '{{ Storage::url($inventoryItem->image_path) }}'" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                                <label for="remove_image" class="ml-2 text-sm text-gray-900 dark:text-gray-300">現在の画像を削除する</label>
+                            </div>
+                        @endif
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">新しい画像をアップロードすると、既存の画像は上書きされます。</p>
+                        <x-input-error :messages="$errors->get('image_path')" class="mt-2" />
+                    </div>
+
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
                         <div>
                             <x-input-label for="unit" value="単位" :required="true" />
@@ -187,10 +205,10 @@
                             <x-text-input id="quantity_display_info" name="quantity_display_info" type="text" class="mt-1 block w-full bg-gray-100 dark:bg-gray-700"
                                 :value="number_format($inventoryItem->quantity, ($inventoryItem->unit === 'm' || $inventoryItem->unit === 'M') ? 1 : 0)"
                                 disabled />
-                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">在庫数は上記の在庫操作から変更します。</p>
+                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">在庫数は在庫操作から変更します。</p>
                         </div>
                     </div>
-                    {{-- ★ 現在の在庫総コスト入力欄を追加 (編集用) --}}
+
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 items-start">
                         <div>
                             <x-input-label for="total_cost" value="現在の在庫総コスト (税抜など)" />
@@ -243,3 +261,22 @@
         </div>
     </div>
 @endsection
+
+@push('scripts')
+<script>
+    function imageEditor(config) {
+        return {
+            previewUrl: config.currentImageUrl,
+            handleFileSelect(event) {
+                const file = event.target.files[0];
+                if (file) {
+                    if (this.previewUrl && this.previewUrl.startsWith('blob:')) {
+                        URL.revokeObjectURL(this.previewUrl);
+                    }
+                    this.previewUrl = URL.createObjectURL(file);
+                }
+            }
+        }
+    }
+</script>
+@endpush

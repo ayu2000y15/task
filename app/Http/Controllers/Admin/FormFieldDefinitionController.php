@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage; // ★ 追加
 use App\Models\InventoryItem;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Log;
 
 class FormFieldDefinitionController extends Controller
 {
@@ -38,7 +39,9 @@ class FormFieldDefinitionController extends Controller
             ->ordered()
             ->get();
 
-        return view('admin.form_definitions.index', compact('fieldDefinitions', 'availableCategories', 'category'));
+        $availableInventoryItems = InventoryItem::where('quantity', '>', 0)->orderBy('name')->get();
+
+        return view('admin.form_definitions.index', compact('fieldDefinitions', 'availableCategories', 'category', 'availableInventoryItems'));
     }
 
     public function create(Request $request)
@@ -349,6 +352,8 @@ class FormFieldDefinitionController extends Controller
             return [null, null];
         }
 
+        $fieldType = $existingDefinition ? $existingDefinition->type : $request->input('type');
+
         foreach ($optionsInput as $index => $optionData) {
             $value = $optionData['value'] ?? null;
             if (empty($value)) continue;
@@ -357,39 +362,42 @@ class FormFieldDefinitionController extends Controller
             $inventoryItemId = $optionData['inventory_item_id'] ?? null;
             $inventoryConsumptionQty = $optionData['inventory_consumption_qty'] ?? 1;
 
-            // inventory_map を作成
             if (!empty($inventoryItemId)) {
                 $inventoryMap[$value] = [
-                    'id' => $inventoryItemId,
+                    'id' => (int)$inventoryItemId,
                     'qty' => (int)$inventoryConsumptionQty,
                 ];
             }
 
-            // options (画像選択) の処理
-            if ($request->input('type') === 'image_select') {
+            if ($fieldType === 'image_select') {
                 $imageUrl = $optionData['existing_path'] ?? null;
+                $isNewOption = empty($imageUrl);
+
+                // 新しい画像ファイルがアップロードされたかチェック
                 if ($request->hasFile("options.{$index}.image")) {
                     $file = $request->file("options.{$index}.image");
                     $path = $file->store('form_option_images', 'public');
                     $imageUrl = Storage::disk('public')->url($path);
+                } elseif ($isNewOption) {
+                    // 新しい選択肢なのに、ファイルがリクエストに含まれていない場合
+                    Log::warning('New image option file not received.', ['option_data' => $optionData]);
+                    throw new \Exception("新しい選択肢 (値: {$value}) の画像ファイルが添付されていません。");
                 }
+
                 if ($imageUrl) {
                     $finalOptions[$value] = $imageUrl;
-                    $keptImagePaths[] = $imageUrl; // 削除しない画像リストに追加
+                    $keptImagePaths[] = $imageUrl;
                 }
             } else {
-                // options (テキスト系) の処理
                 $finalOptions[$value] = $label;
             }
         }
 
-        // 不要になった古い画像を削除 (更新時のみ)
-        if ($existingDefinition && $existingDefinition->type === 'image_select' && is_array($existingDefinition->options)) {
+        if ($existingDefinition && $fieldType === 'image_select' && is_array($existingDefinition->options)) {
             $oldImageUrls = array_values($existingDefinition->options);
             $deletedImageUrls = array_diff($oldImageUrls, $keptImagePaths);
 
             foreach ($deletedImageUrls as $url) {
-                // public URLからストレージパスに変換して削除
                 $pathToDelete = str_replace(Storage::disk('public')->url(''), '', $url);
                 if (Storage::disk('public')->exists($pathToDelete)) {
                     Storage::disk('public')->delete($pathToDelete);
@@ -397,7 +405,58 @@ class FormFieldDefinitionController extends Controller
             }
         }
 
-
         return [!empty($finalOptions) ? $finalOptions : null, !empty($inventoryMap) ? $inventoryMap : null];
+    }
+
+    /**
+     * 選択肢（options）と在庫連携マップ（option_inventory_map）を非同期で更新します。
+     */
+    public function updateOptions(Request $request, FormFieldDefinition $formFieldDefinition)
+    {
+        $this->authorize('update', $formFieldDefinition);
+
+        // バリデーションをシンプルにします（実際の必須チェックはprocessOptionsFromRequestで行う）
+        $rules = [
+            'options' => 'nullable|array',
+            'options.*.value' => 'required_with:options.*.label,options.*.image|nullable|string|max:255',
+            'options.*.label' => 'nullable|string|max:255',
+            'options.*.image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048', // 2MB
+            'options.*.existing_path' => 'nullable|string|max:1024',
+            'options.*.inventory_item_id' => 'nullable|integer|exists:inventory_items,id',
+            'options.*.inventory_consumption_qty' => 'nullable|integer|min:1',
+        ];
+
+        $messages = [
+            'options.*.image.image' => 'アップロードされたファイルは画像形式である必要があります。',
+            'options.*.image.mimes' => '画像の形式は jpeg, png, jpg, gif, svg, webp のいずれかである必要があります。',
+            'options.*.image.max' => '画像ファイルのサイズは2MB以下にしてください。',
+            'options.*.value.required_with' => '画像またはラベルを設定する場合、「値」は必須です。',
+        ];
+
+        $request->validate($rules, $messages);
+
+        DB::beginTransaction();
+        try {
+            list($options, $inventoryMap) = $this->processOptionsFromRequest($request, $formFieldDefinition);
+
+            $formFieldDefinition->options = $options;
+            $formFieldDefinition->option_inventory_map = $inventoryMap;
+            $formFieldDefinition->save();
+
+            DB::commit();
+
+            $formFieldDefinition->refresh();
+
+            return response()->json([
+                'success' => true,
+                'message' => '選択肢を更新しました。',
+                'options' => $formFieldDefinition->options,
+                'option_inventory_map' => $formFieldDefinition->option_inventory_map,
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            // エラーメッセージをそのままフロントエンドに返す
+            return response()->json(['success' => false, 'message' => '更新中にエラーが発生しました: ' . $e->getMessage()], 500);
+        }
     }
 }

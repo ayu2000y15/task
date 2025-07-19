@@ -121,6 +121,9 @@
                                 ID</th>
                             <th scope="col"
                                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                イメージ画像</th>
+                            <th scope="col"
+                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                                 品名 [品番/色番]</th>
                             <th scope="col"
                                 class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
@@ -163,6 +166,33 @@
                                         <i class="fas fa-exclamation-triangle warning-icon-low mr-1"
                                             title="在庫僅少 (発注点 {{ $item->minimum_stock_level }}{{ $item->unit }})"></i>
                                     @endif
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                    {{-- ★ 画像表示を追加 --}}
+                                    <div class="flex items-center">
+                                        @if($item->image_path)
+                                            <img src="{{ Storage::url($item->image_path) }}" alt="{{ $item->name }}" class="h-12 w-12 flex-shrink-0 rounded object-cover mr-4">
+                                        @else
+                                            <div class="h-12 w-12 flex-shrink-0 rounded bg-gray-200 dark:bg-gray-700 flex items-center justify-center mr-4">
+                                                <i class="fas fa-image text-gray-400"></i>
+                                            </div>
+                                        @endif
+                                        <div>
+                                            <div class="font-medium text-gray-900 dark:text-white text-base">
+                                                {{ $item->name }}
+                                                @if($item->product_number || $item->color_number)
+                                                    <span class="text-xs text-gray-500 dark:text-gray-400 ml-1">
+                                                        [ {{ $item->product_number ?? 'なし' }} / {{ $item->color_number ?? 'なし' }} ]
+                                                    </span>
+                                                @endif
+                                            </div>
+                                            @if($item->description)
+                                                <p class="text-xs inventory-table-subtext truncate" title="{{ $item->description }}">
+                                                    {!! Str::limit(nl2br(e($item->description)), 30) !!}
+                                                </p>
+                                            @endif
+                                        </div>
+                                    </div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
                                     <div class="font-medium text-gray-900 dark:text-white text-lg">

@@ -12,6 +12,7 @@ use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Storage;
 
 class InventoryController extends Controller
 {
@@ -75,6 +76,7 @@ class InventoryController extends Controller
             'variants.*.color_number' => 'nullable|string|max:255',
             'variants.*.quantity' => 'required|numeric|min:0',
             'variants.*.total_cost' => 'nullable|numeric|min:0',
+            'variants.*.image_path' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048', // ★ 画像のバリデーション
         ], [
             'variants.required' => 'バリエーションを最低1つは入力してください。',
             'variants.min' => 'バリエーションを最低1つは入力してください。',
@@ -82,6 +84,9 @@ class InventoryController extends Controller
             'variants.*.quantity.required' => '在庫数は必須です。',
             'variants.*.quantity.numeric' => '在庫数は数値で入力してください。',
             'variants.*.quantity.min' => '在庫数は0以上で入力してください。',
+            'variants.*.image_path.image' => 'バリエーションのファイルは画像である必要があります。',
+            'variants.*.image_path.max' => 'バリエーションの画像サイズは2MB以下にしてください。',
+
         ]);
 
         DB::beginTransaction();
@@ -99,11 +104,18 @@ class InventoryController extends Controller
                     throw new \Exception("品名「{$validated['base_name']}」、品番「{$validated['product_number']}」、色番「{$variant['color_number']}」の組み合わせは既に登録されています。");
                 }
 
+                $imagePath = null;
+                // ★ 画像アップロード処理
+                if ($request->hasFile("variants.{$index}.image_path")) {
+                    $imagePath = $request->file("variants.{$index}.image_path")->store('inventory_images', 'public');
+                }
+
                 // 在庫品目を作成
                 $itemData = [
                     'name' => $validated['base_name'],
                     'product_number' => $validated['product_number'],
                     'color_number' => $variant['color_number'],
+                    'image_path' => $imagePath,
                     'description' => $validated['description'],
                     'unit' => $validated['unit'],
                     'quantity' => $variant['quantity'],
@@ -163,6 +175,7 @@ class InventoryController extends Controller
             'name' => 'required|string|max:255',
             'product_number' => 'nullable|string|max:255',
             'color_number' => 'nullable|string|max:255',
+            'image_path' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
             'description' => 'nullable|string|max:1000',
             'unit' => 'required|string|max:50',
             'quantity' => 'required|numeric|min:0',
@@ -171,6 +184,11 @@ class InventoryController extends Controller
             'supplier' => 'nullable|string|max:255',
             'last_stocked_at' => 'nullable|date',
         ]);
+
+        // ★ 画像アップロード処理
+        if ($request->hasFile('image_path')) {
+            $validated['image_path'] = $request->file('image_path')->store('inventory_images', 'public');
+        }
 
         $validated['total_cost'] = $validated['total_cost'] ?? 0;
 
@@ -208,12 +226,14 @@ class InventoryController extends Controller
     public function update(Request $request, InventoryItem $inventoryItem)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255,' . $inventoryItem->id,
+            'name' => 'required|string|max:255',
             'product_number' => 'nullable|string|max:255',
             'color_number' => 'nullable|string|max:255',
+            'image_path' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
+            'remove_image' => 'sometimes|accepted',
             'description' => 'nullable|string|max:1000',
             'unit' => 'required|string|max:50',
-            'total_cost' => 'nullable|numeric|min:0', // ★ total_cost をバリデーション
+            'total_cost' => 'nullable|numeric|min:0',
             'minimum_stock_level' => 'required|numeric|min:0',
             'supplier' => 'nullable|string|max:255',
             'last_stocked_at' => 'nullable|date',
@@ -221,90 +241,39 @@ class InventoryController extends Controller
 
         DB::beginTransaction();
         try {
-            $oldTotalCost = $inventoryItem->total_cost;
-            $newTotalCostFromRequest = $request->filled('total_cost') ? floatval($validated['total_cost']) : null;
+            // ステップ1: 更新するデータをバリデーション済みデータから準備する
+            $dataToUpdate = collect($validated)->except(['image_path', 'remove_image'])->all();
 
-            // total_cost 以外の品目情報をまず更新
-            $inventoryItem->fill(array_filter($validated, function ($key) {
-                return $key !== 'total_cost'; // total_cost は後で特別に処理
-            }, ARRAY_FILTER_USE_KEY));
-
-            $logProperties = [
-                'action' => 'item_info_update',
-                'old_values' => [],
-                'new_values' => [],
-            ];
-
-            // 変更があったフィールドをログ用に収集 (total_cost以外)
-            foreach ($inventoryItem->getDirty() as $attribute => $newValue) {
-                $logProperties['old_values'][$attribute] = $inventoryItem->getOriginal($attribute);
-                $logProperties['new_values'][$attribute] = $newValue;
+            // ステップ2: 画像の削除・更新処理を行い、最終的なパスを決定する
+            if ($request->boolean('remove_image')) {
+                // 「画像を削除」にチェックがある場合、既存のファイルを削除し、DBのパスをnullに設定
+                if ($inventoryItem->image_path) {
+                    Storage::disk('public')->delete($inventoryItem->image_path);
+                }
+                $dataToUpdate['image_path'] = null;
+            } elseif ($request->hasFile('image_path')) {
+                // 新しい画像がアップロードされた場合、古いファイルを削除し、新しいファイルを保存
+                if ($inventoryItem->image_path) {
+                    Storage::disk('public')->delete($inventoryItem->image_path);
+                }
+                $dataToUpdate['image_path'] = $request->file('image_path')->store('inventory_images', 'public');
             }
 
-            // total_cost がリクエストに含まれており、かつ既存の値と異なる場合のみ更新・ログ記録
-            if ($newTotalCostFromRequest !== null && (string)$newTotalCostFromRequest !== (string)$oldTotalCost) {
-                $inventoryItem->total_cost = $newTotalCostFromRequest;
+            // ステップ3: 準備したデータでモデルを一度に更新する
+            $inventoryItem->update($dataToUpdate);
 
-                // ログプロパティに総コストの変更も追加
-                $logProperties['old_values']['total_cost'] = $oldTotalCost;
-                $logProperties['new_values']['total_cost'] = $newTotalCostFromRequest;
-                $logProperties['action'] = 'item_info_and_total_cost_manual_update'; // アクション名を変更
-
-                // 在庫変動ログにも記録 (在庫数は変動しないが、コストが変わった記録として)
-                InventoryLog::create([
-                    'inventory_item_id' => $inventoryItem->id,
-                    'user_id' => Auth::id(),
-                    'change_type' => 'cost_adjusted_manual', // 新しい種別
-                    'quantity_change' => 0, // 在庫数変動なし
-                    'quantity_before_change' => $inventoryItem->quantity,
-                    'quantity_after_change' => $inventoryItem->quantity,
-                    'unit_price_at_change' => $inventoryItem->quantity > 0 ? ($newTotalCostFromRequest / $inventoryItem->quantity) : null, // 新しい平均単価の目安
-                    'total_price_at_change' => $newTotalCostFromRequest - $oldTotalCost, // コストの変動額
-                    'notes' => '品目情報編集画面から在庫総コストを手動修正。旧: ' . $oldTotalCost . ' 新: ' . $newTotalCostFromRequest,
-                ]);
-            } elseif ($newTotalCostFromRequest === null && $request->has('total_cost')) {
-                // 明示的に空で送信された場合（例えば値を0にしたい場合など）
-                // このケースを許可するかは要件による。ここでは0に設定する例。
-                if ($oldTotalCost != 0) { // 既に0でなければ変更とみなす
-                    $inventoryItem->total_cost = 0;
-                    $logProperties['old_values']['total_cost'] = $oldTotalCost;
-                    $logProperties['new_values']['total_cost'] = 0;
-                    $logProperties['action'] = 'item_info_and_total_cost_manual_update';
-                    InventoryLog::create([
-                        'inventory_item_id' => $inventoryItem->id,
-                        'user_id' => Auth::id(),
-                        'change_type' => 'cost_adjusted_manual', // 新しい種別
-                        'quantity_change' => 0, // 在庫数変動なし
-                        'quantity_before_change' => $inventoryItem->quantity,
-                        'quantity_after_change' => $inventoryItem->quantity,
-                        'unit_price_at_change' => $inventoryItem->quantity > 0 ? ($newTotalCostFromRequest / $inventoryItem->quantity) : null, // 新しい平均単価の目安
-                        'total_price_at_change' => $newTotalCostFromRequest - $oldTotalCost, // コストの変動額
-                        'notes' => '品目情報編集画面から在庫総コストを手動修正。旧: ' . $oldTotalCost . ' 新: ' . $newTotalCostFromRequest,
-                    ]);
-                }
-            }
-            // total_cost がリクエストに含まれていない場合は、既存の値を維持する (fillで上書きされない)
-
-            $inventoryItem->save(); // 全ての変更を保存
-
-            // Spatie Activity Log (変更があった場合のみ)
-            if (!empty($logProperties['old_values']) || !empty($logProperties['new_values'])) {
-                // action を元にログメッセージを生成
-                $logMessage = "在庫品目「{$inventoryItem->name}」の情報が更新されました。";
-                if ($logProperties['action'] === 'item_info_and_total_cost_manual_update') {
-                    $logMessage = "在庫品目「{$inventoryItem->name}」の情報及び総コストが手動で更新されました。";
-                }
-
+            // ステップ4: ログを記録する (updateメソッドは内部で変更をチェックしている)
+            if ($inventoryItem->wasChanged()) {
                 activity()
                     ->performedOn($inventoryItem)
                     ->causedBy(Auth::user())
-                    ->withProperties($logProperties)
-                    ->log($logMessage);
+                    ->withProperties(['attributes' => $inventoryItem->getChanges()])
+                    ->log("在庫品目「{$inventoryItem->name}」の情報が更新されました。");
             }
 
-
             DB::commit();
-            return redirect()->route('admin.inventory.index', $inventoryItem)->with('success', '在庫品目を更新しました。');
+
+            return redirect()->route('admin.inventory.edit', $inventoryItem)->with('success', '在庫品目を更新しました。');
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('InventoryItem update failed: ' . $e->getMessage(), [
@@ -312,14 +281,17 @@ class InventoryController extends Controller
                 'request_data' => $request->all(),
                 'exception' => $e
             ]);
-            return back()->with('error', '在庫品目の更新中にエラーが発生しました。詳細はサーバーログを確認してください。')->withInput();
+            return back()->with('error', '在庫品目の更新中にエラーが発生しました。')->withInput();
         }
     }
 
     public function destroy(InventoryItem $inventoryItem)
     {
 
-        // TODO: 関連する StockOrder がある場合の処理（削除を許可しない、または関連を解除するなど）
+        // 削除時に画像も削除
+        if ($inventoryItem->image_path) {
+            Storage::disk('public')->delete($inventoryItem->image_path);
+        }
         $inventoryItem->delete();
         return redirect()->route('admin.inventory.index')->with('success', '在庫品目を削除しました。');
     }

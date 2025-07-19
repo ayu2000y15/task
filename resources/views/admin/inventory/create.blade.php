@@ -12,7 +12,8 @@
         </div>
 
         <div class="max-w-2xl mx-auto bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
-            <form action="{{ route('admin.inventory.store') }}" method="POST">
+            <form action="{{ route('admin.inventory.store') }}" method="POST" enctype="multipart/form-data"
+                x-data="imagePreview()">
                 @csrf
                 <div class="p-6 sm:p-8 space-y-6">
                     <div>
@@ -43,6 +44,20 @@
                             <x-input-error :messages="$errors->get('color_number')" class="mt-2" />
                         </div>
                     </div>
+
+                    {{-- 画像入力欄とプレビュー --}}
+                    <div>
+                        <x-input-label for="image_path" value="画像" />
+                        <input type="file" id="image_path" name="image_path" @change="handleFileSelect"
+                            class="mt-2 block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 dark:text-gray-400 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-l-lg file:border-0 file:text-sm file:font-semibold file:bg-gray-200 dark:file:bg-gray-600 file:text-gray-700 dark:file:text-gray-200 hover:file:bg-gray-300 dark:hover:file:bg-gray-500">
+                        <div class="mt-1" x-show="previewUrl">
+                            <img :src="previewUrl"
+                                class="h-32 w-32 object-cover rounded-md border border-gray-200 dark:border-gray-600"
+                                alt="画像プレビュー">
+                        </div>
+                        <x-input-error :messages="$errors->get('image_path')" class="mt-2" />
+                    </div>
+
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
                         <div>
                             <x-input-label for="unit" value="単位" :required="true" />
@@ -56,9 +71,8 @@
                             <x-input-error :messages="$errors->get('quantity')" class="mt-2" />
                         </div>
                     </div>
-                    {{-- ★ 初期在庫総コスト入力欄を追加 --}}
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
 
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
                         <div>
                             <x-input-label for="total_cost" value="初期在庫総コスト (税抜など)" />
                             <x-text-input id="total_cost" name="total_cost" type="number" step="0.01"
@@ -106,3 +120,27 @@
         </div>
     </div>
 @endsection
+
+@push('scripts')
+    <script>
+        function imagePreview() {
+            return {
+                previewUrl: null,
+                handleFileSelect(event) {
+                    const file = event.target.files[0];
+                    if (file) {
+                        if (this.previewUrl) {
+                            URL.revokeObjectURL(this.previewUrl);
+                        }
+                        this.previewUrl = URL.createObjectURL(file);
+                    } else {
+                        if (this.previewUrl) {
+                            URL.revokeObjectURL(this.previewUrl);
+                        }
+                        this.previewUrl = null;
+                    }
+                }
+            }
+        }
+    </script>
+@endpush

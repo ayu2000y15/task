@@ -221,6 +221,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/board-post-types/update-order', [BoardPostTypeController::class, 'updateOrder'])->name('board-post-types.update-order');
 
         // フォームフィールド定義管理
+        Route::post('/form-definitions/{formFieldDefinition}/options', [FormFieldDefinitionController::class, 'updateOptions'])->name('form-definitions.updateOptions');
         Route::resource('form-definitions', FormFieldDefinitionController::class)
             ->parameters(['form-definitions' => 'formFieldDefinition'])
             ->except(['show']);

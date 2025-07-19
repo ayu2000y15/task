@@ -13,6 +13,7 @@ class InventoryItem extends Model
         'name',
         'product_number',
         'color_number',
+        'image_path',
         'description',
         'unit',
         'quantity',

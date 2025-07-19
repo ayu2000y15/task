@@ -19,7 +19,9 @@
                 </p>
             </div>
 
-            <form action="{{ route('admin.inventory.bulk-store') }}" method="POST" x-data="bulkInventoryForm()">
+            {{-- ★ ファイルアップロードのためにenctypeを追加 --}}
+            <form action="{{ route('admin.inventory.bulk-store') }}" method="POST" x-data="bulkInventoryForm()"
+                enctype="multipart/form-data">
                 @csrf
                 <div class="p-6 sm:p-8 space-y-6">
                     {{-- 共通情報 --}}
@@ -131,12 +133,28 @@
                                                 class="border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow-sm mt-1 block w-full"
                                                 x-model="variant.total_cost" min="0" placeholder="仕入れ値など" />
                                         </div>
+
+                                        {{-- ★ 画像アップロード欄とプレビュー --}}
+                                        <div class="col-span-3">
+                                            <label class="block font-medium text-sm text-gray-700 dark:text-gray-300"
+                                                x-bind:for="`variant_image_path_${index}`">画像</label>
+                                            <input type="file" x-bind:id="`variant_image_path_${index}`"
+                                                x-bind:name="`variants[${index}][image_path]`"
+                                                @change="handleFileSelect(index, $event)"
+                                                class="mt-2 block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 dark:text-gray-400 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-l-lg file:border-0 file:text-sm file:font-semibold file:bg-gray-200 dark:file:bg-gray-600 file:text-gray-700 dark:file:text-gray-200 hover:file:bg-gray-300 dark:hover:file:bg-gray-500">
+                                            {{-- 画像プレビュー --}}
+                                            <div class="mt-1" x-show="variant.image_preview_url">
+                                                <img :src="variant.image_preview_url"
+                                                    class="h-20 w-20 object-cover rounded-md border border-gray-200 dark:border-gray-600"
+                                                    alt="画像プレビュー">
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </template>
                         </div>
 
-                        <div class="mt-4 flex justify-between items-right mb-4">
+                        <div class="mt-4 flex justify-between items-center mb-4">
                             <x-secondary-button type="button" @click="addVariant()" x-show="variants.length < 20">
                                 <i class="fas fa-plus mr-2"></i>追加
                             </x-secondary-button>
@@ -174,24 +192,48 @@
     <script>
         function bulkInventoryForm() {
             return {
-                variants: {!! json_encode(old('variants', [
-        ['color_number' => '', 'quantity' => 0, 'total_cost' => 0]
-    ])) !!},
+                // ★ バリデーション失敗時も入力値を復元しつつ、プレビュー用のキーを追加
+                variants: {!! json_encode(collect(old('variants', [['color_number' => '', 'quantity' => 0, 'total_cost' => 0]]))
+        ->map(function ($variant) {
+            $variant['image_preview_url'] = null;
+            return $variant;
+        })) !!},
 
+                // ★ 新規バリエーションにプレビュー用のキーを追加
                 addVariant() {
                     if (this.variants.length < 20) {
                         this.variants.push({
-                            product_number: '',
                             color_number: '',
                             quantity: 0,
-                            total_cost: 0
+                            total_cost: 0,
+                            image_preview_url: null
                         });
                     }
                 },
 
+                // ★ 削除時にプレビューURLを解放
                 removeVariant(index) {
                     if (this.variants.length > 1) {
+                        if (this.variants[index].image_preview_url) {
+                            URL.revokeObjectURL(this.variants[index].image_preview_url);
+                        }
                         this.variants.splice(index, 1);
+                    }
+                },
+
+                // ★ ファイル選択をハンドルしてプレビューを生成する関数
+                handleFileSelect(index, event) {
+                    const file = event.target.files[0];
+                    if (file) {
+                        if (this.variants[index].image_preview_url) {
+                            URL.revokeObjectURL(this.variants[index].image_preview_url);
+                        }
+                        this.variants[index].image_preview_url = URL.createObjectURL(file);
+                    } else {
+                        if (this.variants[index].image_preview_url) {
+                            URL.revokeObjectURL(this.variants[index].image_preview_url);
+                        }
+                        this.variants[index].image_preview_url = null;
                     }
                 }
             }
