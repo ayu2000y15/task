@@ -121,9 +121,6 @@
                                 ID</th>
                             <th scope="col"
                                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                イメージ画像</th>
-                            <th scope="col"
-                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                                 品名 [品番/色番]</th>
                             <th scope="col"
                                 class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
@@ -193,18 +190,6 @@
                                             @endif
                                         </div>
                                     </div>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                                    <div class="font-medium text-gray-900 dark:text-white text-lg">
-                                        {{ $item->name }}
-                                        @if($item->product_number || $item->color_number)
-                                                <span class="text-xs">[ {{ $item->product_number ?? 'なし' }} / {{ $item->color_number ?? 'なし' }} ]</span>
-                                        @endif
-                                    </div>
-                                    @if($item->description)
-                                        <p class="text-xs inventory-table-subtext truncate" title="{{ $item->description }}">
-                                            {!! Str::limit(nl2br($item->description), 30) !!}</p>
-                                    @endif
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm inventory-table-text text-right">
                                     @php $decimals = ($item->unit === 'm' || $item->unit === 'M') ? 1 : 0; @endphp
