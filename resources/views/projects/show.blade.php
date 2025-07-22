@@ -72,6 +72,7 @@
 @section('content')
 <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8"
      id="project-show-main-container"
+     data-project-id="{{ $project->id }}"
      @keydown.escape.window="closeModal"
      @keydown.arrow-left.window="prevImage"
      @keydown.arrow-right.window="nextImage"
