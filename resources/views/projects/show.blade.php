@@ -295,7 +295,7 @@
                                     <div class="p-2 border rounded-md dark:border-gray-600">
                                         <p class="font-semibold text-gray-800 dark:text-gray-200">{{ $cost->name }}</p>
                                         <div class="mt-1 flex justify-between items-center text-xs">
-                                            <span class="text-gray-500 dark:text-gray-400">{{ $cost->character->name ?? '案件全体' }} / {{ $cost->type ?? '-' }}</span>
+                                            <span class="text-gray-500 dark:text-gray-400">{{ $cost->character->name ?? '案件全体' }} / {{ $cost->item_description ?? '-' }}</span>
                                             <span class="font-bold text-gray-700 dark:text-gray-200">¥{{ number_format($cost->amount) }}</span>
                                         </div>
                                     </div>
