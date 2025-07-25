@@ -95,65 +95,69 @@ class SalesCampaignMail extends Mailable implements ShouldQueue
      */
     public function content(): Content
     {
+        // 1. プレースホルダーを置換
         $personalizedHtmlContent = $this->personalizeContent($this->baseBodyHtml);
+        $modifiedHtml = $personalizedHtmlContent; // 変更後のHTMLを格納する変数を初期化
 
-        // --- クリックトラッキング用リンク書き換え処理 ---
-        $pattern = '/(?<!href="|src="|>)(https?:\/\/[^\s<]+)/i';
-        $replacement = '<a href="$1">$1</a>';
-        $personalizedHtmlContent = preg_replace($pattern, $replacement, $personalizedHtmlContent);
+        try {
+            // 2. DomCrawlerでHTMLをパース
+            $crawler = new Crawler($personalizedHtmlContent);
 
-        $crawler = new Crawler($personalizedHtmlContent);
-        $modifiedHtmlForLinks = $personalizedHtmlContent;
+            // 3. 本文中のテキストURLを<a>タグに変換する
+            // <a>や<style>タグの中は除外して処理する
+            $this->autolinkPlainTextUrls($crawler);
 
-        if ($crawler->filter('a')->count() > 0) {
-            $crawler->filter('a')->each(function (Crawler $node) {
-                $originalHref = $node->attr('href');
-                if (
-                    $originalHref &&
-                    !empty(trim($originalHref)) &&
-                    !Str::startsWith(strtolower(trim($originalHref)), ['mailto:', 'tel:', '#', 'javascript:']) &&
-                    !Str::contains($originalHref, url('/track/click')) && // 既にトラッキングURLでないか
-                    !Str::contains($originalHref, url('/track/open'))   // 開封トラッキングピクセルも除外
-                ) {
-                    $trackingUrl = route('track.click', [
-                        'identifier' => $this->messageIdentifier,
-                        'url' => $originalHref // 元のURLはエンコードせずに渡す (routeヘルパーが処理)
-                    ]);
-                    $node->getNode(0)->setAttribute('href', $trackingUrl);
-                }
-            });
-            // $this->baseBodyHtml が完全なHTMLドキュメントかフラグメントかで取得方法を調整
-            if (strpos(strtolower($personalizedHtmlContent), '<body') === false) {
-                $modifiedHtmlForLinks = $crawler->filter('body')->html(); // bodyタグの中身だけ取得
-            } else {
-                $modifiedHtmlForLinks = $crawler->html(); // 完全なHTMLとして取得
+            // 4.すべての<a>タグ(元からあったものと、上記で新規作成したもの両方)の
+            //    href属性をトラッキング用に書き換える
+            $links = $crawler->filter('a');
+            if ($links->count() > 0) {
+                $links->each(function (Crawler $node) {
+                    $originalHref = $node->attr('href');
+
+                    // トラッキング対象外のリンク（mailto:, tel: など）は除外
+                    if (
+                        $originalHref &&
+                        !empty(trim($originalHref)) &&
+                        !Str::of(trim($originalHref))->lower()->startsWith(['mailto:', 'tel:', '#', 'javascript:']) &&
+                        !Str::contains($originalHref, url('/track/click')) &&
+                        !Str::contains($originalHref, url('/track/open'))
+                    ) {
+                        $trackingUrl = route('track.click', [
+                            'identifier' => $this->messageIdentifier,
+                            'url' => $originalHref
+                        ]);
+                        $node->getNode(0)->setAttribute('href', $trackingUrl);
+                    }
+                });
             }
+
+            // 5. 変更が適用されたHTMLを安全に再生成
+            $modifiedHtml = $crawler->filter('body')->html();
+        } catch (\Exception $e) {
+            // パースエラーが発生した場合は、元のHTMLをそのまま使用し、エラーをログに記録
+            \Illuminate\Support\Facades\Log::error('SalesCampaignMail HTML processing failed: ' . $e->getMessage(), [
+                'sent_email_id' => $this->sentEmailRecordId,
+                'html' => Str::limit($personalizedHtmlContent, 300)
+            ]);
+            $modifiedHtml = $personalizedHtmlContent; // エラー時は変更前のHTMLに戻す
         }
-        // --- リンクの書き換え処理ここまで ---
+
 
         // 開封トラッキングピクセルを追加
         $trackingPixelUrl = route('track.open', ['identifier' => $this->messageIdentifier]);
         $trackingPixelHtml = "<img src=\"{$trackingPixelUrl}\" width=\"1\" height=\"1\" alt=\"\" style=\"border:0;height:1px;width:1px;position:absolute;left:-9999px;\" />";
 
-        // ▼▼▼ 配信停止リンクを追加 ▼▼▼
-        $unsubscribeUrl = route('unsubscribe.confirm', ['identifier' => $this->messageIdentifier]); // ★★★ routeの行き先を 'unsubscribe.confirm' に変更 ★★★
-        // シンプルなフッターの例
+        // 配信停止リンクを追加
+        $unsubscribeUrl = route('unsubscribe.confirm', ['identifier' => $this->messageIdentifier]);
         $unsubscribeHtml = "<br><br><p style=\"text-align:center;font-size:10px;color:#888888;margin-top:20px;\">";
         $unsubscribeHtml .= "このメールの配信停止をご希望の場合は、<a href=\"{$unsubscribeUrl}\" target=\"_blank\" style=\"color:#888888;text-decoration:underline;\">こちら</a>をクリックしてください。";
         $unsubscribeHtml .= "</p>";
-        // ▲▲▲ ここまで ▲▲▲
 
-        // 最終的なHTMLコンテンツ (本文 + 配信停止リンク + 開封トラッキングピクセル)
-        // 配信停止リンクは本文の最後、トラッキングピクセルはさらにその最後に配置するのが一般的
-        $finalHtmlContent = $modifiedHtmlForLinks . $unsubscribeHtml . $trackingPixelHtml;
-
-        // プレーンテキスト版も用意する場合は、そちらもパーソナライズ処理を行う
-        // $baseBodyText = ... (もしあれば)
-        // $personalizedTextContent = $this->personalizeContent($baseBodyText);
+        // 最終的なHTMLコンテンツを組み立て
+        $finalHtmlContent = $modifiedHtml . $unsubscribeHtml . $trackingPixelHtml;
 
         return new Content(
             htmlString: $finalHtmlContent,
-            // textString: $personalizedTextContent,
         );
     }
 
@@ -185,5 +189,46 @@ class SalesCampaignMail extends Mailable implements ShouldQueue
             $message->getHeaders()->addTextHeader('X-Mailer-Message-Identifier', $this->messageIdentifier);
         });
         return $this; // buildメソッドはMailableインスタンスを返す必要あり
+    }
+
+    /**
+     * DOM内のプレーンテキストURLを検索し、<a>タグに変換します。
+     *
+     * @param Crawler $crawler
+     */
+    private function autolinkPlainTextUrls(Crawler $crawler): void
+    {
+        // <a>, <style>, <script> タグ内ではないテキストノードをXPathで取得
+        $textNodes = $crawler->filterXPath('//text()[not(ancestor::a) and not(ancestor::style) and not(ancestor::script)]');
+
+        foreach ($textNodes as $node) {
+            // 正規表現でURLを検出
+            $pattern = '/(https?:\/\/[^\s<>"\'`]+[a-zA-Z0-9\/])/i';
+            $text = $node->nodeValue;
+
+            // テキストをURLとそれ以外の部分に分割
+            $parts = preg_split($pattern, $text, -1, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY);
+
+            // 分割後の要素が2つ以上あれば、URLが見つかったと判断
+            if (is_array($parts) && count($parts) > 1) {
+                $parentNode = $node->parentNode;
+                $doc = $node->ownerDocument;
+
+                foreach ($parts as $part) {
+                    // 部分がURLなら<a>タグを生成
+                    if (preg_match($pattern, $part)) {
+                        $link = $doc->createElement('a', $part);
+                        $link->setAttribute('href', $part);
+                        $parentNode->insertBefore($link, $node);
+                    } else {
+                        // URLでなければ、そのままテキストノードとして挿入
+                        $textNode = $doc->createTextNode($part);
+                        $parentNode->insertBefore($textNode, $node);
+                    }
+                }
+                // 元の結合されたテキストノードを削除
+                $parentNode->removeChild($node);
+            }
+        }
     }
 }
