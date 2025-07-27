@@ -55,6 +55,30 @@
             0%, 100% { transform: scale(1); }
             50% { transform: scale(1.05); }
         }
+        .image-modal {
+            transition: opacity 0.3s ease;
+        }
+        .modal-image {
+            transition: transform 0.3s ease;
+            transform: scale(0.95);
+        }
+        .image-modal.active .modal-image {
+            transform: scale(1);
+        }
+        .modal-nav-btn {
+            background-color: rgba(0, 0, 0, 0.4);
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s ease;
+            cursor: pointer;
+        }
+        .modal-nav-btn:hover {
+            background-color: rgba(0, 0, 0, 0.7);
+        }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -105,12 +129,12 @@
 
         {{-- フォーム --}}
         <div class="bg-white shadow-lg rounded-lg overflow-hidden">
-            <form method="POST" action="{{ route('external-form.confirm', $formCategory->slug) }}" enctype="multipart/form-data" class="p-8 space-y-6">                @csrf
+            <form method="POST" action="{{ route('external-form.confirm', $formCategory->slug) }}" enctype="multipart/form-data" class="p-8 space-y-6">
+                @csrf
 
                 {{-- 依頼基本情報 --}}
                 <div class="border-b border-gray-200 pb-8 mb-8">
                     <h2 class="text-xl font-semibold text-gray-900 mb-6">依頼基本情報</h2>
-
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {{-- お名前 --}}
                         <div class="form-group">
@@ -273,38 +297,37 @@
                                             $oldValues = old('custom_' . $field['name'], []);
                                         @endphp
 
-                                        @if($max<> 1)
+                                        @if($max <> 1)
                                             <p class="text-sm text-gray-600 mb-3">
                                                 <i class="fas fa-info-circle mr-1 text-blue-500"></i>
                                                 {{ $max }}つまで選択できます。
                                             </p>
                                         @endif
 
-                                        {{-- ↓ 変更箇所 --}}
                                         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 image-selector-container"
-                                            data-max-selections="{{ $max }}">
-                                        {{-- ↑ 変更箇所 --}}
+                                             data-max-selections="{{ $max }}"
+                                             data-field-name="custom_{{ $field['name'] }}">
                                             @if(!empty($options))
                                                 @foreach($options as $value => $imageUrl)
-                                                    {{-- ↓ 変更箇所 (onclickイベント内でスタイルを制御) --}}
                                                     <label for="custom_{{ $field['name'] }}_{{ $loop->index }}"
                                                         class="block border rounded-lg overflow-hidden transition-all duration-200 bg-white cursor-pointer">
 
                                                         <div class="bg-gray-100 dark:bg-gray-700 flex items-center justify-center p-2">
-                                                            <img src="{{ $imageUrl }}" alt="{{ $value }}" class="max-w-full h-40 object-contain">
+                                                            <img src="{{ $imageUrl }}" alt="{{ $value }}" class="max-w-full h-40 object-contain"
+                                                                 onclick="openImageModal('custom_{{ $field['name'] }}', {{ $loop->index }}, event)">
                                                         </div>
 
                                                         <div class="p-3 border-t dark:border-gray-700">
                                                             <div class="flex items-center">
+                                                                {{-- ▼▼▼ 修正点 1: value属性を追加 ▼▼▼ --}}
                                                                 <input type="checkbox"
                                                                     id="custom_{{ $field['name'] }}_{{ $loop->index }}"
                                                                     name="custom_{{ $field['name'] }}[]"
                                                                     value="{{ $value }}"
-                                                                    {{-- ↓ 変更箇所 --}}
                                                                     onclick="handleImageSelection(this)"
                                                                     class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                                                                     @if(is_array($oldValues) && in_array($value, $oldValues)) checked @endif>
-                                                                {{-- ↑ 変更箇所 --}}
+                                                                {{-- ▲▲▲ 修正点 1 ▲▲▲ --}}
                                                                 <span class="ml-2 block text-sm font-medium text-gray-800 " title="{{ $value }}">
                                                                     {{ $value }}
                                                                 </span>
@@ -314,7 +337,6 @@
                                                 @endforeach
                                             @endif
                                         </div>
-                                        {{-- エラーメッセージ表示用の要素は任意で設置してください --}}
                                         <div id="error-custom_{{ $field['name'] }}" class="mt-2 text-sm text-red-600"></div>
                                         @break
 
@@ -349,12 +371,9 @@
                                                class="file-input-hidden"
                                                onchange="handleFileSelection(this, {{ $field['type'] === 'file_multiple' ? 'true' : 'false' }})">
                                         @php
-                                            // ★ 修正: セッションから既存ファイル情報の配列を一度に取得します
                                             $existingFilesArray = old('existing_temp_files', session('existing_temp_files', []));
-                                            // ★ 修正: 現在のフィールドに対応するファイル情報を取り出します
                                             $currentFieldFiles = $existingFilesArray[$field['name']] ?? [];
                                         @endphp
-                                        {{-- 既存ファイル情報を保持するための隠しフィールド --}}
                                         <input type="hidden"
                                             name="existing_temp_files[{{ $field['name'] }}]"
                                             id="existing_files_hidden_{{ $field['name'] }}"
@@ -389,75 +408,59 @@
             <p>{{ config('app.name') }}</p>
         </div>
     </div>
+
+    <div id="image-modal" class="image-modal fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none" onclick="closeImageModal()">
+        <div class="relative w-full h-full flex items-center justify-center">
+            <button id="modal-prev" class="modal-nav-btn absolute left-4 top-1/2 -translate-y-1/2 z-20 text-white text-2xl" onclick="event.stopPropagation(); changeModalImage(-1);">&#10094;</button>
+
+            <div class="w-full h-full flex items-center justify-center" onclick="event.stopPropagation();">
+                <img id="modal-image" class="modal-image max-w-[90vw] max-h-[90vh] object-contain" src="" alt="拡大画像">
+            </div>
+
+            <button id="modal-next" class="modal-nav-btn absolute right-4 top-1/2 -translate-y-1/2 z-20 text-white text-2xl" onclick="event.stopPropagation(); changeModalImage(1);">&#10095;</button>
+
+            <button class="absolute top-4 right-4 text-white text-4xl z-20" onclick="event.stopPropagation(); closeImageModal();">&times;</button>
+        </div>
+    </div>
+
 <script>
-    // 選択順序をグローバルに管理するオブジェクト（idを格納）
     const selectionOrder = {};
 
     // -------------------------------------------------------------------------
     // 画像選択フィールド（image_select）の制御ロジック
     // -------------------------------------------------------------------------
-
-    /**
-     * 画像選択のクリックを処理し、選択数を制御する関数
-     * @param {HTMLInputElement} checkbox - クリックされたチェックボックス要素
-     */
     function handleImageSelection(checkbox) {
         const container = checkbox.closest('.image-selector-container');
         if (!container) return;
-
         const maxSelections = parseInt(container.dataset.maxSelections, 10);
-        // 上限設定がない場合は、スタイル更新のみで処理を終了
         if (!maxSelections) {
             updateImageSelectionStates(container);
             return;
         }
-
         const fieldName = checkbox.name.replace(/\[\]$/, '');
         if (!selectionOrder[fieldName]) {
             selectionOrder[fieldName] = [];
         }
         let order = selectionOrder[fieldName];
         const currentId = checkbox.id;
-
-        // チェックボックスがチェックされた（選択が追加された）場合
         if (checkbox.checked) {
-            // 選択された項目のidを順序リストの末尾に追加
             order.push(currentId);
-
-            // リストの長さが上限を超えた場合
             if (order.length > maxSelections) {
-                // 最も古い選択（リストの先頭）のidを取得してリストから削除
                 const idToUncheck = order.shift();
-
-                // idを使って対応するチェックボックスを確実に見つけ、チェックを外す
                 const checkboxToUncheck = document.getElementById(idToUncheck);
                 if (checkboxToUncheck) {
                     checkboxToUncheck.checked = false;
                 }
             }
         } else {
-            // チェックが外された場合、順序リストからそのidを削除
             selectionOrder[fieldName] = order.filter(id => id !== currentId);
         }
-
-        // 全てのチェックボックスの見た目を最新の状態に更新
         updateImageSelectionStates(container);
     }
-
-    /**
-     * 【重要修正点】コンテナ内のすべてのチェックボックスのスタイルを更新する
-     * disabled（無効化）処理を完全に削除し、スタイル更新のみに専念させます。
-     * @param {HTMLElement} container - .image-selector-container要素
-     */
     function updateImageSelectionStates(container) {
         const allCheckboxes = container.querySelectorAll('input[type=checkbox]');
-
         allCheckboxes.forEach(cb => {
             const label = cb.closest('label');
-
-            // ★★★ 修正点： disabled（無効化）に関するロジックを完全に削除 ★★★
-
-            // 選択中のスタイルを適用
             if (cb.checked) {
                 label.classList.add('ring-2', 'ring-blue-500', 'border-blue-500', 'shadow-md');
             } else {
@@ -467,25 +470,94 @@
     }
 
     // -------------------------------------------------------------------------
-    // ファイルアップロードフィールド（file, file_multiple）の制御ロジック
+    // 画像拡大モーダルの制御ロジック
     // -------------------------------------------------------------------------
-
-    // グローバル変数として、選択されたファイルをフィールドごとに管理します
-    const selectedFiles = {};
+    let modalImages = [];
+    let currentModalIndex = 0;
+    const modalElement = document.getElementById('image-modal');
+    const modalImageElement = document.getElementById('modal-image');
 
     /**
-     * ドラッグ＆ドロップのイベントハンドラ
+     * 画像拡大モーダルを開く
+     * @param {string} fieldName - 'custom_xxxx' の形式のフィールド名
+     * @param {number} initialIndex - クリックされた画像のインデックス
+     * @param {Event} event - クリックイベントオブジェクト
      */
-    function handleDragOver(event) {
-        event.preventDefault();
-        event.currentTarget.classList.add('dragover');
+    function openImageModal(fieldName, initialIndex, event) {
+        event.stopPropagation();
+        // ▼▼▼ 修正点 2: event.preventDefault() を削除 ▼▼▼
+        // event.preventDefault();
+        // ▲▲▲ 修正点 2 ▲▲▲
+
+        const container = document.querySelector(`.image-selector-container[data-field-name="${fieldName}"]`);
+        const imageElements = container.querySelectorAll('img');
+        modalImages = Array.from(imageElements).map(img => img.src);
+
+        currentModalIndex = initialIndex;
+        updateModalImage();
+
+        modalElement.classList.remove('opacity-0', 'pointer-events-none');
+        modalElement.classList.add('active');
+        document.body.style.overflow = 'hidden';
+
+        document.addEventListener('keydown', handleModalKeyPress);
     }
 
-    function handleDragLeave(event) {
-        event.preventDefault();
-        event.currentTarget.classList.remove('dragover');
+    /**
+     * モーダルを閉じる
+     */
+    function closeImageModal() {
+        modalElement.classList.add('opacity-0', 'pointer-events-none');
+        modalElement.classList.remove('active');
+        document.body.style.overflow = 'auto';
+        document.removeEventListener('keydown', handleModalKeyPress);
     }
 
+    /**
+     * モーダル内の画像を更新する
+     */
+    function updateModalImage() {
+        if (modalImages.length > 0) {
+            modalImageElement.src = modalImages[currentModalIndex];
+        }
+    }
+
+    /**
+     * 表示する画像を切り替える
+     * @param {number} direction - 1 (次へ) または -1 (前へ)
+     */
+    function changeModalImage(direction) {
+        const newIndex = currentModalIndex + direction;
+        if (newIndex >= modalImages.length) {
+            currentModalIndex = 0; // 最後から最初へループ
+        } else if (newIndex < 0) {
+            currentModalIndex = modalImages.length - 1; // 最初から最後へループ
+        } else {
+            currentModalIndex = newIndex;
+        }
+        updateModalImage();
+    }
+
+    /**
+     * キーボード操作（左右矢印、ESC）を処理する
+     */
+    function handleModalKeyPress(e) {
+        if (e.key === 'ArrowRight') {
+            changeModalImage(1);
+        } else if (e.key === 'ArrowLeft') {
+            changeModalImage(-1);
+        } else if (e.key === 'Escape') {
+            closeImageModal();
+        }
+    }
+
+
+    // -------------------------------------------------------------------------
+    // ファイルアップロードフィールド（file, file_multiple）の制御ロジック
+    // -------------------------------------------------------------------------
+    const selectedFiles = {};
+    function handleDragOver(event) { event.preventDefault(); event.currentTarget.classList.add('dragover'); }
+    function handleDragLeave(event) { event.preventDefault(); event.currentTarget.classList.remove('dragover'); }
     function handleDrop(event, inputId) {
         event.preventDefault();
         event.currentTarget.classList.remove('dragover');
@@ -494,59 +566,33 @@
         input.files = files;
         handleFileSelection(input, input.multiple);
     }
-
-    /**
-     * ファイルが選択された（またはドロップされた）時のメイン処理
-     */
     function handleFileSelection(input, multiple) {
         const inputId = input.id;
-        if (!selectedFiles[inputId]) {
-            selectedFiles[inputId] = [];
-        }
-
+        if (!selectedFiles[inputId]) { selectedFiles[inputId] = []; }
         const newFiles = Array.from(input.files);
         const existingFileNames = selectedFiles[inputId].map(f => f.name || f.original_name);
-
         newFiles.forEach(file => {
             if (!existingFileNames.includes(file.name)) {
                 selectedFiles[inputId].push(file);
             }
         });
-
         syncInputFiles(inputId);
         displayFilePreview(inputId);
     }
-
-    /**
-     * ファイルを削除する処理
-     */
     function removeFile(inputId, fileIndex) {
         if (!selectedFiles[inputId] || !selectedFiles[inputId][fileIndex]) return;
-
         selectedFiles[inputId].splice(fileIndex, 1);
-
         updateHiddenInput(inputId);
         syncInputFiles(inputId);
         displayFilePreview(inputId);
     }
-
-    /**
-     * selectedFiles（マスターリスト）の状態を実際の<input type="file">に反映させる関数
-     */
     function syncInputFiles(inputId) {
         const input = document.getElementById(inputId);
         const dt = new DataTransfer();
         const clientSideFiles = selectedFiles[inputId].filter(file => file instanceof File);
-
-        clientSideFiles.forEach(file => {
-            dt.items.add(file);
-        });
+        clientSideFiles.forEach(file => { dt.items.add(file); });
         input.files = dt.files;
     }
-
-    /**
-     * サーバー由来のファイル情報を保持する隠しフィールドを更新する関数
-     */
     function updateHiddenInput(inputId) {
         const fieldName = inputId.replace('custom_', '');
         const hiddenInput = document.getElementById(`existing_files_hidden_${fieldName}`);
@@ -555,66 +601,33 @@
             hiddenInput.value = JSON.stringify(serverFiles);
         }
     }
-
-    /**
-     * ファイルプレビューを描画する関数
-     */
     function displayFilePreview(inputId) {
         const previewContainer = document.getElementById('preview_' + inputId);
-        previewContainer.innerHTML = ''; // プレビューを一旦クリア
-
+        previewContainer.innerHTML = '';
         const files = selectedFiles[inputId];
         if (!files || files.length === 0) return;
-
         files.forEach((file, index) => {
             const fileName = file.name || file.original_name;
             const fileSize = file.size;
             const sizeKB = fileSize ? (fileSize / 1024).toFixed(2) : 'N/A';
             const fileType = file.type || file.mime_type || 'application/octet-stream';
-
             const previewItemWrapper = document.createElement('div');
             previewItemWrapper.className = 'file-preview-item';
-
-            let innerHTML = '';
+            let innerHTML = `<div class='flex items-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 mb-2'>`;
             const src = (file instanceof File) ? URL.createObjectURL(file) : (file.preview_src || '');
-
-            innerHTML = `
-                <div class='flex items-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 mb-2'>
-            `;
-
             if (fileType.startsWith('image/') && src) {
-                innerHTML += `
-                    <img src="${src}" alt="プレビュー" class="w-16 h-16 object-cover rounded-md mr-4" ${(file instanceof File) ? 'onload="URL.revokeObjectURL(this.src)"' : ''}>
-                `;
+                innerHTML += `<img src="${src}" alt="プレビュー" class="w-16 h-16 object-cover rounded-md mr-4" ${(file instanceof File) ? 'onload="URL.revokeObjectURL(this.src)"' : ''}>`;
             } else {
                 let icon = 'fa-file-alt';
                 if (fileType.includes('pdf')) { icon = 'fa-file-pdf'; }
                 else if (fileType.includes('word')) { icon = 'fa-file-word'; }
                 else if (fileType.includes('excel')) { icon = 'fa-file-excel'; }
                 else if (fileType.includes('zip')) { icon = 'fa-file-archive'; }
-                innerHTML += `
-                    <div class="w-16 h-16 bg-gray-200 dark:bg-gray-600 rounded-md flex items-center justify-center mr-4 flex-shrink-0">
-                        <i class="fas ${icon} text-3xl text-gray-500 dark:text-gray-400"></i>
-                    </div>
-                `;
+                innerHTML += `<div class="w-16 h-16 bg-gray-200 dark:bg-gray-600 rounded-md flex items-center justify-center mr-4 flex-shrink-0"><i class="fas ${icon} text-3xl text-gray-500 dark:text-gray-400"></i></div>`;
             }
-
-            innerHTML += `
-                <div class="flex-grow min-w-0">
-                    <p class="font-medium truncate">${fileName}</p>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">${sizeKB} KB</p>
-                </div>
-            `;
-
-            innerHTML += `
-                <button type='button' onclick='removeFile("${inputId}", ${index})'
-                        class='delete-file-btn bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition-all shadow-md ml-3 flex-shrink-0 text-base'>
-                    ×
-                </button>
-            `;
-
+            innerHTML += `<div class="flex-grow min-w-0"><p class="font-medium truncate">${fileName}</p><p class="text-xs text-gray-500 dark:text-gray-400">${sizeKB} KB</p></div>`;
+            innerHTML += `<button type='button' onclick='removeFile("${inputId}", ${index})' class='delete-file-btn bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition-all shadow-md ml-3 flex-shrink-0 text-base'>×</button>`;
             innerHTML += `</div>`;
-
             previewItemWrapper.innerHTML = innerHTML;
             previewContainer.appendChild(previewItemWrapper);
         });
@@ -624,34 +637,24 @@
      * ページ読み込み完了時に、各種フィールドの初期状態をセットアップする
      */
     document.addEventListener('DOMContentLoaded', () => {
-        // [画像選択] フィールドの初期状態を反映
         const imageContainers = document.querySelectorAll('.image-selector-container');
         imageContainers.forEach(container => {
             const firstInput = container.querySelector('input[type=checkbox]');
             if (!firstInput) return;
-
             const fieldName = firstInput.name.replace(/\[\]$/, '');
-            // 選択順序リストを初期化
             selectionOrder[fieldName] = [];
-
-            // ページ読み込み時にチェック済みのもののidを順序リストに追加
             const checkedInputs = container.querySelectorAll('input[type=checkbox]:checked');
             checkedInputs.forEach(cb => {
                 selectionOrder[fieldName].push(cb.id);
             });
-
-            // 全体のスタイルを更新
             updateImageSelectionStates(container);
         });
-
-        // [ファイル] フィールドで、サーバーから渡された既存ファイルを復元
         const hiddenFileInputs = document.querySelectorAll('input[type="hidden"][name^="existing_temp_files"]');
         hiddenFileInputs.forEach(input => {
             try {
                 const fieldName = input.name.match(/\[(.*?)\]/)[1];
                 const inputId = `custom_${fieldName}`;
                 const existingFilesData = JSON.parse(input.value);
-
                 if (Array.isArray(existingFilesData) && existingFilesData.length > 0) {
                     selectedFiles[inputId] = [].concat(existingFilesData);
                     displayFilePreview(inputId);
