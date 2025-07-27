@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Storage; // ★ 追加
 use App\Models\InventoryItem;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Str;
 
 class FormFieldDefinitionController extends Controller
 {
@@ -283,6 +285,7 @@ class FormFieldDefinitionController extends Controller
             'label' => 'required|string|max:255',
             'type' => ['required', 'string', Rule::in(array_keys(FormFieldDefinition::FIELD_TYPES))],
             'placeholder' => 'nullable|string|max:255',
+            'help_text' => 'nullable|string',
             'is_required' => 'boolean',
             'is_inventory_linked' => 'boolean',
             'order' => 'nullable|integer',
@@ -462,6 +465,41 @@ class FormFieldDefinitionController extends Controller
             DB::rollBack();
             // エラーメッセージをそのままフロントエンドに返す
             return response()->json(['success' => false, 'message' => '更新中にエラーが発生しました: ' . $e->getMessage()], 500);
+        }
+    }
+    /**
+     * CKEditorからの画像アップロードを処理する
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    /**
+     * CKEditor用の画像アップロード (実績のあるコードを反映)
+     */
+    public function uploadImage(Request $request): JsonResponse
+    {
+        try {
+            $request->validate([
+                'upload' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:2048', // 最大2MB
+            ]);
+
+            $file = $request->file('upload');
+            $fileName = time() . '_' . Str::random(10) . '.' . $file->getClientOriginalExtension();
+            $filePath = $file->storeAs('help_text_images', $fileName, 'public');
+            $url = asset('storage/' . $filePath);
+
+            // 動作実績のあるプロジェクトの応答形式に合わせる
+            return response()->json([
+                'uploaded' => true,
+                'url' => $url,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'uploaded' => false,
+                'error' => [
+                    'message' => '画像のアップロードに失敗しました: ' . $e->getMessage()
+                ]
+            ], 500);
         }
     }
 }

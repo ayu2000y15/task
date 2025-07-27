@@ -221,12 +221,12 @@ Route::middleware('auth')->group(function () {
         Route::post('/board-post-types/update-order', [BoardPostTypeController::class, 'updateOrder'])->name('board-post-types.update-order');
 
         // フォームフィールド定義管理
+        Route::post('/form-definitions/reorder', [FormFieldDefinitionController::class, 'reorder'])->name('form-definitions.reorder');
+        Route::post('/form-definitions/upload-image', [FormFieldDefinitionController::class, 'uploadImage'])->name('form-definitions.uploadImage');
         Route::post('/form-definitions/{formFieldDefinition}/options', [FormFieldDefinitionController::class, 'updateOptions'])->name('form-definitions.updateOptions');
         Route::resource('form-definitions', FormFieldDefinitionController::class)
             ->parameters(['form-definitions' => 'formFieldDefinition'])
             ->except(['show']);
-        Route::post('/form-definitions/reorder', [FormFieldDefinitionController::class, 'reorder'])->name('form-definitions.reorder');
-
         // フォームカテゴリ管理
         Route::resource('form-categories', FormCategoryController::class)
             ->parameters(['form-categories' => 'formCategory']);

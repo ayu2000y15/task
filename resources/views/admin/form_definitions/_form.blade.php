@@ -51,6 +51,15 @@
             </div>
         </div>
 
+        <div class="md:col-span-2">
+            <x-input-label for="description_editor" value="説明" />
+            <div class="mt-1">
+                <textarea id="description_editor"
+                    name="help_text">{{ old('help_text', $formFieldDefinition->help_text ?? '') }}</textarea>
+            </div>
+            <x-input-error :messages="$errors->get('help_text')" class="mt-2" />
+        </div>
+
         {{-- ★★★ 新しいオプション管理UI ★★★ --}}
         <div class="md:col-span-2" x-show="['select', 'radio', 'checkbox', 'image_select'].includes(fieldType)" x-data="optionsManager({
                 initialOptions: {{ json_encode(old('options', $formFieldDefinition->options ?? [])) }},
@@ -191,6 +200,80 @@
 </div>
 
 @push('scripts')
+    {{-- CKEditorの「Classic」ビルドを読み込みます --}}
+    <script src="https://cdn.ckeditor.com/ckeditor5/41.4.2/classic/ckeditor.js"></script>
+
+    {{-- 動作実績のあるプロジェクトから移植した画像アップロード用アダプター --}}
+    <script>
+        class SimpleUploadAdapter {
+            constructor(loader) {
+                this.loader = loader;
+            }
+            upload() {
+                return this.loader.file.then(file => new Promise((resolve, reject) => {
+                    const data = new FormData();
+                    data.append('upload', file);
+                    // CSRFトークンはヘッダーで送信
+                    fetch('{{ route("admin.form-definitions.uploadImage") }}', {
+                        method: 'POST',
+                        body: data,
+                        headers: {
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                        }
+                    })
+                        .then(response => response.json())
+                        .then(result => {
+                            // コントローラーからの応答形式に合わせて修正
+                            if (result.uploaded) {
+                                resolve({
+                                    default: result.url
+                                });
+                            } else {
+                                // エラーメッセージがある場合はそれを表示
+                                const message = result.error && result.error.message ? result.error.message : 'アップロードに失敗しました。';
+                                reject(message);
+                            }
+                        })
+                        .catch(error => {
+                            reject('通信エラーによりアップロードに失敗しました。');
+                        });
+                }));
+            }
+            abort() {
+                // この機能は通常不要です
+            }
+        }
+
+        function SimpleUploadAdapterPlugin(editor) {
+            editor.plugins.get('FileRepository').createUploadAdapter = (loader) => {
+                return new SimpleUploadAdapter(loader);
+            };
+        }
+    </script>
+
+    {{-- CKEditorの初期化スクリプト --}}
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // ClassicEditorを直接呼び出します
+            ClassicEditor
+                .create(document.querySelector('#description_editor'), {
+                    // 自作のアダプターをプラグインとして読み込みます
+                    extraPlugins: [SimpleUploadAdapterPlugin],
+                    language: 'ja',
+                    toolbar: {
+                        items: [
+                            'bold',
+                            'italic',
+                            '|',
+                            'imageUpload'
+                        ]
+                    }
+                })
+                .catch(error => {
+                    console.error('CKEditor初期化エラー:', error);
+                });
+        });
+    </script>
     <script>
         document.addEventListener('alpine:init', () => {
             Alpine.data('optionsManager', (config) => ({

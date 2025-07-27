@@ -18,6 +18,7 @@ class FormFieldDefinition extends Model
         'type',
         'options',
         'placeholder',
+        'help_text',
         'is_required',
         'order',
         'max_length',
