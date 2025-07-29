@@ -40,6 +40,31 @@
     );
 @endphp
 
+<style>
+    .help-text-content {
+            line-height: 1.4;
+        }
+        .help-text-content p {
+            margin-bottom: 0.5rem;
+        }
+        .help-text-content img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 0.5rem;
+            margin-top: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .help-text-content a {
+            color: #3b82f6; /* text-blue-600 */
+            text-decoration: underline;
+        }
+        .help-text-content img {
+            height: 200px;            /* ★ここで高さを指定します。200pxの部分は好きな値に変更してください */
+            width: 100%;              /* 横幅を親要素いっぱいに広げます */
+            object-fit: contain;        /* 画像の比率を保ちつつ、指定範囲を埋めるように調整（はみ出た部分はトリミング） */
+            background-color: #f3f4f6; /* 画像が読み込まれるまでの背景色（任意） */
+        }
+</style>
 {{-- 全体をdivで囲み、フィールドタイプに応じてclassを付与 --}}
 <div class="form-field-group field-type-{{ $fieldType }}">
 
@@ -49,8 +74,10 @@
     @endif
 
     {{-- ヘルプテキスト --}}
-    @if(!empty($field['help_text']))
-        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ $field['help_text'] }}</p>
+    @if($field['help_text'])
+        <div class="text-xs text-gray-600 mb-3 p-3 bg-gray-50 border border-gray-200 rounded-md help-text-content">
+            {!! $field['help_text'] !!}
+        </div>
     @endif
 
     {{-- 入力フィールド本体 --}}

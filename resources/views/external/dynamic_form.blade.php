@@ -81,7 +81,7 @@
         }
         /* ↓↓ 説明文用のスタイルを追加 ↓↓ */
         .help-text-content {
-            line-height: 1.6;
+            line-height: 1.4;
         }
         .help-text-content p {
             margin-bottom: 0.5rem;
