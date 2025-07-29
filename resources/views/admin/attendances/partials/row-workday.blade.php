@@ -43,12 +43,15 @@
             {{ $session['end_time'] ? format_seconds_to_hms($session['detention_seconds']) : '-' }}
         </td>
         <td class="px-2 py-3 font-mono text-sm">{{ format_seconds_to_hms($session['break_seconds']) }}</td>
-        {{-- 実働時間 (WorkLogの合計) --}}
-        <td class="px-2 py-3 font-mono text-sm font-semibold">{{ format_seconds_to_hms($session['actual_work_seconds']) }}
-        </td>
         {{-- 支払対象時間 (拘束時間 - 休憩等) --}}
         <td class="px-2 py-3 font-mono text-sm font-bold text-blue-600 dark:text-blue-400">
-            {{ format_seconds_to_hms($session['payable_work_seconds']) }}</td>
+            {{ format_seconds_to_hms($session['payable_work_seconds']) }}
+        </td>
+        {{-- 実働時間 (WorkLogの合計) --}}
+        <td class="px-2 py-3 font-mono text-sm font-semibold text-green-600 dark:text-green-400">
+            {{ format_seconds_to_hms($session['actual_work_seconds']) }}
+        </td>
+
         <td class="px-2 py-3 font-mono text-sm">
             @if(is_null($session['end_time']))
                 <span class="text-xs font-semibold text-yellow-600 dark:text-yellow-400"

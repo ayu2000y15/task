@@ -8,9 +8,9 @@
 
 @section('content')
     <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8" x-data="{
-        filtersOpen: {{ count(array_filter(request()->except(['page', 'sort', 'direction', 'month']))) > 0 ? 'true' : 'false' }},
-        rateFormOpen: false
-        }">
+                filtersOpen: {{ count(array_filter(request()->except(['page', 'sort', 'direction', 'month']))) > 0 ? 'true' : 'false' }},
+                rateFormOpen: false
+                }">
 
         <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
             <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-200">作業実績一覧 (管理者用)</h1>
@@ -250,6 +250,9 @@
                             <tr>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
                                     {{ $log->user->name }}
+                                    @if($log->is_manually_edited)
+                                        <i class="fas fa-pencil-alt text-xs text-orange-500 ml-1" title="手動修正済み"></i>
+                                    @endif
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                                     {{ $log->task->project->title ?? '-' }}
@@ -261,10 +264,10 @@
                                     {{ $log->task->name ?? '-' }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                    {{ $log->start_time->format('m/d H:i:s') }}
+                                    {{ optional($log->display_start_time)->format('m/d H:i:s') }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                    {{ optional($log->end_time)->format('m/d H:i:s') }}
+                                    {{ optional($log->display_end_time)->format('m/d H:i:s') }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                                     {{ format_seconds_to_hms($log->effective_duration) }}

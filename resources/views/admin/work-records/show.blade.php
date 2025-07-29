@@ -126,11 +126,18 @@
                                                 <tbody>
                                                     @foreach($day['logs'] as $log)
                                                         <tr class="border-b dark:border-gray-600">
-                                                            <td class="py-2 px-3">{{ $log->task->project->title ?? '-' }}</td>
+                                                            <td class="py-2 px-3">
+                                                                {{ $log->task->project->title ?? '-' }}
+                                                                @if($log->is_manually_edited)
+                                                                    <i class="fas fa-pencil-alt text-xs text-orange-500 ml-1" title="手動修正済み"></i>
+                                                                @endif
+                                                            </td>
                                                             <td class="py-2 px-3">{{ $log->task->name ?? '-' }}</td>
                                                             <td class="py-2 px-3">{{ $log->start_time->format('H:i') }}</td>
-                                                            <td class="py-2 px-3">{{ $log->end_time->format('H:i') }}</td>
-                                                            <td class="py-2 px-3">{{ format_seconds_to_hms($log->effective_duration) }}</td>
+                                                            <td class="py-2 px-3">{{ optional($log->end_time)->format('H:i') }}</td>
+                                                            <td class="py-2 px-3">
+                                                                {{ format_seconds_to_hms($log->effective_duration) }}
+                                                            </td>
                                                         </tr>
                                                     @endforeach
                                                 </tbody>

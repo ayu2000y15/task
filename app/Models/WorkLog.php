@@ -26,6 +26,9 @@ class WorkLog extends Model
         'end_time',
         'status',
         'memo',
+        'is_manually_edited',
+        'edited_start_time',
+        'edited_end_time',
     ];
 
     /**
@@ -34,6 +37,9 @@ class WorkLog extends Model
     protected $casts = [
         'start_time' => 'datetime',
         'end_time'   => 'datetime',
+        'is_manually_edited' => 'boolean',
+        'edited_start_time'  => 'datetime',
+        'edited_end_time'    => 'datetime',
     ];
 
     protected $appends = ['effective_duration'];
@@ -49,16 +55,37 @@ class WorkLog extends Model
     }
 
     /**
+     * 表示用の開始時刻を取得するアクセサ
+     */
+    public function getDisplayStartTimeAttribute(): ?Carbon
+    {
+        return $this->is_manually_edited ? $this->edited_start_time : $this->start_time;
+    }
+
+    /**
+     * 表示用の終了時刻を取得するアクセサ
+     */
+    public function getDisplayEndTimeAttribute(): ?Carbon
+    {
+        return $this->is_manually_edited ? $this->edited_end_time : $this->end_time;
+    }
+
+    /**
      * 実働時間を計算する (秒単位)
      * 計算ロジックを単純化
      */
     public function getEffectiveDurationAttribute(): int
     {
-        if (!$this->start_time || !$this->end_time) {
+        // display_start_time と display_end_time を使うことで、
+        // 手動修正されているかどうかを自動的に判定します。
+        $startTime = $this->display_start_time;
+        $endTime = $this->display_end_time;
+
+        if (!$startTime || !$endTime) {
             return 0;
         }
-        // 単純に終了時間と開始時間の差を返す
-        return $this->start_time->diffInSeconds($this->end_time);
+
+        return $startTime->diffInSeconds($endTime);
     }
 
     // アクティビティログのオプション設定

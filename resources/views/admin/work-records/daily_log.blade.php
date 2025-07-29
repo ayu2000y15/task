@@ -172,14 +172,18 @@
                                                             </thead>
                                                             <tbody>
                                                                 @foreach ($task['logs'] as $log)
-                                                                    <tr
-                                                                        class="border-b border-gray-200 dark:border-gray-600/50 last:border-b-0">
-                                                                        <td class="py-2 px-3">{{ $log->user->name }}</td>
-                                                                        <td class="py-2 px-3">{{ $log->start_time->format('n/j H:i:s') }}</td>
-                                                                        <td class="py-2 px-3">{{ optional($log->end_time)->format('n/j H:i:s') }}
+                                                                    <tr class="border-b border-gray-200 dark:border-gray-600/50 last:border-b-0">
+                                                                        <td class="py-2 px-3">
+                                                                            {{ $log->user->name }}
+                                                                            @if($log->is_manually_edited)
+                                                                                <i class="fas fa-pencil-alt text-xs text-orange-500 ml-1" title="手動修正済み"></i>
+                                                                            @endif
                                                                         </td>
+                                                                        <td class="py-2 px-3">{{ $log->start_time_formatted }}</td>
+                                                                        <td class="py-2 px-3">{{ $log->end_time_formatted }}</td>
                                                                         <td class="py-2 px-3 font-mono text-right">
-                                                                            {{ format_seconds_to_hms($log->effective_duration) }}</td>
+                                                                            {{ format_seconds_to_hms($log->effective_duration) }}
+                                                                        </td>
                                                                     </tr>
                                                                 @endforeach
                                                             </tbody>

@@ -4,6 +4,7 @@ import "./bootstrap";
 import Alpine from "alpinejs";
 import collapse from "@alpinejs/collapse";
 import Sortable from "sortablejs";
+import focus from "@alpinejs/focus";
 
 // 他のAlpine.jsプラグインや案件依頼ストアがあればここに
 
@@ -16,6 +17,7 @@ window.TomSelect = TomSelect;
 
 window.Alpine = Alpine;
 Alpine.plugin(collapse);
+Alpine.plugin(focus);
 Alpine.start();
 
 // Global features

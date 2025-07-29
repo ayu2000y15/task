@@ -226,5 +226,4 @@ class WorkLogController extends Controller
 
         return $newLog;
     }
-    // ▲▲▲【追加ここまで】▲▲▲
 }

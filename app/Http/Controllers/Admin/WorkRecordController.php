@@ -23,41 +23,35 @@ class WorkRecordController extends Controller
     {
         $this->authorize('viewAny', WorkLog::class);
 
-        $targetMonth = $request->has('month') ? Carbon::parse($request->input('month')) : Carbon::now();
+        // 手動修正を考慮した動的なカラムを定義
+        $startTimeSql = "IF(work_logs.is_manually_edited, work_logs.edited_start_time, work_logs.start_time)";
+        $endTimeSql = "IF(work_logs.is_manually_edited, work_logs.edited_end_time, work_logs.end_time)";
+        $durationSql = "TIMESTAMPDIFF(SECOND, $startTimeSql, $endTimeSql)";
 
-        $summaryDateStrings = [
-            // 表示用の文字列を動的に生成
-            'month' => $targetMonth->format('Y年n月'),
-        ];
-        // 指定された月のサマリーを計算
-        $monthSummary = $this->calculateMonthlyAttendanceSummary($targetMonth);
-
-        // ソート可能な列を定義
+        // ソート可能な列の定義を修正
         $sortableColumns = [
             'user' => 'users.name',
             'project' => 'projects.title',
             'character' => 'characters.name',
             'task' => 'tasks.name',
-            'start_time' => 'work_logs.start_time',
-            'end_time' => 'work_logs.end_time',
-            'duration' => DB::raw('TIMESTAMPDIFF(SECOND, work_logs.start_time, work_logs.end_time)'),
-            'salary' => 'calculated_salary', // 計算済みの給与カラム名に変更
+            'start_time' => DB::raw($startTimeSql),
+            'end_time' => DB::raw($endTimeSql),
+            'duration' => DB::raw($durationSql),
+            'salary' => 'calculated_salary',
         ];
 
-        // リクエストからソート情報を取得（デフォルトは開始日時の降順）
         $sort = $request->query('sort', 'start_time');
         $direction = $request->query('direction', 'desc');
 
-        // 不正な列名でのソートを防ぐ
         if (!array_key_exists($sort, $sortableColumns)) {
             $sort = 'start_time';
             $direction = 'desc';
         }
 
-        // 各作業ログの開始時刻に対応する時給を取得するためのサブクエリ
+        // 時給取得用のサブクエリ
         $rateSubQuery = HourlyRate::select('rate')
             ->whereColumn('user_id', 'users.id')
-            ->where('effective_date', '<=', DB::raw('date(work_logs.start_time)'))
+            ->where('effective_date', '<=', DB::raw("date($startTimeSql)"))
             ->orderBy('effective_date', 'desc')
             ->limit(1);
 
@@ -66,14 +60,13 @@ class WorkRecordController extends Controller
             ->join('tasks', 'work_logs.task_id', '=', 'tasks.id')
             ->leftJoin('projects', 'tasks.project_id', '=', 'projects.id')
             ->leftJoin('characters', 'tasks.character_id', '=', 'characters.id')
-            // selectにサブクエリを追加して時給と給与を動的に計算
-            ->select('work_logs.*')
+            ->select('work_logs.*') // work_logsの全カラムを選択
             ->selectSub($rateSubQuery, 'current_rate')
-            ->selectRaw('(TIMESTAMPDIFF(SECOND, work_logs.start_time, work_logs.end_time) / 3600 * (' . $rateSubQuery->toSql() . ')) as calculated_salary')
-            ->mergeBindings($rateSubQuery->getQuery()) // toSql()で失われるバインディングをマージ
+            ->selectRaw("($durationSql / 3600 * (COALESCE(({$rateSubQuery->toSql()}), 0))) as calculated_salary")
+            ->mergeBindings($rateSubQuery->getQuery())
             ->where('work_logs.status', 'stopped');
 
-        // フィルター処理 (変更なし)
+        // フィルター処理
         if ($request->filled('user_id')) {
             $query->where('work_logs.user_id', $request->user_id);
         }
@@ -82,31 +75,32 @@ class WorkRecordController extends Controller
         }
         $startDate = $request->filled('start_date') ? Carbon::parse($request->start_date)->startOfDay() : null;
         $endDate = $request->filled('end_date') ? Carbon::parse($request->end_date)->endOfDay() : null;
-        if ($startDate && $endDate) {
-            $query->whereBetween('work_logs.start_time', [$startDate, $endDate]);
-        } elseif ($startDate) {
-            $query->where('work_logs.start_time', '>=', $startDate);
-        } elseif ($endDate) {
-            $query->where('work_logs.start_time', '<=', $endDate);
+        if ($startDate) {
+            $query->where(DB::raw($startTimeSql), '>=', $startDate);
         }
+        if ($endDate) {
+            $query->where(DB::raw($startTimeSql), '<=', $endDate);
+        }
+
 
         // フィルタ後の合計時間を計算
         $totalSecondsQuery = clone $query;
-        $totalSeconds = $totalSecondsQuery->sum(DB::raw('TIMESTAMPDIFF(SECOND, work_logs.start_time, work_logs.end_time)'));
+        // DB::raw() を使って合計を計算する
+        $totalSeconds = $totalSecondsQuery->sum(DB::raw($durationSql));
 
-        // ソートを適用
+        // ソート適用
         $query->orderBy($sortableColumns[$sort], $direction);
         if ($sort !== 'start_time') {
-            $query->orderBy('work_logs.start_time', 'desc'); // 第2ソートキー
+            $query->orderBy(DB::raw($startTimeSql), 'desc');
         }
 
-        // withに hourlyRates を追加して、ユーザーの最新時給をEager Loadする
         $workLogs = $query->with(['user.hourlyRates', 'task.project', 'task.character'])->paginate(50)->withQueryString();
 
-        // フィルタリング・時給登録用の選択肢 (ユーザーは最新の時給情報も取得)
-        $users = User::with(['hourlyRates' => function ($query) {
-            $query->orderBy('effective_date', 'desc')->limit(2);
-        }])->orderBy('name')->get();
+        // (月の給与サマリーやフィルター用データ取得部分は変更なし)
+        $targetMonth = $request->has('month') ? Carbon::parse($request->input('month')) : Carbon::now();
+        $summaryDateStrings = ['month' => $targetMonth->format('Y年n月')];
+        $monthSummary = $this->calculateMonthlyAttendanceSummary($targetMonth);
+        $users = User::with(['hourlyRates' => fn($q) => $q->orderBy('effective_date', 'desc')->limit(2)])->orderBy('name')->get();
         $projects = Project::orderBy('title')->get();
 
         return view('admin.work-records.index', compact(
@@ -400,6 +394,16 @@ class WorkRecordController extends Controller
                 $monthTotalEffectiveSeconds += $totalEffectiveSeconds;
                 $monthTotalSalary += $dailySalary;
 
+                $logsForView = $dayLogs->map(function ($log) {
+                    return (object) [
+                        'task' => $log->task,
+                        'start_time' => $log->display_start_time,
+                        'end_time' => $log->display_end_time,
+                        'effective_duration' => $log->effective_duration,
+                        'is_manually_edited' => $log->is_manually_edited,
+                    ];
+                });
+
                 $monthlyReport[] = [
                     'type' => 'workday',
                     'date' => $currentDate,
@@ -410,7 +414,7 @@ class WorkRecordController extends Controller
                     'total_work_seconds' => $totalEffectiveSeconds,
                     'total_break_seconds' => $breakSeconds > 0 ? $breakSeconds : 0,
                     'daily_salary' => $dailySalary,
-                    'logs' => $dayLogs,
+                    'logs' => $logsForView,
                 ];
             } else {
                 $monthlyReport[] = [
@@ -491,9 +495,10 @@ class WorkRecordController extends Controller
                 $charactersSummary[$characterId]['tasks'][$taskId]['total_salary'] += $logSalary;
                 $charactersSummary[$characterId]['tasks'][$taskId]['logs'][] = [
                     'worker_name' => $log->user->name,
-                    'start_time' => $log->start_time->format('Y/m/d H:i'),
-                    'end_time' => optional($log->end_time)->format('Y/m/d H:i'),
+                    'start_time' => optional($log->display_start_time)->format('Y/m/d H:i'),
+                    'end_time' => optional($log->display_end_time)->format('Y/m/d H:i'),
                     'duration_formatted' => format_seconds_to_hms($log->effective_duration),
+                    'is_manually_edited' => $log->is_manually_edited,
                 ];
             }
 
@@ -591,6 +596,13 @@ class WorkRecordController extends Controller
                 foreach ($logsByTask as $taskId => $taskLogs) {
                     $taskModel = $taskLogs->first()->task;
 
+                    $logsForView = $taskLogs->map(function ($log) {
+                        $log->start_time_formatted = optional($log->display_start_time)->format('n/j H:i:s');
+                        $log->end_time_formatted = optional($log->display_end_time)->format('n/j H:i:s');
+                        // effective_durationはアクセサで取れるのでそのままでOK
+                        return $log;
+                    });
+
                     $tasksOnProject[$taskId] = [
                         'id' => $taskId,
                         'name' => $taskModel->name,
@@ -599,7 +611,7 @@ class WorkRecordController extends Controller
                         'assignees' => $taskModel->assignees->pluck('name')->all(), //  <-- ▼▼▼ この行を追加 ▼▼▼
                         'planned_duration_minutes' => $taskModel->duration,
                         'total_seconds_on_day' => $taskLogs->sum('effective_duration'),
-                        'logs' => $taskLogs,
+                        'logs' => $logsForView,
                     ];
                 }
 

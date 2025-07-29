@@ -191,6 +191,11 @@ Route::middleware('auth')->group(function () {
 
     // 作業実績ページ
     Route::get('/my-work-records', [WorkRecordController::class, 'index'])->name('work-records.index');
+
+    Route::patch('/my-work-records/{workLog}/time', [WorkRecordController::class, 'updateTime'])->name('work-records.update-time');
+    Route::delete('/my-work-records/{workLog}/time', [WorkRecordController::class, 'resetTime'])->name('work-records.reset-time');
+
+
     // 打刻API
     Route::post('/attendance/clock', [AttendanceController::class, 'clock'])->name('attendance.clock');
 

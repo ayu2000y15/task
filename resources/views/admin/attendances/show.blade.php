@@ -83,7 +83,7 @@
                 </div>
                 <div class="mt-6 pt-4 border-t dark:border-gray-700">
                     <span class="text-base font-medium text-gray-500 dark:text-gray-400">月の給与合計</span>
-                    <span class="text-3xl font-extrabold text-green-600 dark:text-green-400 block mt-1">
+                    <span class="text-3xl font-extrabold text-blue-600 dark:text-blue-400 block mt-1">
                         ¥{{ number_format($monthTotalSalary, 0) }}
                     </span>
                 </div>
@@ -140,9 +140,8 @@
                                 <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">退勤</th>
                                 <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">拘束時間</th>
                                 <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">休憩等</th>
+                                <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">支払対象</th>
                                 <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">実働時間</th>
-                                <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase text-blue-500">
-                                    支払対象</th>
                                 <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">日給合計</th>
                                 <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">操作</th>
                             </tr>
@@ -175,10 +174,11 @@
                         </tbody>
                         <tfoot class="bg-gray-100 dark:bg-gray-700 sticky bottom-0">
                             <tr class="border-t-2 border-gray-300 dark:border-gray-600 font-bold">
-                                <td class="px-2 py-3 text-left" colspan="8">月の合計</td>
+                                <td class="px-2 py-3 text-left" colspan="7">月の合計</td>
                                 <td class="px-2 py-3 text-left whitespace-nowrap text-blue-600 dark:text-blue-400">
                                     {{ format_seconds_to_hms($monthTotalActualWorkSeconds) }}
                                 </td>
+                                <td></td>
                                 <td class="px-2 py-3 text-left whitespace-nowrap">¥{{ number_format($monthTotalSalary, 0) }}
                                 </td>
                                 <td class="px-2 py-3"></td>
