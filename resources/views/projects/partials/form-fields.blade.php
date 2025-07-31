@@ -74,7 +74,7 @@
     @endif
 
     {{-- ヘルプテキスト --}}
-    @if($field['help_text'])
+    @if(isset($field['help_text']) && !empty($field['help_text']))
         <div class="text-xs text-gray-600 mb-3 p-3 bg-gray-50 border border-gray-200 rounded-md help-text-content">
             {!! $field['help_text'] !!}
         </div>

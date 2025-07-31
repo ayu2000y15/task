@@ -70,7 +70,7 @@ class ProjectController extends Controller
                 'type' => $def->type,
                 'options' => $def->options,
                 'placeholder' => $def->placeholder,
-                'help_text' => $def->help_text,
+                'help_text' => $def->help_text ?? '',
                 'is_required' => $def->is_required,
                 'order' => $def->order,
                 'maxlength' => $def->max_length,
@@ -1207,7 +1207,7 @@ class ProjectController extends Controller
                 'type' => $def->type,
                 'options' => $def->options,
                 'placeholder' => $def->placeholder,
-                'help_text' => $def->help_text,
+                'help_text' => $def->help_text ?? '',
                 'is_required' => $def->is_required, // is_required を使用
                 'order' => $def->order,
                 'maxlength' => $def->max_length,
