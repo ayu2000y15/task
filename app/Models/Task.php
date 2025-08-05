@@ -204,9 +204,8 @@ class Task extends Model
 
     /**
      * 総合的な作業時間（秒）を取得します。
-     * 完了済みのログと現在進行中のログの作業時間を正確に合算して返します。
-     * このアクセサにより、ビューで $task->total_work_seconds を使用できます。
-     *
+     * 累計作業時間（秒）を取得するアクセサを、WorkLogモデルの`effective_duration`を合計するように変更。
+     * これにより、手動修正された時間が自動的に反映されます。     *
      * @return integer
      */
     public function getTotalWorkSecondsAttribute(): int
@@ -216,30 +215,9 @@ class Task extends Model
             $this->load('workLogs');
         }
 
-        $totalSeconds = 0;
-        foreach ($this->workLogs as $log) {
-            $start = Carbon::parse($log->start_time);
-            $end = null;
-
-            // ログに終了時刻が記録されていれば、その差を計算します。
-            if ($log->end_time) {
-                $end = Carbon::parse($log->end_time);
-            }
-            // 終了時刻がなく、ステータスが 'active' (実行中) の場合は、現在時刻までを計算対象とします。
-            elseif ($log->status === 'active') {
-                $end = Carbon::now();
-            }
-
-            // 開始時刻と終了時刻が両方揃っている場合のみ、差を秒で算出して加算します。
-            if ($start && $end) {
-                // diffInSecondsは通常マイナスになりませんが、念のため絶対値を取得します。
-                $totalSeconds += abs($start->diffInSeconds($end));
-            }
-        }
-
-        // 万が一、計算結果がマイナスになるという予期せぬ事態に備え、
-        // 最終的な戻り値が絶対に0以上になることを保証します。
-        return max(0, $totalSeconds);
+        // WorkLogモデルの`effective_duration`アクセサを合計します。
+        // このアクセサが手動修正を考慮するため、合計値も正しくなります。
+        return $this->workLogs->sum('effective_duration');
     }
 
     /**
