@@ -337,7 +337,20 @@
                         </td>
                         <td class="px-4 py-1.5 text-gray-700 dark:text-gray-200 break-words text-left leading-tight measurement-notes"
                             style="min-width: 150px;">
-                            {!! trim(e($measurement->notes)) ?: '-' !!}
+                            @php
+                                $rawNotes = $measurement->notes ?? '';
+                                $rawNotes = is_string($rawNotes) ? $rawNotes : (string) $rawNotes;
+                                // 行ごとに前後の空白（半角／全角含む）を削除してから結合する
+                                $lines = preg_split('/\r\n|\n|\r/', $rawNotes);
+                                $cleanLines = array_map(function($ln) {
+                                    // trim (半角スペース等) の後、全角スペースも除去
+                                    $ln = trim($ln);
+                                    $ln = preg_replace('/^[\x{3000}\s]+|[\x{3000}\s]+$/u', '', $ln);
+                                    return $ln;
+                                }, $lines ?: []);
+                                $cleanNotes = implode("\n", $cleanLines);
+                            @endphp
+                            {!! $cleanNotes !== '' ? nl2br(e($cleanNotes)) : '-' !!}
                         </td>
                         <td class="px-3 py-1.5 whitespace-nowrap text-right">
                             <div class="flex items-center justify-end space-x-1">
@@ -583,19 +596,25 @@ function setupMeasurementTemplateFunctionality(characterId, projectId) {
             measurementTableBody.querySelectorAll('tr').forEach(row => {
                 if (row.id && row.id.startsWith('measurement-row-')) {
                     const itemCell = row.querySelector('.measurement-item');
+                    const valueCell = row.querySelector('.measurement-value');
                     const notesCell = row.querySelector('.measurement-notes');
                     if (itemCell) {
                         const item = itemCell.textContent.trim();
+                        // value は data-sort-value 属性を優先して取得し、なければ表示文字列を使う
+                        let value = '';
+                        if (valueCell) {
+                            value = valueCell.getAttribute('data-sort-value') || valueCell.textContent.trim();
+                        }
                         const notesHTML = notesCell ? notesCell.innerHTML : '';
                         let notesText = '';
                         if (notesHTML.toLowerCase() !== '-') {
                             const tempDiv = document.createElement('div');
-                            tempDiv.innerHTML = notesHTML.replace(/<br\s*\/?>/gi, "\n");
+                            tempDiv.innerHTML = notesHTML.replace(/<br>\s*\/?/gi, "\n");
                             notesText = tempDiv.textContent || tempDiv.innerText || "";
                         }
                         const finalNotes = (notesText.trim() === '-' || notesText.trim() === '') ? '' : notesText.trim();
                         if (item) {
-                            itemsToSave.push({ item: item, notes: finalNotes });
+                            itemsToSave.push({ item: item, value: value, notes: finalNotes });
                         }
                     }
                 }
