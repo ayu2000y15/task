@@ -117,7 +117,9 @@ class RequestController extends Controller
     public function create()
     {
         $assigneeCandidates = User::where('status', User::STATUS_ACTIVE)->orderBy('name')->get();
-        $projects = Project::orderBy('title')->get(); // ★ 追加
+        $labor_statuses = ['not_started', 'on_hold', 'in_progress'];
+        $projects = Project::orderBy('title')->whereIn('status', $labor_statuses)
+            ->get(); // ★ 追加
         $categories = RequestCategory::orderBy('id')->get(); // ★ 追加
 
         return view('requests.create', compact('assigneeCandidates', 'projects', 'categories'));
@@ -232,7 +234,9 @@ class RequestController extends Controller
 
         $assigneeCandidates = User::where('status', User::STATUS_ACTIVE)->orderBy('name')->get();
         $selectedAssignees = $request->assignees->pluck('id')->all();
-        $projects = Project::orderBy('title')->get();
+        $labor_statuses = ['not_started', 'on_hold', 'in_progress'];
+        $projects = Project::orderBy('title')->whereIn('status', $labor_statuses)
+            ->get();
         $categories = RequestCategory::orderBy('id')->get();
 
         return view('requests.edit', compact('request', 'assigneeCandidates', 'selectedAssignees', 'projects', 'categories'));

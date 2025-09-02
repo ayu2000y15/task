@@ -4,12 +4,12 @@
     "name": "dropzone"
   },
   "resources/css/app.css": {
-    "file": "assets/app-CCQJ9QOz.css",
+    "file": "assets/app-DX-KK6a0.css",
     "src": "resources/css/app.css",
     "isEntry": true
   },
   "resources/js/admin/feedback-categories-sortable.js": {
-    "file": "assets/feedback-categories-sortable-41gJeNuz.js",
+    "file": "assets/feedback-categories-sortable-dvxzjWJG.js",
     "name": "feedback-categories-sortable",
     "src": "resources/js/admin/feedback-categories-sortable.js",
     "isDynamicEntry": true,
@@ -18,7 +18,7 @@
     ]
   },
   "resources/js/admin/form-definitions-sortable.js": {
-    "file": "assets/form-definitions-sortable-EPf9KBhq.js",
+    "file": "assets/form-definitions-sortable-CuP97D_8.js",
     "name": "form-definitions-sortable",
     "src": "resources/js/admin/form-definitions-sortable.js",
     "isDynamicEntry": true,
@@ -27,7 +27,7 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-CMK6dsaR.js",
+    "file": "assets/app-CaxJYKaC.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
@@ -45,7 +45,7 @@
     ]
   },
   "resources/js/page-specific/admin-feedbacks-index.js": {
-    "file": "assets/admin-feedbacks-index-o0CX3uhG.js",
+    "file": "assets/admin-feedbacks-index-gACMwyOZ.js",
     "name": "admin-feedbacks-index",
     "src": "resources/js/page-specific/admin-feedbacks-index.js",
     "isDynamicEntry": true,
@@ -54,7 +54,7 @@
     ]
   },
   "resources/js/page-specific/gantt-chart.js": {
-    "file": "assets/gantt-chart-DUTpqLKW.js",
+    "file": "assets/gantt-chart-BWytuhsp.js",
     "name": "gantt-chart",
     "src": "resources/js/page-specific/gantt-chart.js",
     "isDynamicEntry": true,
@@ -64,7 +64,7 @@
     ]
   },
   "resources/js/page-specific/project-show-main.js": {
-    "file": "assets/project-show-main-B8dYOmBm.js",
+    "file": "assets/project-show-main-tFTO7oiv.js",
     "name": "project-show-main",
     "src": "resources/js/page-specific/project-show-main.js",
     "isDynamicEntry": true,
@@ -94,7 +94,7 @@
     "isDynamicEntry": true
   },
   "resources/js/page-specific/tasks-index.js": {
-    "file": "assets/tasks-index-BpBi-x-C.js",
+    "file": "assets/tasks-index-un4Vli9s.js",
     "name": "tasks-index",
     "src": "resources/js/page-specific/tasks-index.js",
     "isDynamicEntry": true,
