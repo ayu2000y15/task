@@ -46,7 +46,7 @@ class HomeController extends Controller
             ->where('is_milestone', false)->where('is_folder', false)
             ->whereNotIn('status', ['completed', 'cancelled']) // ★完了・キャンセルタスクは除外
             ->whereHas('project', function ($query) {
-                $query->where('status', '!=', 'cancelled'); // ★キャンセルされた案件のタスクを除外
+                $query->whereNotIn('status', ['completed', 'cancelled']); // ★完了・キャンセルされた案件のタスクを除外
             })
             ->where(function ($query) use ($targetDate) {
                 // 指定日に進行中のタスク、または期限切れの未完了タスクを取得
@@ -198,7 +198,7 @@ class HomeController extends Controller
             ->whereDate('end_date', '<=', $targetDate->copy()->addDays(2))
             ->whereNotIn('status', ['completed', 'cancelled'])
             ->whereHas('project', function ($query) {
-                $query->where('status', '!=', 'cancelled'); // ★キャンセルされた案件のタスクを除外
+                $query->whereNotIn('status', ['completed', 'cancelled']); // ★完了・キャンセルされた案件のタスクを除外
             })
             ->where('is_milestone', false)
             ->where('is_folder', false)
@@ -211,7 +211,7 @@ class HomeController extends Controller
         $allActiveLogs = WorkLog::where('status', 'active')
             ->with(['task.project', 'task.assignees', 'user']) // 必要なリレーションを全てここで読み込む
             ->whereHas('task.project', function ($query) {
-                $query->where('status', '!=', 'cancelled'); // ★キャンセルされた案件のタスクを除外
+                $query->whereNotIn('status', ['completed', 'cancelled']); // ★完了・キャンセルされた案件のタスクを除外
             })
             ->get();
 
