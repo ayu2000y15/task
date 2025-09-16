@@ -353,7 +353,7 @@
                                     <i class="fas fa-fw text-xs" :class="{'fa-chevron-down': openCategoryProjects['{{ $categoryId }}'], 'fa-chevron-right': !openCategoryProjects['{{ $categoryId }}']}"></i>
                                 </div>
                                 <div x-show="openCategoryProjects['{{ $categoryId }}']" x-transition class="ml-3 mt-1 space-y-1">
-                                    @foreach($projects as $project)
+                                    @foreach($projects->sortBy(function($p){ return $p->end_date ? $p->end_date->getTimestamp() : PHP_INT_MAX; }) as $project)
                                         @php
                                             $_projectStatusOptionsSb = ['' => '未設定'] + (\App\Models\Project::PROJECT_STATUS_OPTIONS ?? []);
                                             $_projectStatusIconsSb = [
@@ -389,7 +389,12 @@
                                                     <span class="flex items-center justify-center w-5 h-5 mr-2 text-xs font-bold text-white rounded flex-shrink-0" style="background-color: {{ $project->color ?? '#6c757d' }};">
                                                         {{ mb_substr($project->title, 0, 1) }}
                                                     </span>
-                                                    <span class="project-title-text" title="{{ $project->title }}">{{ $project->title }}</span>
+                                                    <div class="flex flex-col min-w-0">
+                                                        @if($project->end_date)
+                                                            <span class="text-xs mb-0" style="font-size:0.75rem; color: inherit; opacity: 0.85;">{{ $project->end_date->format('n/j') }}</span>
+                                                        @endif
+                                                        <span class="project-title-text font-medium" title="{{ $project->title }}">{{ $project->title }}</span>
+                                                    </div>
                                                 </div>
                                                 <div class="project-status-icons-sidebar text-xs">
                                                      @if($project->status)<span title="案件ステータス: {{ $_projectStatusTooltipSb }}"><i class="fas {{ $_projectStatusIconClassSb }}"></i></span>@endif
