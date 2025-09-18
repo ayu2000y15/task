@@ -494,6 +494,7 @@ class WorkRecordController extends Controller
                 $charactersSummary[$characterId]['tasks'][$taskId]['total_seconds'] += $duration;
                 $charactersSummary[$characterId]['tasks'][$taskId]['total_salary'] += $logSalary;
                 $charactersSummary[$characterId]['tasks'][$taskId]['logs'][] = [
+                    'id' => $log->id,
                     'worker_name' => $log->user->name,
                     'start_time' => optional($log->display_start_time)->format('Y/m/d H:i'),
                     'end_time' => optional($log->display_end_time)->format('Y/m/d H:i'),

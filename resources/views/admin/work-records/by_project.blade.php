@@ -254,6 +254,7 @@
                                                     <table class="min-w-full text-xs">
                                                         <thead class="border-b-2 border-gray-300 dark:border-gray-600">
                                                             <tr>
+                                                                <th class="py-1 px-2 text-left font-semibold">ログID</th>
                                                                 <th class="py-1 px-2 text-left font-semibold">実績担当者</th>
                                                                 <th class="py-1 px-2 text-left font-semibold">開始日時</th>
                                                                 <th class="py-1 px-2 text-left font-semibold">終了日時</th>
@@ -263,6 +264,7 @@
                                                         <tbody>
                                                             @foreach ($task['logs'] as $log)
                                                                 <tr class="border-b border-gray-200 dark:border-gray-600/50">
+                                                                    <td class="py-1 px-2">{{ $log['id'] }}</td>
                                                                     <td class="py-1 px-2">
                                                                         {{ $log['worker_name'] }}
                                                                     </td>

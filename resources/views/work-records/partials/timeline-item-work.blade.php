@@ -97,6 +97,8 @@
         </div>
     </div>
     <div class="grid grid-cols-[auto,1fr] gap-x-4 gap-y-1 text-sm">
+        <strong class="font-medium text-gray-600 dark:text-gray-400 text-right">ログID:</strong>
+        <span class="text-gray-700 dark:text-gray-200">{{ $log->id }}</span>
         <strong class="font-medium text-gray-600 dark:text-gray-400 text-right">案件:</strong>
         <span class="text-gray-700 dark:text-gray-200">{{ $log->task?->project?->title ?? '（案件情報なし）' }}</span>
         <strong class="font-medium text-gray-600 dark:text-gray-400 text-right">キャラクター:</strong>

@@ -164,6 +164,7 @@
                                                         <table class="min-w-full text-xs">
                                                             <thead class="border-b-2 border-gray-300 dark:border-gray-600">
                                                                 <tr>
+                                                                    <th class="py-2 px-3 text-left font-semibold">ログID</th>
                                                                     <th class="py-2 px-3 text-left font-semibold">実績担当者</th>
                                                                     <th class="py-2 px-3 text-left font-semibold">開始</th>
                                                                     <th class="py-2 px-3 text-left font-semibold">終了</th>
@@ -173,6 +174,7 @@
                                                             <tbody>
                                                                 @foreach ($task['logs'] as $log)
                                                                     <tr class="border-b border-gray-200 dark:border-gray-600/50 last:border-b-0">
+                                                                        <td class="py-2 px-3">{{ $log->id }}</td>
                                                                         <td class="py-2 px-3">
                                                                             {{ $log->user->name }}
                                                                             @if($log->is_manually_edited)
