@@ -47,6 +47,10 @@ class HomeController extends Controller
             ->whereNotIn('status', ['completed', 'cancelled']) // ★完了・キャンセルタスクは除外
             ->whereHas('project', function ($query) {
                 $query->whereNotIn('status', ['completed', 'cancelled']); // ★完了・キャンセルされた案件のタスクを除外
+                $query->where('delivery_flag', 0); // ★ 納品済み案件のタスクを除外
+                $query->whereNotNull('project_category_id'); // ★ カテゴリ未設定の案件を除外
+            })->whereHas('project.projectCategory', function ($q) {
+                $q->where('name', '<>', 'other');
             })
             ->where(function ($query) use ($targetDate) {
                 // 指定日に進行中のタスク、または期限切れの未完了タスクを取得
@@ -199,6 +203,10 @@ class HomeController extends Controller
             ->whereNotIn('status', ['completed', 'cancelled'])
             ->whereHas('project', function ($query) {
                 $query->whereNotIn('status', ['completed', 'cancelled']); // ★完了・キャンセルされた案件のタスクを除外
+                $query->where('delivery_flag', 0); // ★ 納品済み案件のタスクを除外
+                $query->whereNotNull('project_category_id'); // ★ カテゴリ未設定の案件を除外
+            })->whereHas('project.projectCategory', function ($q) {
+                $q->where('name', '<>', 'other');
             })
             ->where('is_milestone', false)
             ->where('is_folder', false)
