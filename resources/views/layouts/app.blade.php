@@ -911,7 +911,7 @@
 
                                     {{-- ドロップダウンの中身は元のコードと同じ --}}
                                     <template x-if="status === 'clocked_out'">
-                                        <a href="#" @click.prevent="clock('clock_in')" class="block px-4 py-2 text-sm text-green-600 dark:text-green-400 hover:bg-gray-100 dark:hover:bg-gray-600">出勤</a>
+                                        <a href="#" @click.prevent="openLocationModal()" class="block px-4 py-2 text-sm text-green-600 dark:text-green-400 hover:bg-gray-100 dark:hover:bg-gray-600">出勤</a>
                                     </template>
 
                                     <template x-if="status === 'working'">

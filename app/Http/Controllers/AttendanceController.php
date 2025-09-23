@@ -295,7 +295,7 @@ class AttendanceController extends Controller
                 }
             }
 
-            $response = ['success' => true, 'message' => '出勤場所を更新しました。'];
+            $response = ['success' => true, 'message' => '出勤場所を登録しました。'];
             if (!empty($extraMessage)) {
                 $response['note'] = $extraMessage;
             }
