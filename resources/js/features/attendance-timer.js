@@ -87,7 +87,8 @@ document.addEventListener("alpine:init", () => {
         performPrimaryAction() {
             switch (this.status) {
                 case "clocked_out":
-                    this.clock("clock_in");
+                    // 出勤時は直接出勤場所選択モーダルを表示する
+                    this.openLocationModal();
                     break;
                 case "working":
                     this.clock("break_start");
@@ -175,6 +176,125 @@ document.addEventListener("alpine:init", () => {
                 alert("エラー: " + error.message);
             } finally {
                 this.loading = false;
+            }
+        },
+
+        async confirmAndClockIn() {
+            // ここでは簡易的に予定場所を取得する方法がないため、画面上に data 属性などで
+            // 予定場所が埋め込まれていることを想定します。body に data-scheduled-location がある場合それを使います。
+            const scheduled = document.body.dataset.scheduledLocation || null; // 'office'|'home' など
+
+            const scheduledLabel =
+                scheduled === "remote"
+                    ? "在宅"
+                    : scheduled === "office"
+                    ? "出勤"
+                    : "（予定なし）";
+
+            const confirmed = confirm(
+                `現在の予定では ${scheduledLabel} となっています。出勤場所を選択しますか？\n「はい」で出勤場所を選択します。\n「いいえ」はキャンセル（何もしません）。`
+            );
+
+            if (!confirmed) {
+                // ユーザーが「いいえ」を選んだ場合はキャンセル（何もしない）
+                return;
+            }
+
+            // (旧動作) 確認ダイアログを表示してからモーダルを開くフローは現在使用しない。
+            // 直接モーダルを開くユーティリティを呼び出す。
+            await this.openLocationModal();
+        },
+
+        async openLocationModal() {
+            const scheduled = document.body.dataset.scheduledLocation || null; // 'office'|'remote' など
+
+            const modal = document.getElementById("attendance-location-modal");
+            const form = document.getElementById("attendance-location-form");
+            const cancelBtn = document.getElementById(
+                "attendance-location-cancel"
+            );
+
+            if (!modal || !form) {
+                // フォールバック: prompt を使う
+                const newLocation = prompt(
+                    "出勤する場所を入力してください（例: office または remote）",
+                    scheduled || "office"
+                );
+                if (!newLocation) return;
+                await this.postChangeLocationAndClockIn(newLocation);
+                return;
+            }
+
+            // 開く
+            modal.style.display = "flex";
+
+            const closeModal = () => {
+                modal.style.display = "none";
+                form.removeEventListener("submit", onSubmit);
+                cancelBtn.removeEventListener("click", onCancel);
+            };
+
+            const onCancel = (e) => {
+                e.preventDefault();
+                closeModal();
+            };
+
+            const onSubmit = async (e) => {
+                e.preventDefault();
+                const fd = new FormData(form);
+                const chosen = fd.get("attendance_location");
+                if (!chosen) return;
+                closeModal();
+                await this.postChangeLocationAndClockIn(chosen);
+            };
+
+            form.addEventListener("submit", onSubmit);
+            cancelBtn.addEventListener("click", onCancel);
+        },
+
+        async postChangeLocationAndClockIn(newLocation) {
+            const csrfToken = document
+                .querySelector('meta[name="csrf-token"]')
+                .getAttribute("content");
+            try {
+                const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+                const res = await fetch(
+                    "/attendance/change-location-on-clockin",
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-CSRF-TOKEN": csrfToken,
+                            Accept: "application/json",
+                        },
+                        body: JSON.stringify({
+                            date: today,
+                            location: newLocation,
+                        }),
+                    }
+                );
+
+                const data = await res.json();
+                if (!res.ok)
+                    throw new Error(data.message || "場所変更に失敗しました");
+
+                // 成功メッセージは一つにまとめて表示する
+                const messages = [];
+                if (data.message) messages.push(data.message);
+                if (data.transportation_created) {
+                    // 交通費が作成された場合はその旨を追加
+                    messages.push("交通費の登録を行いました。");
+                } else if (data.note) {
+                    // 交通費作成がなかった場合に注意書きがあれば表示
+                    messages.push(data.note);
+                }
+                if (messages.length) {
+                    alert(messages.join("\n"));
+                }
+                await this.clock("clock_in");
+            } catch (e) {
+                console.error("change-location error", e);
+                alert("場所変更中にエラーが発生しました: " + e.message);
             }
         },
     }));

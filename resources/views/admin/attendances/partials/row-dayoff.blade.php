@@ -13,7 +13,17 @@
     <td></td>
     <td class="px-2 py-3 whitespace-nowrap">
         <div class="font-medium">{{ $date->format('n/j') }} ({{ $weekMap[$date->dayOfWeek] }})</div>
+        {{-- @if(!empty($report['location']))
+        <div class="text-xs text-gray-500 dark:text-gray-400">@if($report['location'] === 'remote') 在宅
+            @elseif($report['location'] === 'office') 出勤 @else {{ $report['location'] }} @endif</div>
+        @endif --}}
+        @if(!empty($report['transportation']) && $report['transportation'] > 0)
+            <div class="text-xs text-gray-700 dark:text-gray-300" title="{{ e($report['transportation_tooltip']) }}">交通費:
+                ¥{{ number_format($report['transportation'], 0) }}
+            </div>
+        @endif
     </td>
+
     <td class="px-2 py-3"><i class="fas fa-bed text-gray-400"></i></td>
     <td colspan="7" class="px-2 py-3 text-sm text-gray-500">
         @if ($workShift && in_array($workShift->type, ['full_day_off', 'am_off', 'pm_off']))

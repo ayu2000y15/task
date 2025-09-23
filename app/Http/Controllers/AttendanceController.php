@@ -11,6 +11,9 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB; // DBファサードを追加
 use Illuminate\Support\Facades\Log; // Logファサードを追加
+use App\Models\WorkShift;
+use App\Models\DefaultShiftPattern;
+use App\Models\TransportationExpense;
 
 class AttendanceController extends Controller
 {
@@ -81,11 +84,12 @@ class AttendanceController extends Controller
         // 状態を更新するためにキャッシュをクリア
         Cache::forget('attendance_status_' . $user->id);
 
-        return response()->json([
+        $response = [
             'success' => true,
             'message' => $this->getJapaneseActionName($type) . 'しました。',
             'new_status' => $user->fresh()->getCurrentAttendanceStatus(),
-        ]);
+        ];
+        return response()->json($response);
     }
 
     /**
@@ -216,5 +220,93 @@ class AttendanceController extends Controller
             'logsByDate' => $logs,
             'currentMonth' => $currentMonth,
         ]);
+    }
+
+    /**
+     * 出勤ボタンで予定と違う場所を選んだときに work_shifts を更新または作成します。
+     * 期待するパラメータ: `date` (YYYY-MM-DD), `location` (string: 'office'|'home' 等)
+     */
+    public function changeLocationOnClockIn(Request $request)
+    {
+        $request->validate([
+            'date' => ['required', 'date_format:Y-m-d'],
+            'location' => ['required', 'string', 'max:64'],
+        ]);
+
+        $user = Auth::user();
+        $date = $request->input('date');
+        $location = $request->input('location');
+
+        try {
+            $workShift = WorkShift::where('user_id', $user->id)
+                ->whereDate('date', $date)
+                ->first();
+
+            if ($workShift) {
+                // 既存のシフトがあれば場所を更新
+                $workShift->update([
+                    'location' => $location,
+                    'notes' => ($workShift->notes ?: '') . '\n出勤時に変更（自動）',
+                ]);
+            } else {
+                // なければ場所優先の最小限レコードを作成
+                WorkShift::create([
+                    'user_id' => $user->id,
+                    'date' => $date,
+                    'type' => 'location_only',
+                    'location' => $location,
+                    'notes' => '出勤時に変更（自動）',
+                ]);
+            }
+
+            // 出勤を選択した場合、当日の交通費が未登録であればデフォルト交通費を自動登録する
+            $extraMessage = null;
+            $transportationCreated = false;
+            if ($location === 'office') {
+                $exists = TransportationExpense::where('user_id', $user->id)
+                    ->whereDate('date', $date)
+                    ->exists();
+
+                if (!$exists) {
+                    // ユーザーにデフォルト交通費設定があるか参照
+                    $departure = $user->default_transportation_departure ?? null;
+                    $destination = $user->default_transportation_destination ?? null;
+                    $amount = $user->default_transportation_amount ?? null;
+
+                    // デフォルトが未設定（null または 0 として扱いたい場合は適宜調整）なら登録しない
+                    if (is_null($amount) || $amount === 0) {
+                        $extraMessage = 'デフォルト交通費が設定されていなかったため、交通費の登録ができませんでした。';
+                    } else {
+                        try {
+                            TransportationExpense::create([
+                                'user_id' => $user->id,
+                                'date' => $date,
+                                'departure' => $departure,
+                                'destination' => $destination,
+                                'amount' => $amount,
+                                'notes' => '出勤時に自動作成',
+                            ]);
+                            $transportationCreated = true;
+                        } catch (\Exception $e) {
+                            Log::warning('Auto create transportation expense failed for user ' . $user->id . ' on ' . $date . ': ' . $e->getMessage());
+                            $extraMessage = '交通費の自動登録に失敗しましたが、出勤処理は完了しました。';
+                        }
+                    }
+                }
+            }
+
+            $response = ['success' => true, 'message' => '出勤場所を更新しました。'];
+            if (!empty($extraMessage)) {
+                $response['note'] = $extraMessage;
+            }
+            if ($transportationCreated) {
+                $response['transportation_created'] = true;
+            }
+
+            return response()->json($response);
+        } catch (\Exception $e) {
+            Log::error('changeLocationOnClockIn error: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => '場所の更新に失敗しました。'], 500);
+        }
     }
 }

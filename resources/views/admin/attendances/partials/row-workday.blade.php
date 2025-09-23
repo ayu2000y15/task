@@ -24,20 +24,33 @@
             @if($index === 0)
                 <div class="flex items-center justify-between">
                     <div>
-                        <div class="font-medium">{{ $date->format('n/j') }} ({{ $weekMap[$date->dayOfWeek] }})</div>
+                        <div class="font-medium">{{ $date->format('n/j') }} ({{ $weekMap[$date->dayOfWeek] }})
+                            @if(!empty($report['location']))
+                                <span class="text-xs ml-2">@if($report['location'] === 'remote') <i
+                                    class="fas fa-home text-blue-500" title="在宅勤務"></i>
+                                @elseif($report['location'] === 'office') <i class="fas fa-building text-green-500"
+                                    title="出勤"></i> @else {{ $report['location'] }} @endif</span>
+                            @endif
+                        </div>
                         @if($holidayName)
-                        <div class="text-xs text-gray-600 dark:text-gray-400">{{ $holidayName }}</div> @endif
+                            <div class="text-xs text-gray-600 dark:text-gray-400">{{ $holidayName }}</div>
+                        @endif
+                        @if(!empty($report['transportation']) && $report['transportation'] > 0)
+                            <div class="text-xs text-gray-700 dark:text-gray-300"
+                                title="{{ e($report['transportation_tooltip']) }}">交通費:
+                                ¥{{ number_format($report['transportation'], 0) }}</div>
+                        @endif
                     </div>
                 </div>
             @endif
         </td>
-
         <td class="px-2 py-3">
             @if($index === 0)
                 <span title="自動計算"><i class="fas fa-magic text-blue-500"></i></span>
             @endif
         </td>
-        <td class="px-2 py-3 font-mono text-sm">{{ $session['start_time']->format('H:i') }}</td>
+        <td class="px-2 py-3 font-mono text-sm">{{ $session['start_time']->format('H:i') }}
+        </td>
         <td class="px-2 py-3 font-mono text-sm">{{ optional($session['end_time'])->format('H:i') ?? '未退勤' }}</td>
         <td class="px-2 py-3 font-mono text-sm">
             {{ $session['end_time'] ? format_seconds_to_hms($session['detention_seconds']) : '-' }}
@@ -46,12 +59,10 @@
         {{-- 支払対象時間 (拘束時間 - 休憩等) --}}
         <td class="px-2 py-3 font-mono text-sm font-bold text-blue-600 dark:text-blue-400">
             {{ format_seconds_to_hms($session['payable_work_seconds']) }}
-        </td>
-        {{-- 実働時間 (WorkLogの合計) --}}
-        <td class="px-2 py-3 font-mono text-sm font-semibold text-green-600 dark:text-green-400">
+        </td> {{-- 実働時間 (WorkLogの合計) --}} <td
+            class="px-2 py-3 font-mono text-sm font-semibold text-green-600 dark:text-green-400">
             {{ format_seconds_to_hms($session['actual_work_seconds']) }}
         </td>
-
         <td class="px-2 py-3 font-mono text-sm">
             @if(is_null($session['end_time']))
                 <span class="text-xs font-semibold text-yellow-600 dark:text-yellow-400"
@@ -64,8 +75,7 @@
             @if($index === 0)
                 <button
                     @click="openEditModal('{{ $date->format('Y-m-d') }}', '{{ $session['start_time']->format('H:i') }}', '{{ optional($session['end_time'])->format('H:i') }}', '[]', '')"
-                    class="text-blue-500 hover:text-blue-700 text-xs">編集</button>
-            @endif
+            class="text-blue-500 hover:text-blue-700 text-xs">編集</button> @endif
         </td>
     </tr>
     @if($hasDetails)

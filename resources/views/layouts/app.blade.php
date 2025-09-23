@@ -77,7 +77,8 @@
     </style>
 </head>
 <body class="font-sans antialiased text-gray-900 bg-gray-100 dark:text-gray-100 dark:bg-gray-900"
-    data-attendance-status="{{ $currentAttendanceStatus ?? 'clocked_out' }}">
+    data-attendance-status="{{ $currentAttendanceStatus ?? 'clocked_out' }}"
+    data-scheduled-location="{{ $scheduledLocation ?? '' }}">
     <div x-data="{ sidebarOpen: localStorage.getItem('sidebarOpen') === 'true' }" x-init="$watch('sidebarOpen', value => localStorage.setItem('sidebarOpen', value))">
         <div x-show="sidebarOpen" class="fixed inset-0 z-20 bg-black opacity-50 md:hidden" @click="sidebarOpen = false" style="display: none;"></div>
 
@@ -1062,6 +1063,31 @@
 
 <div id="mention-suggestions-container" class="fixed z-[10000] border bg-white dark:bg-gray-700 shadow-lg rounded-md" style="display: none;">
     {{-- 候補リストがここに動的に挿入されます --}}
+</div>
+
+{{-- 出勤場所選択モーダル（在宅 / 出勤） --}}
+<div id="attendance-location-modal" class="fixed inset-0 z-[11000] flex items-center justify-center px-4" style="display: none;">
+    <div class="absolute inset-0 bg-black bg-opacity-50" data-action="close-modal"></div>
+    <div class="relative bg-white dark:bg-gray-800 rounded-lg shadow-lg w-full max-w-sm p-6">
+        <h3 class="text-lg font-semibold mb-3">出勤場所を選択してください</h3>
+        <form id="attendance-location-form">
+            <div class="space-y-2">
+                <label class="flex items-center space-x-2">
+                    <input type="radio" name="attendance_location" value="remote" checked>
+                    <span>在宅</span>
+                </label>
+                <label class="flex items-center space-x-2">
+                    <input type="radio" name="attendance_location" value="office">
+                    <span>出勤</span>
+                </label>
+            </div>
+
+            <div class="mt-4 flex justify-end space-x-2">
+                <button type="button" id="attendance-location-cancel" class="px-3 py-2 bg-gray-200 rounded">キャンセル</button>
+                <button type="submit" id="attendance-location-submit" class="px-3 py-2 bg-blue-600 text-white rounded">決定</button>
+            </div>
+        </form>
+    </div>
 </div>
 
 </body>

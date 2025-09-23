@@ -64,6 +64,7 @@ class HomeController extends Controller
                         ->whereDate('end_date', '<', $targetDate);
                 });
             })
+            ->orderBy('end_date')
             ->get();
 
         foreach ($todaysTasks as $task) {

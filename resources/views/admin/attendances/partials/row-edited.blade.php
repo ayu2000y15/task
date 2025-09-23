@@ -19,9 +19,21 @@
     <td class="px-2 py-3 whitespace-nowrap">
         <div class="flex items-center justify-between">
             <div>
-                <div class="font-medium">{{ $date->format('n/j') }} ({{ $weekMap[$date->dayOfWeek] }})</div>
+                <div class="font-medium">{{ $date->format('n/j') }} ({{ $weekMap[$date->dayOfWeek] }})
+                    @if(!empty($report['location']))
+                        <span class="text-xs ml-2">@if($report['location'] === 'remote') <i
+                            class="fas fa-home text-blue-500" title="在宅勤務"></i>
+                        @elseif($report['location'] === 'office') <i class="fas fa-building text-green-500"
+                            title="出勤"></i> @else {{ $report['location'] }} @endif</span>
+                    @endif
+                </div>
                 @if($holidayName)
                     <div class="text-xs text-gray-600 dark:text-gray-400">{{ $holidayName }}</div>
+                @endif
+                @if(!empty($report['transportation']) && $report['transportation'] > 0)
+                    <div class="text-xs text-gray-700 dark:text-gray-300"
+                        title="{{ e($report['transportation_tooltip']) }}">交通費:
+                        ¥{{ number_format($report['transportation'], 0) }}</div>
                 @endif
             </div>
         </div>

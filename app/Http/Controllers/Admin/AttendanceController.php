@@ -14,6 +14,8 @@ use Carbon\Carbon;
 use App\Models\AttendanceBreak;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use App\Models\DefaultShiftPattern;
+use App\Models\TransportationExpense;
 
 class AttendanceController extends Controller
 {
@@ -48,7 +50,13 @@ class AttendanceController extends Controller
             ->with('breaks') // ▼▼▼【修正】リレーションをEager Loadする
             ->get()->keyBy(fn($item) => $item->date->format('Y-m-d'));
 
-        // --- 2. 月の全日分の表示データを生成 ---
+        // --- 2. 必要な追加データを取得 (交通費) ---
+        $transportationExpenses = TransportationExpense::where('user_id', $user->id)
+            ->whereBetween('date', [$startDate, $endDate])
+            ->get()
+            ->groupBy(fn($t) => $t->date->format('Y-m-d'));
+
+        // --- 3. 月の全日分の表示データを生成 ---
         $monthlyReport = [];
         for ($day = 1; $day <= $targetMonth->daysInMonth; $day++) {
             $currentDate = $targetMonth->copy()->day($day);
@@ -57,11 +65,57 @@ class AttendanceController extends Controller
             $manualAttendance = $overriddenAttendances->get($dateString);
             $dayAttendanceLogs = $attendanceLogs->filter(fn($log) => $log->timestamp->isSameDay($currentDate));
 
+            // build transportation items and tooltip
+            $tItems = [];
+            if (isset($transportationExpenses[$dateString])) {
+                foreach ($transportationExpenses[$dateString] as $t) {
+                    $tItems[] = [
+                        'project' => $t->project?->name ?? '-',
+                        'route' => trim(($t->departure ?? '') . ' → ' . ($t->destination ?? '')),
+                        'notes' => $t->notes ?? '',
+                        'amount' => $t->amount,
+                    ];
+                }
+            }
+            $transportationTooltip = '';
+            if (!empty($tItems)) {
+                $lines = array_map(function ($it) {
+                    $parts = [];
+                    $parts[] = '案件: ' . ($it['project'] ?? '-');
+                    if (!empty($it['route'])) $parts[] = '区間: ' . $it['route'];
+                    if (!empty($it['notes'])) $parts[] = '備考: ' . $it['notes'];
+                    $parts[] = '金額: ¥' . number_format($it['amount'], 0);
+                    return implode(' / ', $parts);
+                }, $tItems);
+                $transportationTooltip = implode("\n", $lines);
+            }
+
             $reportData = [
                 'date' => $currentDate,
                 'public_holiday' => $holidays->get($dateString),
                 'work_shift' => $workShifts->get($dateString),
+                'location' => null,
+                'transportation' => isset($transportationExpenses[$dateString]) ? $transportationExpenses[$dateString]->sum('amount') : 0,
+                'transportation_items' => $tItems,
+                'transportation_tooltip' => $transportationTooltip,
             ];
+
+            // Decide location: prefer explicit work_shift, otherwise fallback to default shift pattern
+            $ws = $workShifts->get($dateString);
+            if ($ws && isset($ws->location)) {
+                $reportData['location'] = $ws->location;
+            } else {
+                $dow = $currentDate->dayOfWeek; // 0 (Sunday) - 6 (Saturday)
+                $defaultPattern = DefaultShiftPattern::where('user_id', $user->id)
+                    ->where('day_of_week', $dow)
+                    ->first();
+                if ($defaultPattern && $defaultPattern->is_workday) {
+                    $reportData['location'] = $defaultPattern->location;
+                } else {
+                    $reportData['location'] = null;
+                }
+            }
+
 
             // 表示タイプを決定する
             if ($manualAttendance) {

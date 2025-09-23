@@ -198,6 +198,8 @@ Route::middleware('auth')->group(function () {
 
     // 打刻API
     Route::post('/attendance/clock', [AttendanceController::class, 'clock'])->name('attendance.clock');
+    // 打刻時に予定と違う場所に出勤する場合、work_shifts を更新/作成するためのエンドポイント
+    Route::post('/attendance/change-location-on-clockin', [AttendanceController::class, 'changeLocationOnClockIn'])->name('attendance.changeLocationOnClockIn');
 
     // シフト登録
     Route::get('schedule', [ShiftController::class, 'monthlySchedule'])->name('schedule.monthly');
