@@ -234,29 +234,50 @@ class AttendanceController extends Controller
         ]);
 
         $user = Auth::user();
-        $date = $request->input('date');
+        // Ensure date uses server/app timezone (avoid client UTC off-by-one)
+        // Ignore client's raw date and derive date from server's current date in app timezone.
+        $appTz = config('app.timezone') ?: 'UTC';
+        $date = Carbon::now($appTz)->toDateString();
         $location = $request->input('location');
 
         try {
+            // デフォルトシフトの場所と異なる場合のみ WorkShift を作成/更新する
+            $dayOfWeek = Carbon::parse($date, $appTz)->dayOfWeek; // 0=Sun .. 6=Sat
+            $defaultPattern = DefaultShiftPattern::where('user_id', $user->id)
+                ->where('day_of_week', $dayOfWeek)
+                ->first();
+            $defaultLocation = $defaultPattern ? $defaultPattern->location : null;
+
+            // 既存の WorkShift を先に取得しておく
             $workShift = WorkShift::where('user_id', $user->id)
                 ->whereDate('date', $date)
                 ->first();
 
-            if ($workShift) {
-                // 既存のシフトがあれば場所を更新
-                $workShift->update([
-                    'location' => $location,
-                    'notes' => ($workShift->notes ?: '') . '\n出勤時に変更（自動）',
-                ]);
+            if ($defaultLocation !== $location) {
+                // デフォルトと異なる場合は作成または更新
+                if ($workShift) {
+                    $workShift->update([
+                        'location' => $location,
+                        'notes' => '出勤時に変更（自動）',
+                    ]);
+                } else {
+                    WorkShift::create([
+                        'user_id' => $user->id,
+                        'date' => $date,
+                        'type' => 'location_only',
+                        'location' => $location,
+                        'notes' => '出勤時に変更（自動）',
+                    ]);
+                }
             } else {
-                // なければ場所優先の最小限レコードを作成
-                WorkShift::create([
-                    'user_id' => $user->id,
-                    'date' => $date,
-                    'type' => 'location_only',
-                    'location' => $location,
-                    'notes' => '出勤時に変更（自動）',
-                ]);
+                // デフォルトと同じ場所の場合でも、既に WorkShift が存在して別の場所が入っていれば更新する
+                if ($workShift && $workShift->location !== $location) {
+                    $workShift->update([
+                        'location' => $location,
+                        'notes' => '出勤時に変更（自動）',
+                    ]);
+                }
+                // それ以外は何もしない（デフォルト通りなので追加作成不要）
             }
 
             // 出勤を選択した場合、当日の交通費が未登録であればデフォルト交通費を自動登録する
