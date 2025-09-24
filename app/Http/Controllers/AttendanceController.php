@@ -252,6 +252,7 @@ class AttendanceController extends Controller
             $dayOfWeek = Carbon::parse($date, $appTz)->dayOfWeek; // 0=Sun .. 6=Sat
             $defaultPattern = DefaultShiftPattern::where('user_id', $user->id)
                 ->where('day_of_week', $dayOfWeek)
+                ->where('is_workday', 1)
                 ->first();
             $defaultLocation = $defaultPattern ? $defaultPattern->location : null;
 
