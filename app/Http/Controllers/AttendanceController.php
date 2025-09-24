@@ -28,6 +28,10 @@ class AttendanceController extends Controller
         ]);
 
         $user = Auth::user();
+        // デバッグ用ログ: リクエストされた場所とサーバーで計算した日付を残す
+        $appTz = config('app.timezone') ?: 'UTC';
+        $computedDate = Carbon::now($appTz)->toDateString();
+        Log::info('changeLocationOnClockIn requested', ['user_id' => $user->id, 'request_date' => $request->input('date'), 'computed_date' => $computedDate, 'location' => $request->input('location')]);
         $type = $request->input('type');
         $now = Carbon::now();
 
@@ -54,6 +58,9 @@ class AttendanceController extends Controller
 
         DB::beginTransaction();
         try {
+            // 再利用用に date をここで決める
+            $appTz = config('app.timezone') ?: 'UTC';
+            $date = Carbon::now($appTz)->toDateString();
             // ▼▼▼ 日跨ぎ処理ここから ▼▼▼
             $lastAttendanceLog = AttendanceLog::where('user_id', $user->id)
                 ->orderByDesc('timestamp')
@@ -294,9 +301,12 @@ class AttendanceController extends Controller
                     $destination = $user->default_transportation_destination ?? null;
                     $amount = $user->default_transportation_amount ?? null;
 
-                    // デフォルトが未設定（null または 0 として扱いたい場合は適宜調整）なら登録しない
+                    // 必須のデフォルト設定が揃っているか確認する
                     if (is_null($amount) || $amount === 0) {
                         $extraMessage = 'デフォルト交通費が設定されていなかったため、交通費の登録ができませんでした。';
+                    } elseif (empty($departure) || empty($destination)) {
+                        $extraMessage = 'デフォルトの出発地または到着地が設定されていなかったため、交通費の登録ができませんでした。';
+                        Log::warning('Missing default departure/destination for user ' . $user->id . ' when auto-creating transportation.');
                     } else {
                         try {
                             TransportationExpense::create([
