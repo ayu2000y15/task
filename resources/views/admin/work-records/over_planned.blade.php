@@ -233,7 +233,7 @@
                                         @endif
                                     </div>
                                 </td>
-                                <td class="px-6 py-4 text-sm font-medium text-gray-900 dark:text-gray-100">
+                                <td class="px-6 py-4 text-sm font-medium text-gray-900 dark:text-gray-100 duration-200">
                                     {{ $item['task']->name }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
