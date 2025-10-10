@@ -116,4 +116,13 @@ class WorkLogPolicy
     {
         return $user->hasPermissionTo('work-logs.view-project-summary');
     }
+
+    /**
+     * 計画時間超過一覧を閲覧できるか判定する
+     */
+    public function viewOverPlanned(User $user): bool
+    {
+        // 既存の全閲覧権限を持つユーザー、または専用の権限を持つユーザーを許可
+        return $user->hasPermissionTo('work-logs.viewAny') || $user->hasPermissionTo('work-logs.view-over-planned');
+    }
 }

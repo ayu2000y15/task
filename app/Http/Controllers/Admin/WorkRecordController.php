@@ -628,4 +628,138 @@ class WorkRecordController extends Controller
 
         return view('admin.work-records.daily_log', compact('dailySummary'));
     }
+
+    /**
+     * 計画時間を超過している工程の一覧を表示する
+     */
+    public function overPlanned(Request $request)
+    {
+        $this->authorize('viewOverPlanned', WorkLog::class);
+
+        // 計画時間が設定されている工程で、作業実績時間が計画時間を超過しているものを取得
+        $overTasks = collect();
+
+        // クエリビルダーを構築
+        $query = \App\Models\Task::whereNotNull('duration')
+            ->where('duration', '>', 0)
+            ->with(['project', 'character', 'workLogs.user.hourlyRates', 'assignees']);
+
+        // 案件ステータスでフィルター（デフォルトで完了・キャンセルを除外）
+        $projectStatuses = $request->filled('project_status')
+            ? (is_array($request->project_status) ? $request->project_status : [$request->project_status])
+            : ['not_started', 'in_progress', 'on_hold']; // デフォルトで完了・キャンセル以外
+
+        $query->whereHas('project', function ($q) use ($projectStatuses) {
+            $q->whereIn('status', $projectStatuses);
+        });
+
+        // 案件でフィルター
+        if ($request->filled('project_id')) {
+            $query->where('project_id', $request->project_id);
+        }
+
+        // 期間でフィルター（作業ログの日付で判定）
+        if ($request->filled('start_date') || $request->filled('end_date')) {
+            $query->whereHas('workLogs', function ($q) use ($request) {
+                if ($request->filled('start_date')) {
+                    $q->whereDate('start_time', '>=', $request->start_date);
+                }
+                if ($request->filled('end_date')) {
+                    $q->whereDate('start_time', '<=', $request->end_date);
+                }
+            });
+        }
+
+        // 全てのタスクで計画時間が設定されているものを取得
+        $tasksWithDuration = $query->get();
+
+        foreach ($tasksWithDuration as $task) {
+            $plannedSeconds = $task->duration * 60; // 計画時間（分）を秒に変換
+
+            // 期間フィルターが適用されている場合は、該当期間の作業ログのみを対象とする
+            $relevantWorkLogs = $task->workLogs->where('status', 'stopped');
+            if ($request->filled('start_date') || $request->filled('end_date')) {
+                $relevantWorkLogs = $relevantWorkLogs->filter(function ($log) use ($request) {
+                    $logDate = $log->start_time->format('Y-m-d');
+                    $startDate = $request->filled('start_date') ? $request->start_date : null;
+                    $endDate = $request->filled('end_date') ? $request->end_date : null;
+
+                    if ($startDate && $logDate < $startDate) return false;
+                    if ($endDate && $logDate > $endDate) return false;
+                    return true;
+                });
+            }
+
+            $actualSeconds = $relevantWorkLogs->sum('effective_duration');
+
+            if ($actualSeconds > $plannedSeconds) {
+                $overageSeconds = $actualSeconds - $plannedSeconds;
+                $overagePercentage = $plannedSeconds > 0 ? ($overageSeconds / $plannedSeconds) * 100 : 0;
+
+                // 最新の作業ログから時給を取得して概算給与を計算
+                $totalSalary = 0;
+                $workLogsByUser = $relevantWorkLogs->groupBy('user_id');
+                $actualWorkers = collect();
+
+                foreach ($workLogsByUser as $userId => $userLogs) {
+                    $user = $userLogs->first()->user;
+                    $userTotalSeconds = $userLogs->sum('effective_duration');
+                    $latestRate = $user->hourlyRates->first()->rate ?? 0;
+                    $totalSalary += ($userTotalSeconds / 3600) * $latestRate;
+
+                    // 実際に作業した人の情報を収集
+                    $actualWorkers->push([
+                        'user' => $user,
+                        'total_seconds' => $userTotalSeconds,
+                        'salary' => ($userTotalSeconds / 3600) * $latestRate,
+                    ]);
+                }
+
+                // 担当者でフィルター（実際に作業した人で判定）
+                if ($request->filled('user_id')) {
+                    $hasTargetUser = $actualWorkers->contains(function ($worker) use ($request) {
+                        return $worker['user']->id == $request->user_id;
+                    });
+                    if (!$hasTargetUser) {
+                        continue;
+                    }
+                }
+
+                $overTasks->push([
+                    'task' => $task,
+                    'planned_seconds' => $plannedSeconds,
+                    'actual_seconds' => $actualSeconds,
+                    'overage_seconds' => $overageSeconds,
+                    'overage_percentage' => $overagePercentage,
+                    'total_salary' => $totalSalary,
+                    'work_logs_count' => $relevantWorkLogs->count(),
+                    'actual_workers' => $actualWorkers, // 実際に作業した人の情報を追加
+                    'relevant_work_logs' => $relevantWorkLogs, // フィルター適用済みの作業ログ
+                ]);
+            }
+        }
+
+        // 超過率でソート（降順）
+        $overTasks = $overTasks->sortByDesc('overage_percentage');
+
+        // 統計情報を計算
+        $totalOverageSeconds = $overTasks->sum('overage_seconds');
+        $totalOverageSalary = $overTasks->sum('total_salary');
+        $averageOveragePercentage = $overTasks->isNotEmpty() ? $overTasks->avg('overage_percentage') : 0;
+
+        // フィルター用データを取得
+        $users = \App\Models\User::orderBy('name')->get();
+        $projects = \App\Models\Project::orderBy('title')->get();
+        $projectStatusOptions = \App\Models\Project::PROJECT_STATUS_OPTIONS;
+
+        return view('admin.work-records.over_planned', compact(
+            'overTasks',
+            'totalOverageSeconds',
+            'totalOverageSalary',
+            'averageOveragePercentage',
+            'users',
+            'projects',
+            'projectStatusOptions'
+        ));
+    }
 }

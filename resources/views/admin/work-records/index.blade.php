@@ -8,13 +8,17 @@
 
 @section('content')
     <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8" x-data="{
-                            filtersOpen: {{ count(array_filter(request()->except(['page', 'sort', 'direction', 'month']))) > 0 ? 'true' : 'false' }},
-                            rateFormOpen: false
-                            }">
+                                filtersOpen: {{ count(array_filter(request()->except(['page', 'sort', 'direction', 'month']))) > 0 ? 'true' : 'false' }},
+                                rateFormOpen: false
+                                }">
 
         <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
             <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-200">作業実績一覧 (管理者用)</h1>
             <div class="flex items-center space-x-2">
+                <x-secondary-button onclick="window.location.href='{{ route('admin.work-records.over-planned') }}'"
+                    class="!bg-red-600 hover:!bg-red-700 dark:!bg-red-700 dark:hover:!bg-red-800 !text-white !border-transparent">
+                    <i class="fas fa-exclamation-triangle mr-1"></i>Over一覧
+                </x-secondary-button>
                 <x-secondary-button @click="rateFormOpen = !rateFormOpen">
                     <i class="fas fa-yen-sign mr-1"></i>時給登録
                     <span x-show="rateFormOpen" style="display:none;"><i class="fas fa-chevron-up fa-xs ml-2"></i></span>

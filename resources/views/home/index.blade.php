@@ -7,7 +7,13 @@
 
         <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
             <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-200">ホーム</h1>
-            <div class="flex-shrink-0">
+            <div class="flex-shrink-0 flex items-center space-x-2">
+                {{-- Over一覧ボタン（ログインユーザーで絞り込み） --}}
+                @can('viewOverPlanned', App\Models\WorkLog::class)
+                    <x-secondary-button as="a" href="{{ route('admin.work-records.over-planned', ['user_id' => Auth::id()]) }}">
+                        <i class="fas fa-exclamation-triangle mr-1"></i>Over一覧
+                    </x-secondary-button>
+                @endcan
                 @can('create', App\Models\Project::class)
                     <x-primary-button class="ml-2" onclick="location.href='{{ route('projects.create') }}'"><i
                             class="fas fa-plus mr-1"></i>新規案件</x-primary-button>
