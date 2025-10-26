@@ -22,6 +22,7 @@ class ProductivityService
         // (変更なし)
         $users = User::where('status', User::STATUS_ACTIVE)
             ->where('show_productivity', true) // ★ 追加
+            ->orderBy('sort_order')
             ->orderBy('name')->get();
 
         return $users->map(function ($user) {

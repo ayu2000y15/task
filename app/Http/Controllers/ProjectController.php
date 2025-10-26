@@ -588,7 +588,8 @@ class ProjectController extends Controller
             $viewData = [
                 'project' => $project,
                 'hideCompleted' => $hideCompleted,
-                'assigneeOptions' => User::where('status', User::STATUS_ACTIVE)->orderBy('name')->get(['id', 'name'])->map(fn($user) => ['id' => $user->id, 'name' => $user->name])->values()->all(),
+                'assigneeOptions' => User::where('status', User::STATUS_ACTIVE)->orderBy('sort_order')
+                    ->orderBy('name')->get(['id', 'name'])->map(fn($user) => ['id' => $user->id, 'name' => $user->name])->values()->all(),
             ];
             $viewPath = '';
 
@@ -850,7 +851,10 @@ class ProjectController extends Controller
         $masterFolder = $project->tasks()->where('name', $completionDataMasterFolderName)->where('is_folder', true)->firstOrCreate(['name' => $completionDataMasterFolderName, 'project_id' => $project->id], ['is_folder' => true, 'parent_id' => null, 'character_id' => null]);
         $completionDataFolders = Task::where('parent_id', $masterFolder->id)->where('is_folder', true)->with('files')->orderBy('name')->get();
         $availableInventoryItems = InventoryItem::where('quantity',  '>', 0)->orderBy('name')->get();
-        $assigneeOptions = User::where('status', User::STATUS_ACTIVE)->orderBy('name')->get(['id', 'name'])->map(fn($user) => ['id' => $user->id, 'name' => $user->name])->values()->all();
+        $assigneeOptions = User::where('status', User::STATUS_ACTIVE)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get(['id', 'name'])->map(fn($user) => ['id' => $user->id, 'name' => $user->name])->values()->all();
         return view('projects.show', compact(
             'project',
             'customFormFields',

@@ -86,7 +86,9 @@ class BoardPostController extends Controller
         $roles = $userRoles->push($everyoneRole);
 
         // 全てのアクティブなユーザーを取得
-        $allActiveUsers = User::where('status', User::STATUS_ACTIVE)->orderBy('name')->pluck('name', 'id');
+        $allActiveUsers = User::where('status', User::STATUS_ACTIVE)
+            ->orderBy('sort_order')
+            ->orderBy('name')->pluck('name', 'id');
         // アクティブな投稿タイプを取得
         $boardPostTypes = BoardPostType::active()->ordered()->get();
 
@@ -285,7 +287,9 @@ class BoardPostController extends Controller
         $roles = $userRoles->push($everyoneRole);
 
         // 全てのアクティブなユーザーを取得
-        $allActiveUsers = User::where('status', User::STATUS_ACTIVE)->orderBy('name')->pluck('name', 'id');
+        $allActiveUsers = User::where('status', User::STATUS_ACTIVE)
+            ->orderBy('sort_order')
+            ->orderBy('name')->pluck('name', 'id');
         // この投稿で既に選択されている閲覧可能ユーザーのIDを取得
         $selectedReadableUserIds = $post->readableUsers()->pluck('id')->toArray();
         // アクティブな投稿タイプを取得

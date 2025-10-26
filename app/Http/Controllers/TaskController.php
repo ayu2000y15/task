@@ -176,6 +176,7 @@ class TaskController extends Controller
         ];
 
         $assigneeOptions = User::where('status', User::STATUS_ACTIVE)
+            ->orderBy('sort_order')
             ->orderBy('name')
             ->get(['id', 'name'])
             ->map(function ($user) {

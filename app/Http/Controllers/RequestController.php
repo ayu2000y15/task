@@ -116,7 +116,9 @@ class RequestController extends Controller
      */
     public function create()
     {
-        $assigneeCandidates = User::where('status', User::STATUS_ACTIVE)->orderBy('name')->get();
+        $assigneeCandidates = User::where('status', User::STATUS_ACTIVE)
+            ->orderBy('sort_order')
+            ->orderBy('name')->get();
         $labor_statuses = ['not_started', 'on_hold', 'in_progress'];
         $projects = Project::orderBy('title')->whereIn('status', $labor_statuses)
             ->get(); // ★ 追加
@@ -232,7 +234,9 @@ class RequestController extends Controller
     {
         $this->authorize('update', $request);
 
-        $assigneeCandidates = User::where('status', User::STATUS_ACTIVE)->orderBy('name')->get();
+        $assigneeCandidates = User::where('status', User::STATUS_ACTIVE)
+            ->orderBy('sort_order')
+            ->orderBy('name')->get();
         $selectedAssignees = $request->assignees->pluck('id')->all();
         $labor_statuses = ['not_started', 'on_hold', 'in_progress'];
         $projects = Project::orderBy('title')->whereIn('status', $labor_statuses)

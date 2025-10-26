@@ -35,7 +35,9 @@ class ScheduleController extends Controller
 
         // ▼▼▼【ここから追加】▼▼▼
         // 全アクティブユーザーと、そのデフォルトシフトパターンを取得
-        $activeUsers = User::where('status', User::STATUS_ACTIVE)->orderBy('name')->get();
+        $activeUsers = User::where('status', User::STATUS_ACTIVE)
+            ->orderBy('sort_order')
+            ->orderBy('name')->get();
         $allDefaultPatterns = DefaultShiftPattern::whereIn('user_id', $activeUsers->pluck('id'))
             ->get()
             ->groupBy('user_id');
