@@ -165,7 +165,7 @@ class TaskController extends Controller
             }
         }
 
-        $assigneesForFilter = User::where('status', User::STATUS_ACTIVE)->orderBy('name')->pluck('name', 'id');
+        $assigneesForFilter = User::where('status', User::STATUS_ACTIVE)->orderBy('sort_order')->orderBy('name')->pluck('name', 'id');
 
         $statusOptions = [
             'not_started' => '未着手',
@@ -260,7 +260,7 @@ class TaskController extends Controller
             ->all();
 
         // ★ 担当者候補を「アクティブ」なユーザーに限定し、IDと名前のペアで取得
-        $assigneeOptions = User::where('status', User::STATUS_ACTIVE)->orderBy('name')->pluck('name', 'id');
+        $assigneeOptions = User::where('status', User::STATUS_ACTIVE)->orderBy('sort_order')->orderBy('name')->pluck('name', 'id');
         $selectedAssignees = old('assignees', []); // バリデーション失敗時のための選択済み担当者
 
         return view('tasks.create', compact(
@@ -488,7 +488,7 @@ class TaskController extends Controller
         if ($request->expectsJson()) {
             $html = '';
             // 担当者オプションは一度だけ取得
-            $assigneeOptions = User::where('status', User::STATUS_ACTIVE)->orderBy('name')->get();
+            $assigneeOptions = User::where('status', User::STATUS_ACTIVE)->orderBy('sort_order')->orderBy('name')->get();
 
             // 作成された全てのタスクについてHTMLを生成
             foreach ($createdTasks as $createdTask) {
@@ -579,7 +579,7 @@ class TaskController extends Controller
 
         $createdTasks = [];
         $newRowsHtml = '';
-        $assigneeOptions = User::where('status', User::STATUS_ACTIVE)->orderBy('name')->get(['id', 'name'])->map(fn($user) => ['id' => $user->id, 'name' => $user->name])->values()->all();
+        $assigneeOptions = User::where('status', User::STATUS_ACTIVE)->orderBy('sort_order')->orderBy('name')->get(['id', 'name'])->map(fn($user) => ['id' => $user->id, 'name' => $user->name])->values()->all();
 
         DB::beginTransaction();
         try {
@@ -676,7 +676,7 @@ class TaskController extends Controller
             ->all();
 
         // ★ 担当者候補と選択済み担当者IDを取得
-        $assigneeOptions = User::where('status', User::STATUS_ACTIVE)->orderBy('name')->pluck('name', 'id');
+        $assigneeOptions = User::where('status', User::STATUS_ACTIVE)->orderBy('sort_order')->orderBy('name')->pluck('name', 'id');
         $selectedAssignees = old('assignees', $task->assignees->pluck('id')->toArray());
 
         return view('tasks.edit', compact(
@@ -1361,7 +1361,7 @@ class TaskController extends Controller
 
             // 5. フロントエンドに新しい行を返すためのHTMLを生成
             $reworkTask->load(['assignees', 'project', 'character', 'parent']);
-            $assigneeOptions = User::where('status', User::STATUS_ACTIVE)->orderBy('name')->get(['id', 'name'])->map(fn($user) => ['id' => $user->id, 'name' => $user->name])->values()->all();
+            $assigneeOptions = User::where('status', User::STATUS_ACTIVE)->orderBy('sort_order')->orderBy('name')->get(['id', 'name'])->map(fn($user) => ['id' => $user->id, 'name' => $user->name])->values()->all();
 
             $showCharacterColumn = $request->input('view_context') === 'tasks-index';
 
