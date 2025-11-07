@@ -105,7 +105,7 @@
                     </p>
                 </div> --}}
                 <div>
-                    <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400">実働時間</h4>
+                    <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400">実働時間（作業ログ合計）</h4>
                     <p class="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-1">
                         {{ format_seconds_to_hms($summary['worklog_seconds'] ?? 0) }}
                     </p>
