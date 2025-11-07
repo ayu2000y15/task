@@ -92,7 +92,7 @@
         {{-- サマリー表示エリア --}}
         <div class="mb-6 bg-white dark:bg-gray-800 shadow rounded-lg p-4">
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
-                <div>
+                {{-- <div>
                     <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400">総勤務時間 (拘束時間)</h4>
                     <p class="text-2xl font-bold text-gray-800 dark:text-gray-200 mt-1">
                         {{ gmdate('H:i:s', $summary['detention_seconds']) }}
@@ -103,11 +103,11 @@
                     <p class="text-2xl font-bold text-gray-800 dark:text-gray-200 mt-1">
                         {{ gmdate('H:i:s', $summary['break_seconds']) }}
                     </p>
-                </div>
+                </div> --}}
                 <div>
-                    <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400">実質勤務時間</h4>
+                    <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400">実働時間</h4>
                     <p class="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-1">
-                        {{ gmdate('H:i:s', $summary['payable_seconds']) }}
+                        {{ format_seconds_to_hms($summary['worklog_seconds'] ?? 0) }}
                     </p>
                 </div>
             </div>

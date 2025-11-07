@@ -43,6 +43,44 @@ class WorkRecordController extends Controller
 
         $summary = $this->calculateAttendanceSummary($user, $startDate, $endDate);
 
+        // 期間内の作業ログ(WorkLog)の実働時間合計を算出してサマリーに追加
+        $workLogsForSummary = WorkLog::where('user_id', $user->id)
+            ->where(function ($query) use ($startDate, $endDate) {
+                // 期間内に開始したログ
+                $query->whereBetween('start_time', [$startDate, $endDate])
+                    // または、期間開始前に開始して、まだ実行中か、期間内に終了したログ
+                    ->orWhere(function ($q) use ($startDate) {
+                        $q->where('start_time', '<', $startDate)
+                            ->where(function ($sub) use ($startDate) {
+                                $sub->whereNull('end_time')
+                                    ->orWhere('end_time', '>=', $startDate);
+                            });
+                    });
+            })->get();
+
+        $totalWorkLogSeconds = $workLogsForSummary->sum(function ($log) use ($startDate, $endDate) {
+            // 期間との重なり部分のみを合算する
+            $periodStart = $startDate;
+            $periodEnd = $endDate;
+
+            $startTimeInPeriod = $log->display_start_time->isBefore($periodStart) ? $periodStart : $log->display_start_time;
+
+            $endTime = $log->display_end_time;
+            if ($endTime === null) {
+                $endTimeInPeriod = now()->isAfter($periodEnd) ? $periodEnd : now();
+            } else {
+                $endTimeInPeriod = $endTime->isAfter($periodEnd) ? $periodEnd : $endTime;
+            }
+
+            if ($startTimeInPeriod->isAfter($endTimeInPeriod)) {
+                return 0;
+            }
+
+            return $startTimeInPeriod->diffInSeconds($endTimeInPeriod);
+        });
+
+        $summary['worklog_seconds'] = $totalWorkLogSeconds;
+
         $templateData = [
             'viewMode' => $viewMode,
             'user' => $user,
