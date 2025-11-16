@@ -24,6 +24,7 @@ class Attendance extends Model
         'note',
         'status',
         'daily_salary',
+        'is_registered_day_off',
     ];
 
     protected $casts = [
@@ -32,6 +33,7 @@ class Attendance extends Model
         'end_time' => 'datetime',
         'break_seconds' => 'integer', // ▲ キャストを変更
         'actual_work_seconds' => 'integer',
+        'is_registered_day_off' => 'boolean',
     ];
 
     /**

@@ -235,11 +235,65 @@ class AttendanceController extends Controller
             'breaks.*.type' => 'required|string|in:break,away',
             'breaks.*.start_time' => 'required|date_format:H:i',
             'breaks.*.end_time' => 'required|date_format:H:i',
+            'is_day_off' => 'nullable|boolean',
         ]);
 
         $targetDate = Carbon::parse($date);
 
-        // --- 出勤・退勤時刻がなければ勤怠データごと削除 ---
+        // --- 休日として登録する場合の処理 ---
+        if (!empty($validated['is_day_off'])) {
+            DB::transaction(function () use ($user, $targetDate, $validated) {
+                // Attendanceレコードを休日として登録（時刻と給料はnull/0）
+                $attendance = Attendance::where('user_id', $user->id)->where('date', $targetDate)->first();
+                if ($attendance) {
+                    // 既存のbreaksを削除
+                    $attendance->breaks()->delete();
+                }
+
+                Attendance::updateOrCreate(
+                    ['user_id' => $user->id, 'date' => $targetDate->format('Y-m-d')],
+                    [
+                        'start_time' => null,
+                        'end_time' => null,
+                        'break_seconds' => 0,
+                        'actual_work_seconds' => 0,
+                        'note' => $validated['note'] ?? null,
+                        'status' => 'edited',
+                        'daily_salary' => 0,
+                        'is_registered_day_off' => true,
+                    ]
+                );
+
+                // WorkShiftにも休日として登録
+                WorkShift::updateOrCreate(
+                    [
+                        'user_id' => $user->id,
+                        'date' => $targetDate->format('Y-m-d')
+                    ],
+                    [
+                        'type' => 'full_day_off',
+                        'notes' => $validated['note'] ?? null,
+                        'name' => '登録休日',
+                        'start_time' => null,
+                        'end_time' => null,
+                        'break_minutes' => 0,
+                        'location' => null,
+                    ]
+                );
+
+                // その日の交通費を削除
+                TransportationExpense::where('user_id', $user->id)
+                    ->whereDate('date', $targetDate)
+                    ->delete();
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => '休日として登録しました。交通費がある場合は削除されました。'
+            ]);
+        }
+
+        // --- 出勤・退勤時刻がなければ勤怠データと休日登録を削除 ---
         if (empty($validated['start_time']) || empty($validated['end_time'])) {
             DB::transaction(function () use ($user, $targetDate) {
                 $attendance = Attendance::where('user_id', $user->id)->where('date', $targetDate)->first();
@@ -247,6 +301,12 @@ class AttendanceController extends Controller
                     $attendance->breaks()->delete();
                     $attendance->delete();
                 }
+
+                // 手動で登録した休日も削除
+                WorkShift::where('user_id', $user->id)
+                    ->where('date', $targetDate)
+                    ->where('type', 'full_day_off')
+                    ->delete();
             });
             return response()->json(['success' => true, 'message' => 'データをクリアしました。']);
         }
@@ -332,6 +392,12 @@ class AttendanceController extends Controller
 
         // --- 4. データベースへの保存 ---
         DB::transaction(function () use ($user, $targetDate, $shiftStart, $shiftEnd, $totalBreakSeconds, $payableWorkSeconds, $dailySalary, $validated, $breakIntervals) {
+            // 既存の休日登録があれば削除（勤務データを保存する場合は休日ではない）
+            WorkShift::where('user_id', $user->id)
+                ->where('date', $targetDate)
+                ->where('type', 'full_day_off')
+                ->delete();
+
             $attendance = Attendance::updateOrCreate(
                 ['user_id' => $user->id, 'date' => $targetDate->format('Y-m-d')],
                 [
@@ -342,6 +408,7 @@ class AttendanceController extends Controller
                     'note' => $validated['note'],
                     'status' => 'edited',
                     'daily_salary' => $dailySalary,
+                    'is_registered_day_off' => false,
                 ]
             );
 

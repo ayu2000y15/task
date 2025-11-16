@@ -197,16 +197,31 @@
                 @click.outside="closeEditModal()">
                 <h3 class="text-lg font-semibold mb-4" x-text="`勤怠編集 (${modal.date})`"></h3>
                 <div class="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
-                    <div>
+                    {{-- 休日として登録するチェックボックス --}}
+                    <div
+                        class="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md">
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                            <input type="checkbox" x-model="modal.is_day_off"
+                                class="rounded border-gray-300 text-yellow-600 focus:ring-yellow-500 dark:border-gray-600 dark:bg-gray-700">
+                            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                <i class="fas fa-calendar-times mr-1 text-yellow-600"></i>休日として登録する
+                            </span>
+                        </label>
+                        <p class="mt-1 text-xs text-gray-600 dark:text-gray-400 ml-6">
+                            ※作業ログがない日を休日として登録できます。交通費がある場合は自動的にクリアされます。
+                        </p>
+                    </div>
+
+                    <div x-show="!modal.is_day_off">
                         <label class="block text-sm font-medium">出勤時間</label>
                         <input type="time" x-model="modal.start_time" class="mt-1 w-full dark:bg-gray-700 rounded-md">
                     </div>
-                    <div>
+                    <div x-show="!modal.is_day_off">
                         <label class="block text-sm font-medium">退勤時間</label>
                         <input type="time" x-model="modal.end_time" class="mt-1 w-full dark:bg-gray-700 rounded-md">
                         <p class="mt-1 text-red-500 text-xs">※出勤時間より早い時刻を選択した場合、翌日の退勤時間となります。</p>
                     </div>
-                    <div>
+                    <div x-show="!modal.is_day_off">
                         <label class="block text-sm font-medium mb-1">休憩 / 中抜け</label>
                         <div class="space-y-2">
                             <template x-for="(br, index) in modal.breaks" :key="index">
@@ -257,7 +272,8 @@
                     start_time: '',
                     end_time: '',
                     breaks: [],
-                    note: ''
+                    note: '',
+                    is_day_off: false
                 },
                 openEditModal(date, startTime, endTime, breaksJson, note) {
                     this.modal.date = date;
@@ -265,6 +281,7 @@
                     this.modal.end_time = endTime;
                     this.modal.breaks = breaksJson ? JSON.parse(breaksJson) : [];
                     this.modal.note = note;
+                    this.modal.is_day_off = false; // デフォルトはfalse
                     this.editModalOpen = true;
                 },
                 closeEditModal() {
@@ -279,7 +296,8 @@
                             start_time: '',
                             end_time: '',
                             breaks: [],
-                            note: ''
+                            note: '',
+                            is_day_off: false
                         });
                         this.closeEditModal();
                     }

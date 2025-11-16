@@ -39,29 +39,40 @@
         </div>
     </td>
 
-    <td class="px-2 py-3"><span title="手動編集"><i class="fas fa-pencil-alt text-gray-500"></i></span></td>
-    <td class="px-2 py-3 font-mono text-sm">{{ optional($summary->start_time)->format('H:i') }}</td>
-    <td class="px-2 py-3 font-mono text-sm">
-        @if($summary->end_time)
-            @if(!$summary->end_time->isSameDay($date))
-                <span class="text-xs text-gray-500 dark:text-gray-400 mr-1">(翌日)</span>
+    @if($summary->is_registered_day_off)
+        <td class="px-2 py-3 text-gray-600 dark:text-gray-400 text-sm">管理者が休日として登録</td>
+        <td class="px-2 py-3 font-mono text-sm text-gray-400">-</td>
+        <td class="px-2 py-3 font-mono text-sm text-gray-400">-</td>
+        <td class="px-2 py-3 font-mono text-sm text-gray-400">-</td>
+        <td class="px-2 py-3 font-mono text-sm text-gray-400">-</td>
+        <td class="px-2 py-3 font-mono text-sm text-gray-400">-</td>
+        <td class="px-2 py-3 font-mono text-sm text-gray-400">-</td>
+        <td class="px-2 py-3 font-mono text-sm">¥0</td>
+    @else
+        <td class="px-2 py-3"><span title="手動編集"><i class="fas fa-pencil-alt text-gray-500"></i></span></td>
+        <td class="px-2 py-3 font-mono text-sm">{{ optional($summary->start_time)->format('H:i') }}</td>
+        <td class="px-2 py-3 font-mono text-sm">
+            @if($summary->end_time)
+                @if(!$summary->end_time->isSameDay($date))
+                    <span class="text-xs text-gray-500 dark:text-gray-400 mr-1">(翌日)</span>
+                @endif
+                {{ $summary->end_time->format('H:i') }}
             @endif
-            {{ $summary->end_time->format('H:i') }}
-        @endif
-    </td>
-    <td class="px-2 py-3 font-mono text-sm">
-        {{ $summary->end_time ? format_seconds_to_hms($summary->detention_seconds) : '-' }}
-    </td>
-    <td class="px-2 py-3 font-mono text-sm">{{ format_seconds_to_hms($summary->break_seconds) }}</td>
-    {{-- 支払対象時間 (拘束時間 - 休憩等) --}}
-    <td class="px-2 py-3 font-mono text-sm font-bold text-blue-600 dark:text-blue-400">
-        {{ format_seconds_to_hms($summary->actual_work_seconds) }}
-    </td>
-    {{-- 実働時間 (WorkLogの合計) --}}
-    <td class="px-2 py-3 font-mono text-sm font-semibold text-green-600 dark:text-green-400">
-        {{ format_seconds_to_hms($report['worklog_total_seconds']) }}
-    </td>
-    <td class="px-2 py-3 font-mono text-sm">¥{{ number_format($summary->daily_salary) }}</td>
+        </td>
+        <td class="px-2 py-3 font-mono text-sm">
+            {{ $summary->end_time ? format_seconds_to_hms($summary->detention_seconds) : '-' }}
+        </td>
+        <td class="px-2 py-3 font-mono text-sm">{{ format_seconds_to_hms($summary->break_seconds) }}</td>
+        {{-- 支払対象時間 (拘束時間 - 休憩等) --}}
+        <td class="px-2 py-3 font-mono text-sm font-bold text-blue-600 dark:text-blue-400">
+            {{ format_seconds_to_hms($summary->actual_work_seconds) }}
+        </td>
+        {{-- 実働時間 (WorkLogの合計) --}}
+        <td class="px-2 py-3 font-mono text-sm font-semibold text-green-600 dark:text-green-400">
+            {{ format_seconds_to_hms($report['worklog_total_seconds']) }}
+        </td>
+        <td class="px-2 py-3 font-mono text-sm">¥{{ number_format($summary->daily_salary) }}</td>
+    @endif
     <td class="px-2 py-3 text-center">
         @php
             $breaksForModal = $summary->breaks->map(fn($b) => [
