@@ -212,6 +212,34 @@
                         </p>
                     </div>
 
+                    {{-- 出勤場所選択 --}}
+                    <div>
+                        <label class="block text-sm font-medium mb-2">
+                            <i class="fas fa-map-marker-alt mr-1 text-gray-500"></i>出勤場所
+                        </label>
+                        <div class="flex gap-3">
+                            <label class="flex items-center space-x-2 cursor-pointer p-3 border rounded-md flex-1"
+                                :class="modal.location === 'remote' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-300 dark:border-gray-600'">
+                                <input type="radio" x-model="modal.location" value="remote"
+                                    class="text-blue-600 focus:ring-blue-500">
+                                <span class="text-sm font-medium">
+                                    <i class="fas fa-home mr-1"></i>在宅
+                                </span>
+                            </label>
+                            <label class="flex items-center space-x-2 cursor-pointer p-3 border rounded-md flex-1"
+                                :class="modal.location === 'office' ? 'border-green-500 bg-green-50 dark:bg-green-900/20' : 'border-gray-300 dark:border-gray-600'">
+                                <input type="radio" x-model="modal.location" value="office"
+                                    class="text-green-600 focus:ring-green-500">
+                                <span class="text-sm font-medium">
+                                    <i class="fas fa-building mr-1"></i>出勤
+                                </span>
+                            </label>
+                        </div>
+                        <p class="mt-1 text-xs text-gray-600 dark:text-gray-400">
+                            ※在宅→出勤に変更した場合、デフォルト交通費が自動登録されます。出勤→在宅に変更した場合、交通費は削除されます。
+                        </p>
+                    </div>
+
                     <div x-show="!modal.is_day_off">
                         <label class="block text-sm font-medium">出勤時間</label>
                         <input type="time" x-model="modal.start_time" class="mt-1 w-full dark:bg-gray-700 rounded-md">
@@ -273,15 +301,17 @@
                     end_time: '',
                     breaks: [],
                     note: '',
-                    is_day_off: false
+                    is_day_off: false,
+                    location: 'remote'
                 },
-                openEditModal(date, startTime, endTime, breaksJson, note) {
+                openEditModal(date, startTime, endTime, breaksJson, note, location) {
                     this.modal.date = date;
                     this.modal.start_time = startTime;
                     this.modal.end_time = endTime;
                     this.modal.breaks = breaksJson ? JSON.parse(breaksJson) : [];
                     this.modal.note = note;
                     this.modal.is_day_off = false; // デフォルトはfalse
+                    this.modal.location = location || 'remote'; // デフォルトは在宅
                     this.editModalOpen = true;
                 },
                 closeEditModal() {
@@ -297,7 +327,8 @@
                             end_time: '',
                             breaks: [],
                             note: '',
-                            is_day_off: false
+                            is_day_off: false,
+                            location: 'remote'
                         });
                         this.closeEditModal();
                     }

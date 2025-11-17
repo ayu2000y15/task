@@ -74,7 +74,7 @@
         <td class="px-2 py-3 text-center">
             @if($index === 0)
                 <button
-                    @click="openEditModal('{{ $date->format('Y-m-d') }}', '{{ $session['start_time']->format('H:i') }}', '{{ optional($session['end_time'])->format('H:i') }}', '[]', '')"
+                    @click="openEditModal('{{ $date->format('Y-m-d') }}', '{{ $session['start_time']->format('H:i') }}', '{{ optional($session['end_time'])->format('H:i') }}', '[]', '', '{{ $report['location'] ?? 'remote' }}')"
             class="text-blue-500 hover:text-blue-700 text-xs">編集</button> @endif
         </td>
     </tr>

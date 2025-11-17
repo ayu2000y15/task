@@ -82,7 +82,7 @@
             ]);
         @endphp
         <button
-            @click="openEditModal('{{ $date->format('Y-m-d') }}', '{{ optional($summary->start_time)->format('H:i') }}', '{{ optional($summary->end_time)->format('H:i') }}', '{{ json_encode($breaksForModal) }}', '{{ e($summary->note) }}')"
+            @click="openEditModal('{{ $date->format('Y-m-d') }}', '{{ optional($summary->start_time)->format('H:i') }}', '{{ optional($summary->end_time)->format('H:i') }}', '{{ json_encode($breaksForModal) }}', '{{ e($summary->note) }}', '{{ $report['location'] ?? 'remote' }}')"
             class="text-blue-500 hover:text-blue-700 text-xs">編集</button>
     </td>
 </tr>

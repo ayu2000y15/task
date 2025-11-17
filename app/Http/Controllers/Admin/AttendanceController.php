@@ -236,9 +236,43 @@ class AttendanceController extends Controller
             'breaks.*.start_time' => 'required|date_format:H:i',
             'breaks.*.end_time' => 'required|date_format:H:i',
             'is_day_off' => 'nullable|boolean',
+            'location' => 'nullable|in:remote,office',
         ]);
 
         $targetDate = Carbon::parse($date);
+        $newLocation = $validated['location'] ?? 'remote';
+
+        // --- 出勤場所の変更に伴う交通費の自動処理 ---
+        $currentWorkShift = WorkShift::where('user_id', $user->id)
+            ->where('date', $targetDate->format('Y-m-d'))
+            ->first();
+        $currentLocation = $currentWorkShift->location ?? 'remote';
+
+        // 在宅→出勤の場合: デフォルト交通費を追加
+        if ($currentLocation === 'remote' && $newLocation === 'office') {
+            if ($user->default_transportation_amount > 0) {
+                TransportationExpense::updateOrCreate(
+                    [
+                        'user_id' => $user->id,
+                        'date' => $targetDate->format('Y-m-d'),
+                        'departure' => $user->default_transportation_departure,
+                        'destination' => $user->default_transportation_destination,
+                    ],
+                    [
+                        'amount' => $user->default_transportation_amount,
+                        'notes' => '自動登録（出勤場所変更）',
+                        'project_id' => null,
+                    ]
+                );
+            }
+        }
+
+        // 出勤→在宅の場合: 交通費を削除
+        if ($currentLocation === 'office' && $newLocation === 'remote') {
+            TransportationExpense::where('user_id', $user->id)
+                ->where('date', $targetDate->format('Y-m-d'))
+                ->delete();
+        }
 
         // --- 休日として登録する場合の処理 ---
         if (!empty($validated['is_day_off'])) {
@@ -391,7 +425,7 @@ class AttendanceController extends Controller
         $dailySalary = ($rate > 0) ? round(($payableWorkSeconds / 3600) * $rate) : 0;
 
         // --- 4. データベースへの保存 ---
-        DB::transaction(function () use ($user, $targetDate, $shiftStart, $shiftEnd, $totalBreakSeconds, $payableWorkSeconds, $dailySalary, $validated, $breakIntervals) {
+        DB::transaction(function () use ($user, $targetDate, $shiftStart, $shiftEnd, $totalBreakSeconds, $payableWorkSeconds, $dailySalary, $validated, $breakIntervals, $newLocation) {
             // 既存の休日登録があれば削除（勤務データを保存する場合は休日ではない）
             WorkShift::where('user_id', $user->id)
                 ->where('date', $targetDate)
@@ -412,6 +446,17 @@ class AttendanceController extends Controller
                 ]
             );
 
+            // WorkShiftにlocationを保存
+            WorkShift::updateOrCreate(
+                ['user_id' => $user->id, 'date' => $targetDate->format('Y-m-d')],
+                [
+                    'type' => 'custom',
+                    'name' => '編集済み',
+                    'start_time' => $shiftStart,
+                    'end_time' => $shiftEnd,
+                    'location' => $newLocation,
+                ]
+            );
             $attendance->breaks()->delete();
             foreach ($breakIntervals as $interval) {
                 $attendance->breaks()->create([
