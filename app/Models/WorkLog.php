@@ -85,16 +85,18 @@ class WorkLog extends Model
             return 0;
         }
 
-        // 終了時刻が開始時刻より前の場合は、日跨ぎ（または保存時のズレ）とみなし
-        // 終了時刻に1日を足して差分を計算します。これにより、
-        // 例えば開始が 00:00、終了が 00:03 のケースで誤って 24:03:21 のように
-        // 表示される問題を回避します。
-        $end = $endTime;
-        if ($end->lt($startTime)) {
-            $end = $end->copy()->addDay();
+        // 日付部分にズレがある場合でも正しく「時刻差」を表示するために、
+        // 時刻(時/分/秒)のみを取り出して差分を計算します。
+        // これにより、開始が 00:00、終了が 00:03 の場合は 00:03(=3分) と表示されます。
+        $startSeconds = $startTime->hour * 3600 + $startTime->minute * 60 + $startTime->second;
+        $endSeconds = $endTime->hour * 3600 + $endTime->minute * 60 + $endTime->second;
+
+        if ($endSeconds < $startSeconds) {
+            // 終了時刻が時刻上で小さい場合は翌日扱い
+            $endSeconds += 24 * 3600;
         }
 
-        return (int) $startTime->diffInSeconds($end);
+        return (int) max(0, $endSeconds - $startSeconds);
     }
 
     // アクティビティログのオプション設定
