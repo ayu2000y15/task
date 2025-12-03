@@ -251,6 +251,22 @@
                             :hasError="$errors->has('last_stocked_at')" />
                         <x-input-error :messages="$errors->get('last_stocked_at')" class="mt-2" />
                     </div>
+
+                    {{-- 有効フラグ --}}
+                    <div class="border-t border-gray-200 dark:border-gray-600 pt-6">
+                        <div class="flex items-center">
+                            <input type="checkbox" name="is_active" id="is_active" value="1"
+                                {{ !old('is_active', $inventoryItem->is_active) ? 'checked' : '' }}
+                                class="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500 dark:bg-gray-700 dark:border-gray-600">
+                            <label for="is_active" class="ml-2 text-sm font-medium text-gray-900 dark:text-gray-300">
+                                この在庫品目を無効にする
+                            </label>
+                        </div>
+                        <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                            無効にすると、この在庫品目は一覧や選択肢に表示されなくなります。既存のデータには影響しません。
+                        </p>
+                        <x-input-error :messages="$errors->get('is_active')" class="mt-2" />
+                    </div>
                 </div>
                 <div class="px-6 py-4 bg-gray-50 dark:bg-gray-700/50 border-t border-gray-200 dark:border-gray-600 flex justify-end space-x-3">
                     <x-secondary-button as="a" href="{{ route('admin.inventory.index') }}">

@@ -20,6 +20,15 @@ class InventoryController extends Controller
     {
         $query = InventoryItem::query();
 
+        // 有効/無効フィルター（デフォルト: 有効のみ）
+        $activeFilter = $request->input('active_status', 'active');
+        if ($activeFilter === 'active') {
+            $query->where('is_active', true);
+        } elseif ($activeFilter === 'inactive') {
+            $query->where('is_active', false);
+        }
+        // 'all'の場合はフィルターを適用しない
+
         // 検索機能
         if ($request->filled('inventory_item_name')) {
             $query->where('name', 'like', '%' . $request->input('inventory_item_name') . '%');
@@ -45,6 +54,17 @@ class InventoryController extends Controller
         }
 
         $inventoryItems = $query->orderBy('name')->paginate(20)->appends($request->except('page'));
+
+        // Ajaxリクエストの場合はHTMLフラグメントとページ情報をJSON形式で返す
+        if ($request->ajax() || $request->wantsJson()) {
+            $html = view('admin.inventory.partials.inventory-rows', compact('inventoryItems'))->render();
+            return response()->json([
+                'html' => $html,
+                'current_page' => $inventoryItems->currentPage(),
+                'last_page' => $inventoryItems->lastPage(),
+                'total' => $inventoryItems->total(),
+            ]);
+        }
 
         return view('admin.inventory.index', compact('inventoryItems'));
     }
@@ -237,12 +257,16 @@ class InventoryController extends Controller
             'minimum_stock_level' => 'required|numeric|min:0',
             'supplier' => 'nullable|string|max:255',
             'last_stocked_at' => 'nullable|date',
+            'is_active' => 'nullable|boolean',
         ]);
 
         DB::beginTransaction();
         try {
             // ステップ1: 更新するデータをバリデーション済みデータから準備する
             $dataToUpdate = collect($validated)->except(['image_path', 'remove_image'])->all();
+
+            // is_activeの処理: チェックボックスが「無効にする」なので、チェックあり=false、なし=true
+            $dataToUpdate['is_active'] = !$request->has('is_active');
 
             // ステップ2: 画像の削除・更新処理を行い、最終的なパスを決定する
             if ($request->boolean('remove_image')) {
@@ -476,5 +500,59 @@ class InventoryController extends Controller
         });
 
         return response()->json($results);
+    }
+
+    /**
+     * 一括無効化処理
+     */
+    public function bulkDeactivate(Request $request)
+    {
+        $validated = $request->validate([
+            'item_ids' => 'required|array|min:1',
+            'item_ids.*' => 'required|integer|exists:inventory_items,id',
+        ], [
+            'item_ids.required' => '無効にする在庫品目を選択してください。',
+            'item_ids.min' => '最低1件の在庫品目を選択してください。',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $itemIds = $validated['item_ids'];
+            $items = InventoryItem::whereIn('id', $itemIds)->where('is_active', true)->get();
+
+            if ($items->isEmpty()) {
+                return back()->with('error', '選択された在庫品目は既に無効になっているか、見つかりませんでした。');
+            }
+
+            $updatedCount = 0;
+            foreach ($items as $item) {
+                $item->is_active = false;
+                $item->save();
+
+                // アクティビティログを記録
+                activity()
+                    ->performedOn($item)
+                    ->causedBy(Auth::user())
+                    ->withProperties([
+                        'action' => 'bulk_deactivate',
+                        'old_is_active' => true,
+                        'new_is_active' => false,
+                    ])
+                    ->log("在庫品目「{$item->name}」(ID:{$item->id}) が一括操作で無効化されました。");
+
+                $updatedCount++;
+            }
+
+            DB::commit();
+
+            return redirect()->route('admin.inventory.index')->with('success', "{$updatedCount}件の在庫品目を無効にしました。");
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Bulk deactivate failed: ' . $e->getMessage(), [
+                'item_ids' => $request->input('item_ids'),
+                'exception' => $e
+            ]);
+            return back()->with('error', '一括無効化処理中にエラーが発生しました。')->withInput();
+        }
     }
 }

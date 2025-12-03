@@ -21,6 +21,7 @@ class InventoryItem extends Model
         'supplier',
         'last_stocked_at',
         'total_cost', // ★ 追加
+        'is_active', // ★ 有効フラグ
     ];
 
     protected $casts = [
@@ -28,6 +29,7 @@ class InventoryItem extends Model
         'quantity' => 'decimal:2',
         'minimum_stock_level' => 'decimal:2',
         'total_cost' => 'decimal:2', // ★ 追加
+        'is_active' => 'boolean', // ★ 有効フラグ
     ];
 
     // ★ 平均単価を計算するアクセサを追加

@@ -289,6 +289,7 @@ Route::middleware('auth')->group(function () {
 
         Route::get('inventory/bulk-create', [InventoryController::class, 'bulkCreate'])->name('inventory.bulk-create');
         Route::post('inventory/bulk-store', [InventoryController::class, 'bulkStore'])->name('inventory.bulk-store');
+        Route::post('inventory/bulk-deactivate', [InventoryController::class, 'bulkDeactivate'])->name('inventory.bulk-deactivate');
 
         Route::resource('inventory', InventoryController::class)->parameters(['inventory' => 'inventoryItem']);
         Route::post('inventory/{inventoryItem}/stock-in', [InventoryController::class, 'stockIn'])->name('inventory.stockIn');
