@@ -223,15 +223,6 @@
 @endsection
 
 @push('scripts')
-<script type="application/json" id="project-data">
-    {!! json_encode([
-        'id' => $project->id,
-        // 今後必要になる権限情報などを追加
-        'can_update_materials' => auth()->user()->can('updateMaterials', $project),
-        'can_delete_materials' => auth()->user()->can('deleteMaterials', $project),
-        'can_manage_materials' => auth()->user()->can('manageMaterials', $project),
-    ]) !!}
-</script>
 <script>
     document.addEventListener('alpine:init', () => {
         Alpine.data('templateItemForm', () => ({
