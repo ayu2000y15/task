@@ -246,9 +246,9 @@ Route::middleware('auth')->group(function () {
 
         // 工程テンプレート管理
         Route::resource('process-templates', ProcessTemplateController::class);
-        Route::post('process-templates/{processTemplate}/items', [ProcessTemplateController::class, 'storeItem'])->name('process-templates.items.store');
-        Route::delete('process-templates/{processTemplate}/items/{item}', [ProcessTemplateController::class, 'destroyItem'])->name('process-templates.items.destroy');
+        Route::post('process-templates/{process_template}/items', [ProcessTemplateController::class, 'storeItem'])->name('process-templates.items.store');
         Route::put('process-templates/{process_template}/items/{item}', [ProcessTemplateController::class, 'itemsUpdate'])->name('process-templates.items.update');
+        Route::delete('process-templates/{process_template}/items/{item}', [ProcessTemplateController::class, 'destroyItem'])->name('process-templates.items.destroy');
 
         // 採寸テンプレート管理
         Route::resource('measurement-templates', MeasurementTemplateController::class)->except(['show']); // showはeditと統合する形で今回は作成

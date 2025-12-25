@@ -54,6 +54,8 @@
                                         @can('delete', $template)
                                             <form action="{{ route('admin.process-templates.destroy', $template) }}" method="POST"
                                                 class="d-inline" onsubmit="return confirm('本当に削除しますか？');">
+                                                @csrf
+                                                @method('DELETE')
                                                 <x-icon-button
                                                         icon="fas fa-trash"
                                                         title="削除"
