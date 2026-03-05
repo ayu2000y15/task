@@ -296,31 +296,16 @@ class ProjectController extends Controller
             return in_array($project->status, $archivedStatuses);
         });
 
-        // カテゴリ情報を取得（display_order順）
-        $categories = \App\Models\ProjectCategory::orderBy('display_order')->orderBy('name')->get();
+        // 終了日の月ごとにグループ化
+        $activeProjectsByMonth = $activeProjects->groupBy(function ($project) {
+            return $project->end_date->format('Y-m');
+        })->sortKeys(); // 年月順にソート
 
-        // カテゴリ別にグループ化（並び順考慮）
-        $activeProjectsByCategory = $activeProjects->groupBy(function ($project) {
-            return $project->projectCategory ? $project->projectCategory->name : 'uncategorized';
-        })->sortBy(function ($projects, $categoryKey) use ($categories) {
-            if ($categoryKey === 'uncategorized') {
-                return 999999; // 未分類を最後に
-            }
-            $category = $categories->where('name', $categoryKey)->first();
-            return $category ? $category->display_order : 999998;
-        });
+        $archivedProjectsByMonth = $archivedProjects->groupBy(function ($project) {
+            return $project->end_date->format('Y-m');
+        })->sortKeys(); // 年月順にソート
 
-        $archivedProjectsByCategory = $archivedProjects->groupBy(function ($project) {
-            return $project->projectCategory ? $project->projectCategory->name : 'uncategorized';
-        })->sortBy(function ($projects, $categoryKey) use ($categories) {
-            if ($categoryKey === 'uncategorized') {
-                return 999999; // 未分類を最後に
-            }
-            $category = $categories->where('name', $categoryKey)->first();
-            return $category ? $category->display_order : 999998;
-        });
-
-        return view('projects.index', compact('activeProjects', 'archivedProjects', 'activeProjectsByCategory', 'archivedProjectsByCategory', 'categories'));
+        return view('projects.index', compact('activeProjects', 'archivedProjects', 'activeProjectsByMonth', 'archivedProjectsByMonth'));
     }
 
     /**

@@ -30,16 +30,19 @@
                         <p>進行中の案件はありません。</p>
                     </div>
                 @else
-                    {{-- カテゴリ別表示 --}}
-                    @foreach($activeProjectsByCategory as $categoryKey => $projects)
+                    {{-- 月別表示 --}}
+                    @foreach($activeProjectsByMonth as $monthKey => $projects)
                         @php
-                            $categoryName = $categoryKey === 'uncategorized' ? '未分類' : ($categories->where('name', $categoryKey)->first()->display_name ?? $categoryKey);
+                            $monthDate = \Carbon\Carbon::createFromFormat('Y-m', $monthKey);
+                            $monthName = $monthDate->format('Y年m月');
+                            $isPast = $monthDate->endOfMonth()->isPast();
                         @endphp
                         <div class="mb-8">
                             <h3 class="text-lg font-medium text-gray-600 dark:text-gray-400 mb-4 flex items-center">
                                 <span
-                                    class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-200 mr-2">
-                                    {{ $categoryName }}
+                                    class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium {{ $isPast ? 'bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-200' : 'bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-200' }} mr-2">
+                                    <i class="fas fa-calendar mr-1.5"></i>
+                                    {{ $monthName }} 納期
                                 </span>
                                 <span class="text-sm text-gray-500">({{ $projects->count() }}件)</span>
                             </h3>
@@ -68,16 +71,18 @@
                         x-transition:leave="transition ease-in duration-200"
                         x-transition:leave-start="opacity-100 transform translate-y-0"
                         x-transition:leave-end="opacity-0 transform -translate-y-4">
-                        {{-- アーカイブもカテゴリ別表示 --}}
-                        @foreach($archivedProjectsByCategory as $categoryKey => $projects)
+                        {{-- アーカイブも月別表示 --}}
+                        @foreach($archivedProjectsByMonth as $monthKey => $projects)
                             @php
-                                $categoryName = $categoryKey === 'uncategorized' ? '未分類' : ($categories->where('name', $categoryKey)->first()->display_name ?? $categoryKey);
+                                $monthDate = \Carbon\Carbon::createFromFormat('Y-m', $monthKey);
+                                $monthName = $monthDate->format('Y年m月');
                             @endphp
                             <div class="mb-8">
                                 <h3 class="text-lg font-medium text-gray-600 dark:text-gray-400 mb-4 flex items-center">
                                     <span
                                         class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200 mr-2">
-                                        {{ $categoryName }}
+                                        <i class="fas fa-calendar mr-1.5"></i>
+                                        {{ $monthName }} 納期
                                     </span>
                                     <span class="text-sm text-gray-500">({{ $projects->count() }}件)</span>
                                 </h3>
