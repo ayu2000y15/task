@@ -286,7 +286,7 @@ class ProjectController extends Controller
     public function index()
     {
         $this->authorize('viewAny', Project::class);
-        $allProjects = Project::with('projectCategory')->orderBy('start_date')->orderBy('title')->get();
+        $allProjects = Project::with('projectCategory')->orderBy('end_date')->orderBy('start_date')->orderBy('title')->get();
 
         // 「完了」または「キャンセル」のステータスを持つ案件をアーカイブ済みとする
         $archivedStatuses = ['completed', 'cancelled'];
