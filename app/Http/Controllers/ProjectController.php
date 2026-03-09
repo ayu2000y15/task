@@ -291,13 +291,30 @@ class ProjectController extends Controller
         // 「完了」または「キャンセル」のステータスを持つ案件をアーカイブ済みとする
         $archivedStatuses = ['completed', 'cancelled'];
 
-        // partitionメソッドを使い、条件に一致するもの（アーカイブ済み）としないもの（進行中）に分割
-        list($archivedProjects, $activeProjects) = $allProjects->partition(function ($project) use ($archivedStatuses) {
-            return in_array($project->status, $archivedStatuses);
-        });
+        // 案件を3つのカテゴリに分類
+        $archivedProjects = collect();
+        $deliveredUnpaidProjects = collect();
+        $activeProjects = collect();
+
+        foreach ($allProjects as $project) {
+            if (in_array($project->status, $archivedStatuses)) {
+                // 完了・キャンセルした案件
+                $archivedProjects->push($project);
+            } elseif ($project->delivery_flag == '1' && $project->payment_flag != 'Completed') {
+                // 納品済み・未払いの案件
+                $deliveredUnpaidProjects->push($project);
+            } else {
+                // 進行中の案件（未納品かつ支払完了以外、または納品済みで支払完了）
+                $activeProjects->push($project);
+            }
+        }
 
         // 終了日の月ごとにグループ化
         $activeProjectsByMonth = $activeProjects->groupBy(function ($project) {
+            return $project->end_date->format('Y-m');
+        })->sortKeys(); // 年月順にソート
+
+        $deliveredUnpaidProjectsByMonth = $deliveredUnpaidProjects->groupBy(function ($project) {
             return $project->end_date->format('Y-m');
         })->sortKeys(); // 年月順にソート
 
@@ -305,7 +322,7 @@ class ProjectController extends Controller
             return $project->end_date->format('Y-m');
         })->sortKeys(); // 年月順にソート
 
-        return view('projects.index', compact('activeProjects', 'archivedProjects', 'activeProjectsByMonth', 'archivedProjectsByMonth'));
+        return view('projects.index', compact('activeProjects', 'deliveredUnpaidProjects', 'archivedProjects', 'activeProjectsByMonth', 'deliveredUnpaidProjectsByMonth', 'archivedProjectsByMonth'));
     }
 
     /**

@@ -7,9 +7,48 @@
                 <h5 class="text-base font-semibold text-white truncate flex-1" title="{{ $project->title }}">
                     {{ $project->title }}
                 </h5>
-                @if($project->is_favorite)
-                    <i class="fas fa-star text-yellow-300 flex-shrink-0"></i>
-                @endif
+                @php
+                    // ステータス関連アイコンの定義
+                    $deliveryColor = $project->delivery_flag == '1' ? 'text-green-300' : 'text-yellow-300';
+                    $deliveryTitle = $project->delivery_flag == '1' ? '納品済み' : '未納品';
+
+                    $paymentColorMap = [
+                        'Pending' => 'text-yellow-300',
+                        'Processing' => 'text-blue-300',
+                        'Completed' => 'text-green-300',
+                        'Partially Paid' => 'text-orange-300',
+                        'Overdue' => 'text-red-300',
+                        'Cancelled' => 'text-gray-300',
+                        'Refunded' => 'text-purple-300',
+                        'On Hold' => 'text-indigo-300',
+                    ];
+                    $paymentColor = $paymentColorMap[$project->payment_flag ?? ''] ?? 'text-gray-300';
+                    $paymentOptions = \App\Models\Project::PAYMENT_FLAG_OPTIONS ?? [];
+                    $paymentTitle = $paymentOptions[$project->payment_flag] ?? '未設定';
+
+                    $statusColorMap = [
+                        'not_started' => 'text-gray-300',
+                        'in_progress' => 'text-blue-300',
+                        'completed' => 'text-green-300',
+                        'on_hold' => 'text-yellow-300',
+                        'cancelled' => 'text-red-300',
+                    ];
+                    $statusColor = $statusColorMap[$project->status ?? ''] ?? 'text-gray-300';
+                    $statusOptions = \App\Models\Project::PROJECT_STATUS_OPTIONS ?? [];
+                    $statusTitle = $statusOptions[$project->status] ?? '未設定';
+                @endphp
+                <div class="flex items-center gap-1.5 flex-shrink-0">
+                    <i class="fas fa-truck {{ $deliveryColor }} text-sm" title="{{ $deliveryTitle }}"></i>
+                    @if($project->payment_flag)
+                        <i class="fas fa-yen-sign {{ $paymentColor }} text-sm" title="支払い: {{ $paymentTitle }}"></i>
+                    @endif
+                    @if($project->status)
+                        <i class="fas fa-tasks {{ $statusColor }} text-sm" title="ステータス: {{ $statusTitle }}"></i>
+                    @endif
+                    @if($project->is_favorite)
+                        <i class="fas fa-star text-yellow-300 text-sm" title="お気に入り"></i>
+                    @endif
+                </div>
             </div>
             <i class="fas fa-chevron-down text-gray-600 dark:text-gray-400 ml-2 transition-transform duration-200 flex-shrink-0"
                 :class="{ 'rotate-180': open }"></i>
